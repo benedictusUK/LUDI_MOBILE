@@ -135,6 +135,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update team settings
+  app.put("/api/teams/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id: teamId } = req.params;
+      const userId = req.user?.claims?.sub;
+      const updates = req.body;
+
+      // Check if user is admin of the team
+      const userTeam = await storage.getUserTeam(userId, teamId);
+      if (!userTeam || userTeam.role !== "admin") {
+        return res.status(403).json({ message: "Not authorized to update team" });
+      }
+
+      // Filter out fields that shouldn't be updated via this endpoint
+      const allowedUpdates = {
+        name: updates.name,
+        sport: updates.sport,
+        description: updates.description,
+        isPrivate: updates.isPrivate,
+        requiresApproval: updates.requiresApproval,
+      };
+
+      const updatedTeam = await storage.updateTeam(teamId, allowedUpdates);
+      res.json(updatedTeam);
+    } catch (error) {
+      console.error("Error updating team:", error);
+      res.status(500).json({ message: "Failed to update team" });
+    }
+  });
+
   // Delete team
   app.delete("/api/teams/:id", isAuthenticated, async (req: any, res) => {
     try {

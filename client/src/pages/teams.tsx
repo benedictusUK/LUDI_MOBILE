@@ -14,6 +14,151 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 
+// Team Settings Modal Component
+function TeamSettingsModal({ team, onClose, onSave, isLoading }: {
+  team: any;
+  onClose: () => void;
+  onSave: (updates: any) => void;
+  isLoading: boolean;
+}) {
+  const [formData, setFormData] = useState({
+    name: team.name || "",
+    sport: team.sport || "",
+    description: team.description || "",
+    isPrivate: team.isPrivate || false,
+    requiresApproval: team.requiresApproval || false,
+  });
+
+  const handleSave = () => {
+    onSave(formData);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="p-6 border-b">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-neutral-900">
+              Team Settings
+            </h2>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={onClose}
+            >
+              <i className="fas fa-times"></i>
+            </Button>
+          </div>
+        </div>
+        
+        <div className="p-6 space-y-6">
+          {/* Basic Information */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium text-neutral-900">Basic Information</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="teamName">Team Name</Label>
+                <Input
+                  id="teamName"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  disabled={team.role !== "admin"}
+                />
+              </div>
+              <div>
+                <Label htmlFor="teamSport">Sport</Label>
+                <Input
+                  id="teamSport"
+                  value={formData.sport}
+                  onChange={(e) => setFormData({ ...formData, sport: e.target.value })}
+                  disabled={team.role !== "admin"}
+                />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="teamDescription">Description</Label>
+              <Textarea
+                id="teamDescription"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Describe your team..."
+                disabled={team.role !== "admin"}
+              />
+            </div>
+          </div>
+
+          {/* Team Settings */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium text-neutral-900">Team Settings</h3>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Private Team</Label>
+                  <p className="text-sm text-neutral-500">Only invited members can join</p>
+                </div>
+                <Switch 
+                  checked={formData.isPrivate}
+                  onCheckedChange={(checked) => setFormData({ ...formData, isPrivate: checked })}
+                  disabled={team.role !== "admin"}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Require Approval</Label>
+                  <p className="text-sm text-neutral-500">Admin must approve new members</p>
+                </div>
+                <Switch 
+                  checked={formData.requiresApproval}
+                  onCheckedChange={(checked) => setFormData({ ...formData, requiresApproval: checked })}
+                  disabled={team.role !== "admin"}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Invite Code */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium text-neutral-900">Invite Code</h3>
+            <div className="flex items-center space-x-2">
+              <Input
+                value={team.inviteCode || "No invite code generated"}
+                readOnly
+                className="flex-1"
+              />
+              <Button variant="outline" size="sm">
+                <i className="fas fa-copy"></i>
+              </Button>
+              {team.role === "admin" && (
+                <Button variant="outline" size="sm">
+                  Regenerate
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 border-t bg-neutral-50 flex justify-end space-x-3">
+          <Button 
+            variant="outline"
+            onClick={onClose}
+            disabled={isLoading}
+          >
+            Cancel
+          </Button>
+          {team.role === "admin" && (
+            <Button
+              onClick={handleSave}
+              disabled={isLoading}
+            >
+              {isLoading ? "Saving..." : "Save Changes"}
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Teams() {
   const { toast } = useToast();
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -74,6 +219,28 @@ export default function Teams() {
       toast({
         title: "Error",
         description: "Failed to send invitation",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update team settings mutation
+  const updateTeamMutation = useMutation({
+    mutationFn: async ({ teamId, updates }: { teamId: string; updates: any }) => {
+      await apiRequest("PUT", `/api/teams/${teamId}`, updates);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/teams"] });
+      setShowSettingsModal(false);
+      toast({
+        title: "Success",
+        description: "Team settings updated successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update team settings",
         variant: "destructive",
       });
     },
@@ -456,119 +623,12 @@ export default function Teams() {
 
         {/* Team Settings Modal */}
         {showSettingsModal && selectedTeam && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-              <div className="p-6 border-b">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-semibold text-neutral-900">
-                    Team Settings
-                  </h2>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => setShowSettingsModal(false)}
-                  >
-                    <i className="fas fa-times"></i>
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="p-6 space-y-6">
-                {/* Basic Information */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium text-neutral-900">Basic Information</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="teamName">Team Name</Label>
-                      <Input
-                        id="teamName"
-                        defaultValue={selectedTeam.name}
-                        disabled={selectedTeam.role !== "admin"}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="teamSport">Sport</Label>
-                      <Input
-                        id="teamSport"
-                        defaultValue={selectedTeam.sport}
-                        disabled={selectedTeam.role !== "admin"}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="teamDescription">Description</Label>
-                    <Textarea
-                      id="teamDescription"
-                      defaultValue={selectedTeam.description || ""}
-                      placeholder="Describe your team..."
-                      disabled={selectedTeam.role !== "admin"}
-                    />
-                  </div>
-                </div>
-
-                {/* Team Settings */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium text-neutral-900">Team Settings</h3>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label>Private Team</Label>
-                        <p className="text-sm text-neutral-500">Only invited members can join</p>
-                      </div>
-                      <Switch 
-                        defaultChecked={selectedTeam.isPrivate}
-                        disabled={selectedTeam.role !== "admin"}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label>Require Approval</Label>
-                        <p className="text-sm text-neutral-500">Admin must approve new members</p>
-                      </div>
-                      <Switch 
-                        defaultChecked={selectedTeam.requiresApproval}
-                        disabled={selectedTeam.role !== "admin"}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Invite Code */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium text-neutral-900">Invite Code</h3>
-                  <div className="flex items-center space-x-2">
-                    <Input
-                      value={selectedTeam.inviteCode || "No invite code generated"}
-                      readOnly
-                      className="flex-1"
-                    />
-                    <Button variant="outline" size="sm">
-                      <i className="fas fa-copy"></i>
-                    </Button>
-                    {selectedTeam.role === "admin" && (
-                      <Button variant="outline" size="sm">
-                        Regenerate
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-6 border-t bg-neutral-50 flex justify-end space-x-3">
-                <Button 
-                  variant="outline"
-                  onClick={() => setShowSettingsModal(false)}
-                >
-                  Cancel
-                </Button>
-                {selectedTeam.role === "admin" && (
-                  <Button>
-                    Save Changes
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
+          <TeamSettingsModal 
+            team={selectedTeam}
+            onClose={() => setShowSettingsModal(false)}
+            onSave={(updates) => updateTeamMutation.mutate({ teamId: selectedTeam.id, updates })}
+            isLoading={updateTeamMutation.isPending}
+          />
         )}
 
         {/* Delete Team Confirmation Modal */}
