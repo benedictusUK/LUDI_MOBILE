@@ -24,7 +24,7 @@ const teamFormSchema = z.object({
   description: z.string().optional(),
   sport: z.string().min(1, "Sport is required"),
   color: z.string().default("#3b82f6"),
-  maxMembers: z.number().min(1).optional(),
+  maxPlayers: z.string().optional(),
   isPrivate: z.boolean().default(false),
   requiresApproval: z.boolean().default(true),
 });
@@ -48,7 +48,7 @@ export default function TeamForm({ onCancel, onSuccess, teamId }: TeamFormProps)
       description: "",
       sport: "",
       color: "#3b82f6",
-      maxMembers: undefined,
+      maxPlayers: "",
       isPrivate: false,
       requiresApproval: true,
     },
@@ -56,9 +56,15 @@ export default function TeamForm({ onCancel, onSuccess, teamId }: TeamFormProps)
 
   const createTeamMutation = useMutation({
     mutationFn: async (data: TeamFormData) => {
+      // Convert string maxPlayers to number or null for "No limit"
+      const processedData = {
+        ...data,
+        maxPlayers: data.maxPlayers && data.maxPlayers !== "" ? parseInt(data.maxPlayers) : null,
+      };
+      
       const url = isEditing ? `/api/teams/${teamId}` : "/api/teams";
       const method = isEditing ? "PUT" : "POST";
-      return apiRequest(method, url, data);
+      return apiRequest(method, url, processedData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/teams"] });
@@ -195,14 +201,15 @@ export default function TeamForm({ onCancel, onSuccess, teamId }: TeamFormProps)
               </div>
 
               <div>
-                <Label htmlFor="maxMembers">Maximum Members</Label>
+                <Label htmlFor="maxPlayers">Maximum Players</Label>
                 <Input
-                  id="maxMembers"
+                  id="maxPlayers"
                   type="number"
                   min="1"
-                  {...form.register("maxMembers", { valueAsNumber: true })}
-                  placeholder="No limit"
+                  {...form.register("maxPlayers")}
+                  placeholder="Leave empty for no limit"
                 />
+                <p className="text-xs text-neutral-500 mt-1">Leave empty for unlimited members</p>
               </div>
 
               <div className="space-y-4 pt-4">
