@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import Navigation from "@/components/ui/nav";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -80,11 +81,13 @@ export default function Settings() {
   const overduePayments = payments.filter((p: any) => p.status === 'overdue').length;
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center gap-2">
-        <SettingsIcon className="h-6 w-6" />
-        <h1 className="text-3xl font-bold">Settings</h1>
-      </div>
+    <div className="min-h-screen bg-neutral-50">
+      <Navigation />
+      <div className="container mx-auto p-6 space-y-6">
+        <div className="flex items-center gap-2">
+          <SettingsIcon className="h-6 w-6" />
+          <h1 className="text-3xl font-bold">Settings</h1>
+        </div>
 
       {/* Profile Information */}
       <Card>
@@ -274,6 +277,7 @@ export default function Settings() {
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }
