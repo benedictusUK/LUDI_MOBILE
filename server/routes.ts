@@ -299,6 +299,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get event activity audit logs (for team admins)
+  app.get("/api/events/:eventId/audit", isAuthenticated, async (req: any, res) => {
+    try {
+      const { eventId } = req.params;
+      const userId = req.user?.claims?.sub;
+
+      // Check if user is admin/captain of the primary team for this event
+      const event = await storage.getEvent(eventId);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+
+      const userTeam = await storage.getUserTeam(userId, event.primaryTeamId);
+      if (!userTeam || !["admin", "captain"].includes(userTeam.role)) {
+        return res.status(403).json({ message: "Not authorized to view audit logs" });
+      }
+
+      const auditLogs = await storage.getEventActivityLogs(eventId);
+      res.json(auditLogs);
+    } catch (error) {
+      console.error("Error fetching audit logs:", error);
+      res.status(500).json({ message: "Failed to fetch audit logs" });
+    }
+  });
+
   // Notification preferences routes
   app.get('/api/notification-preferences', isAuthenticated, async (req: any, res) => {
     try {

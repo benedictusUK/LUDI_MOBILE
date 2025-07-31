@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
 import Navigation from "@/components/ui/nav";
 import EventForm from "@/components/ui/event-form";
+import AuditModal from "@/components/ui/audit-modal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +17,11 @@ export default function Events() {
   const [location] = useLocation();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+  const [auditModal, setAuditModal] = useState<{ isOpen: boolean; eventId: string; eventName: string }>({
+    isOpen: false,
+    eventId: "",
+    eventName: "",
+  });
 
   // Extract team parameter from URL
   useEffect(() => {
@@ -199,6 +205,19 @@ export default function Events() {
                     <Button size="sm" className="flex-1">
                       Edit
                     </Button>
+                    {event.enableVoting && (
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => setAuditModal({
+                          isOpen: true,
+                          eventId: event.id,
+                          eventName: event.name,
+                        })}
+                      >
+                        Audit
+                      </Button>
+                    )}
                     <Button 
                       size="sm" 
                       variant="outline" 
@@ -214,6 +233,14 @@ export default function Events() {
           )}
         </div>
       </main>
+
+      {/* Audit Modal */}
+      <AuditModal
+        eventId={auditModal.eventId}
+        eventName={auditModal.eventName}
+        isOpen={auditModal.isOpen}
+        onClose={() => setAuditModal({ isOpen: false, eventId: "", eventName: "" })}
+      />
     </div>
   );
 }

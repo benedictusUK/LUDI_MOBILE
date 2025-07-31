@@ -74,12 +74,12 @@ export default function Home() {
                 </Button>
               </Link>
 
-              <Link href="/settings">
+              <Link href="/notifications">
                 <Button variant="outline" className="flex flex-col items-center p-6 h-auto space-y-2 w-full">
                   <div className="bg-purple-600 p-3 rounded-lg">
-                    <i className="fas fa-chart-bar text-white text-lg"></i>
+                    <i className="fas fa-bell text-white text-lg"></i>
                   </div>
-                  <span className="text-sm font-medium">Reports</span>
+                  <span className="text-sm font-medium">Notifications</span>
                 </Button>
               </Link>
             </div>

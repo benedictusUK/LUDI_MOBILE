@@ -8,6 +8,7 @@ import {
   eventAttendance,
   payments,
   notificationPreferences,
+  activityLogs,
   type User,
   type UpsertUser,
   type Team,
@@ -24,6 +25,8 @@ import {
   type InsertPayment,
   type NotificationPreferences,
   type InsertNotificationPreferences,
+  type ActivityLog,
+  type InsertActivityLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, count, sql } from "drizzle-orm";
@@ -36,7 +39,7 @@ export interface IStorage {
   updateUserStripeInfo(userId: string, stripeCustomerId: string, stripeSubscriptionId?: string): Promise<User>;
 
   // Team operations
-  createTeam(team: InsertTeam): Promise<Team>;
+  createTeam(teamData: InsertTeam, ownerId: string): Promise<Team>;
   getTeam(id: string): Promise<Team | undefined>;
   getUserTeams(userId: string): Promise<(Team & { role: string; memberCount: number })[]>;
   addTeamMember(teamId: string, userId: string, role?: string): Promise<TeamMembership>;
@@ -83,6 +86,10 @@ export interface IStorage {
     totalPlayers: number;
     unreadNotifications: number;
   }>;
+
+  // Activity log operations
+  logActivity(activity: InsertActivityLog): Promise<ActivityLog>;
+  getEventActivityLogs(eventId: string): Promise<(ActivityLog & { user: User })[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -505,6 +512,32 @@ export class DatabaseStorage implements IStorage {
       totalPlayers: totalPlayers[0]?.count || 0,
       unreadNotifications: unreadNotifications[0]?.count || 0,
     };
+  }
+
+  // Activity log operations
+  async logActivity(activity: InsertActivityLog): Promise<ActivityLog> {
+    const [log] = await db
+      .insert(activityLogs)
+      .values({
+        ...activity,
+        timestamp: new Date(),
+      })
+      .returning();
+    return log;
+  }
+
+  async getEventActivityLogs(eventId: string): Promise<(ActivityLog & { user: User })[]> {
+    const result = await db
+      .select()
+      .from(activityLogs)
+      .innerJoin(users, eq(activityLogs.userId, users.id))
+      .where(eq(activityLogs.eventId, eventId))
+      .orderBy(desc(activityLogs.timestamp));
+
+    return result.map((row: any) => ({
+      ...row.activity_logs,
+      user: row.users,
+    }));
   }
 }
 
