@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Dialog,
@@ -8,8 +7,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-
 import { ActivityIcon, ClockIcon, UserIcon } from "lucide-react";
 import type { ActivityLog, User } from "@shared/schema";
 
@@ -62,7 +59,7 @@ export default function AuditModal({ eventId, eventName, isOpen, onClose }: Audi
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[60vh]">
+        <div className="max-h-[60vh] overflow-y-auto">
           {isLoading ? (
             <div className="flex justify-center items-center py-8">
               <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
@@ -120,7 +117,7 @@ export default function AuditModal({ eventId, eventName, isOpen, onClose }: Audi
               })}
             </div>
           )}
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );
