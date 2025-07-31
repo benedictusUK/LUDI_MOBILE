@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
+import { useLocation } from "wouter";
 import Navigation from "@/components/ui/nav";
 import EventForm from "@/components/ui/event-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,11 +13,35 @@ import { isUnauthorizedError } from "@/lib/authUtils";
 
 export default function Events() {
   const { toast } = useToast();
+  const [location] = useLocation();
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+
+  // Extract team parameter from URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.split('?')[1] || '');
+    const teamParam = urlParams.get('team');
+    if (teamParam) {
+      setSelectedTeamId(teamParam);
+    }
+  }, [location]);
 
   const { data: events = [], isLoading } = useQuery({
     queryKey: ["/api/events"],
   });
+
+  const { data: teams = [] } = useQuery({
+    queryKey: ["/api/teams"],
+  });
+
+  // Filter events by selected team if specified
+  const filteredEvents = selectedTeamId 
+    ? (events as any[]).filter((event: any) => event.primaryTeamId === selectedTeamId)
+    : events;
+
+  const selectedTeam = selectedTeamId 
+    ? (teams as any[]).find((team: any) => team.id === selectedTeamId)
+    : null;
 
   const deleteEventMutation = useMutation({
     mutationFn: async (eventId: string) => {
@@ -75,8 +100,29 @@ export default function Events() {
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-neutral-900 mb-2">Events</h1>
-              <p className="text-neutral-500">Manage your sports events and schedules</p>
+              <h1 className="text-3xl font-bold text-neutral-900 mb-2">
+                {selectedTeam ? `${selectedTeam.name} Events` : "Event Management"}
+              </h1>
+              <p className="text-neutral-500">
+                {selectedTeam 
+                  ? `Manage events for ${selectedTeam.name}` 
+                  : "Create and manage your sports events"
+                }
+              </p>
+              {selectedTeam && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="mt-2"
+                  onClick={() => {
+                    setSelectedTeamId(null);
+                    window.history.pushState({}, '', '/events');
+                  }}
+                >
+                  <i className="fas fa-arrow-left mr-2"></i>
+                  Back to All Events
+                </Button>
+              )}
             </div>
             <Button 
               onClick={() => setShowCreateForm(true)}
@@ -99,7 +145,7 @@ export default function Events() {
 
         {/* Events Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {(events as any[]).length === 0 ? (
+          {(filteredEvents as any[]).length === 0 ? (
             <div className="col-span-full text-center py-12">
               <i className="fas fa-calendar text-neutral-300 text-6xl mb-4"></i>
               <h3 className="text-lg font-semibold text-neutral-900 mb-2">No events yet</h3>
@@ -109,7 +155,7 @@ export default function Events() {
               </Button>
             </div>
           ) : (
-            (events as any[]).map((event: any) => (
+            (filteredEvents as any[]).map((event: any) => (
               <Card key={event.id} className="overflow-hidden">
                 <div className="h-32 bg-gradient-to-r from-primary to-blue-800 relative">
                   <div className="absolute top-4 right-4">
