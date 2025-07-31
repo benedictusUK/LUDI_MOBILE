@@ -14,6 +14,97 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 
+// Sports options
+const SPORTS_OPTIONS = [
+  "Football", "Basketball", "Tennis", "Baseball", "Soccer", "Rugby", 
+  "Cricket", "Volleyball", "Swimming", "Running", "Cycling", "Golf",
+  "Hockey", "Badminton", "Table Tennis", "Boxing", "Wrestling", "Skiing",
+  "Snowboarding", "Surfing", "Rock Climbing", "Martial Arts", "Yoga", "Other"
+];
+
+// Multi-select component for sports
+function SportsMultiSelect({ 
+  value, 
+  onChange, 
+  placeholder = "Select sports...",
+  disabled = false
+}: {
+  value: string[];
+  onChange: (value: string[]) => void;
+  placeholder?: string;
+  disabled?: boolean;
+}) {
+  const [selectedSports, setSelectedSports] = useState<string[]>(value);
+  const [isOpen, setIsOpen] = useState(false);
+
+  const toggleSport = (sport: string) => {
+    if (disabled) return;
+    const newSelection = selectedSports.includes(sport)
+      ? selectedSports.filter(s => s !== sport)
+      : [...selectedSports, sport];
+    
+    setSelectedSports(newSelection);
+    onChange(newSelection);
+  };
+
+  const removeSport = (sport: string) => {
+    if (disabled) return;
+    const newSelection = selectedSports.filter(s => s !== sport);
+    setSelectedSports(newSelection);
+    onChange(newSelection);
+  };
+
+  return (
+    <div className="space-y-2">
+      <Select open={isOpen} onOpenChange={setIsOpen} disabled={disabled}>
+        <SelectTrigger>
+          <SelectValue placeholder={placeholder}>
+            {selectedSports.length === 0 ? placeholder : `${selectedSports.length} sport${selectedSports.length !== 1 ? 's' : ''} selected`}
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          {SPORTS_OPTIONS.map(sport => (
+            <SelectItem 
+              key={sport} 
+              value={sport}
+              onSelect={(e) => {
+                e.preventDefault();
+                toggleSport(sport);
+              }}
+            >
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={selectedSports.includes(sport)}
+                  onChange={() => toggleSport(sport)}
+                  className="rounded"
+                />
+                <span>{sport}</span>
+              </div>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      
+      {selectedSports.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {selectedSports.map(sport => (
+            <Badge 
+              key={sport} 
+              variant="secondary" 
+              className={disabled ? "" : "cursor-pointer"}
+              onClick={() => !disabled && removeSport(sport)}
+            >
+              {sport}
+              {!disabled && <i className="fas fa-times ml-1"></i>}
+            </Badge>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Team Settings Modal Component
 function TeamSettingsModal({ team, onClose, onSave, isLoading }: {
   team: any;
@@ -23,7 +114,7 @@ function TeamSettingsModal({ team, onClose, onSave, isLoading }: {
 }) {
   const [formData, setFormData] = useState({
     name: team.name || "",
-    sport: team.sport || "",
+    sports: team.sports || [],
     description: team.description || "",
     isPrivate: team.isPrivate || false,
     requiresApproval: team.requiresApproval || false,
@@ -66,11 +157,11 @@ function TeamSettingsModal({ team, onClose, onSave, isLoading }: {
                 />
               </div>
               <div>
-                <Label htmlFor="teamSport">Sport</Label>
-                <Input
-                  id="teamSport"
-                  value={formData.sport}
-                  onChange={(e) => setFormData({ ...formData, sport: e.target.value })}
+                <Label htmlFor="teamSports">Sports</Label>
+                <SportsMultiSelect
+                  value={formData.sports}
+                  onChange={(value) => setFormData({ ...formData, sports: value })}
+                  placeholder="Select sports..."
                   disabled={team.role !== "admin"}
                 />
               </div>
@@ -327,7 +418,9 @@ export default function Teams() {
                     </div>
                     <div>
                       <h3 className="text-lg font-semibold text-neutral-900">{team.name}</h3>
-                      <p className="text-sm text-neutral-500">{team.sport} Team</p>
+                      <p className="text-sm text-neutral-500">
+                        {team.sports && team.sports.length > 0 ? team.sports.join(', ') : 'No sports set'}
+                      </p>
                     </div>
                   </div>
 

@@ -122,15 +122,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Team operations
-  async createTeam(team: InsertTeam): Promise<Team> {
+  async createTeam(teamData: InsertTeam, ownerId: string): Promise<Team> {
     const teamId = randomUUID();
     const inviteCode = randomUUID().slice(0, 8);
     
     const [newTeam] = await db
       .insert(teams)
       .values({
-        ...team,
+        ...teamData,
         id: teamId,
+        ownerId,
         inviteCode,
       })
       .returning();
@@ -138,7 +139,7 @@ export class DatabaseStorage implements IStorage {
     // Add the creator as team owner/admin
     await db.insert(teamMemberships).values({
       teamId: teamId,
-      userId: team.ownerId,
+      userId: ownerId,
       role: "admin",
     });
 
@@ -155,8 +156,12 @@ export class DatabaseStorage implements IStorage {
       .select({
         id: teams.id,
         name: teams.name,
-        sport: teams.sport,
+        sports: teams.sports,
+        description: teams.description,
+        color: teams.color,
         maxPlayers: teams.maxPlayers,
+        isPrivate: teams.isPrivate,
+        requiresApproval: teams.requiresApproval,
         ownerId: teams.ownerId,
         inviteCode: teams.inviteCode,
         createdAt: teams.createdAt,

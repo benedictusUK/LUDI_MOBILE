@@ -2,6 +2,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { z } from "zod";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,14 +16,102 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 
+// Sports options
+const SPORTS_OPTIONS = [
+  "Football", "Basketball", "Tennis", "Baseball", "Soccer", "Rugby", 
+  "Cricket", "Volleyball", "Swimming", "Running", "Cycling", "Golf",
+  "Hockey", "Badminton", "Table Tennis", "Boxing", "Wrestling", "Skiing",
+  "Snowboarding", "Surfing", "Rock Climbing", "Martial Arts", "Yoga", "Other"
+];
+
+// Multi-select component for sports
+function SportsMultiSelect({ 
+  value, 
+  onChange, 
+  placeholder = "Select sports..." 
+}: {
+  value: string[];
+  onChange: (value: string[]) => void;
+  placeholder?: string;
+}) {
+  const [selectedSports, setSelectedSports] = useState<string[]>(value);
+  const [isOpen, setIsOpen] = useState(false);
+
+  const toggleSport = (sport: string) => {
+    const newSelection = selectedSports.includes(sport)
+      ? selectedSports.filter(s => s !== sport)
+      : [...selectedSports, sport];
+    
+    setSelectedSports(newSelection);
+    onChange(newSelection);
+  };
+
+  const removeSport = (sport: string) => {
+    const newSelection = selectedSports.filter(s => s !== sport);
+    setSelectedSports(newSelection);
+    onChange(newSelection);
+  };
+
+  return (
+    <div className="space-y-2">
+      <Select open={isOpen} onOpenChange={setIsOpen}>
+        <SelectTrigger>
+          <SelectValue placeholder={placeholder}>
+            {selectedSports.length === 0 ? placeholder : `${selectedSports.length} sport${selectedSports.length !== 1 ? 's' : ''} selected`}
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          {SPORTS_OPTIONS.map(sport => (
+            <SelectItem 
+              key={sport} 
+              value={sport}
+              onSelect={(e) => {
+                e.preventDefault();
+                toggleSport(sport);
+              }}
+            >
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={selectedSports.includes(sport)}
+                  onChange={() => toggleSport(sport)}
+                  className="rounded"
+                />
+                <span>{sport}</span>
+              </div>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      
+      {selectedSports.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {selectedSports.map(sport => (
+            <Badge 
+              key={sport} 
+              variant="secondary" 
+              className="cursor-pointer"
+              onClick={() => removeSport(sport)}
+            >
+              {sport}
+              <i className="fas fa-times ml-1"></i>
+            </Badge>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const teamFormSchema = z.object({
   name: z.string().min(1, "Team name is required"),
   description: z.string().optional(),
-  sport: z.string().min(1, "Sport is required"),
+  sports: z.array(z.string()).min(1, "At least one sport is required"),
   color: z.string().default("#3b82f6"),
   maxPlayers: z.string().optional(),
   isPrivate: z.boolean().default(false),
@@ -46,7 +135,7 @@ export default function TeamForm({ onCancel, onSuccess, teamId }: TeamFormProps)
     defaultValues: {
       name: "",
       description: "",
-      sport: "",
+      sports: [],
       color: "#3b82f6",
       maxPlayers: "",
       isPrivate: false,
@@ -98,10 +187,7 @@ export default function TeamForm({ onCancel, onSuccess, teamId }: TeamFormProps)
     createTeamMutation.mutate(data);
   };
 
-  const sportOptions = [
-    "Football", "Basketball", "Soccer", "Baseball", "Tennis", "Golf", 
-    "Swimming", "Running", "Cycling", "Volleyball", "Hockey", "Rugby"
-  ];
+
 
   const colorOptions = [
     { name: "Blue", value: "#3b82f6" },
@@ -139,25 +225,15 @@ export default function TeamForm({ onCancel, onSuccess, teamId }: TeamFormProps)
               </div>
 
               <div>
-                <Label htmlFor="sport">Sport *</Label>
-                <Select
-                  value={form.watch("sport")}
-                  onValueChange={(value) => form.setValue("sport", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a sport" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sportOptions.map((sport) => (
-                      <SelectItem key={sport} value={sport}>
-                        {sport}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {form.formState.errors.sport && (
+                <Label htmlFor="sports">Sports *</Label>
+                <SportsMultiSelect
+                  value={form.watch("sports")}
+                  onChange={(value) => form.setValue("sports", value)}
+                  placeholder="Select sports..."
+                />
+                {form.formState.errors.sports && (
                   <p className="text-sm text-red-500 mt-1">
-                    {form.formState.errors.sport.message}
+                    {form.formState.errors.sports.message}
                   </p>
                 )}
               </div>

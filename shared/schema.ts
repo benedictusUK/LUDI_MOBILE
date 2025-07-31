@@ -47,7 +47,7 @@ export const users = pgTable("users", {
 export const teams = pgTable("teams", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: varchar("name", { length: 255 }).notNull(),
-  sport: varchar("sport", { length: 100 }).notNull(),
+  sports: text("sports").array().notNull().default(sql`'{}'`),
   description: text("description"),
   color: varchar("color", { length: 7 }).default("#3b82f6"),
   maxPlayers: integer("max_players"),
@@ -267,6 +267,8 @@ export const insertTeamSchema = createInsertSchema(teams).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+  ownerId: true,
+  inviteCode: true,
 });
 
 export const insertEventSchema = createInsertSchema(events).omit({

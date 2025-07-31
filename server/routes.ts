@@ -57,7 +57,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ownerId: userId,
       });
       
-      const team = await storage.createTeam(teamData);
+      const team = await storage.createTeam(teamData, userId);
       res.json(team);
     } catch (error) {
       console.error("Error creating team:", error);
@@ -151,7 +151,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Filter out fields that shouldn't be updated via this endpoint
       const allowedUpdates = {
         name: updates.name,
-        sport: updates.sport,
+        sports: updates.sports,
         description: updates.description,
         isPrivate: updates.isPrivate,
         requiresApproval: updates.requiresApproval,
