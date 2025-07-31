@@ -299,6 +299,8 @@ export const insertEventSchema = createInsertSchema(events).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  cost: z.string().optional().transform((val) => val || "0.00"),
 });
 
 export const insertEventAttendanceSchema = createInsertSchema(eventAttendance).omit({

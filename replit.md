@@ -115,6 +115,15 @@ Preferred communication style: Simple, everyday language.
 - **REPL_ID**: Replit environment identifier
 - **ISSUER_URL**: OAuth provider URL (defaults to replit.com/oidc)
 
+### Recent Changes
+
+**January 31, 2025**
+- **Audit Functionality**: Implemented complete activity logging system for voting actions
+- **Reports Integration**: Moved audit functionality from Settings to Events page with role-based access
+- **Database Enhancement**: Added activity_logs table to track all voting activity with timestamps
+- **Event Form Fixes**: Resolved validation issues for optional fields and changed currency to £
+- **UI Improvements**: Fixed ScrollArea component errors and enhanced event creation flow
+
 ### Key Architectural Decisions
 
 1. **Monorepo Structure**: Single repository with shared TypeScript types between frontend and backend for type safety
@@ -123,3 +132,4 @@ Preferred communication style: Simple, everyday language.
 4. **shadcn/ui**: Provides accessible, customizable components without vendor lock-in
 5. **TanStack Query**: Handles complex server state scenarios with caching and synchronization
 6. **Neon PostgreSQL**: Serverless database for automatic scaling and cost optimization
+7. **Activity Logging**: Comprehensive audit trail system for all voting actions with IP tracking

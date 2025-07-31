@@ -22,16 +22,16 @@ import { isUnauthorizedError } from "@/lib/authUtils";
 
 const eventFormSchema = z.object({
   name: z.string().min(1, "Event name is required"),
-  description: z.string().optional(),
+  description: z.string().optional().or(z.literal("")),
   sport: z.string().min(1, "Sport is required"),
   location: z.string().min(1, "Location is required"),
   startDate: z.string().min(1, "Start date is required"),
   startTime: z.string().min(1, "Start time is required"),
-  endDate: z.string().optional(),
-  endTime: z.string().optional(),
+  endDate: z.string().optional().or(z.literal("")),
+  endTime: z.string().optional().or(z.literal("")),
   primaryTeamId: z.string().min(1, "Team is required"),
-  maxParticipants: z.string().optional(),
-  cost: z.string().optional(),
+  maxParticipants: z.string().optional().or(z.literal("")),
+  cost: z.string().optional().or(z.literal("")),
   isPublished: z.boolean().default(false),
   requiresPayment: z.boolean().default(false),
 });
@@ -282,7 +282,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                   />
                 </div>
                 <div>
-                  <Label htmlFor="cost">Event Cost ($)</Label>
+                  <Label htmlFor="cost">Event Cost (£)</Label>
                   <Input
                     id="cost"
                     type="number"
