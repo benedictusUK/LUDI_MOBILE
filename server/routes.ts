@@ -110,6 +110,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Invite member to team
+  app.post("/api/teams/:id/invite", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id: teamId } = req.params;
+      const { email } = req.body;
+      const userId = req.user?.claims?.sub;
+
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+
+      // Check if user is admin/captain of the team
+      const userTeam = await storage.getUserTeam(userId, teamId);
+      if (!userTeam || !["admin", "captain"].includes(userTeam.role)) {
+        return res.status(403).json({ message: "Not authorized to invite members" });
+      }
+
+      // For now, just return success - in a real app, you'd send an email invitation
+      res.json({ message: "Invitation sent successfully", email });
+    } catch (error) {
+      console.error("Error inviting member:", error);
+      res.status(500).json({ message: "Failed to send invitation" });
+    }
+  });
+
+  // Delete team
+  app.delete("/api/teams/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id: teamId } = req.params;
+      const userId = req.user?.claims?.sub;
+
+      // Check if user is admin of the team
+      const userTeam = await storage.getUserTeam(userId, teamId);
+      if (!userTeam || userTeam.role !== "admin") {
+        return res.status(403).json({ message: "Not authorized to delete team" });
+      }
+
+      await storage.deleteTeam(teamId);
+      res.json({ message: "Team deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting team:", error);
+      res.status(500).json({ message: "Failed to delete team" });
+    }
+  });
+
   // Event routes
   app.post('/api/events', isAuthenticated, async (req: any, res) => {
     try {

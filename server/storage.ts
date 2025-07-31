@@ -43,6 +43,8 @@ export interface IStorage {
   removeTeamMember(teamId: string, userId: string): Promise<void>;
   getTeamMembers(teamId: string): Promise<(TeamMembership & { user: User })[]>;
   updateTeam(id: string, updates: Partial<InsertTeam>): Promise<Team>;
+  deleteTeam(id: string): Promise<void>;
+  getUserTeam(userId: string, teamId: string): Promise<TeamMembership | undefined>;
 
   // Event operations
   createEvent(event: InsertEvent): Promise<Event>;
@@ -212,6 +214,25 @@ export class DatabaseStorage implements IStorage {
       .where(eq(teams.id, id))
       .returning();
     return team;
+  }
+
+  async deleteTeam(id: string): Promise<void> {
+    // Delete all team memberships first
+    await db.delete(teamMemberships).where(eq(teamMemberships.teamId, id));
+    
+    // Delete all event teams relationships
+    await db.delete(eventTeams).where(eq(eventTeams.teamId, id));
+    
+    // Finally delete the team
+    await db.delete(teams).where(eq(teams.id, id));
+  }
+
+  async getUserTeam(userId: string, teamId: string): Promise<TeamMembership | undefined> {
+    const [membership] = await db
+      .select()
+      .from(teamMemberships)
+      .where(and(eq(teamMemberships.userId, userId), eq(teamMemberships.teamId, teamId)));
+    return membership;
   }
 
   // Event operations
