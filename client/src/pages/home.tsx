@@ -1,5 +1,6 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "wouter";
 import Navigation from "@/components/ui/nav";
 import DashboardStats from "@/components/ui/dashboard-stats";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,8 +22,8 @@ export default function Home() {
     queryKey: ["/api/events"],
   });
 
-  const recentEvents = events.slice(0, 3);
-  const userTeams = teams.slice(0, 3);
+  const recentEvents = (events as any[]).slice(0, 3);
+  const userTeams = (teams as any[]).slice(0, 3);
 
   return (
     <div className="min-h-screen bg-neutral-50">
@@ -31,13 +32,13 @@ export default function Home() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-neutral-900 mb-2">
-            Welcome back, {user?.firstName || "User"}!
+            Welcome back, {(user as any)?.firstName || "User"}!
           </h1>
           <p className="text-neutral-500">Overview of your sports activities and upcoming events</p>
         </div>
 
         {/* Stats Grid */}
-        <DashboardStats stats={stats} />
+        <DashboardStats stats={stats as any} />
 
         {/* Quick Actions */}
         <Card className="mb-8">
@@ -46,33 +47,41 @@ export default function Home() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Button variant="outline" className="flex flex-col items-center p-6 h-auto space-y-2">
-                <div className="bg-primary p-3 rounded-lg">
-                  <i className="fas fa-plus text-white text-lg"></i>
-                </div>
-                <span className="text-sm font-medium">Create Event</span>
-              </Button>
+              <Link href="/events">
+                <Button variant="outline" className="flex flex-col items-center p-6 h-auto space-y-2 w-full">
+                  <div className="bg-primary p-3 rounded-lg">
+                    <i className="fas fa-plus text-white text-lg"></i>
+                  </div>
+                  <span className="text-sm font-medium">Create Event</span>
+                </Button>
+              </Link>
 
-              <Button variant="outline" className="flex flex-col items-center p-6 h-auto space-y-2">
-                <div className="bg-secondary p-3 rounded-lg">
-                  <i className="fas fa-users-plus text-white text-lg"></i>
-                </div>
-                <span className="text-sm font-medium">Create Team</span>
-              </Button>
+              <Link href="/teams">
+                <Button variant="outline" className="flex flex-col items-center p-6 h-auto space-y-2 w-full">
+                  <div className="bg-secondary p-3 rounded-lg">
+                    <i className="fas fa-users-plus text-white text-lg"></i>
+                  </div>
+                  <span className="text-sm font-medium">Create Team</span>
+                </Button>
+              </Link>
 
-              <Button variant="outline" className="flex flex-col items-center p-6 h-auto space-y-2">
-                <div className="bg-accent p-3 rounded-lg">
-                  <i className="fas fa-calendar-alt text-white text-lg"></i>
-                </div>
-                <span className="text-sm font-medium">Schedule</span>
-              </Button>
+              <Link href="/events">
+                <Button variant="outline" className="flex flex-col items-center p-6 h-auto space-y-2 w-full">
+                  <div className="bg-accent p-3 rounded-lg">
+                    <i className="fas fa-calendar-alt text-white text-lg"></i>
+                  </div>
+                  <span className="text-sm font-medium">Schedule</span>
+                </Button>
+              </Link>
 
-              <Button variant="outline" className="flex flex-col items-center p-6 h-auto space-y-2">
-                <div className="bg-purple-600 p-3 rounded-lg">
-                  <i className="fas fa-chart-bar text-white text-lg"></i>
-                </div>
-                <span className="text-sm font-medium">Reports</span>
-              </Button>
+              <Link href="/settings">
+                <Button variant="outline" className="flex flex-col items-center p-6 h-auto space-y-2 w-full">
+                  <div className="bg-purple-600 p-3 rounded-lg">
+                    <i className="fas fa-chart-bar text-white text-lg"></i>
+                  </div>
+                  <span className="text-sm font-medium">Reports</span>
+                </Button>
+              </Link>
             </div>
           </CardContent>
         </Card>

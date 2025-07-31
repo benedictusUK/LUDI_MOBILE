@@ -29,9 +29,9 @@ const eventFormSchema = z.object({
   startTime: z.string().min(1, "Start time is required"),
   endDate: z.string().optional(),
   endTime: z.string().optional(),
-  teamId: z.string().optional(),
-  maxParticipants: z.number().min(1).optional(),
-  cost: z.number().min(0).optional(),
+  primaryTeamId: z.string().min(1, "Team is required"),
+  maxParticipants: z.string().optional(),
+  cost: z.string().optional(),
   isPublished: z.boolean().default(false),
   requiresPayment: z.boolean().default(false),
 });
@@ -70,9 +70,9 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
       startTime: "",
       endDate: "",
       endTime: "",
-      teamId: "",
-      maxParticipants: undefined,
-      cost: 0,
+      primaryTeamId: "",
+      maxParticipants: "",
+      cost: "",
       isPublished: false,
       requiresPayment: false,
     },
@@ -80,9 +80,16 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
 
   const createEventMutation = useMutation({
     mutationFn: async (data: EventFormData) => {
+      // Convert string fields to appropriate types for backend
+      const processedData = {
+        ...data,
+        cost: data.cost ? parseFloat(data.cost) : 0,
+        maxParticipants: data.maxParticipants ? parseInt(data.maxParticipants) : null,
+      };
+      
       const url = isEditing ? `/api/events/${eventId}` : "/api/events";
       const method = isEditing ? "PUT" : "POST";
-      return apiRequest(method, url, data);
+      return apiRequest(method, url, processedData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
@@ -245,13 +252,13 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
               </div>
 
               <div>
-                <Label htmlFor="teamId">Assign to Team</Label>
+                <Label htmlFor="primaryTeamId">Assign to Team</Label>
                 <Select
-                  value={form.watch("teamId")}
-                  onValueChange={(value) => form.setValue("teamId", value)}
+                  value={form.watch("primaryTeamId")}
+                  onValueChange={(value) => form.setValue("primaryTeamId", value)}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select a team (optional)" />
+                    <SelectValue placeholder="Select a team" />
                   </SelectTrigger>
                   <SelectContent>
                     {(teams as any[]).map((team: any) => (
@@ -270,7 +277,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                     id="maxParticipants"
                     type="number"
                     min="1"
-                    {...form.register("maxParticipants", { valueAsNumber: true })}
+                    {...form.register("maxParticipants")}
                     placeholder="No limit"
                   />
                 </div>
@@ -281,7 +288,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                     type="number"
                     min="0"
                     step="0.01"
-                    {...form.register("cost", { valueAsNumber: true })}
+                    {...form.register("cost")}
                     placeholder="0.00"
                   />
                 </div>
