@@ -58,7 +58,7 @@ export default function Teams() {
 
         {/* Team Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-          {teams.length === 0 ? (
+          {(teams as any[]).length === 0 ? (
             <div className="col-span-full text-center py-12">
               <i className="fas fa-users text-neutral-300 text-6xl mb-4"></i>
               <h3 className="text-lg font-semibold text-neutral-900 mb-2">No teams yet</h3>
@@ -68,7 +68,7 @@ export default function Teams() {
               </Button>
             </div>
           ) : (
-            teams.map((team: any) => (
+            (teams as any[]).map((team: any) => (
               <Card key={team.id} className="overflow-hidden">
                 <div className="h-32 bg-gradient-to-r from-primary to-blue-800 relative">
                   <img 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -254,7 +254,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                     <SelectValue placeholder="Select a team (optional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    {teams.map((team: any) => (
+                    {(teams as any[]).map((team: any) => (
                       <SelectItem key={team.id} value={team.id}>
                         {team.name}
                       </SelectItem>

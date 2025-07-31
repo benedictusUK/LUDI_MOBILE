@@ -14,7 +14,7 @@ export default function Navigation() {
   const { user } = useAuth();
   const [location] = useLocation();
 
-  const { data: stats } = useQuery({
+  const { data: stats = {} } = useQuery({
     queryKey: ["/api/dashboard/stats"],
   });
 
@@ -70,12 +70,12 @@ export default function Navigation() {
                   : "text-neutral-500 hover:text-neutral-900"
               }`}>
                 Notifications
-                {stats?.unreadNotifications > 0 && (
+                {(stats as any)?.unreadNotifications > 0 && (
                   <Badge 
                     variant="destructive" 
                     className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs p-0"
                   >
-                    {stats.unreadNotifications}
+                    {(stats as any).unreadNotifications}
                   </Badge>
                 )}
               </Link>
@@ -95,12 +95,12 @@ export default function Navigation() {
               <Link href="/notifications">
                 <Button variant="ghost" size="sm" className="p-2 relative">
                   <i className="fas fa-bell text-lg"></i>
-                  {stats?.unreadNotifications > 0 && (
+                  {(stats as any)?.unreadNotifications > 0 && (
                     <Badge 
                       variant="destructive" 
                       className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center text-xs p-0"
                     >
-                      {stats.unreadNotifications}
+                      {(stats as any).unreadNotifications}
                     </Badge>
                   )}
                 </Button>
@@ -111,11 +111,11 @@ export default function Navigation() {
                     <Button variant="ghost" className="flex items-center space-x-2">
                       <img 
                         className="h-8 w-8 rounded-full object-cover" 
-                        src={user?.profileImageUrl || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&h=100"} 
+                        src={(user as any)?.profileImageUrl || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&h=100"} 
                         alt="User avatar"
                       />
                       <span className="text-sm font-medium text-neutral-900">
-                        {user?.firstName || "User"}
+                        {(user as any)?.firstName || "User"}
                       </span>
                     </Button>
                   </DropdownMenuTrigger>
