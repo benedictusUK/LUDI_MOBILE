@@ -7,74 +7,88 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { useToast } from "@/hooks/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 
-const eventSchema = z.object({
+const eventFormSchema = z.object({
   name: z.string().min(1, "Event name is required"),
+  description: z.string().optional(),
   sport: z.string().min(1, "Sport is required"),
+  location: z.string().min(1, "Location is required"),
   startDate: z.string().min(1, "Start date is required"),
   startTime: z.string().min(1, "Start time is required"),
   endDate: z.string().optional(),
   endTime: z.string().optional(),
-  location: z.string().optional(),
-  cost: z.string().optional(),
-  requirements: z.string().optional(),
-  recurrence: z.string().default("none"),
-  primaryTeamId: z.string().min(1, "Primary team is required"),
+  teamId: z.string().optional(),
+  maxParticipants: z.number().min(1).optional(),
+  cost: z.number().min(0).optional(),
   isPublished: z.boolean().default(false),
-  enableVoting: z.boolean().default(false),
+  requiresPayment: z.boolean().default(false),
 });
 
-type EventFormData = z.infer<typeof eventSchema>;
+type EventFormData = z.infer<typeof eventFormSchema>;
 
 interface EventFormProps {
   onCancel: () => void;
   onSuccess: () => void;
+  eventId?: string; // For editing existing events
 }
 
-export default function EventForm({ onCancel, onSuccess }: EventFormProps) {
+export default function EventForm({ onCancel, onSuccess, eventId }: EventFormProps) {
   const { toast } = useToast();
-  const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
+  const isEditing = !!eventId;
 
+  // Fetch teams for selection
   const { data: teams = [] } = useQuery({
     queryKey: ["/api/teams"],
   });
 
+  // Fetch existing event data if editing
+  const { data: existingEvent } = useQuery({
+    queryKey: ["/api/events", eventId],
+    enabled: !!eventId,
+  });
+
   const form = useForm<EventFormData>({
-    resolver: zodResolver(eventSchema),
-    defaultValues: {
+    resolver: zodResolver(eventFormSchema),
+    defaultValues: existingEvent || {
       name: "",
+      description: "",
       sport: "",
+      location: "",
       startDate: "",
       startTime: "",
       endDate: "",
       endTime: "",
-      location: "",
-      cost: "0.00",
-      requirements: "",
-      recurrence: "none",
-      primaryTeamId: "",
+      teamId: "",
+      maxParticipants: undefined,
+      cost: 0,
       isPublished: false,
-      enableVoting: false,
+      requiresPayment: false,
     },
   });
 
   const createEventMutation = useMutation({
-    mutationFn: async (data: EventFormData & { additionalTeamIds: string[] }) => {
-      await apiRequest("POST", "/api/events", data);
+    mutationFn: async (data: EventFormData) => {
+      const url = isEditing ? `/api/events/${eventId}` : "/api/events";
+      const method = isEditing ? "PUT" : "POST";
+      return apiRequest(method, url, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       toast({
         title: "Success",
-        description: "Event created successfully",
+        description: `Event ${isEditing ? "updated" : "created"} successfully`,
       });
       onSuccess();
     },
@@ -92,238 +106,225 @@ export default function EventForm({ onCancel, onSuccess }: EventFormProps) {
       }
       toast({
         title: "Error",
-        description: "Failed to create event",
+        description: `Failed to ${isEditing ? "update" : "create"} event`,
         variant: "destructive",
       });
     },
   });
 
   const onSubmit = (data: EventFormData) => {
-    createEventMutation.mutate({
-      ...data,
-      additionalTeamIds: selectedTeams,
-    });
+    createEventMutation.mutate(data);
   };
 
-  const toggleTeamSelection = (teamId: string) => {
-    setSelectedTeams(prev => 
-      prev.includes(teamId) 
-        ? prev.filter(id => id !== teamId)
-        : [...prev, teamId]
-    );
-  };
+  const sportOptions = [
+    "Football", "Basketball", "Soccer", "Baseball", "Tennis", "Golf", 
+    "Swimming", "Running", "Cycling", "Volleyball", "Hockey", "Rugby"
+  ];
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Create New Event</CardTitle>
-        <p className="text-neutral-500">Set up your sports event with all the necessary details</p>
+        <CardTitle>{isEditing ? "Edit Event" : "Create New Event"}</CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          {/* Basic Event Information */}
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label htmlFor="name">Event Name *</Label>
-              <Input
-                id="name"
-                {...form.register("name")}
-                placeholder="Enter event name"
-              />
-              {form.formState.errors.name && (
-                <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="sport">Sport/Game *</Label>
-              <Select onValueChange={(value) => form.setValue("sport", value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select sport" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="football">Football</SelectItem>
-                  <SelectItem value="basketball">Basketball</SelectItem>
-                  <SelectItem value="volleyball">Volleyball</SelectItem>
-                  <SelectItem value="tennis">Tennis</SelectItem>
-                  <SelectItem value="soccer">Soccer</SelectItem>
-                  <SelectItem value="baseball">Baseball</SelectItem>
-                </SelectContent>
-              </Select>
-              {form.formState.errors.sport && (
-                <p className="text-sm text-destructive">{form.formState.errors.sport.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="startDate">Start Date *</Label>
-              <Input
-                id="startDate"
-                type="date"
-                {...form.register("startDate")}
-              />
-              {form.formState.errors.startDate && (
-                <p className="text-sm text-destructive">{form.formState.errors.startDate.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="startTime">Start Time *</Label>
-              <Input
-                id="startTime"
-                type="time"
-                {...form.register("startTime")}
-              />
-              {form.formState.errors.startTime && (
-                <p className="text-sm text-destructive">{form.formState.errors.startTime.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="location">Location</Label>
-              <Input
-                id="location"
-                {...form.register("location")}
-                placeholder="Event location"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="cost">Cost per Event</Label>
-              <Input
-                id="cost"
-                type="number"
-                step="0.01"
-                {...form.register("cost")}
-                placeholder="0.00"
-              />
-            </div>
-          </div>
-
-          {/* Recurrence Pattern */}
-          <div className="space-y-4">
-            <Label>Recurrence Pattern</Label>
-            <RadioGroup 
-              defaultValue="none" 
-              onValueChange={(value) => form.setValue("recurrence", value)}
-              className="grid grid-cols-2 md:grid-cols-4 gap-4"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="none" id="none" />
-                <Label htmlFor="none">One-time</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="weekly" id="weekly" />
-                <Label htmlFor="weekly">Weekly</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="monthly" id="monthly" />
-                <Label htmlFor="monthly">Monthly</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="custom" id="custom" />
-                <Label htmlFor="custom">Custom</Label>
-              </div>
-            </RadioGroup>
-          </div>
-
-          {/* Team Selection */}
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Primary Team *</Label>
-              <Select onValueChange={(value) => form.setValue("primaryTeamId", value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select primary team" />
-                </SelectTrigger>
-                <SelectContent>
-                  {teams.map((team: any) => (
-                    <SelectItem key={team.id} value={team.id}>
-                      {team.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {form.formState.errors.primaryTeamId && (
-                <p className="text-sm text-destructive">{form.formState.errors.primaryTeamId.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label>Additional Teams</Label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {teams.map((team: any) => (
-                  <div key={team.id} className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg">
-                    <Checkbox
-                      checked={selectedTeams.includes(team.id)}
-                      onCheckedChange={() => toggleTeamSelection(team.id)}
-                    />
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                        <i className="fas fa-users text-white text-sm"></i>
-                      </div>
-                      <span className="text-sm font-medium">{team.name}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Requirements */}
-          <div className="space-y-2">
-            <Label htmlFor="requirements">Equipment/Venue Requirements</Label>
-            <Textarea
-              id="requirements"
-              {...form.register("requirements")}
-              placeholder="e.g., Football field, goals"
-            />
-          </div>
-
-          {/* Publishing Options */}
-          <div className="space-y-4">
-            <Label>Publishing Options</Label>
+            {/* Basic Information */}
             <div className="space-y-4">
-              <div className="flex items-center space-x-3">
-                <Checkbox
-                  checked={form.watch("isPublished")}
-                  onCheckedChange={(checked) => form.setValue("isPublished", !!checked)}
+              <div>
+                <Label htmlFor="name">Event Name *</Label>
+                <Input
+                  id="name"
+                  {...form.register("name")}
+                  placeholder="Enter event name"
                 />
-                <Label>Publish immediately</Label>
+                {form.formState.errors.name && (
+                  <p className="text-sm text-red-500 mt-1">
+                    {form.formState.errors.name.message}
+                  </p>
+                )}
               </div>
-              <div className="flex items-center space-x-3">
-                <Checkbox
-                  checked={form.watch("enableVoting")}
-                  onCheckedChange={(checked) => form.setValue("enableVoting", !!checked)}
+
+              <div>
+                <Label htmlFor="sport">Sport *</Label>
+                <Select
+                  value={form.watch("sport")}
+                  onValueChange={(value) => form.setValue("sport", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a sport" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sportOptions.map((sport) => (
+                      <SelectItem key={sport} value={sport}>
+                        {sport}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {form.formState.errors.sport && (
+                  <p className="text-sm text-red-500 mt-1">
+                    {form.formState.errors.sport.message}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="location">Location *</Label>
+                <Input
+                  id="location"
+                  {...form.register("location")}
+                  placeholder="Enter event location"
                 />
-                <Label>Enable team voting for participation</Label>
+                {form.formState.errors.location && (
+                  <p className="text-sm text-red-500 mt-1">
+                    {form.formState.errors.location.message}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  {...form.register("description")}
+                  placeholder="Enter event description"
+                  rows={3}
+                />
+              </div>
+            </div>
+
+            {/* Date, Time & Settings */}
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="startDate">Start Date *</Label>
+                  <Input
+                    id="startDate"
+                    type="date"
+                    {...form.register("startDate")}
+                  />
+                  {form.formState.errors.startDate && (
+                    <p className="text-sm text-red-500 mt-1">
+                      {form.formState.errors.startDate.message}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="startTime">Start Time *</Label>
+                  <Input
+                    id="startTime"
+                    type="time"
+                    {...form.register("startTime")}
+                  />
+                  {form.formState.errors.startTime && (
+                    <p className="text-sm text-red-500 mt-1">
+                      {form.formState.errors.startTime.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="endDate">End Date</Label>
+                  <Input
+                    id="endDate"
+                    type="date"
+                    {...form.register("endDate")}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="endTime">End Time</Label>
+                  <Input
+                    id="endTime"
+                    type="time"
+                    {...form.register("endTime")}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="teamId">Assign to Team</Label>
+                <Select
+                  value={form.watch("teamId")}
+                  onValueChange={(value) => form.setValue("teamId", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a team (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {teams.map((team: any) => (
+                      <SelectItem key={team.id} value={team.id}>
+                        {team.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="maxParticipants">Max Participants</Label>
+                  <Input
+                    id="maxParticipants"
+                    type="number"
+                    min="1"
+                    {...form.register("maxParticipants", { valueAsNumber: true })}
+                    placeholder="No limit"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="cost">Event Cost ($)</Label>
+                  <Input
+                    id="cost"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    {...form.register("cost", { valueAsNumber: true })}
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="requiresPayment"
+                    checked={form.watch("requiresPayment")}
+                    onCheckedChange={(checked) => form.setValue("requiresPayment", checked)}
+                  />
+                  <Label htmlFor="requiresPayment">Requires Payment</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="isPublished"
+                    checked={form.watch("isPublished")}
+                    onCheckedChange={(checked) => form.setValue("isPublished", checked)}
+                  />
+                  <Label htmlFor="isPublished">Publish Event</Label>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 pt-6">
+          <div className="flex justify-end space-x-4 pt-6 border-t">
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Cancel
+            </Button>
             <Button 
               type="submit" 
-              className="flex-1"
               disabled={createEventMutation.isPending}
+              className="min-w-32"
             >
-              {createEventMutation.isPending ? "Creating..." : "Create Event"}
-            </Button>
-            <Button 
-              type="button" 
-              variant="secondary" 
-              className="flex-1"
-              disabled={createEventMutation.isPending}
-            >
-              Save as Draft
-            </Button>
-            <Button 
-              type="button" 
-              variant="outline"
-              onClick={onCancel}
-              disabled={createEventMutation.isPending}
-            >
-              Cancel
+              {createEventMutation.isPending ? (
+                <div className="flex items-center space-x-2">
+                  <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                  <span>{isEditing ? "Updating..." : "Creating..."}</span>
+                </div>
+              ) : (
+                isEditing ? "Update Event" : "Create Event"
+              )}
             </Button>
           </div>
         </form>

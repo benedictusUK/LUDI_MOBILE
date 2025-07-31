@@ -43,49 +43,48 @@ export default function Navigation() {
           {/* Desktop Navigation */}
           <div className="hidden md:block">
             <div className="ml-10 flex items-baseline space-x-4">
-              <Link href="/">
-                <a className={`px-3 py-2 rounded-md text-sm font-medium ${
-                  isActive("/") 
-                    ? "text-primary" 
-                    : "text-neutral-500 hover:text-neutral-900"
-                }`}>
-                  Dashboard
-                </a>
+              <Link href="/" className={`px-3 py-2 rounded-md text-sm font-medium ${
+                isActive("/") 
+                  ? "text-primary" 
+                  : "text-neutral-500 hover:text-neutral-900"
+              }`}>
+                Dashboard
               </Link>
-              <Link href="/events">
-                <a className={`px-3 py-2 rounded-md text-sm font-medium ${
-                  isActive("/events") 
-                    ? "text-primary" 
-                    : "text-neutral-500 hover:text-neutral-900"
-                }`}>
-                  Events
-                </a>
+              <Link href="/events" className={`px-3 py-2 rounded-md text-sm font-medium ${
+                isActive("/events") 
+                  ? "text-primary" 
+                  : "text-neutral-500 hover:text-neutral-900"
+              }`}>
+                Events
               </Link>
-              <Link href="/teams">
-                <a className={`px-3 py-2 rounded-md text-sm font-medium ${
-                  isActive("/teams") 
-                    ? "text-primary" 
-                    : "text-neutral-500 hover:text-neutral-900"
-                }`}>
-                  Teams
-                </a>
+              <Link href="/teams" className={`px-3 py-2 rounded-md text-sm font-medium ${
+                isActive("/teams") 
+                  ? "text-primary" 
+                  : "text-neutral-500 hover:text-neutral-900"
+              }`}>
+                Teams
               </Link>
-              <Link href="/notifications">
-                <a className={`px-3 py-2 rounded-md text-sm font-medium relative ${
-                  isActive("/notifications") 
-                    ? "text-primary" 
-                    : "text-neutral-500 hover:text-neutral-900"
-                }`}>
-                  Notifications
-                  {stats?.unreadNotifications > 0 && (
-                    <Badge 
-                      variant="destructive" 
-                      className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs p-0"
-                    >
-                      {stats.unreadNotifications}
-                    </Badge>
-                  )}
-                </a>
+              <Link href="/notifications" className={`px-3 py-2 rounded-md text-sm font-medium relative ${
+                isActive("/notifications") 
+                  ? "text-primary" 
+                  : "text-neutral-500 hover:text-neutral-900"
+              }`}>
+                Notifications
+                {stats?.unreadNotifications > 0 && (
+                  <Badge 
+                    variant="destructive" 
+                    className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs p-0"
+                  >
+                    {stats.unreadNotifications}
+                  </Badge>
+                )}
+              </Link>
+              <Link href="/settings" className={`px-3 py-2 rounded-md text-sm font-medium ${
+                isActive("/settings") 
+                  ? "text-primary" 
+                  : "text-neutral-500 hover:text-neutral-900"
+              }`}>
+                Settings
               </Link>
             </div>
           </div>

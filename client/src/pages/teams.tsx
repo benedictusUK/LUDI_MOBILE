@@ -47,6 +47,15 @@ export default function Teams() {
           </div>
         </div>
 
+        {showCreateForm && (
+          <div className="mb-8">
+            <TeamForm 
+              onCancel={() => setShowCreateForm(false)}
+              onSuccess={() => setShowCreateForm(false)}
+            />
+          </div>
+        )}
+
         {/* Team Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
           {teams.length === 0 ? (
