@@ -206,14 +206,7 @@ export default function Events() {
                         <i className="fas fa-football-ball text-white text-lg"></i>
                       </div>
                       <div>
-                        <h3 
-                          className={`text-lg font-semibold text-neutral-900 ${event.isPublished ? 'cursor-pointer hover:underline' : ''}`}
-                          onClick={() => {
-                            if (event.isPublished) {
-                              window.location.href = `/events/${event.id}`;
-                            }
-                          }}
-                        >
+                        <h3 className="text-lg font-semibold text-neutral-900">
                           {event.name}
                         </h3>
                         <div className="flex items-center space-x-2">
@@ -250,12 +243,26 @@ export default function Events() {
                   </div>
 
                   <div className="flex space-x-2">
+                    {event.isPublished && (
+                      <Button 
+                        size="sm" 
+                        style={{ 
+                          backgroundColor: teamColor,
+                          borderColor: teamColor
+                        }}
+                        onClick={() => {
+                          window.location.href = `/events/${event.id}`;
+                        }}
+                      >
+                        Vote
+                      </Button>
+                    )}
                     <Button 
                       size="sm" 
-                      className="flex-1"
+                      variant="outline"
                       style={{ 
-                        backgroundColor: teamColor,
-                        borderColor: teamColor
+                        borderColor: teamColor,
+                        color: teamColor
                       }}
                       onClick={() => {
                         setEditingEvent(event.id);
