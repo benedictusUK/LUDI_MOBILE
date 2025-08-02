@@ -297,7 +297,7 @@ export const insertTeamSchema = createInsertSchema(teams).omit({
   name: z.string().min(1, "Team name is required").max(255, "Team name must be less than 255 characters"),
   sports: z.array(z.string()).min(1, "At least one sport must be selected"),
   description: z.string().optional(),
-  maxPlayers: z.number().min(1, "Maximum players must be at least 1").optional(),
+  maxPlayers: z.union([z.number().min(1, "Maximum players must be at least 1"), z.null()]).optional(),
 });
 
 export const insertEventSchema = createInsertSchema(events).omit({
@@ -319,7 +319,7 @@ export const insertEventSchema = createInsertSchema(events).omit({
   description: z.string().min(1, "Description is required"),
   endDate: z.string().optional().transform((val) => val || null),
   requirements: z.string().optional().transform((val) => val || null),
-  maxParticipants: z.union([z.string(), z.number()]).optional().transform((val) => {
+  maxParticipants: z.union([z.string(), z.number(), z.null()]).optional().transform((val) => {
     if (val === "" || val === null || val === undefined) return null;
     return typeof val === 'string' ? parseInt(val) || null : val;
   }).refine((val) => val === null || val > 0, "Maximum participants must be greater than 0"),

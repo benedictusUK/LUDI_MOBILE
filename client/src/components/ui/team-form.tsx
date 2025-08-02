@@ -148,7 +148,7 @@ export default function TeamForm({ onCancel, onSuccess, teamId }: TeamFormProps)
       // Convert string maxPlayers to number or null for "No limit"
       const processedData = {
         ...data,
-        maxPlayers: data.maxPlayers && data.maxPlayers !== "" ? parseInt(data.maxPlayers) : null,
+        maxPlayers: data.maxPlayers && data.maxPlayers !== "" && data.maxPlayers !== "0" ? parseInt(data.maxPlayers) : null,
       };
       
       const url = isEditing ? `/api/teams/${teamId}` : "/api/teams";
