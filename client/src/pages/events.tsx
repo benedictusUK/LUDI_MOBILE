@@ -16,6 +16,7 @@ export default function Events() {
   const { toast } = useToast();
   const [location] = useLocation();
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<string | null>(null);
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [auditModal, setAuditModal] = useState<{ isOpen: boolean; eventId: string; eventName: string }>({
     isOpen: false,
@@ -131,7 +132,10 @@ export default function Events() {
               )}
             </div>
             <Button 
-              onClick={() => setShowCreateForm(true)}
+              onClick={() => {
+                setShowCreateForm(true);
+                setEditingEvent(null);
+              }}
               className="flex items-center space-x-2"
             >
               <i className="fas fa-plus"></i>
@@ -140,11 +144,18 @@ export default function Events() {
           </div>
         </div>
 
-        {showCreateForm && (
+        {(showCreateForm || editingEvent) && (
           <div className="mb-8">
             <EventForm 
-              onCancel={() => setShowCreateForm(false)}
-              onSuccess={() => setShowCreateForm(false)}
+              eventId={editingEvent || undefined}
+              onCancel={() => {
+                setShowCreateForm(false);
+                setEditingEvent(null);
+              }}
+              onSuccess={() => {
+                setShowCreateForm(false);
+                setEditingEvent(null);
+              }}
             />
           </div>
         )}
@@ -156,7 +167,10 @@ export default function Events() {
               <i className="fas fa-calendar text-neutral-300 text-6xl mb-4"></i>
               <h3 className="text-lg font-semibold text-neutral-900 mb-2">No events yet</h3>
               <p className="text-neutral-500 mb-4">Create your first sports event to get started</p>
-              <Button onClick={() => setShowCreateForm(true)}>
+              <Button onClick={() => {
+                setShowCreateForm(true);
+                setEditingEvent(null);
+              }}>
                 Create Event
               </Button>
             </div>
@@ -202,7 +216,14 @@ export default function Events() {
                   </div>
 
                   <div className="flex space-x-2">
-                    <Button size="sm" className="flex-1">
+                    <Button 
+                      size="sm" 
+                      className="flex-1"
+                      onClick={() => {
+                        setEditingEvent(event.id);
+                        setShowCreateForm(false);
+                      }}
+                    >
                       Edit
                     </Button>
                     {event.enableVoting && (

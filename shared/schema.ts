@@ -304,10 +304,9 @@ export const insertEventSchema = createInsertSchema(events).omit({
     if (typeof val === 'number') return val.toString();
     return val || "0.00";
   }),
-  description: z.string().optional().transform((val) => val || null),
+  description: z.string().min(1, "Description is required"),
   endDate: z.string().optional().transform((val) => val || null),
   endTime: z.string().optional().transform((val) => val || null),
-  location: z.string().optional().transform((val) => val || null),
   requirements: z.string().optional().transform((val) => val || null),
 });
 

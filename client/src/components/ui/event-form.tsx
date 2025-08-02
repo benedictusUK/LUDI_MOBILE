@@ -2,6 +2,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { z } from "zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,7 +23,7 @@ import { isUnauthorizedError } from "@/lib/authUtils";
 
 const eventFormSchema = z.object({
   name: z.string().min(1, "Event name is required"),
-  description: z.string().optional(),
+  description: z.string().min(1, "Description is required"),
   sport: z.string().min(1, "Sport is required"),
   location: z.string().min(1, "Location is required"),
   startDate: z.string().min(1, "Start date is required"),
@@ -61,7 +62,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
 
   const form = useForm<EventFormData>({
     resolver: zodResolver(eventFormSchema),
-    defaultValues: existingEvent || {
+    defaultValues: {
       name: "",
       description: "",
       sport: "",
@@ -77,6 +78,28 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
       requiresPayment: false,
     },
   });
+
+  // Update form values when existing event data loads
+  useEffect(() => {
+    if (existingEvent && typeof existingEvent === 'object') {
+      const event = existingEvent as any;
+      form.reset({
+        name: event.name || "",
+        description: event.description || "",
+        sport: event.sport || "",
+        location: event.location || "",
+        startDate: event.startDate || "",
+        startTime: event.startTime || "",
+        endDate: event.endDate || "",
+        endTime: event.endTime || "",
+        primaryTeamId: event.primaryTeamId || "",
+        maxParticipants: event.maxParticipants?.toString() || "",
+        cost: event.cost || "",
+        isPublished: event.isPublished || false,
+        requiresPayment: event.requiresPayment || false,
+      });
+    }
+  }, [existingEvent, form]);
 
   const createEventMutation = useMutation({
     mutationFn: async (data: EventFormData) => {
@@ -195,13 +218,18 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
               </div>
 
               <div>
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description">Description *</Label>
                 <Textarea
                   id="description"
                   {...form.register("description")}
                   placeholder="Enter event description"
                   rows={3}
                 />
+                {form.formState.errors.description && (
+                  <p className="text-sm text-red-500 mt-1">
+                    {form.formState.errors.description.message}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -222,10 +250,13 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                   )}
                 </div>
                 <div>
-                  <Label htmlFor="startTime">Start Time *</Label>
+                  <Label htmlFor="startTime">Start Time * (24h format)</Label>
                   <Input
                     id="startTime"
-                    type="time"
+                    type="text"
+                    pattern="^([01]?[0-9]|2[0-3]):[0-5][0-9]$"
+                    placeholder="HH:MM (e.g. 14:30)"
+                    inputMode="numeric"
                     {...form.register("startTime")}
                   />
                   {form.formState.errors.startTime && (
@@ -246,10 +277,13 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                   />
                 </div>
                 <div>
-                  <Label htmlFor="endTime">End Time</Label>
+                  <Label htmlFor="endTime">End Time (24h format)</Label>
                   <Input
                     id="endTime"
-                    type="time"
+                    type="text"
+                    pattern="^([01]?[0-9]|2[0-3]):[0-5][0-9]$"
+                    placeholder="HH:MM (e.g. 16:00)"
+                    inputMode="numeric"
                     {...form.register("endTime")}
                   />
                 </div>

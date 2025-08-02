@@ -237,10 +237,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/events/:id', isAuthenticated, async (req, res) => {
+  app.put('/api/events/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const updates = req.body;
-      const event = await storage.updateEvent(req.params.id, updates);
+      const userId = req.user.claims.sub;
+      const eventData = insertEventSchema.parse({
+        ...req.body,
+        createdById: userId,
+      });
+      const event = await storage.updateEvent(req.params.id, eventData);
       res.json(event);
     } catch (error) {
       console.error("Error updating event:", error);
