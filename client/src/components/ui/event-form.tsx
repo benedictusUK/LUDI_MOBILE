@@ -255,7 +255,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                     id="startTime"
                     type="text"
                     pattern="^([01]?[0-9]|2[0-3]):[0-5][0-9]$"
-                    placeholder="HH:MM (e.g. 14:30)"
+                    placeholder="HH:MM"
                     inputMode="numeric"
                     {...form.register("startTime")}
                   />
@@ -282,7 +282,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                     id="endTime"
                     type="text"
                     pattern="^([01]?[0-9]|2[0-3]):[0-5][0-9]$"
-                    placeholder="HH:MM (e.g. 16:00)"
+                    placeholder="HH:MM"
                     inputMode="numeric"
                     {...form.register("endTime")}
                   />
