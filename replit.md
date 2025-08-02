@@ -118,6 +118,9 @@ Preferred communication style: Simple, everyday language.
 ### Recent Changes
 
 **February 2, 2025**
+- **Event Editing Fix**: Resolved issue where event descriptions were being discarded during editing
+- **Field Mapping Correction**: Fixed frontend-backend field mapping mismatch between 'description' and 'requirements' fields
+- **Data Persistence**: Event descriptions now properly retain and display existing data when editing events
 - **Critical Bug Fix**: Resolved Stripe API version configuration issue that was preventing application startup
 - **Application Stability**: Fixed server crash related to invalid Stripe API version "2025-06-30.basil" by using default version
 - **Deployment Success**: Application now starts successfully and serves on port 5000 with all features functional
