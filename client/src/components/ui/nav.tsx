@@ -3,6 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useState } from "react";
+import { Menu, X } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,6 +15,7 @@ import {
 export default function Navigation() {
   const { user } = useAuth();
   const [location] = useLocation();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const { data: stats = {} } = useQuery({
     queryKey: ["/api/dashboard/stats"],
@@ -132,12 +135,117 @@ export default function Navigation() {
 
           {/* Mobile menu button */}
           <div className="md:hidden">
-            <Button variant="ghost" size="sm">
-              <i className="fas fa-bars text-xl"></i>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            >
+              {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </Button>
           </div>
         </div>
       </div>
+
+      {/* Mobile Navigation Menu */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden">
+          <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-white border-b border-gray-200 shadow-lg">
+            {/* Navigation Links */}
+            <Link 
+              href="/" 
+              className={`block px-3 py-2 rounded-md text-base font-medium ${
+                isActive("/") 
+                  ? "text-primary bg-primary/10" 
+                  : "text-neutral-500 hover:text-neutral-900 hover:bg-gray-50"
+              }`}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Dashboard
+            </Link>
+            <Link 
+              href="/events" 
+              className={`block px-3 py-2 rounded-md text-base font-medium ${
+                isActive("/events") 
+                  ? "text-primary bg-primary/10" 
+                  : "text-neutral-500 hover:text-neutral-900 hover:bg-gray-50"
+              }`}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Events
+            </Link>
+            <Link 
+              href="/teams" 
+              className={`block px-3 py-2 rounded-md text-base font-medium ${
+                isActive("/teams") 
+                  ? "text-primary bg-primary/10" 
+                  : "text-neutral-500 hover:text-neutral-900 hover:bg-gray-50"
+              }`}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Teams
+            </Link>
+            <Link 
+              href="/notifications" 
+              className={`block px-3 py-2 rounded-md text-base font-medium relative ${
+                isActive("/notifications") 
+                  ? "text-primary bg-primary/10" 
+                  : "text-neutral-500 hover:text-neutral-900 hover:bg-gray-50"
+              }`}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              <div className="flex items-center">
+                Notifications
+                {(stats as any)?.unreadNotifications > 0 && (
+                  <Badge 
+                    variant="destructive" 
+                    className="ml-2 h-5 w-5 flex items-center justify-center text-xs p-0"
+                  >
+                    {(stats as any).unreadNotifications}
+                  </Badge>
+                )}
+              </div>
+            </Link>
+            <Link 
+              href="/settings" 
+              className={`block px-3 py-2 rounded-md text-base font-medium ${
+                isActive("/settings") 
+                  ? "text-primary bg-primary/10" 
+                  : "text-neutral-500 hover:text-neutral-900 hover:bg-gray-50"
+              }`}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Settings
+            </Link>
+            
+            {/* User Profile Section */}
+            <div className="border-t border-gray-200 pt-4 mt-4">
+              <div className="flex items-center px-3 py-2">
+                <img 
+                  className="h-10 w-10 rounded-full object-cover" 
+                  src={(user as any)?.profileImageUrl || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&h=100"} 
+                  alt="User avatar"
+                />
+                <div className="ml-3">
+                  <div className="text-base font-medium text-neutral-900">
+                    {(user as any)?.firstName || "User"} {(user as any)?.lastName || ""}
+                  </div>
+                  <div className="text-sm text-neutral-500">
+                    {(user as any)?.email || ""}
+                  </div>
+                </div>
+              </div>
+              <Button 
+                variant="ghost" 
+                className="w-full justify-start px-3 py-2 mt-2 text-neutral-500 hover:text-neutral-900 hover:bg-gray-50"
+                onClick={handleLogout}
+              >
+                <i className="fas fa-sign-out-alt mr-2"></i>
+                Sign out
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </nav>
   );
 }
