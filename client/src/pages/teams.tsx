@@ -127,15 +127,21 @@ function TeamSettingsModal({ team, onClose, onSave, isLoading }: {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b">
+        <div 
+          className="p-6 border-b"
+          style={{ 
+            background: `linear-gradient(135deg, ${team.color || '#3b82f6'}, ${team.color || '#3b82f6'}dd)` 
+          }}
+        >
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-neutral-900">
+            <h2 className="text-xl font-semibold text-white">
               Team Settings
             </h2>
             <Button 
               variant="ghost" 
               size="sm"
               onClick={onClose}
+              className="text-white hover:bg-white/20"
             >
               <i className="fas fa-times"></i>
             </Button>
@@ -394,11 +400,16 @@ export default function Teams() {
           ) : (
             (teams as any[]).map((team: any) => (
               <Card key={team.id} className="overflow-hidden">
-                <div className="h-32 bg-gradient-to-r from-primary to-blue-800 relative">
+                <div 
+                  className="h-32 relative"
+                  style={{ 
+                    background: `linear-gradient(135deg, ${team.color || '#3b82f6'}, ${team.color || '#3b82f6'}dd)` 
+                  }}
+                >
                   <img 
                     src="https://pixabay.com/get/g4180ccc4c1955ff77d8d09ee0a3f70c86ad763442d2be03a192f87a0e6c68bc3117c7a82bf4656202aff56e0d721e9767a71e5dcf4aaf368d865bf8caeb7be09_1280.jpg" 
                     alt={`${team.name} team banner`}
-                    className="w-full h-full object-cover mix-blend-overlay"
+                    className="w-full h-full object-cover mix-blend-overlay opacity-30"
                   />
                   <div className="absolute top-4 right-4">
                     <Badge variant={
@@ -413,7 +424,10 @@ export default function Teams() {
                 
                 <CardContent className="p-6">
                   <div className="flex items-center space-x-3 mb-4">
-                    <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center">
+                    <div 
+                      className="w-12 h-12 rounded-lg flex items-center justify-center"
+                      style={{ backgroundColor: team.color || '#3b82f6' }}
+                    >
                       <i className="fas fa-football-ball text-white text-lg"></i>
                     </div>
                     <div>
@@ -472,15 +486,21 @@ export default function Teams() {
         {showManageModal && selectedTeam && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-              <div className="p-6 border-b">
+              <div 
+                className="p-6 border-b relative"
+                style={{ 
+                  background: `linear-gradient(135deg, ${selectedTeam.color || '#3b82f6'}, ${selectedTeam.color || '#3b82f6'}dd)` 
+                }}
+              >
                 <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-semibold text-neutral-900">
+                  <h2 className="text-xl font-semibold text-white">
                     Manage {selectedTeam.name}
                   </h2>
                   <Button 
                     variant="ghost" 
                     size="sm"
                     onClick={() => setShowManageModal(false)}
+                    className="text-white hover:bg-white/20"
                   >
                     <i className="fas fa-times"></i>
                   </Button>
