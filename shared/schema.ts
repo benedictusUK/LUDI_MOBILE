@@ -46,7 +46,7 @@ export const users = pgTable("users", {
 // Teams table
 export const teams = pgTable("teams", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: varchar("name", { length: 255 }).notNull(),
+  name: varchar("name", { length: 255 }).notNull().unique(),
   sports: text("sports").array().notNull().default(sql`'{}'`),
   description: text("description"),
   color: varchar("color", { length: 7 }).default("#3b82f6"),

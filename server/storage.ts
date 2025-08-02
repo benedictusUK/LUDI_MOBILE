@@ -35,12 +35,14 @@ import { randomUUID } from "crypto";
 export interface IStorage {
   // User operations (required for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   updateUserStripeInfo(userId: string, stripeCustomerId: string, stripeSubscriptionId?: string): Promise<User>;
 
   // Team operations
   createTeam(teamData: InsertTeam, ownerId: string): Promise<Team>;
   getTeam(id: string): Promise<Team | undefined>;
+  getTeamByName(name: string): Promise<Team | undefined>;
   getUserTeams(userId: string): Promise<(Team & { role: string; memberCount: number })[]>;
   addTeamMember(teamId: string, userId: string, role?: string): Promise<TeamMembership>;
   removeTeamMember(teamId: string, userId: string): Promise<void>;
@@ -96,6 +98,11 @@ export class DatabaseStorage implements IStorage {
   // User operations
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
     return user;
   }
 
@@ -155,6 +162,11 @@ export class DatabaseStorage implements IStorage {
 
   async getTeam(id: string): Promise<Team | undefined> {
     const [team] = await db.select().from(teams).where(eq(teams.id, id));
+    return team;
+  }
+
+  async getTeamByName(name: string): Promise<Team | undefined> {
+    const [team] = await db.select().from(teams).where(eq(teams.name, name));
     return team;
   }
 

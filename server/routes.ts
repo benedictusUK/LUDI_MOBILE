@@ -57,10 +57,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ownerId: userId,
       });
       
+      // Check if team name already exists
+      const existingTeam = await storage.getTeamByName(teamData.name);
+      if (existingTeam) {
+        return res.status(409).json({ message: "Team name already exists" });
+      }
+      
       const team = await storage.createTeam(teamData, userId);
       res.json(team);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating team:", error);
+      if (error.message && error.message.includes('duplicate key')) {
+        return res.status(409).json({ message: "Team name already exists" });
+      }
       res.status(400).json({ message: "Failed to create team" });
     }
   });
@@ -110,6 +119,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Check username availability
+  app.get('/api/users/check-username/:username', isAuthenticated, async (req, res) => {
+    try {
+      const { username } = req.params;
+      const existingUser = await storage.getUserByUsername(username);
+      res.json({ available: !existingUser });
+    } catch (error) {
+      console.error("Error checking username:", error);
+      res.status(500).json({ message: "Failed to check username" });
+    }
+  });
+
+  // Check team name availability
+  app.get('/api/teams/check-name/:name', isAuthenticated, async (req, res) => {
+    try {
+      const { name } = req.params;
+      const existingTeam = await storage.getTeamByName(name);
+      res.json({ available: !existingTeam });
+    } catch (error) {
+      console.error("Error checking team name:", error);
+      res.status(500).json({ message: "Failed to check team name" });
+    }
+  });
+
   // Invite member to team
   app.post("/api/teams/:id/invite", isAuthenticated, async (req: any, res) => {
     try {
@@ -148,6 +181,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Not authorized to update team" });
       }
 
+      // If updating team name, check for uniqueness
+      if (updates.name) {
+        const existingTeam = await storage.getTeamByName(updates.name);
+        if (existingTeam && existingTeam.id !== teamId) {
+          return res.status(409).json({ message: "Team name already exists" });
+        }
+      }
+
       // Filter out fields that shouldn't be updated via this endpoint
       const allowedUpdates = {
         name: updates.name,
@@ -159,8 +200,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const updatedTeam = await storage.updateTeam(teamId, allowedUpdates);
       res.json(updatedTeam);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating team:", error);
+      if (error.message && error.message.includes('duplicate key')) {
+        return res.status(409).json({ message: "Team name already exists" });
+      }
       res.status(500).json({ message: "Failed to update team" });
     }
   });
