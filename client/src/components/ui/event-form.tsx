@@ -250,7 +250,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                   )}
                 </div>
                 <div>
-                  <Label htmlFor="startTime">Start Time * (24h format)</Label>
+                  <Label htmlFor="startTime">Start Time * (24h)</Label>
                   <Input
                     id="startTime"
                     type="text"
@@ -277,7 +277,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                   />
                 </div>
                 <div>
-                  <Label htmlFor="endTime">End Time (24h format)</Label>
+                  <Label htmlFor="endTime">End Time (24h)</Label>
                   <Input
                     id="endTime"
                     type="text"
