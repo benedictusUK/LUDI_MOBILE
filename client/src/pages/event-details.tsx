@@ -27,28 +27,30 @@ export default function EventDetails() {
     voters: [],
   });
 
-  // Fetch activity logs for this event
-  const { data: activityLogs } = useQuery({
-    queryKey: ["/api/events", eventId, "activity"],
-    enabled: !!eventId,
-  });
-
-  // Fetch potential players (team members who haven't voted)
-  const { data: potentialPlayers } = useQuery({
-    queryKey: ["/api/events", eventId, "potential-players"],
-    enabled: !!eventId,
-  });
-
-  // Fetch event details
+  // Fetch event details first (priority data)
   const { data: event, isLoading: eventLoading } = useQuery({
     queryKey: ["/api/events", eventId],
     enabled: !!eventId,
   });
 
-  // Fetch event attendance
+  // Fetch event attendance (priority data)
   const { data: attendance, isLoading: attendanceLoading } = useQuery({
     queryKey: ["/api/events", eventId, "attendance"],
     enabled: !!eventId,
+  });
+
+  // Fetch potential players (secondary data - only after event loads)
+  const { data: potentialPlayers } = useQuery({
+    queryKey: ["/api/events", eventId, "potential-players"],
+    enabled: !!eventId && !!event,
+    staleTime: 30000, // Cache for 30 seconds
+  });
+
+  // Fetch activity logs (secondary data - only after event loads)
+  const { data: activityLogs } = useQuery({
+    queryKey: ["/api/events", eventId, "activity"],
+    enabled: !!eventId && !!event,
+    staleTime: 30000, // Cache for 30 seconds
   });
 
   // Vote mutation with optimistic updates
