@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
@@ -36,6 +36,32 @@ export default function Events() {
   const { data: events = [], isLoading } = useQuery({
     queryKey: ["/api/events"],
   });
+
+  // Pre-fetch event details, attendance, and potential players for all events
+  // This will cache the data so event details page loads instantly
+  useEffect(() => {
+    if (events && Array.isArray(events)) {
+      events.forEach((event: any) => {
+        // Pre-fetch event details (already have basic info, but ensure it's cached)
+        queryClient.prefetchQuery({
+          queryKey: ["/api/events", event.id],
+          staleTime: 60000, // Cache for 1 minute
+        });
+        
+        // Pre-fetch attendance data
+        queryClient.prefetchQuery({
+          queryKey: ["/api/events", event.id, "attendance"],
+          staleTime: 30000, // Cache for 30 seconds
+        });
+        
+        // Pre-fetch potential players
+        queryClient.prefetchQuery({
+          queryKey: ["/api/events", event.id, "potential-players"],
+          staleTime: 30000, // Cache for 30 seconds
+        });
+      });
+    }
+  }, [events]);
 
   const { data: teams = [] } = useQuery({
     queryKey: ["/api/teams"],
@@ -179,8 +205,21 @@ export default function Events() {
               // Use primary team color or fallback to default
               const teamColor = event.primaryTeam?.color || "#3b82f6";
               
+              // Handle hover prefetching for instant loading
+              const handleHover = () => {
+                // Pre-fetch activity logs on hover for instant loading
+                queryClient.prefetchQuery({
+                  queryKey: ["/api/events", event.id, "activity"],
+                  staleTime: 30000,
+                });
+              };
+
               return (
-                <Card key={event.id} className="overflow-hidden">
+                <Card 
+                  key={event.id} 
+                  className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow"
+                  onMouseEnter={handleHover}
+                >
                   <div 
                     className="h-32 relative"
                     style={{ 
