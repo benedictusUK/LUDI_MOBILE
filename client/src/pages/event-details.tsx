@@ -122,6 +122,17 @@ export default function EventDetails() {
   const potentialCount = potentialPlayersList.length;
   const totalPlayers = attendingCount + notAttendingCount + potentialCount;
   
+  // Debug logging
+  console.log('Vote statistics:', {
+    attendingCount,
+    notAttendingCount, 
+    potentialCount,
+    totalPlayers,
+    attendingVoters,
+    notAttendingVoters,
+    potentialPlayersList
+  });
+  
   const attendingPercentage = totalPlayers > 0 ? (attendingCount / totalPlayers) * 100 : 0;
   const notAttendingPercentage = totalPlayers > 0 ? (notAttendingCount / totalPlayers) * 100 : 0;
   const potentialPercentage = totalPlayers > 0 ? (potentialCount / totalPlayers) * 100 : 0;
