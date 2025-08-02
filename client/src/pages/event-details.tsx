@@ -27,6 +27,12 @@ export default function EventDetails() {
     voters: [],
   });
 
+  // Fetch activity logs for this event
+  const { data: activityLogs } = useQuery({
+    queryKey: ["/api/events", eventId, "activity"],
+    enabled: !!eventId,
+  });
+
   // Fetch event details
   const { data: event, isLoading: eventLoading } = useQuery({
     queryKey: ["/api/events", eventId],
@@ -117,6 +123,14 @@ export default function EventDetails() {
       type,
       voters,
     });
+  };
+
+  // Get unvote activity for the modal
+  const getUnvoteActivity = (userId: string) => {
+    if (!activityLogs) return [];
+    return (activityLogs as any[]).filter(log => 
+      log.userId === userId && log.action === "unvoted"
+    ).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   };
 
   return (
@@ -401,30 +415,51 @@ export default function EventDetails() {
           </DialogHeader>
           <div className="max-h-96 overflow-y-auto">
             <div className="space-y-3">
-              {voteDetailsModal.voters.map((voter: any) => (
-                <div key={voter.userId} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="w-8 h-8">
-                      <AvatarFallback className="text-xs">
-                        {voter.user?.firstName?.[0] || voter.user?.email?.[0] || '?'}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <div className="font-medium text-sm">
-                        {voter.user?.firstName} {voter.user?.lastName}
+              {voteDetailsModal.voters.map((voter: any) => {
+                const unvoteHistory = getUnvoteActivity(voter.userId);
+                return (
+                  <div key={voter.userId} className="p-3 bg-muted rounded-lg space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="w-8 h-8">
+                          <AvatarFallback className="text-xs">
+                            {voter.user?.firstName?.[0] || voter.user?.email?.[0] || '?'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="font-medium text-sm">
+                            {voter.user?.firstName} {voter.user?.lastName}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {voter.user?.email}
+                          </div>
+                        </div>
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        {voter.user?.email}
+                      <div className="text-right">
+                        <div className="text-xs font-medium text-green-600">
+                          Voted: {new Date(voter.votedAt).toLocaleString()}
+                        </div>
                       </div>
                     </div>
+                    
+                    {unvoteHistory.length > 0 && (
+                      <div className="border-t border-muted-foreground/20 pt-2">
+                        <div className="text-xs font-medium text-muted-foreground mb-1">Unvote History:</div>
+                        {unvoteHistory.slice(0, 3).map((unvote: any, index: number) => (
+                          <div key={index} className="text-xs text-red-600 opacity-80">
+                            Unvoted: {new Date(unvote.timestamp).toLocaleString()}
+                          </div>
+                        ))}
+                        {unvoteHistory.length > 3 && (
+                          <div className="text-xs text-muted-foreground">
+                            +{unvoteHistory.length - 3} more unvotes
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <div className="text-right">
-                    <div className="text-xs text-muted-foreground">
-                      {new Date(voter.votedAt).toLocaleString()}
-                    </div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </DialogContent>

@@ -400,6 +400,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get event activity logs
+  app.get("/api/events/:id/activity", isAuthenticated, async (req, res) => {
+    try {
+      const logs = await storage.getEventActivityLogs(req.params.id);
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching activity logs:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Notification routes
   app.get('/api/notifications', isAuthenticated, async (req: any, res) => {
     try {
