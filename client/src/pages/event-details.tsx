@@ -219,7 +219,7 @@ export default function EventDetails() {
             </Card>
 
             {/* Voting Section */}
-            {(event as any).enableVoting && (
+            {(event as any).isPublished && (
               <Card className="mt-6">
                 <CardHeader>
                   <CardTitle className="flex items-center">
@@ -336,7 +336,7 @@ export default function EventDetails() {
           </div>
 
           {/* Attendance List */}
-          {(event as any).enableVoting && attendance && (attendance as any[]).length > 0 && (
+          {(event as any).isPublished && attendance && (attendance as any[]).length > 0 && (
             <div>
               <Card>
                 <CardHeader>
