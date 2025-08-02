@@ -279,29 +279,8 @@ export class DatabaseStorage implements IStorage {
   async getEvent(id: string): Promise<any | undefined> {
     const [result] = await db
       .select({
-        // Event fields
-        eventId: events.id,
-        eventName: events.name,
-        eventDescription: events.requirements,
-        eventStartDate: events.startDate,
-        eventEndDate: events.endDate,
-        eventStartTime: events.startTime,
-        eventEndTime: events.endTime,
-        eventLocation: events.location,
-        eventMaxParticipants: events.participants,
-        eventCost: events.cost,
-        eventCreatedById: events.createdById,
-        eventPrimaryTeamId: events.primaryTeamId,
-        eventCreatedAt: events.createdAt,
-        eventUpdatedAt: events.updatedAt,
-        // Team fields
-        teamId: teams.id,
-        teamName: teams.name,
-        teamColor: teams.color,
-        teamOwnerId: teams.ownerId,
-        teamMaxPlayers: teams.maxPlayers,
-        teamCreatedAt: teams.createdAt,
-        teamUpdatedAt: teams.updatedAt
+        event: events,
+        primaryTeam: teams
       })
       .from(events)
       .innerJoin(teams, eq(events.primaryTeamId, teams.id))
@@ -311,29 +290,8 @@ export class DatabaseStorage implements IStorage {
     if (!result) return undefined;
     
     return {
-      id: result.eventId,
-      name: result.eventName,
-      requirements: result.eventDescription,
-      startDate: result.eventStartDate,
-      endDate: result.eventEndDate,
-      startTime: result.eventStartTime,
-      endTime: result.eventEndTime,
-      location: result.eventLocation,
-      participants: result.eventMaxParticipants,
-      cost: result.eventCost,
-      createdById: result.eventCreatedById,
-      primaryTeamId: result.eventPrimaryTeamId,
-      createdAt: result.eventCreatedAt,
-      updatedAt: result.eventUpdatedAt,
-      primaryTeam: {
-        id: result.teamId,
-        name: result.teamName,
-        color: result.teamColor,
-        ownerId: result.teamOwnerId,
-        maxPlayers: result.teamMaxPlayers,
-        createdAt: result.teamCreatedAt,
-        updatedAt: result.teamUpdatedAt
-      }
+      ...result.event,
+      primaryTeam: result.primaryTeam
     };
   }
 
