@@ -690,16 +690,24 @@ export class DatabaseStorage implements IStorage {
 
   async getEventActivityLogs(eventId: string): Promise<(ActivityLog & { user: User })[]> {
     const result = await db
-      .select()
+      .select({
+        id: activityLogs.id,
+        eventId: activityLogs.eventId,
+        userId: activityLogs.userId,
+        action: activityLogs.action,
+        previousStatus: activityLogs.previousStatus,
+        newStatus: activityLogs.newStatus,
+        timestamp: activityLogs.timestamp,
+        ipAddress: activityLogs.ipAddress,
+        userAgent: activityLogs.userAgent,
+        user: users
+      })
       .from(activityLogs)
       .innerJoin(users, eq(activityLogs.userId, users.id))
       .where(eq(activityLogs.eventId, eventId))
       .orderBy(desc(activityLogs.timestamp));
 
-    return result.map((row: any) => ({
-      ...row.activity_logs,
-      user: row.users,
-    }));
+    return result;
   }
 }
 
