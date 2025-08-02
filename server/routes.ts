@@ -52,6 +52,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/teams', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      
+      // Parse and validate the team data
       const teamData = insertTeamSchema.parse({
         ...req.body,
         ownerId: userId,
@@ -60,16 +62,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if team name already exists
       const existingTeam = await storage.getTeamByName(teamData.name);
       if (existingTeam) {
-        return res.status(409).json({ message: "Team name already exists" });
+        return res.status(409).json({ 
+          message: "Team name already exists",
+          field: "name"
+        });
       }
       
       const team = await storage.createTeam(teamData, userId);
       res.json(team);
     } catch (error: any) {
       console.error("Error creating team:", error);
-      if (error.message && error.message.includes('duplicate key')) {
-        return res.status(409).json({ message: "Team name already exists" });
+      
+      // Handle Zod validation errors
+      if (error.name === 'ZodError') {
+        const firstError = error.errors[0];
+        return res.status(400).json({ 
+          message: firstError.message,
+          field: firstError.path.join('.'),
+          errors: error.errors
+        });
       }
+      
+      // Handle database constraint violations
+      if (error.message && error.message.includes('duplicate key')) {
+        return res.status(409).json({ 
+          message: "Team name already exists",
+          field: "name"
+        });
+      }
+      
       res.status(400).json({ message: "Failed to create team" });
     }
   });
@@ -233,6 +254,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/events', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      
+      // Parse and validate the event data
       const eventData = insertEventSchema.parse({
         ...req.body,
         createdById: userId,
@@ -251,8 +274,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       res.json(event);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating event:", error);
+      
+      // Handle Zod validation errors
+      if (error.name === 'ZodError') {
+        const firstError = error.errors[0];
+        return res.status(400).json({ 
+          message: firstError.message,
+          field: firstError.path.join('.'),
+          errors: error.errors
+        });
+      }
+      
       res.status(400).json({ message: "Failed to create event" });
     }
   });
@@ -284,14 +318,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/events/:id', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      
+      // Parse and validate the event data
       const eventData = insertEventSchema.parse({
         ...req.body,
         createdById: userId,
       });
+      
       const event = await storage.updateEvent(req.params.id, eventData);
       res.json(event);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating event:", error);
+      
+      // Handle Zod validation errors
+      if (error.name === 'ZodError') {
+        const firstError = error.errors[0];
+        return res.status(400).json({ 
+          message: firstError.message,
+          field: firstError.path.join('.'),
+          errors: error.errors
+        });
+      }
+      
       res.status(400).json({ message: "Failed to update event" });
     }
   });

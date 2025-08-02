@@ -109,9 +109,9 @@ function SportsMultiSelect({
 }
 
 const teamFormSchema = z.object({
-  name: z.string().min(1, "Team name is required"),
+  name: z.string().min(1, "Team name is required").max(255, "Team name must be less than 255 characters"),
   description: z.string().optional(),
-  sports: z.array(z.string()).min(1, "At least one sport is required"),
+  sports: z.array(z.string()).min(1, "At least one sport must be selected"),
   color: z.string().default("#3b82f6"),
   maxPlayers: z.string().optional(),
   isPrivate: z.boolean().default(false),
@@ -163,7 +163,7 @@ export default function TeamForm({ onCancel, onSuccess, teamId }: TeamFormProps)
       });
       onSuccess();
     },
-    onError: (error) => {
+    onError: (error: any) => {
       if (isUnauthorizedError(error)) {
         toast({
           title: "Unauthorized",
@@ -175,9 +175,27 @@ export default function TeamForm({ onCancel, onSuccess, teamId }: TeamFormProps)
         }, 500);
         return;
       }
+
+      // Parse error message for detailed feedback
+      let errorMessage = `Failed to ${isEditing ? "update" : "create"} team`;
+      try {
+        const errorData = JSON.parse(error.message.split(': ')[1] || '{}');
+        if (errorData.message) {
+          errorMessage = errorData.message;
+        }
+      } catch (e) {
+        // If parsing fails, check if it's a simple error message
+        if (error.message && error.message.includes(':')) {
+          const parts = error.message.split(': ');
+          if (parts.length > 1) {
+            errorMessage = parts[1];
+          }
+        }
+      }
+
       toast({
         title: "Error",
-        description: `Failed to ${isEditing ? "update" : "create"} team`,
+        description: errorMessage,
         variant: "destructive",
       });
     },

@@ -126,7 +126,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
       });
       onSuccess();
     },
-    onError: (error) => {
+    onError: (error: any) => {
       if (isUnauthorizedError(error)) {
         toast({
           title: "Unauthorized",
@@ -138,9 +138,27 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
         }, 500);
         return;
       }
+
+      // Parse error message for detailed feedback
+      let errorMessage = `Failed to ${isEditing ? "update" : "create"} event`;
+      try {
+        const errorData = JSON.parse(error.message.split(': ')[1] || '{}');
+        if (errorData.message) {
+          errorMessage = errorData.message;
+        }
+      } catch (e) {
+        // If parsing fails, check if it's a simple error message
+        if (error.message && error.message.includes(':')) {
+          const parts = error.message.split(': ');
+          if (parts.length > 1) {
+            errorMessage = parts[1];
+          }
+        }
+      }
+
       toast({
         title: "Error",
-        description: `Failed to ${isEditing ? "update" : "create"} event`,
+        description: errorMessage,
         variant: "destructive",
       });
     },

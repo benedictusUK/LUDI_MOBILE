@@ -293,6 +293,11 @@ export const insertTeamSchema = createInsertSchema(teams).omit({
   updatedAt: true,
   ownerId: true,
   inviteCode: true,
+}).extend({
+  name: z.string().min(1, "Team name is required").max(255, "Team name must be less than 255 characters"),
+  sports: z.array(z.string()).min(1, "At least one sport must be selected"),
+  description: z.string().optional(),
+  maxPlayers: z.number().min(1, "Maximum players must be at least 1").optional(),
 });
 
 export const insertEventSchema = createInsertSchema(events).omit({
@@ -300,14 +305,24 @@ export const insertEventSchema = createInsertSchema(events).omit({
   createdAt: true,
   updatedAt: true,
 }).extend({
+  name: z.string().min(1, "Event name is required").max(255, "Event name must be less than 255 characters"),
+  sport: z.string().min(1, "Sport selection is required"),
+  startDate: z.string().min(1, "Start date is required"),
+  startTime: z.string().min(1, "Start time is required").regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, "Start time must be in HH:MM format (24-hour)"),
+  endTime: z.string().optional().refine((val) => !val || /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(val), "End time must be in HH:MM format (24-hour)"),
+  location: z.string().min(1, "Location is required"),
+  primaryTeamId: z.string().min(1, "Team selection is required"),
   cost: z.union([z.string(), z.number()]).optional().transform((val) => {
     if (typeof val === 'number') return val.toString();
     return val || "0.00";
   }),
   description: z.string().min(1, "Description is required"),
   endDate: z.string().optional().transform((val) => val || null),
-  endTime: z.string().optional().transform((val) => val || null),
   requirements: z.string().optional().transform((val) => val || null),
+  maxParticipants: z.union([z.string(), z.number()]).optional().transform((val) => {
+    if (val === "" || val === null || val === undefined) return null;
+    return typeof val === 'string' ? parseInt(val) || null : val;
+  }).refine((val) => val === null || val > 0, "Maximum participants must be greater than 0"),
 });
 
 export const insertEventAttendanceSchema = createInsertSchema(eventAttendance).omit({
