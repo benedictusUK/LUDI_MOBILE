@@ -377,35 +377,57 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
 
               <div>
                 <Label htmlFor="secondaryTeamIds">Secondary Teams (Optional)</Label>
-                <div className="space-y-2">
-                  {(teams as any[])
-                    .filter((team: any) => team.id !== form.watch("primaryTeamId"))
-                    .map((team: any) => (
-                      <div key={team.id} className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          id={`secondary-${team.id}`}
-                          checked={form.watch("secondaryTeamIds")?.includes(team.id) || false}
-                          onChange={(e) => {
-                            const currentSecondary = form.watch("secondaryTeamIds") || [];
-                            if (e.target.checked) {
-                              form.setValue("secondaryTeamIds", [...currentSecondary, team.id]);
-                            } else {
-                              form.setValue("secondaryTeamIds", currentSecondary.filter(id => id !== team.id));
-                            }
-                          }}
-                          className="rounded border-gray-300"
-                        />
-                        <Label 
-                          htmlFor={`secondary-${team.id}`}
-                          className="text-sm font-normal cursor-pointer"
-                        >
-                          {team.name}
-                        </Label>
-                      </div>
-                    ))}
-                  {(teams as any[]).filter((team: any) => team.id !== form.watch("primaryTeamId")).length === 0 && (
-                    <p className="text-sm text-gray-500">No additional teams available</p>
+                <div className="relative">
+                  <Select
+                    onValueChange={(value) => {
+                      const currentSecondary = form.watch("secondaryTeamIds") || [];
+                      if (!currentSecondary.includes(value)) {
+                        form.setValue("secondaryTeamIds", [...currentSecondary, value]);
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Add secondary teams..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(teams as any[])
+                        .filter((team: any) => 
+                          team.id !== form.watch("primaryTeamId") && 
+                          !form.watch("secondaryTeamIds")?.includes(team.id)
+                        )
+                        .map((team: any) => (
+                          <SelectItem key={team.id} value={team.id}>
+                            {team.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  
+                  {/* Display selected secondary teams as removable tags */}
+                  {form.watch("secondaryTeamIds") && form.watch("secondaryTeamIds").length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {form.watch("secondaryTeamIds").map((teamId: string) => {
+                        const team = (teams as any[]).find((t: any) => t.id === teamId);
+                        return team ? (
+                          <div
+                            key={teamId}
+                            className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded-md"
+                          >
+                            <span>{team.name}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const currentSecondary = form.watch("secondaryTeamIds") || [];
+                                form.setValue("secondaryTeamIds", currentSecondary.filter(id => id !== teamId));
+                              }}
+                              className="ml-1 text-blue-600 hover:text-blue-800"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ) : null;
+                      })}
+                    </div>
                   )}
                 </div>
               </div>
