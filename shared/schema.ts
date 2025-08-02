@@ -82,6 +82,7 @@ export const events = pgTable("events", {
   requirements: text("requirements"),
   recurrence: varchar("recurrence", { length: 50 }).default("none"), // none, weekly, monthly, custom
   primaryTeamId: varchar("primary_team_id").notNull().references(() => teams.id),
+  secondaryTeamIds: text("secondary_team_ids").array().default(sql`'{}'`),
   createdById: varchar("created_by_id").notNull().references(() => users.id),
   isPublished: boolean("is_published").default(false),
   enableVoting: boolean("enable_voting").default(false),
@@ -313,6 +314,7 @@ export const insertEventSchema = createInsertSchema(events).omit({
   endTime: z.string().optional().transform((val) => val || null).refine((val) => !val || /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(val), "End time must be in HH:MM format (24-hour)"),
   location: z.string().min(1, "Location is required"),
   primaryTeamId: z.string().min(1, "Team selection is required"),
+  secondaryTeamIds: z.array(z.string()).optional().default([]),
   cost: z.union([z.string(), z.number()]).optional().transform((val) => {
     if (typeof val === 'number') return val.toString();
     return val || "0.00";

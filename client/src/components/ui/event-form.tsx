@@ -74,7 +74,8 @@ const eventFormSchema = z.object({
   startTime: z.string().min(1, "Start time is required"),
   endDate: z.string().optional(),
   endTime: z.string().optional(),
-  primaryTeamId: z.string().min(1, "Team is required"),
+  primaryTeamId: z.string().min(1, "Primary team is required"),
+  secondaryTeamIds: z.array(z.string()).optional().default([]),
   maxParticipants: z.string().optional(),
   cost: z.string().optional(),
   isPublished: z.boolean().default(false),
@@ -116,6 +117,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
       endDate: "",
       endTime: "",
       primaryTeamId: "",
+      secondaryTeamIds: [],
       maxParticipants: "",
       cost: "",
       isPublished: false,
@@ -137,6 +139,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
         endDate: event.endDate || "",
         endTime: event.endTime || "",
         primaryTeamId: event.primaryTeamId || "",
+        secondaryTeamIds: event.secondaryTeamIds || [],
         maxParticipants: event.maxParticipants?.toString() || "",
         cost: event.cost || "",
         isPublished: event.isPublished || false,
@@ -155,6 +158,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
         // Convert empty strings to null for optional fields
         endDate: data.endDate || null,
         endTime: data.endTime || null,
+        secondaryTeamIds: data.secondaryTeamIds || [],
       };
       
       const url = isEditing ? `/api/events/${eventId}` : "/api/events";
@@ -348,13 +352,13 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
               </div>
 
               <div>
-                <Label htmlFor="primaryTeamId">Assign to Team</Label>
+                <Label htmlFor="primaryTeamId">Primary Team *</Label>
                 <Select
                   value={form.watch("primaryTeamId")}
                   onValueChange={(value) => form.setValue("primaryTeamId", value)}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select a team" />
+                    <SelectValue placeholder="Select primary team" />
                   </SelectTrigger>
                   <SelectContent>
                     {(teams as any[]).map((team: any) => (
@@ -364,6 +368,46 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                     ))}
                   </SelectContent>
                 </Select>
+                {form.formState.errors.primaryTeamId && (
+                  <p className="text-sm text-red-500 mt-1">
+                    {form.formState.errors.primaryTeamId.message}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="secondaryTeamIds">Secondary Teams (Optional)</Label>
+                <div className="space-y-2">
+                  {(teams as any[])
+                    .filter((team: any) => team.id !== form.watch("primaryTeamId"))
+                    .map((team: any) => (
+                      <div key={team.id} className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id={`secondary-${team.id}`}
+                          checked={form.watch("secondaryTeamIds")?.includes(team.id) || false}
+                          onChange={(e) => {
+                            const currentSecondary = form.watch("secondaryTeamIds") || [];
+                            if (e.target.checked) {
+                              form.setValue("secondaryTeamIds", [...currentSecondary, team.id]);
+                            } else {
+                              form.setValue("secondaryTeamIds", currentSecondary.filter(id => id !== team.id));
+                            }
+                          }}
+                          className="rounded border-gray-300"
+                        />
+                        <Label 
+                          htmlFor={`secondary-${team.id}`}
+                          className="text-sm font-normal cursor-pointer"
+                        >
+                          {team.name}
+                        </Label>
+                      </div>
+                    ))}
+                  {(teams as any[]).filter((team: any) => team.id !== form.watch("primaryTeamId")).length === 0 && (
+                    <p className="text-sm text-gray-500">No additional teams available</p>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

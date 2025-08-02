@@ -262,6 +262,17 @@ export class DatabaseStorage implements IStorage {
   // Event operations
   async createEvent(event: InsertEvent): Promise<Event> {
     const [newEvent] = await db.insert(events).values(event).returning();
+    
+    // Add event-team associations for secondary teams
+    if (event.secondaryTeamIds && event.secondaryTeamIds.length > 0) {
+      const eventTeamAssociations = event.secondaryTeamIds.map(teamId => ({
+        eventId: newEvent.id,
+        teamId: teamId,
+        status: 'accepted' as const
+      }));
+      await db.insert(eventTeams).values(eventTeamAssociations);
+    }
+    
     return newEvent;
   }
 
@@ -271,15 +282,31 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserEvents(userId: string): Promise<Event[]> {
-    const userEvents = await db
+    // Get events where user's team is the primary team
+    const primaryTeamEvents = await db
+      .select({ event: events })
+      .from(events)
+      .innerJoin(teamMemberships, eq(events.primaryTeamId, teamMemberships.teamId))
+      .where(eq(teamMemberships.userId, userId));
+
+    // Get events where user's team is a secondary team
+    const secondaryTeamEvents = await db
       .select({ event: events })
       .from(events)
       .innerJoin(eventTeams, eq(events.id, eventTeams.eventId))
       .innerJoin(teamMemberships, eq(eventTeams.teamId, teamMemberships.teamId))
-      .where(eq(teamMemberships.userId, userId))
-      .orderBy(desc(events.startDate));
+      .where(eq(teamMemberships.userId, userId));
 
-    return userEvents.map(result => result.event);
+    // Combine and deduplicate events
+    const allEvents = [...primaryTeamEvents, ...secondaryTeamEvents];
+    const uniqueEvents = allEvents.filter((event, index, self) => 
+      index === self.findIndex(e => e.event.id === event.event.id)
+    );
+
+    // Sort by start date descending
+    uniqueEvents.sort((a, b) => new Date(b.event.startDate).getTime() - new Date(a.event.startDate).getTime());
+
+    return uniqueEvents.map(result => result.event);
   }
 
   async getTeamEvents(teamId: string): Promise<Event[]> {
@@ -299,6 +326,23 @@ export class DatabaseStorage implements IStorage {
       .set({ ...updates, updatedAt: new Date() })
       .where(eq(events.id, id))
       .returning();
+    
+    // Update event-team associations for secondary teams if provided
+    if (updates.secondaryTeamIds !== undefined) {
+      // Remove existing secondary team associations (not primary team)
+      await db.delete(eventTeams).where(eq(eventTeams.eventId, id));
+      
+      // Add new secondary team associations
+      if (updates.secondaryTeamIds.length > 0) {
+        const eventTeamAssociations = updates.secondaryTeamIds.map(teamId => ({
+          eventId: id,
+          teamId: teamId,
+          status: 'accepted' as const
+        }));
+        await db.insert(eventTeams).values(eventTeamAssociations);
+      }
+    }
+    
     return event;
   }
 
