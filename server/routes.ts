@@ -352,6 +352,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get event attendance
+  app.get("/api/events/:id/attendance", isAuthenticated, async (req, res) => {
+    try {
+      const attendance = await storage.getEventAttendance(req.params.id);
+      res.json(attendance);
+    } catch (error) {
+      console.error("Error fetching event attendance:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Vote on event attendance
+  app.post("/api/events/:id/vote", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const { status } = req.body;
+      if (!["attending", "not_attending"].includes(status)) {
+        return res.status(400).json({ message: "Invalid vote status" });
+      }
+
+      const vote = await storage.voteOnEvent(req.params.id, userId, status);
+      res.json(vote);
+    } catch (error) {
+      console.error("Error voting on event:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Remove vote from event
+  app.delete("/api/events/:id/vote", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      await storage.removeVote(req.params.id, userId);
+      res.json({ message: "Vote removed successfully" });
+    } catch (error) {
+      console.error("Error removing vote:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Notification routes
   app.get('/api/notifications', isAuthenticated, async (req: any, res) => {
     try {

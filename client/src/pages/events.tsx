@@ -206,7 +206,16 @@ export default function Events() {
                         <i className="fas fa-football-ball text-white text-lg"></i>
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold text-neutral-900">{event.name}</h3>
+                        <h3 
+                          className={`text-lg font-semibold text-neutral-900 ${event.isPublished ? 'cursor-pointer hover:underline' : ''}`}
+                          onClick={() => {
+                            if (event.isPublished) {
+                              window.location.href = `/events/${event.id}`;
+                            }
+                          }}
+                        >
+                          {event.name}
+                        </h3>
                         <div className="flex items-center space-x-2">
                           <p className="text-sm text-neutral-500">{event.sport}</p>
                           {event.primaryTeam && (

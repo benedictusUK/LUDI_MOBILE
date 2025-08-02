@@ -276,9 +276,22 @@ export class DatabaseStorage implements IStorage {
     return newEvent;
   }
 
-  async getEvent(id: string): Promise<Event | undefined> {
-    const [event] = await db.select().from(events).where(eq(events.id, id));
-    return event;
+  async getEvent(id: string): Promise<any | undefined> {
+    const [result] = await db
+      .select({
+        event: events,
+        primaryTeam: teams
+      })
+      .from(events)
+      .innerJoin(teams, eq(events.primaryTeamId, teams.id))
+      .where(eq(events.id, id));
+    
+    if (!result) return undefined;
+    
+    return {
+      ...result.event,
+      primaryTeam: result.primaryTeam
+    };
   }
 
   async getUserEvents(userId: string): Promise<any[]> {
@@ -412,6 +425,85 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Event attendance operations
+  async getEventAttendance(eventId: string): Promise<any[]> {
+    const attendanceRecords = await db
+      .select({
+        attendance: eventAttendance,
+        user: users
+      })
+      .from(eventAttendance)
+      .innerJoin(users, eq(eventAttendance.userId, users.id))
+      .where(eq(eventAttendance.eventId, eventId))
+      .orderBy(desc(eventAttendance.votedAt));
+
+    return attendanceRecords.map(record => ({
+      ...record.attendance,
+      user: record.user
+    }));
+  }
+
+  async voteOnEvent(eventId: string, userId: string, status: "attending" | "not_attending"): Promise<any> {
+    // Check if user already voted
+    const existingVote = await db
+      .select()
+      .from(eventAttendance)
+      .where(and(eq(eventAttendance.eventId, eventId), eq(eventAttendance.userId, userId)));
+
+    if (existingVote.length > 0) {
+      // Update existing vote
+      const [updatedVote] = await db
+        .update(eventAttendance)
+        .set({ 
+          status,
+          votedAt: new Date()
+        })
+        .where(and(eq(eventAttendance.eventId, eventId), eq(eventAttendance.userId, userId)))
+        .returning();
+
+      // Log the vote change
+      await this.logActivity(eventId, userId, "changed_vote", existingVote[0].status, status);
+      
+      return updatedVote;
+    } else {
+      // Create new vote
+      const [newVote] = await db
+        .insert(eventAttendance)
+        .values({
+          eventId,
+          userId,
+          status,
+          votedAt: new Date()
+        })
+        .returning();
+
+      // Log the vote
+      await this.logActivity(eventId, userId, status === "attending" ? "voted_attending" : "voted_not_attending", null, status);
+      
+      return newVote;
+    }
+  }
+
+  async removeVote(eventId: string, userId: string): Promise<void> {
+    // Get existing vote for logging
+    const [existingVote] = await db
+      .select()
+      .from(eventAttendance)
+      .where(and(eq(eventAttendance.eventId, eventId), eq(eventAttendance.userId, userId)));
+
+    if (existingVote) {
+      // Remove the vote
+      await db
+        .delete(eventAttendance)
+        .where(and(eq(eventAttendance.eventId, eventId), eq(eventAttendance.userId, userId)));
+
+      // Log the unvote
+      await this.logActivity(eventId, userId, "unvoted", existingVote.status, null);
+    }
+  }
+
+
+
+
   async recordAttendance(attendance: InsertEventAttendance): Promise<EventAttendance> {
     const [newAttendance] = await db
       .insert(eventAttendance)
@@ -428,24 +520,6 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return newAttendance;
-  }
-
-  async getEventAttendance(eventId: string): Promise<(EventAttendance & { user: User })[]> {
-    const result = await db
-      .select({
-        id: eventAttendance.id,
-        eventId: eventAttendance.eventId,
-        userId: eventAttendance.userId,
-        status: eventAttendance.status,
-        votedAt: eventAttendance.votedAt,
-        createdAt: eventAttendance.createdAt,
-        user: users,
-      })
-      .from(eventAttendance)
-      .innerJoin(users, eq(eventAttendance.userId, users.id))
-      .where(eq(eventAttendance.eventId, eventId));
-
-    return result;
   }
 
   async getUserAttendance(userId: string, eventId: string): Promise<EventAttendance | undefined> {
@@ -590,7 +664,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Activity log operations
-  async logActivity(activity: InsertActivityLog): Promise<ActivityLog> {
+  async logActivity(eventId: string, userId: string, action: string, previousStatus: string | null, newStatus: string | null): Promise<void> {
+    await db.insert(activityLogs).values({
+      eventId,
+      userId,
+      action,
+      previousStatus,
+      newStatus,
+      timestamp: new Date()
+    });
+  }
+
+  async logActivityRecord(activity: InsertActivityLog): Promise<ActivityLog> {
     const [log] = await db
       .insert(activityLogs)
       .values({
