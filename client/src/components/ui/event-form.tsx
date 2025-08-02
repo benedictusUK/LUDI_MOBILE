@@ -153,7 +153,6 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
         cost: data.cost || "0.00",
         maxParticipants: data.maxParticipants ? parseInt(data.maxParticipants) : null,
         // Convert empty strings to null for optional fields
-        description: data.description || null,
         endDate: data.endDate || null,
         endTime: data.endTime || null,
       };

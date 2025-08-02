@@ -310,7 +310,7 @@ export const insertEventSchema = createInsertSchema(events).omit({
   sport: z.string().min(1, "Sport selection is required"),
   startDate: z.string().min(1, "Start date is required"),
   startTime: z.string().min(1, "Start time is required").regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, "Start time must be in HH:MM format (24-hour)"),
-  endTime: z.string().optional().refine((val) => !val || /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(val), "End time must be in HH:MM format (24-hour)"),
+  endTime: z.string().optional().transform((val) => val || null).refine((val) => !val || /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(val), "End time must be in HH:MM format (24-hour)"),
   location: z.string().min(1, "Location is required"),
   primaryTeamId: z.string().min(1, "Team selection is required"),
   cost: z.union([z.string(), z.number()]).optional().transform((val) => {

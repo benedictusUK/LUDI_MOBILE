@@ -210,7 +210,7 @@ export default function Events() {
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-neutral-500">Cost:</span>
                       <span className="font-medium text-neutral-900">
-                        £{parseFloat(event.cost || "0").toFixed(2)}
+                        {(!event.cost || parseFloat(event.cost) === 0) ? "Unknown" : `£${parseFloat(event.cost).toFixed(2)}`}
                       </span>
                     </div>
                   </div>
