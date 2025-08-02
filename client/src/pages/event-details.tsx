@@ -1,12 +1,15 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute } from "wouter";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { queryClient } from "@/lib/queryClient";
-import { ArrowLeft, Calendar, Clock, MapPin, Users, Vote, X } from "lucide-react";
+import { ArrowLeft, Calendar, Clock, MapPin, Users, Vote, X, CheckCircle, XCircle, MinusCircle } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -14,6 +17,15 @@ export default function EventDetails() {
   const [, params] = useRoute("/events/:id");
   const eventId = params?.id;
   const { user } = useAuth();
+  const [voteDetailsModal, setVoteDetailsModal] = useState<{
+    isOpen: boolean;
+    type: "attending" | "not_attending" | "no_response";
+    voters: any[];
+  }>({
+    isOpen: false,
+    type: "attending",
+    voters: [],
+  });
 
   // Fetch event details
   const { data: event, isLoading: eventLoading } = useQuery({
@@ -87,8 +99,25 @@ export default function EventDetails() {
   const eventData = event as any;
   const teamColor = eventData?.primaryTeam?.color || "#3b82f6";
   const userAttendance = (attendance as any[])?.find((a: any) => a.userId === (user as any)?.id);
-  const attendingCount = (attendance as any[])?.filter((a: any) => a.status === "attending").length || 0;
-  const notAttendingCount = (attendance as any[])?.filter((a: any) => a.status === "not_attending").length || 0;
+  
+  // Calculate vote statistics
+  const attendingVoters = (attendance as any[])?.filter((a: any) => a.status === "attending") || [];
+  const notAttendingVoters = (attendance as any[])?.filter((a: any) => a.status === "not_attending") || [];
+  const totalVotes = attendingVoters.length + notAttendingVoters.length;
+  
+  const attendingCount = attendingVoters.length;
+  const notAttendingCount = notAttendingVoters.length;
+  const attendingPercentage = totalVotes > 0 ? (attendingCount / totalVotes) * 100 : 0;
+  const notAttendingPercentage = totalVotes > 0 ? (notAttendingCount / totalVotes) * 100 : 0;
+
+  // Show vote details modal
+  const showVoteDetails = (type: "attending" | "not_attending", voters: any[]) => {
+    setVoteDetailsModal({
+      isOpen: true,
+      type,
+      voters,
+    });
+  };
 
   return (
     <div className="min-h-screen bg-neutral-50">
@@ -198,18 +227,8 @@ export default function EventDetails() {
                     Attendance Voting
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="flex items-center space-x-4 mb-6">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600">{attendingCount}</div>
-                      <div className="text-sm text-neutral-600">Attending</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-red-600">{notAttendingCount}</div>
-                      <div className="text-sm text-neutral-600">Not Attending</div>
-                    </div>
-                  </div>
-
+                <CardContent className="space-y-6">
+                  {/* Voting Buttons */}
                   <div className="flex space-x-3">
                     {userAttendance ? (
                       <>
@@ -237,7 +256,7 @@ export default function EventDetails() {
                           className="flex-1"
                         >
                           <Users className="w-4 h-4 mr-2" />
-                          Attending
+                          I can attend
                         </Button>
                         <Button
                           onClick={() => voteMutation.mutate("not_attending")}
@@ -246,10 +265,70 @@ export default function EventDetails() {
                           className="flex-1 hover:bg-red-50 hover:border-red-300 hover:text-red-600"
                         >
                           <X className="w-4 h-4 mr-2" />
-                          Not Attending
+                          I can't attend
                         </Button>
                       </>
                     )}
+                  </div>
+
+                  {/* Voting Progress Bars */}
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle className="h-4 w-4 text-green-600" />
+                          <span className="text-sm font-medium">Can Attend</span>
+                        </div>
+                        <span className="text-sm font-bold">{attendingCount}</span>
+                      </div>
+                      <div 
+                        className="cursor-pointer"
+                        onClick={() => showVoteDetails("attending", attendingVoters)}
+                      >
+                        <Progress
+                          value={attendingPercentage}
+                          className="h-3 hover:opacity-80 [&>div]:bg-green-500"
+                        />
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {attendingPercentage.toFixed(1)}% of total votes
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <XCircle className="h-4 w-4 text-red-600" />
+                          <span className="text-sm font-medium">Can't Attend</span>
+                        </div>
+                        <span className="text-sm font-bold">{notAttendingCount}</span>
+                      </div>
+                      <div 
+                        className="cursor-pointer"
+                        onClick={() => showVoteDetails("not_attending", notAttendingVoters)}
+                      >
+                        <Progress
+                          value={notAttendingPercentage}
+                          className="h-3 hover:opacity-80 [&>div]:bg-red-500"
+                        />
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {notAttendingPercentage.toFixed(1)}% of total votes
+                      </div>
+                    </div>
+
+                    {totalVotes === 0 && (
+                      <div className="text-center py-4 text-muted-foreground">
+                        <MinusCircle className="h-8 w-8 mx-auto mb-2" />
+                        <p>No votes yet. Be the first to respond!</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="text-center text-sm text-muted-foreground border-t pt-4">
+                    Total Responses: {totalVotes}
+                    <br />
+                    <span className="text-xs">Click on progress bars to see vote details</span>
                   </div>
                 </CardContent>
               </Card>
@@ -302,6 +381,54 @@ export default function EventDetails() {
           )}
         </div>
       </div>
+
+      {/* Vote Details Modal */}
+      <Dialog 
+        open={voteDetailsModal.isOpen} 
+        onOpenChange={(open) => setVoteDetailsModal({ ...voteDetailsModal, isOpen: open })}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {voteDetailsModal.type === "attending" ? (
+                <CheckCircle className="h-5 w-5 text-green-600" />
+              ) : (
+                <XCircle className="h-5 w-5 text-red-600" />
+              )}
+              {voteDetailsModal.type === "attending" ? "Can Attend" : "Can't Attend"} 
+              ({voteDetailsModal.voters.length})
+            </DialogTitle>
+          </DialogHeader>
+          <div className="max-h-96 overflow-y-auto">
+            <div className="space-y-3">
+              {voteDetailsModal.voters.map((voter: any) => (
+                <div key={voter.userId} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="w-8 h-8">
+                      <AvatarFallback className="text-xs">
+                        {voter.user?.firstName?.[0] || voter.user?.email?.[0] || '?'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div className="font-medium text-sm">
+                        {voter.user?.firstName} {voter.user?.lastName}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {voter.user?.email}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs text-muted-foreground">
+                      {new Date(voter.votedAt).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
