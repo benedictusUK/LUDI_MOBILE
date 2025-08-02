@@ -117,6 +117,12 @@ Preferred communication style: Simple, everyday language.
 
 ### Recent Changes
 
+**February 1, 2025**
+- **Mobile Navigation**: Added responsive hamburger menu with all desktop navigation options
+- **Event Creation Fixes**: Resolved validation schema issues and ensured created events display properly
+- **Form Validation**: Made description, end date, end time, participants, and cost truly optional
+- **Event-Team Association**: Fixed issue where created events weren't visible by properly linking events to teams
+
 **January 31, 2025**
 - **Audit Functionality**: Implemented complete activity logging system for voting actions
 - **Reports Integration**: Moved audit functionality from Settings to Events page with role-based access

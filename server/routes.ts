@@ -189,14 +189,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/events', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      console.log('Received event data:', req.body);
       const eventData = insertEventSchema.parse({
         ...req.body,
         createdById: userId,
       });
-      console.log('Parsed event data:', eventData);
       
       const event = await storage.createEvent(eventData);
+      
+      // Add the primary team to eventTeams table (required for getUserEvents to work)
+      await storage.addEventTeam(event.id, eventData.primaryTeamId);
       
       // Add additional teams if specified
       if (req.body.additionalTeamIds && Array.isArray(req.body.additionalTeamIds)) {
