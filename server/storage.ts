@@ -723,7 +723,20 @@ export class DatabaseStorage implements IStorage {
 
     // Get all team members
     const teamMembers = await db
-      .select({ user: users })
+      .select({
+        userId: users.id,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        profileImageUrl: users.profileImageUrl,
+        username: users.username,
+        gender: users.gender,
+        ukMobileNumber: users.ukMobileNumber,
+        stripeCustomerId: users.stripeCustomerId,
+        stripeSubscriptionId: users.stripeSubscriptionId,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt
+      })
       .from(teamMemberships)
       .innerJoin(users, eq(teamMemberships.userId, users.id))
       .where(eq(teamMemberships.teamId, event.primaryTeamId));
@@ -736,10 +749,23 @@ export class DatabaseStorage implements IStorage {
 
     const votedUserIdSet = new Set(votedUserIds.map(v => v.userId));
 
-    // Return team members who haven't voted
+    // Return team members who haven't voted - map to proper User format
     return teamMembers
-      .filter(member => !votedUserIdSet.has(member.user.id))
-      .map(member => member.user);
+      .filter(member => !votedUserIdSet.has(member.userId))
+      .map(member => ({
+        id: member.userId,
+        email: member.email,
+        firstName: member.firstName,
+        lastName: member.lastName,
+        profileImageUrl: member.profileImageUrl,
+        username: member.username,
+        gender: member.gender,
+        ukMobileNumber: member.ukMobileNumber,
+        stripeCustomerId: member.stripeCustomerId,
+        stripeSubscriptionId: member.stripeSubscriptionId,
+        createdAt: member.createdAt,
+        updatedAt: member.updatedAt
+      }));
   }
 }
 
