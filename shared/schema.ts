@@ -293,6 +293,7 @@ export const insertTeamSchema = createInsertSchema(teams).omit({
   updatedAt: true,
   ownerId: true,
   inviteCode: true,
+  maxPlayers: true, // Remove the original field so we can redefine it
 }).extend({
   name: z.string().min(1, "Team name is required").max(255, "Team name must be less than 255 characters"),
   sports: z.array(z.string()).min(1, "At least one sport must be selected"),
