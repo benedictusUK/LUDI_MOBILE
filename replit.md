@@ -123,6 +123,8 @@ Preferred communication style: Simple, everyday language.
 - **Database Schema Updates**: Added unique constraints to team names and usernames
 - **API Validation**: Added dedicated validation routes for checking username and team name availability
 - **Form Improvements**: Enhanced frontend error handling to display specific validation messages
+- **Team Color Theming**: Applied selected team colors across all team views including cards, modals, and headers
+- **Schema Fixes**: Resolved maxPlayers field validation to properly accept null values for unlimited team size
 
 **February 1, 2025**
 - **Mobile Navigation**: Added responsive hamburger menu with all desktop navigation options
