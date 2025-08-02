@@ -21,6 +21,50 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 
+// Custom Time Input Component with auto-colon insertion
+function TimeInput({ 
+  value, 
+  onChange, 
+  placeholder = "HH:MM", 
+  required = false,
+  ...props 
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  required?: boolean;
+  [key: string]: any;
+}) {
+  const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let input = e.target.value.replace(/[^\d]/g, ''); // Remove non-digits
+    
+    if (input.length >= 2) {
+      // Auto-insert colon after 2 digits
+      input = input.slice(0, 2) + ':' + input.slice(2, 4);
+    }
+    
+    // Limit to HH:MM format (5 characters max)
+    if (input.length > 5) {
+      input = input.slice(0, 5);
+    }
+    
+    onChange(input);
+  };
+
+  return (
+    <Input
+      type="text"
+      pattern="^([01]?[0-9]|2[0-3]):[0-5][0-9]$"
+      placeholder={placeholder}
+      inputMode="numeric"
+      value={value}
+      onChange={handleTimeChange}
+      maxLength={5}
+      {...props}
+    />
+  );
+}
+
 const eventFormSchema = z.object({
   name: z.string().min(1, "Event name is required"),
   description: z.string().min(1, "Description is required"),
@@ -269,13 +313,12 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                 </div>
                 <div>
                   <Label htmlFor="startTime">Start Time * (24h)</Label>
-                  <Input
+                  <TimeInput
                     id="startTime"
-                    type="text"
-                    pattern="^([01]?[0-9]|2[0-3]):[0-5][0-9]$"
+                    value={form.watch("startTime") || ""}
+                    onChange={(value) => form.setValue("startTime", value)}
                     placeholder="HH:MM"
-                    inputMode="numeric"
-                    {...form.register("startTime")}
+                    required
                   />
                   {form.formState.errors.startTime && (
                     <p className="text-sm text-red-500 mt-1">
@@ -296,13 +339,11 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                 </div>
                 <div>
                   <Label htmlFor="endTime">End Time (24h)</Label>
-                  <Input
+                  <TimeInput
                     id="endTime"
-                    type="text"
-                    pattern="^([01]?[0-9]|2[0-3]):[0-5][0-9]$"
+                    value={form.watch("endTime") || ""}
+                    onChange={(value) => form.setValue("endTime", value)}
                     placeholder="HH:MM"
-                    inputMode="numeric"
-                    {...form.register("endTime")}
                   />
                 </div>
               </div>
