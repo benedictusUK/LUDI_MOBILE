@@ -33,6 +33,12 @@ export default function EventDetails() {
     enabled: !!eventId,
   });
 
+  // Fetch potential players (team members who haven't voted)
+  const { data: potentialPlayers } = useQuery({
+    queryKey: ["/api/events", eventId, "potential-players"],
+    enabled: !!eventId,
+  });
+
   // Fetch event details
   const { data: event, isLoading: eventLoading } = useQuery({
     queryKey: ["/api/events", eventId],
@@ -109,15 +115,19 @@ export default function EventDetails() {
   // Calculate vote statistics
   const attendingVoters = (attendance as any[])?.filter((a: any) => a.status === "attending") || [];
   const notAttendingVoters = (attendance as any[])?.filter((a: any) => a.status === "not_attending") || [];
-  const totalVotes = attendingVoters.length + notAttendingVoters.length;
+  const potentialPlayersList = (potentialPlayers as any[]) || [];
   
   const attendingCount = attendingVoters.length;
   const notAttendingCount = notAttendingVoters.length;
-  const attendingPercentage = totalVotes > 0 ? (attendingCount / totalVotes) * 100 : 0;
-  const notAttendingPercentage = totalVotes > 0 ? (notAttendingCount / totalVotes) * 100 : 0;
+  const potentialCount = potentialPlayersList.length;
+  const totalPlayers = attendingCount + notAttendingCount + potentialCount;
+  
+  const attendingPercentage = totalPlayers > 0 ? (attendingCount / totalPlayers) * 100 : 0;
+  const notAttendingPercentage = totalPlayers > 0 ? (notAttendingCount / totalPlayers) * 100 : 0;
+  const potentialPercentage = totalPlayers > 0 ? (potentialCount / totalPlayers) * 100 : 0;
 
   // Show vote details modal
-  const showVoteDetails = (type: "attending" | "not_attending", voters: any[]) => {
+  const showVoteDetails = (type: "attending" | "not_attending" | "no_response", voters: any[]) => {
     setVoteDetailsModal({
       isOpen: true,
       type,
@@ -305,7 +315,7 @@ export default function EventDetails() {
                         />
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">
-                        {attendingPercentage.toFixed(1)}% of total votes
+                        {attendingPercentage.toFixed(1)}% of team members
                       </div>
                     </div>
 
@@ -327,11 +337,33 @@ export default function EventDetails() {
                         />
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">
-                        {notAttendingPercentage.toFixed(1)}% of total votes
+                        {notAttendingPercentage.toFixed(1)}% of team members
                       </div>
                     </div>
 
-                    {totalVotes === 0 && (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <MinusCircle className="h-4 w-4 text-gray-600" />
+                          <span className="text-sm font-medium">Potential Players</span>
+                        </div>
+                        <span className="text-sm font-bold">{potentialCount}</span>
+                      </div>
+                      <div 
+                        className="cursor-pointer"
+                        onClick={() => showVoteDetails("no_response", potentialPlayersList.map(player => ({ user: player })))}
+                      >
+                        <Progress
+                          value={potentialPercentage}
+                          className="h-3 hover:opacity-80 [&>div]:bg-gray-400"
+                        />
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {potentialPercentage.toFixed(1)}% of team members
+                      </div>
+                    </div>
+
+                    {(attendingCount + notAttendingCount) === 0 && (
                       <div className="text-center py-4 text-muted-foreground">
                         <MinusCircle className="h-8 w-8 mx-auto mb-2" />
                         <p>No votes yet. Be the first to respond!</p>
@@ -340,9 +372,9 @@ export default function EventDetails() {
                   </div>
 
                   <div className="text-center text-sm text-muted-foreground border-t pt-4">
-                    Total Responses: {totalVotes}
+                    Total Responses: {attendingCount + notAttendingCount} of {totalPlayers} team members
                     <br />
-                    <span className="text-xs">Click on progress bars to see vote details</span>
+                    <span className="text-xs">Click on progress bars to see details</span>
                   </div>
                 </CardContent>
               </Card>
@@ -406,19 +438,22 @@ export default function EventDetails() {
             <DialogTitle className="flex items-center gap-2">
               {voteDetailsModal.type === "attending" ? (
                 <CheckCircle className="h-5 w-5 text-green-600" />
-              ) : (
+              ) : voteDetailsModal.type === "not_attending" ? (
                 <XCircle className="h-5 w-5 text-red-600" />
+              ) : (
+                <MinusCircle className="h-5 w-5 text-gray-600" />
               )}
-              {voteDetailsModal.type === "attending" ? "Can Attend" : "Can't Attend"} 
+              {voteDetailsModal.type === "attending" ? "Can Attend" : 
+               voteDetailsModal.type === "not_attending" ? "Can't Attend" : "Potential Players"} 
               ({voteDetailsModal.voters.length})
             </DialogTitle>
           </DialogHeader>
           <div className="max-h-96 overflow-y-auto">
             <div className="space-y-3">
               {voteDetailsModal.voters.map((voter: any) => {
-                const unvoteHistory = getUnvoteActivity(voter.userId);
+                const unvoteHistory = voteDetailsModal.type !== "no_response" ? getUnvoteActivity(voter.userId) : [];
                 return (
-                  <div key={voter.userId} className="p-3 bg-muted rounded-lg space-y-2">
+                  <div key={voter.userId || voter.user?.id} className="p-3 bg-muted rounded-lg space-y-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <Avatar className="w-8 h-8">
@@ -435,11 +470,20 @@ export default function EventDetails() {
                           </div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className="text-xs font-medium text-green-600">
-                          Voted: {new Date(voter.votedAt).toLocaleString()}
+                      {voteDetailsModal.type !== "no_response" && (
+                        <div className="text-right">
+                          <div className="text-xs font-medium text-green-600">
+                            Voted: {new Date(voter.votedAt).toLocaleString()}
+                          </div>
                         </div>
-                      </div>
+                      )}
+                      {voteDetailsModal.type === "no_response" && (
+                        <div className="text-right">
+                          <div className="text-xs font-medium text-gray-600">
+                            Team Member
+                          </div>
+                        </div>
+                      )}
                     </div>
                     
                     {unvoteHistory.length > 0 && (

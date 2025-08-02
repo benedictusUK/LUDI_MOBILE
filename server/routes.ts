@@ -411,6 +411,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get potential players for event (team members who haven't voted)
+  app.get("/api/events/:id/potential-players", isAuthenticated, async (req, res) => {
+    try {
+      const potentialPlayers = await storage.getEventPotentialPlayers(req.params.id);
+      res.json(potentialPlayers);
+    } catch (error) {
+      console.error("Error fetching potential players:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Notification routes
   app.get('/api/notifications', isAuthenticated, async (req: any, res) => {
     try {

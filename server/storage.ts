@@ -709,6 +709,38 @@ export class DatabaseStorage implements IStorage {
 
     return result;
   }
+
+  async getEventPotentialPlayers(eventId: string): Promise<User[]> {
+    // Get the event to find associated team - use primaryTeamId instead of teamId
+    const [event] = await db
+      .select({ primaryTeamId: events.primaryTeamId })
+      .from(events)
+      .where(eq(events.id, eventId));
+
+    if (!event || !event.primaryTeamId) {
+      return [];
+    }
+
+    // Get all team members
+    const teamMembers = await db
+      .select({ user: users })
+      .from(teamMemberships)
+      .innerJoin(users, eq(teamMemberships.userId, users.id))
+      .where(eq(teamMemberships.teamId, event.primaryTeamId));
+
+    // Get users who have voted for this event
+    const votedUserIds = await db
+      .select({ userId: eventAttendance.userId })
+      .from(eventAttendance)
+      .where(eq(eventAttendance.eventId, eventId));
+
+    const votedUserIdSet = new Set(votedUserIds.map(v => v.userId));
+
+    // Return team members who haven't voted
+    return teamMembers
+      .filter(member => !votedUserIdSet.has(member.user.id))
+      .map(member => member.user);
+  }
 }
 
 export const storage = new DatabaseStorage();
