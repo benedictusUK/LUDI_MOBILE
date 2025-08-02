@@ -118,6 +118,9 @@ Preferred communication style: Simple, everyday language.
 ### Recent Changes
 
 **February 2, 2025**
+- **Critical Bug Fix**: Resolved Stripe API version configuration issue that was preventing application startup
+- **Application Stability**: Fixed server crash related to invalid Stripe API version "2025-06-30.basil" by using default version
+- **Deployment Success**: Application now starts successfully and serves on port 5000 with all features functional
 - **Uniqueness Validation**: Implemented comprehensive username and team name uniqueness constraints
 - **Enhanced Error Messages**: Added detailed validation error messages for team and event creation
 - **Database Schema Updates**: Added unique constraints to team names and usernames
