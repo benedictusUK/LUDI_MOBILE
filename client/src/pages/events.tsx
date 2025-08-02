@@ -175,26 +175,51 @@ export default function Events() {
               </Button>
             </div>
           ) : (
-            (filteredEvents as any[]).map((event: any) => (
-              <Card key={event.id} className="overflow-hidden">
-                <div className="h-32 bg-gradient-to-r from-primary to-blue-800 relative">
-                  <div className="absolute top-4 right-4">
-                    <Badge variant={event.isPublished ? "default" : "secondary"}>
-                      {event.isPublished ? "Published" : "Draft"}
-                    </Badge>
-                  </div>
-                </div>
-                
-                <CardContent className="p-6">
-                  <div className="flex items-center space-x-3 mb-4">
-                    <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center">
-                      <i className="fas fa-football-ball text-white text-lg"></i>
+            (filteredEvents as any[]).map((event: any) => {
+              // Use primary team color or fallback to default
+              const teamColor = event.primaryTeam?.color || "#3b82f6";
+              
+              return (
+                <Card key={event.id} className="overflow-hidden">
+                  <div 
+                    className="h-32 relative"
+                    style={{ 
+                      background: `linear-gradient(135deg, ${teamColor} 0%, ${teamColor}dd 100%)` 
+                    }}
+                  >
+                    <div className="absolute top-4 right-4">
+                      <Badge 
+                        variant={event.isPublished ? "default" : "secondary"}
+                        className={event.isPublished ? "" : "bg-white/20 text-white border-white/30"}
+                      >
+                        {event.isPublished ? "Published" : "Draft"}
+                      </Badge>
                     </div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-neutral-900">{event.name}</h3>
-                      <p className="text-sm text-neutral-500">{event.sport}</p>
-                    </div>
                   </div>
+                  
+                  <CardContent className="p-6">
+                    <div className="flex items-center space-x-3 mb-4">
+                      <div 
+                        className="w-12 h-12 rounded-lg flex items-center justify-center"
+                        style={{ backgroundColor: teamColor }}
+                      >
+                        <i className="fas fa-football-ball text-white text-lg"></i>
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-neutral-900">{event.name}</h3>
+                        <div className="flex items-center space-x-2">
+                          <p className="text-sm text-neutral-500">{event.sport}</p>
+                          {event.primaryTeam && (
+                            <span 
+                              className="text-xs px-2 py-1 rounded-full text-white font-medium"
+                              style={{ backgroundColor: teamColor }}
+                            >
+                              {event.primaryTeam.name}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
 
                   <div className="space-y-3 mb-6">
                     <div className="flex items-center justify-between text-sm">
@@ -219,6 +244,10 @@ export default function Events() {
                     <Button 
                       size="sm" 
                       className="flex-1"
+                      style={{ 
+                        backgroundColor: teamColor,
+                        borderColor: teamColor
+                      }}
                       onClick={() => {
                         setEditingEvent(event.id);
                         setShowCreateForm(false);
@@ -230,6 +259,11 @@ export default function Events() {
                       <Button 
                         size="sm" 
                         variant="outline"
+                        style={{ 
+                          borderColor: teamColor,
+                          color: teamColor
+                        }}
+                        className="hover:bg-opacity-10"
                         onClick={() => setAuditModal({
                           isOpen: true,
                           eventId: event.id,
@@ -244,13 +278,15 @@ export default function Events() {
                       variant="outline" 
                       onClick={() => deleteEventMutation.mutate(event.id)}
                       disabled={deleteEventMutation.isPending}
+                      className="hover:bg-red-50 hover:border-red-300 hover:text-red-600"
                     >
                       Delete
                     </Button>
                   </div>
                 </CardContent>
               </Card>
-            ))
+            );
+            })
           )}
         </div>
       </main>

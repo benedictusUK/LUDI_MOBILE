@@ -281,43 +281,62 @@ export class DatabaseStorage implements IStorage {
     return event;
   }
 
-  async getUserEvents(userId: string): Promise<Event[]> {
+  async getUserEvents(userId: string): Promise<any[]> {
     // Get events where user's team is the primary team
     const primaryTeamEvents = await db
-      .select({ event: events })
+      .select({ 
+        event: events,
+        primaryTeam: teams
+      })
       .from(events)
+      .innerJoin(teams, eq(events.primaryTeamId, teams.id))
       .innerJoin(teamMemberships, eq(events.primaryTeamId, teamMemberships.teamId))
       .where(eq(teamMemberships.userId, userId));
 
     // Get events where user's team is a secondary team
     const secondaryTeamEvents = await db
-      .select({ event: events })
+      .select({ 
+        event: events,
+        primaryTeam: teams
+      })
       .from(events)
+      .innerJoin(teams, eq(events.primaryTeamId, teams.id))
       .innerJoin(eventTeams, eq(events.id, eventTeams.eventId))
       .innerJoin(teamMemberships, eq(eventTeams.teamId, teamMemberships.teamId))
       .where(eq(teamMemberships.userId, userId));
 
     // Combine and deduplicate events
     const allEvents = [...primaryTeamEvents, ...secondaryTeamEvents];
-    const uniqueEvents = allEvents.filter((event, index, self) => 
-      index === self.findIndex(e => e.event.id === event.event.id)
+    const uniqueEvents = allEvents.filter((eventData, index, self) => 
+      index === self.findIndex(e => e.event.id === eventData.event.id)
     );
 
     // Sort by start date descending
     uniqueEvents.sort((a, b) => new Date(b.event.startDate).getTime() - new Date(a.event.startDate).getTime());
 
-    return uniqueEvents.map(result => result.event);
+    // Return events with primary team data
+    return uniqueEvents.map(result => ({
+      ...result.event,
+      primaryTeam: result.primaryTeam
+    }));
   }
 
-  async getTeamEvents(teamId: string): Promise<Event[]> {
+  async getTeamEvents(teamId: string): Promise<any[]> {
     const teamEvents = await db
-      .select({ event: events })
+      .select({ 
+        event: events,
+        primaryTeam: teams
+      })
       .from(events)
+      .innerJoin(teams, eq(events.primaryTeamId, teams.id))
       .innerJoin(eventTeams, eq(events.id, eventTeams.eventId))
       .where(eq(eventTeams.teamId, teamId))
       .orderBy(desc(events.startDate));
 
-    return teamEvents.map(result => result.event);
+    return teamEvents.map(result => ({
+      ...result.event,
+      primaryTeam: result.primaryTeam
+    }));
   }
 
   async updateEvent(id: string, updates: Partial<InsertEvent>): Promise<Event> {
