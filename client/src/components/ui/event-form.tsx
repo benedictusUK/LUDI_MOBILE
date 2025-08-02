@@ -67,7 +67,7 @@ function TimeInput({
 
 const eventFormSchema = z.object({
   name: z.string().min(1, "Event name is required"),
-  description: z.string().min(1, "Description is required"),
+  requirements: z.string().min(1, "Description is required"),
   sport: z.string().min(1, "Sport is required"),
   location: z.string().min(1, "Location is required"),
   startDate: z.string().min(1, "Start date is required"),
@@ -108,7 +108,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
     resolver: zodResolver(eventFormSchema),
     defaultValues: {
       name: "",
-      description: "",
+      requirements: "",
       sport: "",
       location: "",
       startDate: "",
@@ -129,7 +129,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
       const event = existingEvent as any;
       form.reset({
         name: event.name || "",
-        description: event.description || "",
+        requirements: event.requirements || "",
         sport: event.sport || "",
         location: event.location || "",
         startDate: event.startDate || "",
@@ -279,16 +279,16 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
               </div>
 
               <div>
-                <Label htmlFor="description">Description *</Label>
+                <Label htmlFor="requirements">Description *</Label>
                 <Textarea
-                  id="description"
-                  {...form.register("description")}
+                  id="requirements"
+                  {...form.register("requirements")}
                   placeholder="Enter event description"
                   rows={3}
                 />
-                {form.formState.errors.description && (
+                {form.formState.errors.requirements && (
                   <p className="text-sm text-red-500 mt-1">
-                    {form.formState.errors.description.message}
+                    {form.formState.errors.requirements.message}
                   </p>
                 )}
               </div>

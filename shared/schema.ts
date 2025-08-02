@@ -317,9 +317,8 @@ export const insertEventSchema = createInsertSchema(events).omit({
     if (typeof val === 'number') return val.toString();
     return val || "0.00";
   }),
-  description: z.string().min(1, "Description is required"),
   endDate: z.string().optional().transform((val) => val || null),
-  requirements: z.string().optional().transform((val) => val || null),
+  requirements: z.string().min(1, "Description is required"),
   maxParticipants: z.union([z.string(), z.number(), z.null()]).optional().transform((val) => {
     if (val === "" || val === null || val === undefined) return null;
     return typeof val === 'string' ? parseInt(val) || null : val;
