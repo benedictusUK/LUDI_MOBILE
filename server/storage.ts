@@ -671,7 +671,9 @@ export class DatabaseStorage implements IStorage {
       action,
       previousStatus,
       newStatus,
-      timestamp: new Date()
+      timestamp: new Date(),
+      ipAddress: null,
+      userAgent: null
     });
   }
 
