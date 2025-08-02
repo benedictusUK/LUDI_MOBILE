@@ -300,7 +300,15 @@ export const insertEventSchema = createInsertSchema(events).omit({
   createdAt: true,
   updatedAt: true,
 }).extend({
-  cost: z.string().optional().transform((val) => val || "0.00"),
+  cost: z.union([z.string(), z.number()]).optional().transform((val) => {
+    if (typeof val === 'number') return val.toString();
+    return val || "0.00";
+  }),
+  description: z.string().optional().transform((val) => val || null),
+  endDate: z.string().optional().transform((val) => val || null),
+  endTime: z.string().optional().transform((val) => val || null),
+  location: z.string().optional().transform((val) => val || null),
+  requirements: z.string().optional().transform((val) => val || null),
 });
 
 export const insertEventAttendanceSchema = createInsertSchema(eventAttendance).omit({
