@@ -51,7 +51,7 @@ export default function EventDetails() {
     enabled: !!eventId,
   });
 
-  // Vote mutation
+  // Vote mutation with optimistic updates
   const voteMutation = useMutation({
     mutationFn: async (status: "attending" | "not_attending") => {
       const response = await fetch(`/api/events/${eventId}/vote`, {
@@ -63,12 +63,59 @@ export default function EventDetails() {
       if (!response.ok) throw new Error("Failed to vote");
       return response.json();
     },
-    onSuccess: () => {
+    onMutate: async (status) => {
+      // Cancel any outgoing refetches so they don't overwrite our optimistic update
+      await queryClient.cancelQueries({ queryKey: ["/api/events", eventId, "attendance"] });
+      
+      // Snapshot the previous value
+      const previousAttendance = queryClient.getQueryData(["/api/events", eventId, "attendance"]);
+      
+      // Optimistically update to the new value
+      const userId = (user as any)?.id;
+      if (userId && previousAttendance) {
+        const currentAttendance = previousAttendance as any[];
+        const existingVote = currentAttendance.find(a => a.userId === userId);
+        
+        let updatedAttendance;
+        if (existingVote) {
+          // Update existing vote
+          updatedAttendance = currentAttendance.map(a => 
+            a.userId === userId ? { ...a, status, votedAt: new Date().toISOString() } : a
+          );
+        } else {
+          // Add new vote
+          updatedAttendance = [...currentAttendance, {
+            id: `temp-${Date.now()}`,
+            eventId,
+            userId,
+            status,
+            votedAt: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            user: user
+          }];
+        }
+        
+        queryClient.setQueryData(["/api/events", eventId, "attendance"], updatedAttendance);
+      }
+      
+      // Return a context object with the snapshotted value
+      return { previousAttendance };
+    },
+    onError: (err, status, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousAttendance) {
+        queryClient.setQueryData(["/api/events", eventId, "attendance"], context.previousAttendance);
+      }
+    },
+    onSettled: () => {
+      // Always refetch after error or success to ensure we have the latest data
       queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "attendance"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "potential-players"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "activity"] });
     },
   });
 
-  // Unvote mutation
+  // Unvote mutation with optimistic updates
   const unvoteMutation = useMutation({
     mutationFn: async () => {
       const response = await fetch(`/api/events/${eventId}/vote`, {
@@ -78,8 +125,34 @@ export default function EventDetails() {
       if (!response.ok) throw new Error("Failed to unvote");
       return response.json();
     },
-    onSuccess: () => {
+    onMutate: async () => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/events", eventId, "attendance"] });
+      
+      // Snapshot the previous value
+      const previousAttendance = queryClient.getQueryData(["/api/events", eventId, "attendance"]);
+      
+      // Optimistically remove the user's vote
+      const userId = (user as any)?.id;
+      if (userId && previousAttendance) {
+        const currentAttendance = previousAttendance as any[];
+        const updatedAttendance = currentAttendance.filter(a => a.userId !== userId);
+        queryClient.setQueryData(["/api/events", eventId, "attendance"], updatedAttendance);
+      }
+      
+      return { previousAttendance };
+    },
+    onError: (err, variables, context) => {
+      // Roll back on error
+      if (context?.previousAttendance) {
+        queryClient.setQueryData(["/api/events", eventId, "attendance"], context.previousAttendance);
+      }
+    },
+    onSettled: () => {
+      // Always refetch to ensure we have the latest data
       queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "attendance"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "potential-players"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "activity"] });
     },
   });
 

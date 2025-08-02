@@ -443,62 +443,42 @@ export class DatabaseStorage implements IStorage {
   }
 
   async voteOnEvent(eventId: string, userId: string, status: "attending" | "not_attending"): Promise<any> {
-    // Check if user already voted
-    const existingVote = await db
-      .select()
-      .from(eventAttendance)
-      .where(and(eq(eventAttendance.eventId, eventId), eq(eventAttendance.userId, userId)));
-
-    if (existingVote.length > 0) {
-      // Update existing vote
-      const [updatedVote] = await db
-        .update(eventAttendance)
-        .set({ 
+    // Use upsert to handle both insert and update in single query
+    const [vote] = await db
+      .insert(eventAttendance)
+      .values({
+        eventId,
+        userId,
+        status,
+        votedAt: new Date()
+      })
+      .onConflictDoUpdate({
+        target: [eventAttendance.eventId, eventAttendance.userId],
+        set: {
           status,
           votedAt: new Date()
-        })
-        .where(and(eq(eventAttendance.eventId, eventId), eq(eventAttendance.userId, userId)))
-        .returning();
+        }
+      })
+      .returning();
 
-      // Log the vote change
-      await this.logActivity(eventId, userId, "changed_vote", existingVote[0].status, status);
+    // Log the activity asynchronously (don't wait for it)
+    this.logActivity(eventId, userId, "voted", null, status).catch(err => 
+      console.error("Failed to log activity:", err)
+    );
       
-      return updatedVote;
-    } else {
-      // Create new vote
-      const [newVote] = await db
-        .insert(eventAttendance)
-        .values({
-          eventId,
-          userId,
-          status,
-          votedAt: new Date()
-        })
-        .returning();
-
-      // Log the vote
-      await this.logActivity(eventId, userId, status === "attending" ? "voted_attending" : "voted_not_attending", null, status);
-      
-      return newVote;
-    }
+    return vote;
   }
 
   async removeVote(eventId: string, userId: string): Promise<void> {
-    // Get existing vote for logging
-    const [existingVote] = await db
-      .select()
-      .from(eventAttendance)
+    // Remove the vote directly - if it doesn't exist, this will just do nothing
+    await db
+      .delete(eventAttendance)
       .where(and(eq(eventAttendance.eventId, eventId), eq(eventAttendance.userId, userId)));
 
-    if (existingVote) {
-      // Remove the vote
-      await db
-        .delete(eventAttendance)
-        .where(and(eq(eventAttendance.eventId, eventId), eq(eventAttendance.userId, userId)));
-
-      // Log the unvote
-      await this.logActivity(eventId, userId, "unvoted", existingVote.status, null);
-    }
+    // Log the unvote activity asynchronously
+    this.logActivity(eventId, userId, "unvoted", null, null).catch(err => 
+      console.error("Failed to log unvote activity:", err)
+    );
   }
 
 
