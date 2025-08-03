@@ -331,11 +331,11 @@ export class DatabaseStorage implements IStorage {
 
   // Event operations
   async createEvent(event: InsertEvent): Promise<Event> {
-    const [newEvent] = await db.insert(events).values(event).returning();
+    const [newEvent] = await db.insert(events).values([event]).returning();
     
-    // Add event-team associations for secondary teams
-    if (event.secondaryTeamIds && event.secondaryTeamIds.length > 0) {
-      const eventTeamAssociations = event.secondaryTeamIds.map(teamId => ({
+    // Add event-team associations for secondary teams  
+    if (event.secondaryTeamIds && Array.isArray(event.secondaryTeamIds) && event.secondaryTeamIds.length > 0) {
+      const eventTeamAssociations = event.secondaryTeamIds.map((teamId: string) => ({
         eventId: newEvent.id,
         teamId: teamId,
         status: 'accepted' as const
@@ -1163,7 +1163,7 @@ export class DatabaseStorage implements IStorage {
       relatedId: eventId,
     }));
 
-    await db.insert(notifications).values(notifications);
+    await db.insert(notifications).values(notificationData);
   }
 
   async respondToFlare(eventId: string, userId: string, status: "interested" | "not_interested" | "maybe"): Promise<FlareResponse> {

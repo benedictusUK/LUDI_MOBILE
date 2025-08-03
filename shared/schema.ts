@@ -134,10 +134,7 @@ export const events = pgTable("events", {
   venueBooked: boolean("venue_booked").default(false),
   lateVotePenalty: decimal("late_vote_penalty", { precision: 10, scale: 2 }).default("0.00"),
   overduePaymentReminders: boolean("overdue_payment_reminders").default(false),
-  // Flare gun feature
-  isFlared: boolean("is_flared").default(false),
-  flaredAt: timestamp("flared_at"),
-  flaredBy: varchar("flared_by").references(() => users.id),
+
   // Recurring events
   recurrenceType: varchar("recurrence_type", { enum: ["none", "weekly", "monthly"] }).default("none"),
   recurrenceEndDate: date("recurrence_end_date"),
