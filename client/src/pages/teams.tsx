@@ -415,23 +415,23 @@ export default function Teams() {
       
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold text-neutral-900 mb-2">Team Management</h1>
               <p className="text-neutral-500">Create and manage your sports teams</p>
             </div>
-            <div className="flex space-x-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <Button 
                 variant="outline"
                 onClick={() => setShowSearchModal(true)}
-                className="flex items-center space-x-2"
+                className="flex items-center justify-center space-x-2"
               >
                 <i className="fas fa-search"></i>
                 <span>Search Teams</span>
               </Button>
               <Button 
                 onClick={() => setShowCreateForm(true)}
-                className="flex items-center space-x-2"
+                className="flex items-center justify-center space-x-2"
               >
                 <i className="fas fa-plus"></i>
                 <span>Create Team</span>

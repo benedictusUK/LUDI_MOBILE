@@ -93,6 +93,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Search teams - must come before /api/teams/:id routes
+  app.get('/api/teams/search', isAuthenticated, async (req: any, res) => {
+    try {
+      const { q: query } = req.query;
+      const userId = req.user.claims.sub;
+
+      if (!query || query.trim().length < 2) {
+        return res.status(400).json({ message: "Search query must be at least 2 characters" });
+      }
+
+      const results = await storage.searchTeams(query.trim(), userId);
+      res.json(results);
+    } catch (error) {
+      console.error("Error searching teams:", error);
+      res.status(500).json({ message: "Failed to search teams" });
+    }
+  });
+
   app.get('/api/teams', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -159,24 +177,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error checking team name:", error);
       res.status(500).json({ message: "Failed to check team name" });
-    }
-  });
-
-  // Search teams
-  app.get('/api/teams/search', isAuthenticated, async (req: any, res) => {
-    try {
-      const { q: query } = req.query;
-      const userId = req.user.claims.sub;
-
-      if (!query || query.trim().length < 2) {
-        return res.status(400).json({ message: "Search query must be at least 2 characters" });
-      }
-
-      const results = await storage.searchTeams(query.trim(), userId);
-      res.json(results);
-    } catch (error) {
-      console.error("Error searching teams:", error);
-      res.status(500).json({ message: "Failed to search teams" });
     }
   });
 
