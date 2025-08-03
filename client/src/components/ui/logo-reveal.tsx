@@ -91,12 +91,14 @@ export default function LogoReveal({ onComplete, skipAnimation = false }: LogoRe
           </motion.h1>
 
           {/* Underline Animation */}
-          <motion.div
-            className="h-1 bg-gradient-to-r from-primary to-secondary mx-auto mt-4"
-            initial={{ width: 0 }}
-            animate={{ width: currentStep >= 2 ? "100%" : 0 }}
-            transition={{ duration: 0.8, ease: "easeInOut" }}
-          />
+          <div className="w-64 mx-auto mt-4 h-1 bg-gray-200 rounded-full overflow-hidden">
+            <motion.div
+              className="h-full bg-gradient-to-r from-primary to-secondary rounded-full"
+              initial={{ width: 0 }}
+              animate={{ width: currentStep >= 2 ? "100%" : 0 }}
+              transition={{ duration: 1.2, ease: "easeInOut" }}
+            />
+          </div>
         </div>
 
         {/* Tagline Animation */}
