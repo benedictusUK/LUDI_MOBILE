@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { LudiInlineLoader } from "@/components/ui/ludi-loader";
 
 export default function Events() {
   const { toast } = useToast();
@@ -116,11 +117,9 @@ export default function Events() {
     return (
       <div className="min-h-screen bg-neutral-50">
         <Navigation />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full"></div>
-          </div>
-        </div>
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <LudiInlineLoader size="md" message="Loading events..." />
+        </main>
       </div>
     );
   }

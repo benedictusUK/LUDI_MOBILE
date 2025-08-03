@@ -6,6 +6,7 @@ import DashboardStats from "@/components/ui/dashboard-stats";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { LudiInlineLoader } from "@/components/ui/ludi-loader";
 
 export default function Home() {
   const { user } = useAuth();
