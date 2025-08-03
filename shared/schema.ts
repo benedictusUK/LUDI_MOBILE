@@ -41,6 +41,9 @@ export const SPORTS = [
   "Other"
 ] as const;
 
+// Available sports (alias for SPORTS to support both import names)
+export const AVAILABLE_SPORTS = SPORTS;
+
 // Session storage table (required for Replit Auth)
 export const sessions = pgTable(
   "sessions",
@@ -138,7 +141,7 @@ export const events = pgTable("events", {
   // Recurring events
   recurrenceType: varchar("recurrence_type", { enum: ["none", "weekly", "monthly"] }).default("none"),
   recurrenceEndDate: date("recurrence_end_date"),
-  parentEventId: varchar("parent_event_id").references(() => events.id),
+  parentEventId: varchar("parent_event_id"), // Self-reference handled in relations
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

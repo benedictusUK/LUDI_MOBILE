@@ -137,7 +137,7 @@ export class DatabaseStorage implements IStorage {
   async upsertUser(userData: UpsertUser): Promise<User> {
     const [user] = await db
       .insert(users)
-      .values(userData)
+      .values([userData])
       .onConflictDoUpdate({
         target: users.id,
         set: {
@@ -331,7 +331,7 @@ export class DatabaseStorage implements IStorage {
 
   // Event operations
   async createEvent(event: InsertEvent): Promise<Event> {
-    const [newEvent] = await db.insert(events).values([event]).returning();
+    const [newEvent] = await db.insert(events).values(event).returning();
     
     // Add event-team associations for secondary teams  
     if (event.secondaryTeamIds && Array.isArray(event.secondaryTeamIds) && event.secondaryTeamIds.length > 0) {
@@ -447,8 +447,8 @@ export class DatabaseStorage implements IStorage {
       await db.delete(eventTeams).where(eq(eventTeams.eventId, id));
       
       // Add new secondary team associations
-      if (updates.secondaryTeamIds.length > 0) {
-        const eventTeamAssociations = updates.secondaryTeamIds.map(teamId => ({
+      if (updates.secondaryTeamIds && updates.secondaryTeamIds.length > 0) {
+        const eventTeamAssociations = updates.secondaryTeamIds.map((teamId: string) => ({
           eventId: id,
           teamId: teamId,
           status: 'accepted' as const
@@ -544,7 +544,13 @@ export class DatabaseStorage implements IStorage {
       .returning();
 
     // Log the activity asynchronously (don't wait for it)
-    this.logActivity(eventId, userId, "voted", null, status).catch(err => 
+    this.logActivity({
+      eventId,
+      userId,
+      action: "voted",
+      previousStatus: null,
+      newStatus: status
+    }).catch(err => 
       console.error("Failed to log activity:", err)
     );
       
@@ -558,7 +564,13 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(eventAttendance.eventId, eventId), eq(eventAttendance.userId, userId)));
 
     // Log the unvote activity asynchronously
-    this.logActivity(eventId, userId, "unvoted", null, null).catch(err => 
+    this.logActivity({
+      eventId,
+      userId,
+      action: "unvoted",
+      previousStatus: null,
+      newStatus: null
+    }).catch(err => 
       console.error("Failed to log unvote activity:", err)
     );
   }
@@ -808,10 +820,15 @@ export class DatabaseStorage implements IStorage {
         lastName: member.lastName,
         profileImageUrl: member.profileImageUrl,
         username: member.username,
+        phoneNumber: member.phoneNumber,
+        dateOfBirth: '', // Not selected in query, using empty string as default
+        postcode: '', // Not selected in query, using empty string as default
         gender: member.gender,
-        ukMobileNumber: member.ukMobileNumber,
+        sportsInterests: [], // Not selected in query, using empty array as default
+        travelRadius: 10, // Not selected in query, using default value
         stripeCustomerId: member.stripeCustomerId,
         stripeSubscriptionId: member.stripeSubscriptionId,
+        profileCompletedAt: null, // Not selected in query
         createdAt: member.createdAt,
         updatedAt: member.updatedAt
       }));
@@ -1014,10 +1031,15 @@ export class DatabaseStorage implements IStorage {
           lastName: sql<string>`blocker.last_name`,
           profileImageUrl: sql<string>`blocker.profile_image_url`,
           username: sql<string>`blocker.username`,
+          phoneNumber: sql<string>`blocker.phone_number`,
+          dateOfBirth: sql<string>`blocker.date_of_birth`,
+          postcode: sql<string>`blocker.postcode`,
           gender: sql<string>`blocker.gender`,
-          ukMobileNumber: sql<string>`blocker.uk_mobile_number`,
+          sportsInterests: sql<string[]>`blocker.sports_interests`,
+          travelRadius: sql<number>`blocker.travel_radius`,
           stripeCustomerId: sql<string>`blocker.stripe_customer_id`,
           stripeSubscriptionId: sql<string>`blocker.stripe_subscription_id`,
+          profileCompletedAt: sql<Date>`blocker.profile_completed_at`,
           createdAt: sql<Date>`blocker.created_at`,
           updatedAt: sql<Date>`blocker.updated_at`,
         },
@@ -1155,7 +1177,7 @@ export class DatabaseStorage implements IStorage {
     if (!event) return;
 
     // Create notifications for each user
-    const notifications = userIds.map(userId => ({
+    const notificationData = userIds.map(userId => ({
       userId,
       title: "🚀 Flare Gun Alert!",
       message: `New event "${event.name}" needs players! Location: ${event.location}. Time: ${event.startDate} ${event.startTime}`,
