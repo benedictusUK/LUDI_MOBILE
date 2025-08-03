@@ -9,6 +9,7 @@ import {
   payments,
   notificationPreferences,
   activityLogs,
+  blockedMembers,
   type User,
   type UpsertUser,
   type Team,
@@ -27,9 +28,11 @@ import {
   type InsertNotificationPreferences,
   type ActivityLog,
   type InsertActivityLog,
+  type BlockedMember,
+  type InsertBlockedMember,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, count, sql } from "drizzle-orm";
+import { eq, and, desc, count, sql, or, notInArray } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -93,6 +96,18 @@ export interface IStorage {
   searchTeams(query: string, userId: string): Promise<(Team & { memberCount: number; isMember: boolean })[]>;
   requestToJoinTeam(teamId: string, userId: string): Promise<void>;
   joinTeam(teamId: string, userId: string): Promise<TeamMembership>;
+  
+  // Member management operations
+  updateMemberRole(teamId: string, userId: string, newRole: string, updatedById: string): Promise<TeamMembership>;
+  blockMember(teamId: string, userId: string, blockedById: string, reason?: string): Promise<BlockedMember>;
+  unblockMember(teamId: string, userId: string): Promise<void>;
+  getBlockedMembers(teamId: string): Promise<(BlockedMember & { user: User; blockedBy: User })[]>;
+  isUserBlocked(teamId: string, userId: string): Promise<boolean>;
+  
+  // Join request management
+  approveJoinRequest(teamId: string, userId: string, approverId: string): Promise<TeamMembership>;
+  rejectJoinRequest(teamId: string, userId: string, rejectedById: string): Promise<void>;
+  getTeamAdmins(teamId: string): Promise<User[]>;
 
   // Activity log operations
   logActivity(activity: InsertActivityLog): Promise<ActivityLog>;
@@ -796,7 +811,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async requestToJoinTeam(teamId: string, userId: string): Promise<void> {
-    // Create a notification for the team owner
+    // Check if user is blocked
+    const isBlocked = await this.isUserBlocked(teamId, userId);
+    if (isBlocked) {
+      throw new Error("You are blocked from joining this team");
+    }
+
+    // Create a notification for the team owner and all admins
     const team = await this.getTeam(teamId);
     if (!team) {
       throw new Error("Team not found");
@@ -807,17 +828,28 @@ export class DatabaseStorage implements IStorage {
       throw new Error("User not found");
     }
 
-    await this.createNotification({
-      userId: team.ownerId,
-      type: "team_join_request",
-      title: "New Team Join Request",
-      message: `${user.firstName} ${user.lastName} wants to join ${team.name}`,
-      metadata: { teamId, requestUserId: userId },
-      isRead: false,
-    });
+    const admins = await this.getTeamAdmins(teamId);
+    
+    // Send notification to team owner and all admins
+    for (const admin of admins) {
+      await this.createNotification({
+        userId: admin.id,
+        type: "team_join_request",
+        title: "New Team Join Request",
+        message: `${user.firstName} ${user.lastName} wants to join ${team.name}`,
+        metadata: { teamId, requestUserId: userId },
+        isRead: false,
+      });
+    }
   }
 
   async joinTeam(teamId: string, userId: string): Promise<TeamMembership> {
+    // Check if user is blocked
+    const isBlocked = await this.isUserBlocked(teamId, userId);
+    if (isBlocked) {
+      throw new Error("You are blocked from joining this team");
+    }
+
     // Check if user is already a member
     const existingMembership = await this.getUserTeam(userId, teamId);
     if (existingMembership) {
@@ -839,6 +871,198 @@ export class DatabaseStorage implements IStorage {
 
     // Add user to team
     return await this.addTeamMember(teamId, userId, "member");
+  }
+
+  // Member management operations
+  async updateMemberRole(teamId: string, userId: string, newRole: string, updatedById: string): Promise<TeamMembership> {
+    // Verify the updater has permission (owner or admin)
+    const updaterMembership = await this.getUserTeam(updatedById, teamId);
+    const team = await this.getTeam(teamId);
+    
+    if (!team || (!updaterMembership && team.ownerId !== updatedById) || 
+        (updaterMembership && !["admin"].includes(updaterMembership.role) && team.ownerId !== updatedById)) {
+      throw new Error("Not authorized to update member roles");
+    }
+
+    // Cannot demote the owner
+    if (team.ownerId === userId && newRole !== "admin") {
+      throw new Error("Cannot change owner role");
+    }
+
+    const [updatedMembership] = await db
+      .update(teamMemberships)
+      .set({ role: newRole })
+      .where(and(eq(teamMemberships.teamId, teamId), eq(teamMemberships.userId, userId)))
+      .returning();
+
+    return updatedMembership;
+  }
+
+  async blockMember(teamId: string, userId: string, blockedById: string, reason?: string): Promise<BlockedMember> {
+    // Verify the blocker has permission (owner or admin)
+    const blockerMembership = await this.getUserTeam(blockedById, teamId);
+    const team = await this.getTeam(teamId);
+    
+    if (!team || (!blockerMembership && team.ownerId !== blockedById) || 
+        (blockerMembership && !["admin"].includes(blockerMembership.role) && team.ownerId !== blockedById)) {
+      throw new Error("Not authorized to block members");
+    }
+
+    // Cannot block the owner
+    if (team.ownerId === userId) {
+      throw new Error("Cannot block team owner");
+    }
+
+    // Remove from team if they are a member
+    const membership = await this.getUserTeam(userId, teamId);
+    if (membership) {
+      await this.removeTeamMember(teamId, userId);
+    }
+
+    // Add to blocked list
+    const [blockedMember] = await db
+      .insert(blockedMembers)
+      .values({
+        teamId,
+        userId,
+        blockedById,
+        reason,
+      })
+      .onConflictDoUpdate({
+        target: [blockedMembers.teamId, blockedMembers.userId],
+        set: {
+          blockedById,
+          reason,
+          blockedAt: new Date(),
+        },
+      })
+      .returning();
+
+    return blockedMember;
+  }
+
+  async unblockMember(teamId: string, userId: string): Promise<void> {
+    await db
+      .delete(blockedMembers)
+      .where(and(eq(blockedMembers.teamId, teamId), eq(blockedMembers.userId, userId)));
+  }
+
+  async getBlockedMembers(teamId: string): Promise<(BlockedMember & { user: User; blockedBy: User })[]> {
+    const result = await db
+      .select({
+        id: blockedMembers.id,
+        teamId: blockedMembers.teamId,
+        userId: blockedMembers.userId,
+        blockedById: blockedMembers.blockedById,
+        reason: blockedMembers.reason,
+        blockedAt: blockedMembers.blockedAt,
+        user: users,
+        blockedBy: {
+          id: sql<string>`blocker.id`,
+          email: sql<string>`blocker.email`,
+          firstName: sql<string>`blocker.first_name`,
+          lastName: sql<string>`blocker.last_name`,
+          profileImageUrl: sql<string>`blocker.profile_image_url`,
+          username: sql<string>`blocker.username`,
+          gender: sql<string>`blocker.gender`,
+          ukMobileNumber: sql<string>`blocker.uk_mobile_number`,
+          stripeCustomerId: sql<string>`blocker.stripe_customer_id`,
+          stripeSubscriptionId: sql<string>`blocker.stripe_subscription_id`,
+          createdAt: sql<Date>`blocker.created_at`,
+          updatedAt: sql<Date>`blocker.updated_at`,
+        },
+      })
+      .from(blockedMembers)
+      .innerJoin(users, eq(blockedMembers.userId, users.id))
+      .innerJoin(sql`${users} AS blocker`, sql`${blockedMembers.blockedById} = blocker.id`)
+      .where(eq(blockedMembers.teamId, teamId))
+      .orderBy(desc(blockedMembers.blockedAt));
+
+    return result;
+  }
+
+  async isUserBlocked(teamId: string, userId: string): Promise<boolean> {
+    const [blocked] = await db
+      .select({ id: blockedMembers.id })
+      .from(blockedMembers)
+      .where(and(eq(blockedMembers.teamId, teamId), eq(blockedMembers.userId, userId)));
+    
+    return !!blocked;
+  }
+
+  async approveJoinRequest(teamId: string, userId: string, approverId: string): Promise<TeamMembership> {
+    // Verify approver has permission
+    const approverMembership = await this.getUserTeam(approverId, teamId);
+    const team = await this.getTeam(teamId);
+    
+    if (!team || (!approverMembership && team.ownerId !== approverId) || 
+        (approverMembership && !["admin"].includes(approverMembership.role) && team.ownerId !== approverId)) {
+      throw new Error("Not authorized to approve join requests");
+    }
+
+    // Add user to team
+    const membership = await this.joinTeam(teamId, userId);
+
+    // Notify the user that their request was approved
+    const user = await this.getUser(userId);
+    if (user) {
+      await this.createNotification({
+        userId,
+        type: "team_join_approved",
+        title: "Join Request Approved",
+        message: `Your request to join ${team.name} has been approved!`,
+        metadata: { teamId },
+        isRead: false,
+      });
+    }
+
+    return membership;
+  }
+
+  async rejectJoinRequest(teamId: string, userId: string, rejectedById: string): Promise<void> {
+    // Verify rejector has permission
+    const rejectorMembership = await this.getUserTeam(rejectedById, teamId);
+    const team = await this.getTeam(teamId);
+    
+    if (!team || (!rejectorMembership && team.ownerId !== rejectedById) || 
+        (rejectorMembership && !["admin"].includes(rejectorMembership.role) && team.ownerId !== rejectedById)) {
+      throw new Error("Not authorized to reject join requests");
+    }
+
+    // Notify the user that their request was rejected
+    const user = await this.getUser(userId);
+    if (user) {
+      await this.createNotification({
+        userId,
+        type: "team_join_rejected",
+        title: "Join Request Declined",
+        message: `Your request to join ${team.name} has been declined.`,
+        metadata: { teamId },
+        isRead: false,
+      });
+    }
+  }
+
+  async getTeamAdmins(teamId: string): Promise<User[]> {
+    const team = await this.getTeam(teamId);
+    if (!team) {
+      return [];
+    }
+
+    const adminMembers = await db
+      .select({ user: users })
+      .from(teamMemberships)
+      .innerJoin(users, eq(teamMemberships.userId, users.id))
+      .where(and(eq(teamMemberships.teamId, teamId), eq(teamMemberships.role, "admin")));
+
+    const owner = await this.getUser(team.ownerId);
+    const admins = adminMembers.map(m => m.user);
+    
+    if (owner && !admins.find(a => a.id === owner.id)) {
+      admins.unshift(owner);
+    }
+
+    return admins;
   }
 }
 

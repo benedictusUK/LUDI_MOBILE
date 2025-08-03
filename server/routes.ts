@@ -156,6 +156,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update member role
+  app.patch('/api/teams/:id/members/:userId/role', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id: teamId, userId } = req.params;
+      const { role } = req.body;
+      const currentUserId = req.user.claims.sub;
+      
+      const membership = await storage.updateMemberRole(teamId, userId, role, currentUserId);
+      res.json(membership);
+    } catch (error: any) {
+      console.error("Error updating member role:", error);
+      res.status(400).json({ message: error.message || "Failed to update member role" });
+    }
+  });
+
+  // Block member
+  app.post('/api/teams/:id/block/:userId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id: teamId, userId } = req.params;
+      const { reason } = req.body;
+      const currentUserId = req.user.claims.sub;
+      
+      const blockedMember = await storage.blockMember(teamId, userId, currentUserId, reason);
+      res.json(blockedMember);
+    } catch (error: any) {
+      console.error("Error blocking member:", error);
+      res.status(400).json({ message: error.message || "Failed to block member" });
+    }
+  });
+
+  // Unblock member
+  app.delete('/api/teams/:id/block/:userId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id: teamId, userId } = req.params;
+      await storage.unblockMember(teamId, userId);
+      res.json({ message: "Member unblocked successfully" });
+    } catch (error: any) {
+      console.error("Error unblocking member:", error);
+      res.status(400).json({ message: error.message || "Failed to unblock member" });
+    }
+  });
+
+  // Get blocked members
+  app.get('/api/teams/:id/blocked', isAuthenticated, async (req: any, res) => {
+    try {
+      const blockedMembers = await storage.getBlockedMembers(req.params.id);
+      res.json(blockedMembers);
+    } catch (error) {
+      console.error("Error fetching blocked members:", error);
+      res.status(500).json({ message: "Failed to fetch blocked members" });
+    }
+  });
+
+  // Approve join request
+  app.post('/api/teams/:id/approve-join/:userId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id: teamId, userId } = req.params;
+      const currentUserId = req.user.claims.sub;
+      
+      const membership = await storage.approveJoinRequest(teamId, userId, currentUserId);
+      res.json({ message: "Join request approved", membership });
+    } catch (error: any) {
+      console.error("Error approving join request:", error);
+      res.status(400).json({ message: error.message || "Failed to approve join request" });
+    }
+  });
+
+  // Reject join request
+  app.post('/api/teams/:id/reject-join/:userId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id: teamId, userId } = req.params;
+      const currentUserId = req.user.claims.sub;
+      
+      await storage.rejectJoinRequest(teamId, userId, currentUserId);
+      res.json({ message: "Join request rejected" });
+    } catch (error: any) {
+      console.error("Error rejecting join request:", error);
+      res.status(400).json({ message: error.message || "Failed to reject join request" });
+    }
+  });
+
   // Check username availability
   app.get('/api/users/check-username/:username', isAuthenticated, async (req, res) => {
     try {

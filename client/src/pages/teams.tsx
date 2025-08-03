@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import Navigation from "@/components/ui/nav";
 import TeamForm from "@/components/ui/team-form";
+import { MemberManagementModal } from "@/components/ui/member-management-modal";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -266,6 +267,7 @@ export default function Teams() {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showMemberManagement, setShowMemberManagement] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -357,7 +359,7 @@ export default function Teams() {
     setIsSearching(true);
     try {
       const response = await apiRequest("GET", `/api/teams/search?q=${encodeURIComponent(query.trim())}`);
-      setSearchResults(response);
+      setSearchResults(await response.json());
     } catch (error) {
       console.error("Search error:", error);
       setSearchResults([]);
@@ -377,7 +379,8 @@ export default function Teams() {
       const response = await apiRequest("POST", `/api/teams/${teamId}/request-join`);
       return response;
     },
-    onSuccess: (data) => {
+    onSuccess: async (response) => {
+      const data = await response.json();
       queryClient.invalidateQueries({ queryKey: ["/api/teams"] });
       toast({
         title: "Success",
@@ -979,6 +982,18 @@ export default function Teams() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Member Management Modal */}
+        {showMemberManagement && selectedTeam && (
+          <MemberManagementModal
+            isOpen={showMemberManagement}
+            onClose={() => setShowMemberManagement(false)}
+            teamId={selectedTeam.id}
+            teamName={selectedTeam.name}
+            isOwner={selectedTeam.ownerId === selectedTeam.userId}
+            isAdmin={selectedTeam.role === 'admin'}
+          />
         )}
       </main>
     </div>

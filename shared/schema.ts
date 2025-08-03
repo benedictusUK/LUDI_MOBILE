@@ -68,6 +68,18 @@ export const teamMemberships = pgTable("team_memberships", {
   joinedAt: timestamp("joined_at").defaultNow(),
 });
 
+// Blocked members table
+export const blockedMembers = pgTable("blocked_members", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  teamId: varchar("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  blockedById: varchar("blocked_by_id").notNull().references(() => users.id),
+  reason: text("reason"),
+  blockedAt: timestamp("blocked_at").defaultNow(),
+}, (table) => [
+  unique().on(table.teamId, table.userId)
+]);
+
 // Events table
 export const events = pgTable("events", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -202,6 +214,21 @@ export const teamMembershipsRelations = relations(teamMemberships, ({ one }) => 
   }),
   user: one(users, {
     fields: [teamMemberships.userId],
+    references: [users.id],
+  }),
+}));
+
+export const blockedMembersRelations = relations(blockedMembers, ({ one }) => ({
+  team: one(teams, {
+    fields: [blockedMembers.teamId],
+    references: [teams.id],
+  }),
+  user: one(users, {
+    fields: [blockedMembers.userId],
+    references: [users.id],
+  }),
+  blockedBy: one(users, {
+    fields: [blockedMembers.blockedById],
     references: [users.id],
   }),
 }));
@@ -374,3 +401,10 @@ export type NotificationPreferences = typeof notificationPreferences.$inferSelec
 export type ActivityLog = typeof activityLogs.$inferSelect;
 export type InsertActivityLog = z.infer<typeof insertActivityLogSchema>;
 export type InsertNotificationPreferences = z.infer<typeof insertNotificationPreferencesSchema>;
+
+export const insertBlockedMemberSchema = createInsertSchema(blockedMembers).omit({
+  id: true,
+  blockedAt: true,
+});
+export type InsertBlockedMember = z.infer<typeof insertBlockedMemberSchema>;
+export type BlockedMember = typeof blockedMembers.$inferSelect;

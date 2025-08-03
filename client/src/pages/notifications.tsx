@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import Navigation from "@/components/ui/nav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { JoinRequestNotification } from "@/components/ui/join-request-notification";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { queryClient } from "@/lib/queryClient";

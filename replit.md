@@ -117,6 +117,17 @@ Preferred communication style: Simple, everyday language.
 
 ### Recent Changes
 
+**February 3, 2025 - Advanced Member Management System**
+- **Team Hierarchy Implementation**: Complete owner/admin hierarchy system with role-based permissions
+- **Join Request Notifications**: All team admins and owners receive notifications for join requests with approve/reject functionality
+- **Member Blocking System**: Admins and owners can block members with reasons, maintaining manageable blocked member lists
+- **Advanced Member Controls**: Role promotion/demotion, member removal, and comprehensive member management UI
+- **Database Schema Extension**: Added blocked_members table with unique constraints and proper relationships
+- **Notification Enhancement**: Special handling for join request notifications with interactive approve/reject buttons
+- **Security Features**: Blocked users cannot rejoin teams, proper permission checks for all management actions
+- **Comprehensive API Routes**: Full CRUD operations for member management, blocking, and join request handling
+- **Enhanced Search Modal**: Fixed API route conflicts and improved team search functionality with proper error handling
+
 **February 3, 2025**
 - **Team Search Functionality**: Implemented comprehensive team search system allowing users to discover and join public teams
 - **Join/Request System**: Added automatic team joining for open teams and request notifications for approval-required teams
