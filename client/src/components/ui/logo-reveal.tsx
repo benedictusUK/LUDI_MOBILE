@@ -109,7 +109,7 @@ export default function LogoReveal({ onComplete, skipAnimation = false }: LogoRe
           }}
           transition={{ duration: 0.6, delay: 0.3 }}
         >
-          Sports Event Management
+          Don't just watch
         </motion.p>
 
         {/* Particles/Sparkle Effect */}
