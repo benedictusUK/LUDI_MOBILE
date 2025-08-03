@@ -16,6 +16,30 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
 
+// Sports constants including Team Social for non-sporting events
+export const AVAILABLE_SPORTS = [
+  "Team Social", // Always available for all teams - non-sporting events
+  "Football",
+  "Basketball", 
+  "Tennis",
+  "Cricket",
+  "Rugby",
+  "Hockey",
+  "Badminton",
+  "Table Tennis",
+  "Swimming",
+  "Running",
+  "Cycling",
+  "Volleyball",
+  "Squash",
+  "Golf",
+  "Boxing",
+  "Martial Arts",
+  "Yoga",
+  "Fitness Training",
+  "Other"
+] as const;
+
 // Session storage table (required for Replit Auth)
 export const sessions = pgTable(
   "sessions",
@@ -30,15 +54,15 @@ export const sessions = pgTable(
 // User storage table (required for Replit Auth)
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  email: varchar("email").unique(),
-  firstName: varchar("first_name"),
-  lastName: varchar("last_name"),
+  email: varchar("email").unique().notNull(),
+  firstName: varchar("first_name").notNull(),
+  lastName: varchar("last_name").notNull(),
   profileImageUrl: varchar("profile_image_url"),
   username: varchar("username").unique().notNull(), // unique username, required
-  phoneNumber: varchar("phone_number"),
+  phoneNumber: varchar("phone_number").notNull(),
   dateOfBirth: date("date_of_birth").notNull(), // required for age verification
   postcode: varchar("postcode").notNull(), // required
-  gender: varchar("gender", { length: 20 }),
+  gender: varchar("gender", { enum: ["male", "female"] }).notNull(), // limited to male/female
   stripeCustomerId: varchar("stripe_customer_id"),
   stripeSubscriptionId: varchar("stripe_subscription_id"),
   profileCompletedAt: timestamp("profile_completed_at"), // tracks when mandatory fields completed
@@ -54,6 +78,7 @@ export const teams = pgTable("teams", {
   description: text("description"),
   color: varchar("color", { length: 7 }).default("#3b82f6"),
   maxPlayers: integer("max_players"),
+  gender: varchar("gender", { enum: ["male", "female", "mixed"] }).notNull().default("mixed"), // team gender preference
   isPrivate: boolean("is_private").default(false),
   requiresApproval: boolean("requires_approval").default(true),
   ownerId: varchar("owner_id").notNull().references(() => users.id),
@@ -96,6 +121,7 @@ export const events = pgTable("events", {
   cost: decimal("cost", { precision: 10, scale: 2 }).default("0.00"),
   participants: integer("participants"), // Maximum number of participants
   requirements: text("requirements"),
+  gender: varchar("gender", { enum: ["male", "female", "mixed"] }).notNull().default("mixed"), // event gender restriction
   recurrence: varchar("recurrence", { length: 50 }).default("none"), // none, weekly, monthly, custom
   primaryTeamId: varchar("primary_team_id").notNull().references(() => teams.id),
   secondaryTeamIds: text("secondary_team_ids").array().default(sql`'{}'`),
@@ -335,18 +361,12 @@ export const insertUserSchema = createInsertSchema(users).omit({
 });
 
 // Profile completion schema (for mandatory fields after signup)
-export const profileCompletionSchema = insertUserSchema.pick({
-  username: true,
-  dateOfBirth: true,
-  postcode: true,
-});
-
-// Profile update schema (editable fields only)
-export const updateProfileSchema = z.object({
-  firstName: z.string().min(1, "First name is required").max(50, "First name must be less than 50 characters").optional(),
-  lastName: z.string().min(1, "Last name is required").max(50, "Last name must be less than 50 characters").optional(),
-  email: z.string().email("Please enter a valid email address").optional(),
-  phoneNumber: z.string().regex(/^(\+44|0)[0-9]{10}$/, "Please enter a valid UK phone number").optional(),
+export const profileCompletionSchema = z.object({
+  username: z.string().min(3, "Username must be at least 3 characters").max(20, "Username must be less than 20 characters").regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores"),
+  firstName: z.string().min(1, "First name is required").max(50, "First name must be less than 50 characters"),
+  lastName: z.string().min(1, "Last name is required").max(50, "Last name must be less than 50 characters"),
+  email: z.string().email("Please enter a valid email address"),
+  phoneNumber: z.string().regex(/^(\+44|0)[0-9]{10}$/, "Please enter a valid UK phone number"),
   dateOfBirth: z.string().min(1, "Date of birth is required").refine((date) => {
     const birthDate = new Date(date);
     const today = new Date();
@@ -355,9 +375,28 @@ export const updateProfileSchema = z.object({
     const dayDiff = today.getDate() - birthDate.getDate();
     const actualAge = monthDiff > 0 || (monthDiff === 0 && dayDiff >= 0) ? age : age - 1;
     return actualAge >= 18;
-  }, "You must be at least 18 years old").optional(),
-  postcode: z.string().min(1, "Postcode is required").max(10, "Postcode must be less than 10 characters").optional(),
-  gender: z.string().max(20, "Gender must be less than 20 characters").optional(),
+  }, "You must be at least 18 years old to sign up"),
+  postcode: z.string().min(1, "Postcode is required").max(10, "Postcode must be less than 10 characters"),
+  gender: z.enum(["male", "female"], { errorMap: () => ({ message: "Please select either Male or Female" }) }),
+});
+
+// Profile update schema (editable fields only)
+export const updateProfileSchema = z.object({
+  firstName: z.string().min(1, "First name is required").max(50, "First name must be less than 50 characters"),
+  lastName: z.string().min(1, "Last name is required").max(50, "Last name must be less than 50 characters"),
+  email: z.string().email("Please enter a valid email address"),
+  phoneNumber: z.string().regex(/^(\+44|0)[0-9]{10}$/, "Please enter a valid UK phone number"),
+  dateOfBirth: z.string().min(1, "Date of birth is required").refine((date) => {
+    const birthDate = new Date(date);
+    const today = new Date();
+    const age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    const dayDiff = today.getDate() - birthDate.getDate();
+    const actualAge = monthDiff > 0 || (monthDiff === 0 && dayDiff >= 0) ? age : age - 1;
+    return actualAge >= 18;
+  }, "You must be at least 18 years old"),
+  postcode: z.string().min(1, "Postcode is required").max(10, "Postcode must be less than 10 characters"),
+  gender: z.enum(["male", "female"], { errorMap: () => ({ message: "Please select either Male or Female" }) }),
 });
 
 export const insertTeamSchema = createInsertSchema(teams).omit({
@@ -366,11 +405,12 @@ export const insertTeamSchema = createInsertSchema(teams).omit({
   updatedAt: true,
   ownerId: true,
   inviteCode: true,
-  maxPlayers: true, // Remove the original field so we can redefine it
+  maxPlayers: true,
 }).extend({
   name: z.string().min(1, "Team name is required").max(255, "Team name must be less than 255 characters"),
   sports: z.array(z.string()).min(1, "At least one sport must be selected"),
   description: z.string().optional(),
+  gender: z.enum(["male", "female", "mixed"]).default("mixed"),
   maxPlayers: z.union([z.number().min(1, "Maximum players must be at least 1"), z.null()]).optional(),
 });
 
@@ -385,6 +425,7 @@ export const insertEventSchema = createInsertSchema(events).omit({
   startTime: z.string().min(1, "Start time is required").regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, "Start time must be in HH:MM format (24-hour)"),
   endTime: z.string().optional().transform((val) => val || null).refine((val) => !val || /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(val), "End time must be in HH:MM format (24-hour)"),
   location: z.string().min(1, "Location is required"),
+  gender: z.enum(["male", "female", "mixed"]).default("mixed"),
   primaryTeamId: z.string().min(1, "Team selection is required"),
   secondaryTeamIds: z.array(z.string()).optional().default([]),
   cost: z.union([z.string(), z.number()]).optional().transform((val) => {

@@ -21,13 +21,10 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 
-// Sports options
-const SPORTS_OPTIONS = [
-  "Football", "Basketball", "Tennis", "Baseball", "Soccer", "Rugby", 
-  "Cricket", "Volleyball", "Swimming", "Running", "Cycling", "Golf",
-  "Hockey", "Badminton", "Table Tennis", "Boxing", "Wrestling", "Skiing",
-  "Snowboarding", "Surfing", "Rock Climbing", "Martial Arts", "Yoga", "Other"
-];
+import { AVAILABLE_SPORTS } from "@shared/schema";
+
+// Use the shared sports options
+const SPORTS_OPTIONS = [...AVAILABLE_SPORTS];
 
 // Multi-select component for sports
 function SportsMultiSelect({ 
@@ -113,6 +110,7 @@ const teamFormSchema = z.object({
   description: z.string().optional(),
   sports: z.array(z.string()).min(1, "At least one sport must be selected"),
   color: z.string().default("#3b82f6"),
+  gender: z.enum(["male", "female", "mixed"]).default("mixed"),
   maxPlayers: z.string().optional(),
   isPrivate: z.boolean().default(false),
   requiresApproval: z.boolean().default(true),
@@ -137,6 +135,7 @@ export default function TeamForm({ onCancel, onSuccess, teamId }: TeamFormProps)
       description: "",
       sports: [],
       color: "#3b82f6",
+      gender: "mixed",
       maxPlayers: "",
       isPrivate: false,
       requiresApproval: true,
@@ -304,6 +303,24 @@ export default function TeamForm({ onCancel, onSuccess, teamId }: TeamFormProps)
                   placeholder="Leave empty for no limit"
                 />
                 <p className="text-xs text-neutral-500 mt-1">Leave empty for unlimited members</p>
+              </div>
+
+              <div>
+                <Label htmlFor="gender">Team Gender Preference</Label>
+                <Select
+                  value={form.watch("gender")}
+                  onValueChange={(value) => form.setValue("gender", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select gender preference" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="male">Male Only</SelectItem>
+                    <SelectItem value="female">Female Only</SelectItem>
+                    <SelectItem value="mixed">Mixed Gender</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-neutral-500 mt-1">For safety in sports competitions</p>
               </div>
 
               <div className="space-y-4 pt-4">

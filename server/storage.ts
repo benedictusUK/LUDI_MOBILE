@@ -244,6 +244,7 @@ export class DatabaseStorage implements IStorage {
         sports: teams.sports,
         description: teams.description,
         color: teams.color,
+        gender: teams.gender,
         maxPlayers: teams.maxPlayers,
         isPrivate: teams.isPrivate,
         requiresApproval: teams.requiresApproval,
@@ -722,20 +723,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Activity log operations
-  async logActivity(eventId: string, userId: string, action: string, previousStatus: string | null, newStatus: string | null): Promise<void> {
-    await db.insert(activityLogs).values({
-      eventId,
-      userId,
-      action,
-      previousStatus,
-      newStatus,
-      timestamp: new Date(),
-      ipAddress: null,
-      userAgent: null
-    });
-  }
-
-  async logActivityRecord(activity: InsertActivityLog): Promise<ActivityLog> {
+  async logActivity(activity: InsertActivityLog): Promise<ActivityLog> {
     const [log] = await db
       .insert(activityLogs)
       .values({
@@ -789,7 +777,7 @@ export class DatabaseStorage implements IStorage {
         profileImageUrl: users.profileImageUrl,
         username: users.username,
         gender: users.gender,
-        ukMobileNumber: users.ukMobileNumber,
+        phoneNumber: users.phoneNumber,
         stripeCustomerId: users.stripeCustomerId,
         stripeSubscriptionId: users.stripeSubscriptionId,
         createdAt: users.createdAt,
@@ -835,10 +823,12 @@ export class DatabaseStorage implements IStorage {
         description: teams.description,
         sports: teams.sports,
         color: teams.color,
+        gender: teams.gender,
         isPrivate: teams.isPrivate,
         requiresApproval: teams.requiresApproval,
         maxPlayers: teams.maxPlayers,
         ownerId: teams.ownerId,
+        inviteCode: teams.inviteCode,
         createdAt: teams.createdAt,
         updatedAt: teams.updatedAt,
         memberCount: count(teamMemberships.id),
@@ -894,7 +884,7 @@ export class DatabaseStorage implements IStorage {
         type: "team_join_request",
         title: "New Team Join Request",
         message: `${user.firstName} ${user.lastName} wants to join ${team.name}`,
-        metadata: { teamId, requestUserId: userId },
+        relatedId: teamId,
         isRead: false,
       });
     }
@@ -1068,7 +1058,7 @@ export class DatabaseStorage implements IStorage {
         type: "team_join_approved",
         title: "Join Request Approved",
         message: `Your request to join ${team.name} has been approved!`,
-        metadata: { teamId },
+        relatedId: teamId,
         isRead: false,
       });
     }
@@ -1094,7 +1084,7 @@ export class DatabaseStorage implements IStorage {
         type: "team_join_rejected",
         title: "Join Request Declined",
         message: `Your request to join ${team.name} has been declined.`,
-        metadata: { teamId },
+        relatedId: teamId,
         isRead: false,
       });
     }

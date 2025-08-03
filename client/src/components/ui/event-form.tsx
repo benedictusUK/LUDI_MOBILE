@@ -20,6 +20,7 @@ import { Switch } from "@/components/ui/switch";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { AVAILABLE_SPORTS } from "@shared/schema";
 
 // Custom Time Input Component with auto-colon insertion
 function TimeInput({ 
@@ -70,6 +71,7 @@ const eventFormSchema = z.object({
   requirements: z.string().min(1, "Description is required"),
   sport: z.string().min(1, "Sport is required"),
   location: z.string().min(1, "Location is required"),
+  gender: z.enum(["male", "female", "mixed"]).default("mixed"),
   startDate: z.string().min(1, "Start date is required"),
   startTime: z.string().min(1, "Start time is required"),
   endDate: z.string().optional().or(z.literal("")),
@@ -112,6 +114,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
       requirements: "",
       sport: "",
       location: "",
+      gender: "mixed",
       startDate: "",
       startTime: "",
       endDate: "",
@@ -134,6 +137,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
         requirements: event.requirements || "",
         sport: event.sport || "",
         location: event.location || "",
+        gender: event.gender || "mixed",
         startDate: event.startDate || "",
         startTime: event.startTime || "",
         endDate: event.endDate || "",
@@ -215,10 +219,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
     createEventMutation.mutate(data);
   };
 
-  const sportOptions = [
-    "Football", "Basketball", "Soccer", "Baseball", "Tennis", "Golf", 
-    "Swimming", "Running", "Cycling", "Volleyball", "Hockey", "Rugby"
-  ];
+  const sportOptions = [...AVAILABLE_SPORTS];
 
   return (
     <Card>
@@ -278,6 +279,28 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                 {form.formState.errors.location && (
                   <p className="text-sm text-red-500 mt-1">
                     {form.formState.errors.location.message}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="gender">Event Gender *</Label>
+                <Select
+                  value={form.watch("gender")}
+                  onValueChange={(value) => form.setValue("gender", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select gender requirement" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="male">Male Only</SelectItem>
+                    <SelectItem value="female">Female Only</SelectItem>
+                    <SelectItem value="mixed">Mixed Gender</SelectItem>
+                  </SelectContent>
+                </Select>
+                {form.formState.errors.gender && (
+                  <p className="text-sm text-red-500 mt-1">
+                    {form.formState.errors.gender.message}
                   </p>
                 )}
               </div>

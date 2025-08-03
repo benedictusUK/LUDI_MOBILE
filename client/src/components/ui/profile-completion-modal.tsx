@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { profileCompletionSchema } from "@shared/schema";
@@ -32,8 +33,13 @@ export function ProfileCompletionModal({ isOpen, onClose, user }: ProfileComplet
     resolver: zodResolver(profileCompletionSchema),
     defaultValues: {
       username: user?.username || "",
+      firstName: user?.firstName || "",
+      lastName: user?.lastName || "",
+      email: user?.email || "",
+      phoneNumber: user?.phoneNumber || "",
       dateOfBirth: user?.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : "",
       postcode: user?.postcode || "",
+      gender: user?.gender || "",
     },
   });
 
@@ -100,7 +106,7 @@ export function ProfileCompletionModal({ isOpen, onClose, user }: ProfileComplet
     completeProfileMutation.mutate(data);
   };
 
-  const isProfileComplete = user?.username && user?.dateOfBirth && user?.postcode;
+  const isProfileComplete = user?.username && user?.firstName && user?.lastName && user?.email && user?.phoneNumber && user?.dateOfBirth && user?.postcode && user?.gender;
 
   return (
     <Dialog open={isOpen && !isProfileComplete} onOpenChange={onClose}>
@@ -157,36 +163,126 @@ export function ProfileCompletionModal({ isOpen, onClose, user }: ProfileComplet
               )}
             />
 
+            <div className="grid grid-cols-2 gap-3">
+              <FormField
+                control={form.control}
+                name="firstName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>First Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter your first name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="lastName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Last Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter your last name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
             <FormField
               control={form.control}
-              name="dateOfBirth"
+              name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Date of Birth</FormLabel>
+                  <FormLabel>Email Address</FormLabel>
                   <FormControl>
                     <Input 
-                      type="date" 
-                      max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
+                      type="email" 
+                      placeholder="Enter your email address" 
                       {...field} 
                     />
                   </FormControl>
                   <FormMessage />
-                  <p className="text-xs text-neutral-500">
-                    You must be at least 18 years old to use LUDI.
-                  </p>
                 </FormItem>
               )}
             />
 
             <FormField
               control={form.control}
-              name="postcode"
+              name="phoneNumber"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Postcode</FormLabel>
+                  <FormLabel>Phone Number</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., SW1A 1AA" {...field} />
+                    <Input 
+                      type="tel" 
+                      placeholder="e.g., +44 7123 456789 or 07123 456789" 
+                      {...field} 
+                    />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="grid grid-cols-2 gap-3">
+              <FormField
+                control={form.control}
+                name="dateOfBirth"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Date of Birth</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="date" 
+                        max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                    <p className="text-xs text-neutral-500">
+                      Must be 18+
+                    </p>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="postcode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Postcode</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., SW1A 1AA" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name="gender"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Gender</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select gender" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="male">Male</SelectItem>
+                      <SelectItem value="female">Female</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
