@@ -35,7 +35,7 @@ function Router() {
     sessionStorage.setItem('ludi-logo-revealed', 'true');
   };
 
-  // Show logo reveal when user becomes authenticated for the first time
+  // Show logo reveal when user becomes authenticated for the first time (not loading states)
   const shouldShowReveal = isAuthenticated && !isLoading && showLogoReveal && !hasShownReveal;
 
   return (

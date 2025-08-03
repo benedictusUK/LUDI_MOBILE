@@ -14,7 +14,7 @@ export default function Landing() {
             <div className="flex items-center">
               <div className="flex-shrink-0 flex items-center">
                 <i className="fas fa-trophy text-white text-2xl mr-3"></i>
-                <span className="text-xl font-bold text-white">SportSync</span>
+                <span className="text-xl font-bold text-white tracking-wider">LUDI</span>
               </div>
             </div>
             <Button onClick={handleLogin} variant="secondary">
@@ -29,9 +29,12 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
-              <h1 className="text-4xl lg:text-6xl font-bold mb-6 leading-tight">
-                Manage Your Sports Events Like a Pro
+              <h1 className="text-4xl lg:text-6xl font-bold mb-4 leading-tight tracking-wider">
+                LUDI
               </h1>
+              <p className="text-2xl font-medium mb-4 text-blue-100">
+                Don't just watch
+              </p>
               <p className="text-xl mb-8 text-blue-100">
                 Create events, manage teams, coordinate schedules, and engage your sports community all in one powerful platform.
               </p>
