@@ -2,7 +2,7 @@
 
 ## Overview
 
-SportSync is a full-stack sports event management platform that allows users to create and manage sports teams, organize events, and handle team communications. The application features a modern React frontend with shadcn/ui components, an Express.js backend with Replit authentication, and PostgreSQL database integration using Drizzle ORM.
+LUDI is a full-stack sports event management platform that allows users to create and manage sports teams, organize events, and handle team communications. The application features a modern React frontend with shadcn/ui components, an Express.js backend with Replit authentication, and PostgreSQL database integration using Drizzle ORM.
 
 ## User Preferences
 
@@ -116,6 +116,12 @@ Preferred communication style: Simple, everyday language.
 - **ISSUER_URL**: OAuth provider URL (defaults to replit.com/oidc)
 
 ### Recent Changes
+
+**February 3, 2025**
+- **Branding Update**: Changed application name from SportSync to LUDI across all components
+- **Navigation Enhancement**: Made LUDI title clickable to navigate back to dashboard
+- **Dashboard Interactivity**: Added clickable navigation from dashboard stats to respective pages
+- **Participants Field Fix**: Added missing participants field to events database schema and form mapping
 
 **February 2, 2025**
 - **Performance Optimization**: Implemented comprehensive performance improvements for voting and navigation

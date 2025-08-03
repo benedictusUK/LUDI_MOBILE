@@ -37,10 +37,10 @@ export default function Navigation() {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div className="flex items-center">
-            <div className="flex-shrink-0 flex items-center">
+            <Link href="/" className="flex-shrink-0 flex items-center hover:opacity-80 transition-opacity">
               <i className="fas fa-trophy text-primary text-2xl mr-3"></i>
-              <span className="text-xl font-bold text-neutral-900">SportSync</span>
-            </div>
+              <span className="text-xl font-bold text-neutral-900">LUDI</span>
+            </Link>
           </div>
 
           {/* Desktop Navigation */}
