@@ -320,23 +320,33 @@ export class DatabaseStorage implements IStorage {
     const primaryTeamEvents = await db
       .select({ 
         event: events,
-        primaryTeam: teams
+        primaryTeam: teams,
+        userAttendance: eventAttendance
       })
       .from(events)
       .innerJoin(teams, eq(events.primaryTeamId, teams.id))
       .innerJoin(teamMemberships, eq(events.primaryTeamId, teamMemberships.teamId))
+      .leftJoin(eventAttendance, and(
+        eq(eventAttendance.eventId, events.id),
+        eq(eventAttendance.userId, userId)
+      ))
       .where(eq(teamMemberships.userId, userId));
 
     // Get events where user's team is a secondary team
     const secondaryTeamEvents = await db
       .select({ 
         event: events,
-        primaryTeam: teams
+        primaryTeam: teams,
+        userAttendance: eventAttendance
       })
       .from(events)
       .innerJoin(teams, eq(events.primaryTeamId, teams.id))
       .innerJoin(eventTeams, eq(events.id, eventTeams.eventId))
       .innerJoin(teamMemberships, eq(eventTeams.teamId, teamMemberships.teamId))
+      .leftJoin(eventAttendance, and(
+        eq(eventAttendance.eventId, events.id),
+        eq(eventAttendance.userId, userId)
+      ))
       .where(eq(teamMemberships.userId, userId));
 
     // Combine and deduplicate events
@@ -348,10 +358,11 @@ export class DatabaseStorage implements IStorage {
     // Sort by start date descending
     uniqueEvents.sort((a, b) => new Date(b.event.startDate).getTime() - new Date(a.event.startDate).getTime());
 
-    // Return events with primary team data
+    // Return events with primary team data and user attendance
     return uniqueEvents.map(result => ({
       ...result.event,
-      primaryTeam: result.primaryTeam
+      primaryTeam: result.primaryTeam,
+      userAttendance: result.userAttendance
     }));
   }
 

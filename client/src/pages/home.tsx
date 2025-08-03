@@ -1,6 +1,6 @@
 import { useAuth } from "@/hooks/useAuth";
-import { useQuery } from "@tanstack/react-query";
-import { Link } from "wouter";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, useLocation } from "wouter";
 import Navigation from "@/components/ui/nav";
 import DashboardStats from "@/components/ui/dashboard-stats";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,8 @@ import { LudiInlineLoader } from "@/components/ui/ludi-loader";
 
 export default function Home() {
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
 
   const { data: stats } = useQuery({
     queryKey: ["/api/dashboard/stats"],
@@ -23,8 +25,53 @@ export default function Home() {
     queryKey: ["/api/events"],
   });
 
-  const recentEvents = (events as any[]).slice(0, 3);
+  // Filter to upcoming events only and get user's attendance status
+  const upcomingEvents = (events as any[])
+    .filter((event: any) => {
+      const eventDate = new Date(event.startDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return eventDate >= today;
+    })
+    .slice(0, 3);
+
   const userTeams = (teams as any[]).slice(0, 3);
+
+  // Function to pre-load event data and navigate
+  const handleEventClick = async (eventId: string) => {
+    // Pre-load event details, attendance, and activity data
+    await Promise.all([
+      queryClient.prefetchQuery({
+        queryKey: ["/api/events", eventId],
+      }),
+      queryClient.prefetchQuery({
+        queryKey: ["/api/events", eventId, "attendance"],
+      }),
+      queryClient.prefetchQuery({
+        queryKey: ["/api/events", eventId, "activity"],
+      }),
+    ]);
+    
+    setLocation(`/events/${eventId}`);
+  };
+
+  // Function to get voting status badge
+  const getVotingStatusBadge = (event: any) => {
+    if (!event.userAttendance) {
+      return <Badge variant="outline" className="text-yellow-600 border-yellow-300">Not Voted</Badge>;
+    }
+    
+    switch (event.userAttendance.status) {
+      case 'attending':
+        return <Badge variant="default" className="bg-green-500 hover:bg-green-600">Can Attend</Badge>;
+      case 'not_attending':
+        return <Badge variant="destructive">Can't Attend</Badge>;
+      case 'maybe':
+        return <Badge variant="secondary" className="bg-amber-100 text-amber-800 hover:bg-amber-200">Maybe</Badge>;
+      default:
+        return <Badge variant="outline" className="text-yellow-600 border-yellow-300">Not Voted</Badge>;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-neutral-50">
@@ -41,67 +88,33 @@ export default function Home() {
         {/* Stats Grid */}
         <DashboardStats stats={stats as any} />
 
-        {/* Quick Actions */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Link href="/events">
-                <Button variant="outline" className="flex flex-col items-center p-6 h-auto space-y-2 w-full">
-                  <div className="bg-primary p-3 rounded-lg">
-                    <i className="fas fa-plus text-white text-lg"></i>
-                  </div>
-                  <span className="text-sm font-medium">Create Event</span>
-                </Button>
-              </Link>
 
-              <Link href="/teams">
-                <Button variant="outline" className="flex flex-col items-center p-6 h-auto space-y-2 w-full">
-                  <div className="bg-secondary p-3 rounded-lg">
-                    <i className="fas fa-users-plus text-white text-lg"></i>
-                  </div>
-                  <span className="text-sm font-medium">Create Team</span>
-                </Button>
-              </Link>
 
-              <Link href="/events">
-                <Button variant="outline" className="flex flex-col items-center p-6 h-auto space-y-2 w-full">
-                  <div className="bg-accent p-3 rounded-lg">
-                    <i className="fas fa-calendar-alt text-white text-lg"></i>
-                  </div>
-                  <span className="text-sm font-medium">Schedule</span>
-                </Button>
-              </Link>
-
-              <Link href="/notifications">
-                <Button variant="outline" className="flex flex-col items-center p-6 h-auto space-y-2 w-full">
-                  <div className="bg-purple-600 p-3 rounded-lg">
-                    <i className="fas fa-bell text-white text-lg"></i>
-                  </div>
-                  <span className="text-sm font-medium">Notifications</span>
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Recent Activity & Teams */}
+        {/* Upcoming Events & Teams */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Recent Events */}
+          {/* Upcoming Events */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Recent Events</CardTitle>
-              <Button variant="link" className="text-primary">View All</Button>
+              <CardTitle>Upcoming Events</CardTitle>
+              <Link href="/events">
+                <Button variant="link" className="text-primary">View All</Button>
+              </Link>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {recentEvents.length === 0 ? (
-                  <p className="text-neutral-500 text-center py-8">No events found</p>
+                {upcomingEvents.length === 0 ? (
+                  <div className="text-center py-12">
+                    <i className="fas fa-calendar text-neutral-300 text-6xl mb-4"></i>
+                    <h3 className="text-lg font-semibold text-neutral-900 mb-2">No upcoming events</h3>
+                    <p className="text-neutral-500">Create an event to get started!</p>
+                  </div>
                 ) : (
-                  recentEvents.map((event: any) => (
-                    <div key={event.id} className="flex items-center space-x-4 p-4 border border-gray-100 rounded-lg">
+                  upcomingEvents.map((event: any) => (
+                    <div 
+                      key={event.id} 
+                      className="flex items-center space-x-4 p-4 border border-gray-100 rounded-lg hover:border-primary hover:shadow-md transition-all cursor-pointer"
+                      onClick={() => handleEventClick(event.id)}
+                    >
                       <div className="bg-primary p-3 rounded-lg">
                         <i className="fas fa-football-ball text-white"></i>
                       </div>
@@ -112,9 +125,10 @@ export default function Home() {
                         </p>
                         <p className="text-sm text-neutral-500">{event.location || "TBD"}</p>
                       </div>
-                      <Badge variant={event.isPublished ? "default" : "secondary"}>
-                        {event.isPublished ? "Active" : "Draft"}
-                      </Badge>
+                      <div className="flex flex-col items-end space-y-2">
+                        {getVotingStatusBadge(event)}
+                        <span className="text-xs text-neutral-400">Click to vote</span>
+                      </div>
                     </div>
                   ))
                 )}
