@@ -13,6 +13,7 @@ import { queryClient } from "@/lib/queryClient";
 import { ArrowLeft, Calendar, Clock, MapPin, Users, Vote, X, CheckCircle, XCircle, MinusCircle } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
+import { FlareGunModal } from "@/components/ui/flare-gun-modal";
 
 export default function EventDetails() {
   const [, params] = useRoute("/events/:id");
@@ -323,6 +324,19 @@ export default function EventDetails() {
                     <Vote className="w-5 h-5 mr-2" />
                     Attendance Voting
                   </CardTitle>
+                  <div className="ml-auto">
+                    <FlareGunModal 
+                      event={eventData} 
+                      isAuthorized={
+                        user && eventData.primaryTeam && (
+                          eventData.primaryTeam.ownerId === (user as any).id || 
+                          eventData.primaryTeam.memberships?.some((m: any) => 
+                            m.userId === (user as any).id && m.role === 'admin'
+                          )
+                        )
+                      }
+                    />
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   {/* Voting Buttons */}

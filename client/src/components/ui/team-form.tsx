@@ -21,10 +21,10 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 
-import { AVAILABLE_SPORTS } from "@shared/schema";
+import { SPORTS } from "@shared/schema";
 
 // Use the shared sports options
-const SPORTS_OPTIONS = [...AVAILABLE_SPORTS];
+const SPORTS_OPTIONS = [...SPORTS];
 
 // Multi-select component for sports
 function SportsMultiSelect({ 

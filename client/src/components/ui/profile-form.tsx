@@ -11,7 +11,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { updateProfileSchema } from "@shared/schema";
+import { updateProfileSchema, SPORTS } from "@shared/schema";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Slider } from "@/components/ui/slider";
 
 type UpdateProfileData = z.infer<typeof updateProfileSchema>;
 
@@ -34,6 +36,8 @@ export function ProfileForm({ user, onSuccess }: ProfileFormProps) {
       dateOfBirth: user?.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : "",
       postcode: user?.postcode || "",
       gender: user?.gender || "",
+      sportsInterests: user?.sportsInterests || [],
+      travelRadius: user?.travelRadius || 10,
     },
   });
 
@@ -189,7 +193,7 @@ export function ProfileForm({ user, onSuccess }: ProfileFormProps) {
               name="gender"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Gender (Optional)</FormLabel>
+                  <FormLabel>Gender</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
@@ -201,6 +205,81 @@ export function ProfileForm({ user, onSuccess }: ProfileFormProps) {
                       <SelectItem value="female">Female</SelectItem>
                     </SelectContent>
                   </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="sportsInterests"
+              render={() => (
+                <FormItem>
+                  <div className="mb-4">
+                    <FormLabel className="text-base">Sports Interests</FormLabel>
+                    <p className="text-sm text-neutral-500">Select sports you're interested in playing (for flare gun notifications)</p>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {SPORTS.map((sport) => (
+                      <FormField
+                        key={sport}
+                        control={form.control}
+                        name="sportsInterests"
+                        render={({ field }) => {
+                          return (
+                            <FormItem
+                              key={sport}
+                              className="flex flex-row items-start space-x-3 space-y-0"
+                            >
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value?.includes(sport)}
+                                  onCheckedChange={(checked) => {
+                                    return checked
+                                      ? field.onChange([...field.value, sport])
+                                      : field.onChange(
+                                          field.value?.filter(
+                                            (value) => value !== sport
+                                          )
+                                        )
+                                  }}
+                                />
+                              </FormControl>
+                              <FormLabel className="text-sm font-normal">
+                                {sport}
+                              </FormLabel>
+                            </FormItem>
+                          )
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="travelRadius"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Travel Radius: {field.value} km</FormLabel>
+                  <p className="text-sm text-neutral-500">How far are you willing to travel for events?</p>
+                  <FormControl>
+                    <Slider
+                      min={1}
+                      max={100}
+                      step={1}
+                      value={[field.value]}
+                      onValueChange={(vals) => field.onChange(vals[0])}
+                      className="w-full"
+                    />
+                  </FormControl>
+                  <div className="flex justify-between text-xs text-neutral-500">
+                    <span>1 km</span>
+                    <span>100 km</span>
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}

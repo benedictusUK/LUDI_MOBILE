@@ -14,10 +14,11 @@ import {
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+
 import { relations } from "drizzle-orm";
 
 // Sports constants including Team Social for non-sporting events
-export const AVAILABLE_SPORTS = [
+export const SPORTS = [
   "Team Social", // Always available for all teams - non-sporting events
   "Football",
   "Basketball", 
@@ -63,6 +64,8 @@ export const users = pgTable("users", {
   dateOfBirth: date("date_of_birth").notNull(), // required for age verification
   postcode: varchar("postcode").notNull(), // required
   gender: varchar("gender", { enum: ["male", "female"] }).notNull(), // limited to male/female
+  sportsInterests: text("sports_interests").array().default(sql`'{}'::text[]`), // sports user is interested in
+  travelRadius: integer("travel_radius").default(10), // km radius willing to travel
   stripeCustomerId: varchar("stripe_customer_id"),
   stripeSubscriptionId: varchar("stripe_subscription_id"),
   profileCompletedAt: timestamp("profile_completed_at"), // tracks when mandatory fields completed
@@ -131,6 +134,14 @@ export const events = pgTable("events", {
   venueBooked: boolean("venue_booked").default(false),
   lateVotePenalty: decimal("late_vote_penalty", { precision: 10, scale: 2 }).default("0.00"),
   overduePaymentReminders: boolean("overdue_payment_reminders").default(false),
+  // Flare gun feature
+  isFlared: boolean("is_flared").default(false),
+  flaredAt: timestamp("flared_at"),
+  flaredBy: varchar("flared_by").references(() => users.id),
+  // Recurring events
+  recurrenceType: varchar("recurrence_type", { enum: ["none", "weekly", "monthly"] }).default("none"),
+  recurrenceEndDate: date("recurrence_end_date"),
+  parentEventId: varchar("parent_event_id").references(() => events.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -215,6 +226,17 @@ export const notificationPreferences = pgTable("notification_preferences", {
   unique().on(table.userId)
 ]);
 
+// Flared event responses - tracks who responds to flared events
+export const flareResponses = pgTable("flare_responses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  eventId: varchar("event_id").notNull().references(() => events.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  status: varchar("status", { enum: ["interested", "not_interested", "maybe"] }).notNull(),
+  respondedAt: timestamp("responded_at").defaultNow(),
+}, (table) => [
+  unique().on(table.eventId, table.userId)
+]);
+
 // Relations
 export const usersRelations = relations(users, ({ many, one }) => ({
   ownedTeams: many(teams),
@@ -224,6 +246,7 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   eventAttendance: many(eventAttendance),
   payments: many(payments),
   notificationPreferences: one(notificationPreferences),
+  flareResponses: many(flareResponses),
 }));
 
 export const teamsRelations = relations(teams, ({ one, many }) => ({
@@ -274,6 +297,7 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
   eventTeams: many(eventTeams),
   attendance: many(eventAttendance),
   payments: many(payments),
+  flareResponses: many(flareResponses),
 }));
 
 export const eventTeamsRelations = relations(eventTeams, ({ one }) => ({
@@ -338,6 +362,17 @@ export const activityLogsRelations = relations(activityLogs, ({ one }) => ({
   }),
 }));
 
+export const flareResponsesRelations = relations(flareResponses, ({ one }) => ({
+  event: one(events, {
+    fields: [flareResponses.eventId],
+    references: [events.id],
+  }),
+  user: one(users, {
+    fields: [flareResponses.userId],
+    references: [users.id],
+  }),
+}));
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -378,6 +413,8 @@ export const profileCompletionSchema = z.object({
   }, "You must be at least 18 years old to sign up"),
   postcode: z.string().min(1, "Postcode is required").max(10, "Postcode must be less than 10 characters"),
   gender: z.enum(["male", "female"], { errorMap: () => ({ message: "Please select either Male or Female" }) }),
+  sportsInterests: z.array(z.string()).min(1, "Please select at least one sport you're interested in"),
+  travelRadius: z.number().min(1, "Travel radius must be at least 1 km").max(100, "Travel radius cannot exceed 100 km"),
 });
 
 // Profile update schema (editable fields only)
@@ -397,6 +434,8 @@ export const updateProfileSchema = z.object({
   }, "You must be at least 18 years old"),
   postcode: z.string().min(1, "Postcode is required").max(10, "Postcode must be less than 10 characters"),
   gender: z.enum(["male", "female"], { errorMap: () => ({ message: "Please select either Male or Female" }) }),
+  sportsInterests: z.array(z.string()).min(1, "Please select at least one sport you're interested in"),
+  travelRadius: z.number().min(1, "Travel radius must be at least 1 km").max(100, "Travel radius cannot exceed 100 km"),
 });
 
 export const insertTeamSchema = createInsertSchema(teams).omit({
@@ -495,3 +534,9 @@ export const insertBlockedMemberSchema = createInsertSchema(blockedMembers).omit
 });
 export type InsertBlockedMember = z.infer<typeof insertBlockedMemberSchema>;
 export type BlockedMember = typeof blockedMembers.$inferSelect;
+export type FlareResponse = typeof flareResponses.$inferSelect;
+export const insertFlareResponseSchema = createInsertSchema(flareResponses).omit({
+  id: true,
+  respondedAt: true,
+});
+export type InsertFlareResponse = z.infer<typeof insertFlareResponseSchema>;

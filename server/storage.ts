@@ -32,6 +32,9 @@ import {
   type InsertBlockedMember,
   type ProfileCompletion,
   type UpdateProfile,
+  flareResponses,
+  type FlareResponse,
+  type InsertFlareResponse,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, count, sql, or, notInArray } from "drizzle-orm";
@@ -1110,6 +1113,95 @@ export class DatabaseStorage implements IStorage {
     }
 
     return admins;
+  }
+  // Flare gun operations
+  async findNearbyUsers(eventId: string, sport: string, maxResults: number = 20): Promise<User[]> {
+    // Get the event details to find the location/postcode
+    const [event] = await db
+      .select({ location: events.location, primaryTeamId: events.primaryTeamId })
+      .from(events)
+      .where(eq(events.id, eventId));
+
+    if (!event) return [];
+
+    // Find users who:
+    // 1. Have this sport in their interests
+    // 2. Are not already in any team (to avoid duplicates with team search)
+    // 3. Are within travel radius (simplified - this could be enhanced with actual distance calculation)
+    const nearbyUsers = await db
+      .select()
+      .from(users)
+      .where(
+        and(
+          sql`${sport} = ANY(${users.sportsInterests})`,
+          // Exclude users who are already team members
+          sql`${users.id} NOT IN (SELECT user_id FROM team_memberships)`,
+          // Only include users who have completed their profile
+          sql`${users.profileCompletedAt} IS NOT NULL`
+        )
+      )
+      .limit(maxResults);
+
+    return nearbyUsers;
+  }
+
+  async sendFlareNotifications(eventId: string, userIds: string[]): Promise<void> {
+    // Get event details for notification
+    const [event] = await db
+      .select({ name: events.name, location: events.location, startDate: events.startDate, startTime: events.startTime })
+      .from(events)
+      .where(eq(events.id, eventId));
+
+    if (!event) return;
+
+    // Create notifications for each user
+    const notifications = userIds.map(userId => ({
+      userId,
+      title: "🚀 Flare Gun Alert!",
+      message: `New event "${event.name}" needs players! Location: ${event.location}. Time: ${event.startDate} ${event.startTime}`,
+      type: "flare_gun",
+      relatedId: eventId,
+    }));
+
+    await db.insert(notifications).values(notifications);
+  }
+
+  async respondToFlare(eventId: string, userId: string, status: "interested" | "not_interested" | "maybe"): Promise<FlareResponse> {
+    const [response] = await db
+      .insert(flareResponses)
+      .values({
+        eventId,
+        userId,
+        status,
+      })
+      .onConflictDoUpdate({
+        target: [flareResponses.eventId, flareResponses.userId],
+        set: {
+          status,
+          respondedAt: new Date(),
+        },
+      })
+      .returning();
+
+    return response;
+  }
+
+  async getFlareResponses(eventId: string): Promise<(FlareResponse & { user: User })[]> {
+    const responses = await db
+      .select({
+        id: flareResponses.id,
+        eventId: flareResponses.eventId,
+        userId: flareResponses.userId,
+        status: flareResponses.status,
+        respondedAt: flareResponses.respondedAt,
+        user: users,
+      })
+      .from(flareResponses)
+      .innerJoin(users, eq(flareResponses.userId, users.id))
+      .where(eq(flareResponses.eventId, eventId))
+      .orderBy(desc(flareResponses.respondedAt));
+
+    return responses;
   }
 }
 

@@ -20,7 +20,7 @@ import { Switch } from "@/components/ui/switch";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
-import { AVAILABLE_SPORTS } from "@shared/schema";
+import { SPORTS } from "@shared/schema";
 
 // Custom Time Input Component with auto-colon insertion
 function TimeInput({ 
@@ -222,7 +222,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
     createEventMutation.mutate(data);
   };
 
-  const sportOptions = [...AVAILABLE_SPORTS];
+  const sportOptions = [...SPORTS];
 
   return (
     <Card>

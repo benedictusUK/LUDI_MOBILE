@@ -9,7 +9,8 @@ import {
   insertNotificationSchema,
   insertEventAttendanceSchema,
   insertPaymentSchema,
-  insertNotificationPreferencesSchema 
+  insertNotificationPreferencesSchema,
+  insertFlareResponseSchema 
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -793,6 +794,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching event payments:", error);
       res.status(500).json({ message: "Failed to fetch event payments" });
+    }
+  });
+
+  // Flare gun routes - for advertising events to nearby users
+  app.post('/api/events/:id/flare', isAuthenticated, async (req: any, res) => {
+    try {
+      const eventId = req.params.id;
+      const userId = req.user.claims.sub;
+      const { sport } = req.body;
+
+      // Verify user owns/manages this event
+      const event = await storage.getEvent(eventId);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+
+      // Check if user is team owner/admin
+      const userTeams = await storage.getUserTeams(userId);
+      const isAuthorized = userTeams.some(team => 
+        team.id === event.primaryTeamId && ['admin'].includes(team.role)
+      );
+
+      if (!isAuthorized) {
+        return res.status(403).json({ message: "Not authorized to send flare gun for this event" });
+      }
+
+      // Find nearby users interested in this sport
+      const nearbyUsers = await storage.findNearbyUsers(eventId, sport);
+      const userIds = nearbyUsers.map(user => user.id);
+
+      // Send notifications
+      if (userIds.length > 0) {
+        await storage.sendFlareNotifications(eventId, userIds);
+      }
+
+      res.json({ 
+        message: "Flare gun sent successfully", 
+        recipientCount: userIds.length,
+        recipients: nearbyUsers.map(u => ({ 
+          id: u.id, 
+          username: u.username, 
+          firstName: u.firstName 
+        }))
+      });
+    } catch (error) {
+      console.error("Error sending flare gun:", error);
+      res.status(500).json({ message: "Failed to send flare gun" });
+    }
+  });
+
+  app.post('/api/events/:id/flare-response', isAuthenticated, async (req: any, res) => {
+    try {
+      const eventId = req.params.id;
+      const userId = req.user.claims.sub;
+      const responseData = insertFlareResponseSchema.parse({
+        ...req.body,
+        eventId,
+        userId,
+      });
+
+      const response = await storage.respondToFlare(eventId, userId, responseData.status);
+      res.json(response);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          message: "Validation failed",
+          errors: error.errors
+        });
+      }
+      console.error("Error responding to flare:", error);
+      res.status(500).json({ message: "Failed to respond to flare" });
+    }
+  });
+
+  app.get('/api/events/:id/flare-responses', isAuthenticated, async (req, res) => {
+    try {
+      const eventId = req.params.id;
+      const responses = await storage.getFlareResponses(eventId);
+      res.json(responses);
+    } catch (error) {
+      console.error("Error fetching flare responses:", error);
+      res.status(500).json({ message: "Failed to fetch flare responses" });
     }
   });
 
