@@ -48,12 +48,12 @@ type EventFormData = z.infer<typeof eventFormSchema>;
 interface EventFormProps {
   isEditing?: boolean;
   initialData?: any;
-  teams: any[];
+  teams?: any[];
   onCancel: () => void;
   eventId?: string;
 }
 
-export function EventForm({ isEditing = false, initialData, teams, onCancel, eventId }: EventFormProps) {
+export function EventForm({ isEditing = false, initialData, teams = [], onCancel, eventId }: EventFormProps) {
   const { toast } = useToast();
   
   const form = useForm<EventFormData>({
@@ -157,6 +157,25 @@ export function EventForm({ isEditing = false, initialData, teams, onCancel, eve
 
   const sportOptions = [...SPORTS];
 
+  // Early return with loading state if teams is still loading
+  if (!teams || teams.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>{isEditing ? "Edit Event" : "Create New Event"}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center py-8">
+            <div className="text-center">
+              <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading teams...</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -245,7 +264,7 @@ export function EventForm({ isEditing = false, initialData, teams, onCancel, eve
                       <SelectValue placeholder="Select primary team" />
                     </SelectTrigger>
                     <SelectContent>
-                      {teams.map((team: any) => (
+                      {(teams || []).map((team: any) => (
                         <SelectItem key={team.id} value={team.id}>
                           {team.name}
                         </SelectItem>
@@ -434,7 +453,7 @@ export function EventForm({ isEditing = false, initialData, teams, onCancel, eve
                       <SelectValue placeholder="Add additional teams..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {teams
+                      {(teams || [])
                         .filter((team: any) => 
                           team.id !== form.watch("primaryTeamId") && 
                           !form.watch("secondaryTeamIds")?.includes(team.id)
@@ -451,7 +470,7 @@ export function EventForm({ isEditing = false, initialData, teams, onCancel, eve
                   {form.watch("secondaryTeamIds") && form.watch("secondaryTeamIds")!.length > 0 && (
                     <div className="flex flex-wrap gap-2 mt-2">
                       {form.watch("secondaryTeamIds")!.map((teamId: string) => {
-                        const team = teams.find((t: any) => t.id === teamId);
+                        const team = (teams || []).find((t: any) => t.id === teamId);
                         return team ? (
                           <div
                             key={teamId}
