@@ -136,7 +136,23 @@ export default function LogoReveal({ onComplete, skipAnimation = false }: LogoRe
           )}
         </AnimatePresence>
 
-
+        {/* Loading Progress */}
+        <motion.div
+          className="w-64 h-1 bg-neutral-200 rounded-full mx-auto mt-12 overflow-hidden"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: currentStep >= 1 ? 1 : 0 }}
+        >
+          <motion.div
+            className="h-full bg-gradient-to-r from-primary to-secondary rounded-full"
+            initial={{ width: "0%" }}
+            animate={{ 
+              width: currentStep === 1 ? "33%" : 
+                     currentStep === 2 ? "66%" : 
+                     currentStep >= 3 ? "100%" : "0%" 
+            }}
+            transition={{ duration: 0.5, ease: "easeInOut" }}
+          />
+        </motion.div>
       </div>
     </motion.div>
   );
