@@ -128,6 +128,12 @@ Preferred communication style: Simple, everyday language.
 - **Loading Animation Enhancement**: Fixed logo reveal animation to run completely before displaying dashboard
 - **Dashboard Navigation Fix**: Connected "View All Teams" link to properly navigate to teams page
 
+**February 3, 2025 - Event Form Field Retention Fix**
+- **Event Editing Enhancement**: Fixed issue where sport, gender, and primary team fields weren't retained when editing events
+- **Form Reset Timing**: Implemented proper form reset timing with setTimeout to ensure Select components display correct values
+- **Database Schema Synchronization**: Added missing database columns (recurrence_type, recurrence_end_date, parent_event_id) to resolve event creation failures
+- **Select Field Handling**: Enhanced Select component value binding to properly display existing event data during editing
+
 **February 3, 2025 - Advanced Member Management System**
 - **Team Hierarchy Implementation**: Complete owner/admin hierarchy system with role-based permissions
 - **Join Request Notifications**: All team admins and owners receive notifications for join requests with approve/reject functionality

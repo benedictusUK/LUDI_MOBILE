@@ -132,26 +132,32 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
   useEffect(() => {
     if (existingEvent && typeof existingEvent === 'object') {
       const event = existingEvent as any;
-      form.reset({
-        name: event.name || "",
-        requirements: event.requirements || "",
-        sport: event.sport || "",
-        location: event.location || "",
-        gender: event.gender || "mixed", // Default to mixed if not set
-        startDate: event.startDate || "",
-        startTime: event.startTime || "",
-        endDate: event.endDate || "",
-        endTime: event.endTime || "",
-        primaryTeamId: event.primaryTeamId || "",
-        secondaryTeamIds: event.secondaryTeamIds || [],
-        maxParticipants: event.participants?.toString() || "",
-        cost: event.cost || "",
-        isPublished: event.isPublished || false,
-        requiresPayment: event.requiresPayment || false,
-      });
       
-      // Force update the gender field specifically to ensure it shows
-      form.setValue("gender", event.gender || "mixed");
+      // Use setTimeout to ensure the form is ready before resetting
+      setTimeout(() => {
+        form.reset({
+          name: event.name || "",
+          requirements: event.requirements || "",
+          sport: event.sport || "",
+          location: event.location || "",
+          gender: event.gender || "mixed",
+          startDate: event.startDate || "",
+          startTime: event.startTime || "",
+          endDate: event.endDate || "",
+          endTime: event.endTime || "",
+          primaryTeamId: event.primaryTeamId || "",
+          secondaryTeamIds: event.secondaryTeamIds || [],
+          maxParticipants: event.participants?.toString() || "",
+          cost: event.cost || "",
+          isPublished: event.isPublished || false,
+          requiresPayment: event.requiresPayment || false,
+        });
+        
+        // Force update critical Select fields
+        form.setValue("sport", event.sport || "");
+        form.setValue("gender", event.gender || "mixed");
+        form.setValue("primaryTeamId", event.primaryTeamId || "");
+      }, 100);
     }
   }, [existingEvent, form]);
 
