@@ -117,6 +117,15 @@ Preferred communication style: Simple, everyday language.
 
 ### Recent Changes
 
+**February 3, 2025 - Mandatory Profile Fields & Gender Safety System**
+- **Mandatory Profile Completion**: Implemented comprehensive profile requirements with username, dateOfBirth, postcode, phoneNumber, and gender fields
+- **Gender Safety Restrictions**: Limited gender selection to male/female only for sports safety compliance
+- **Team/Event Gender Attributes**: Added gender preferences (Male/Female/Mixed) to teams and events for appropriate matchups
+- **Team Social Sport Option**: Added "Team Social" to available sports for non-sporting team building activities
+- **Database Schema Enhancement**: Applied NOT NULL constraints to all mandatory profile fields with proper validation
+- **Profile Completion Modal**: Enforces mandatory field completion before platform access
+- **Event Form Gender Fix**: Resolved gender field visibility issue when editing existing events with proper form population
+
 **February 3, 2025 - Advanced Member Management System**
 - **Team Hierarchy Implementation**: Complete owner/admin hierarchy system with role-based permissions
 - **Join Request Notifications**: All team admins and owners receive notifications for join requests with approve/reject functionality

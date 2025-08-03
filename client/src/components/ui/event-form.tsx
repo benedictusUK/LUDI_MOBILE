@@ -137,7 +137,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
         requirements: event.requirements || "",
         sport: event.sport || "",
         location: event.location || "",
-        gender: event.gender || "mixed",
+        gender: event.gender || "mixed", // Default to mixed if not set
         startDate: event.startDate || "",
         startTime: event.startTime || "",
         endDate: event.endDate || "",
@@ -149,6 +149,9 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
         isPublished: event.isPublished || false,
         requiresPayment: event.requiresPayment || false,
       });
+      
+      // Force update the gender field specifically to ensure it shows
+      form.setValue("gender", event.gender || "mixed");
     }
   }, [existingEvent, form]);
 
