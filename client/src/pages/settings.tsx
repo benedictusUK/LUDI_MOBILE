@@ -7,8 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Settings as SettingsIcon, Bell, CreditCard, User, Smartphone } from "lucide-react";
+import { ProfileForm } from "@/components/ui/profile-form";
 import type { NotificationPreferences } from "@shared/schema";
 
 export default function Settings() {
@@ -29,8 +31,11 @@ export default function Settings() {
 
   const updatePreferencesMutation = useMutation({
     mutationFn: async (newPreferences: Partial<NotificationPreferences>) => {
-      const response = await apiRequest("PUT", "/api/notification-preferences", newPreferences);
-      return response.json();
+      const response = await apiRequest("/api/notification-preferences", {
+        method: "PUT",
+        body: JSON.stringify(newPreferences),
+      });
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/notification-preferences'] });
@@ -57,10 +62,8 @@ export default function Settings() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto p-6">
-        <div className="flex justify-center items-center py-8">
-          <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
-        </div>
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
       </div>
     );
   }
@@ -77,207 +80,168 @@ export default function Settings() {
     ...preferences,
   };
 
-  const pendingPayments = payments.filter((p: any) => p.status === 'pending').length;
-  const overduePayments = payments.filter((p: any) => p.status === 'overdue').length;
+  const currentPreferences = {
+    ...defaultPreferences,
+    ...preferences,
+  };
 
   return (
     <div className="min-h-screen bg-neutral-50">
       <Navigation />
-      <div className="container mx-auto p-6 space-y-6">
-        <div className="flex items-center gap-2">
-          <SettingsIcon className="h-6 w-6" />
-          <h1 className="text-3xl font-bold">Settings</h1>
+      
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-neutral-900 mb-2">Settings</h1>
+          <p className="text-neutral-500">Manage your account preferences and settings</p>
         </div>
 
-      {/* Profile Information */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
-            Profile Information
-          </CardTitle>
-          <CardDescription>
-            Your account details and basic information
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label className="text-sm font-medium text-gray-600">Name</Label>
-              <div className="mt-1 text-sm">
-                {user?.firstName} {user?.lastName}
-              </div>
-            </div>
-            <div>
-              <Label className="text-sm font-medium text-gray-600">Email</Label>
-              <div className="mt-1 text-sm">{user?.email}</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        <Tabs defaultValue="profile" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="profile" className="flex items-center space-x-2">
+              <User className="h-4 w-4" />
+              <span>Profile</span>
+            </TabsTrigger>
+            <TabsTrigger value="notifications" className="flex items-center space-x-2">
+              <Bell className="h-4 w-4" />
+              <span>Notifications</span>
+            </TabsTrigger>
+            <TabsTrigger value="payments" className="flex items-center space-x-2">
+              <CreditCard className="h-4 w-4" />
+              <span>Payments</span>
+            </TabsTrigger>
+          </TabsList>
 
-      {/* Payment Overview */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5" />
-            Payment Overview
-          </CardTitle>
-          <CardDescription>
-            Your payment status and history
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 gap-4">
-            <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                {payments.length}
-              </div>
-              <div className="text-xs text-blue-600 dark:text-blue-400">Total Payments</div>
-            </div>
-            <div className="text-center p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-              <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
-                {pendingPayments}
-              </div>
-              <div className="text-xs text-yellow-600 dark:text-yellow-400">Pending</div>
-            </div>
-            <div className="text-center p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
-              <div className="text-2xl font-bold text-red-600 dark:text-red-400">
-                {overduePayments}
-              </div>
-              <div className="text-xs text-red-600 dark:text-red-400">Overdue</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          <TabsContent value="profile">
+            <ProfileForm user={user} />
+          </TabsContent>
 
-      {/* Notification Preferences */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Bell className="h-5 w-5" />
-            Notification Preferences
-          </CardTitle>
-          <CardDescription>
-            Choose what notifications you want to receive
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Email Notifications */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-medium">Email Notifications</h4>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="new-events">New Events</Label>
-                  <div className="text-sm text-gray-500">Get notified when new events are created</div>
+          <TabsContent value="notifications">
+            <Card>
+              <CardHeader className="flex flex-row items-center space-y-0 pb-2">
+                <div className="flex items-center space-x-2">
+                  <Bell className="h-5 w-5" />
+                  <CardTitle className="text-lg">Notification Preferences</CardTitle>
                 </div>
-                <Switch
-                  id="new-events"
-                  checked={defaultPreferences.newEvents}
-                  onCheckedChange={(checked) => handlePreferenceChange('newEvents', checked)}
-                />
-              </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="new-events" className="text-base">New Events</Label>
+                      <p className="text-sm text-neutral-500">Get notified when new events are created in your teams</p>
+                    </div>
+                    <Switch
+                      id="new-events"
+                      checked={currentPreferences.newEvents}
+                      onCheckedChange={(checked) => handlePreferenceChange('newEvents', checked)}
+                    />
+                  </div>
 
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="payment-reminders">Payment Reminders</Label>
-                  <div className="text-sm text-gray-500">Reminders for outstanding payments</div>
+                  <Separator />
+
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="payment-reminders" className="text-base">Payment Reminders</Label>
+                      <p className="text-sm text-neutral-500">Receive reminders for upcoming payment deadlines</p>
+                    </div>
+                    <Switch
+                      id="payment-reminders"
+                      checked={currentPreferences.paymentReminders}
+                      onCheckedChange={(checked) => handlePreferenceChange('paymentReminders', checked)}
+                    />
+                  </div>
+
+                  <Separator />
+
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="event-changes" className="text-base">Event Changes</Label>
+                      <p className="text-sm text-neutral-500">Get updates when event details are modified</p>
+                    </div>
+                    <Switch
+                      id="event-changes"
+                      checked={currentPreferences.eventChanges}
+                      onCheckedChange={(checked) => handlePreferenceChange('eventChanges', checked)}
+                    />
+                  </div>
+
+                  <Separator />
+
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="team-invites" className="text-base">Team Invites</Label>
+                      <p className="text-sm text-neutral-500">Receive notifications for team invitations</p>
+                    </div>
+                    <Switch
+                      id="team-invites"
+                      checked={currentPreferences.teamInvites}
+                      onCheckedChange={(checked) => handlePreferenceChange('teamInvites', checked)}
+                    />
+                  </div>
                 </div>
-                <Switch
-                  id="payment-reminders"
-                  checked={defaultPreferences.paymentReminders}
-                  onCheckedChange={(checked) => handlePreferenceChange('paymentReminders', checked)}
-                />
-              </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="event-changes">Event Changes</Label>
-                  <div className="text-sm text-gray-500">Updates when event details change</div>
-                </div>
-                <Switch
-                  id="event-changes"
-                  checked={defaultPreferences.eventChanges}
-                  onCheckedChange={(checked) => handlePreferenceChange('eventChanges', checked)}
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="voting-opportunities">Voting Opportunities</Label>
-                  <div className="text-sm text-gray-500">Notifications when you can vote on events</div>
-                </div>
-                <Switch
-                  id="voting-opportunities"
-                  checked={defaultPreferences.votingOpportunities}
-                  onCheckedChange={(checked) => handlePreferenceChange('votingOpportunities', checked)}
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="flare-gun-reminders">Flare Gun Reminders</Label>
-                  <div className="text-sm text-gray-500">Urgent notifications that require immediate attention</div>
-                </div>
-                <Switch
-                  id="flare-gun-reminders"
-                  checked={defaultPreferences.flareGunReminders}
-                  onCheckedChange={(checked) => handlePreferenceChange('flareGunReminders', checked)}
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="team-invites">Team Invites</Label>
-                  <div className="text-sm text-gray-500">Invitations to join teams</div>
-                </div>
-                <Switch
-                  id="team-invites"
-                  checked={defaultPreferences.teamInvites}
-                  onCheckedChange={(checked) => handlePreferenceChange('teamInvites', checked)}
-                />
-              </div>
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Push Notifications */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-medium flex items-center gap-2">
-              <Smartphone className="h-4 w-4" />
-              Push Notifications
-            </h4>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="push-ios">iOS Push Notifications</Label>
-                  <div className="text-sm text-gray-500">Receive notifications on your iPhone/iPad</div>
-                </div>
-                <Switch
-                  id="push-ios"
-                  checked={defaultPreferences.pushNotificationsIOS}
-                  onCheckedChange={(checked) => handlePreferenceChange('pushNotificationsIOS', checked)}
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="push-android">Android Push Notifications</Label>
-                  <div className="text-sm text-gray-500">Receive notifications on your Android device</div>
-                </div>
-                <Switch
-                  id="push-android"
-                  checked={defaultPreferences.pushNotificationsAndroid}
-                  onCheckedChange={(checked) => handlePreferenceChange('pushNotificationsAndroid', checked)}
-                />
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-      </div>
+          <TabsContent value="payments">
+            {payments.length > 0 ? (
+              <Card>
+                <CardHeader className="flex flex-row items-center space-y-0 pb-2">
+                  <div className="flex items-center space-x-2">
+                    <CreditCard className="h-5 w-5" />
+                    <CardTitle className="text-lg">Payment History</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {payments.map((payment: any) => (
+                      <div
+                        key={payment.id}
+                        className="flex items-center justify-between p-4 border rounded-lg"
+                      >
+                        <div className="space-y-1">
+                          <p className="font-medium">{payment.eventName || payment.teamName}</p>
+                          <p className="text-sm text-neutral-500">
+                            {new Date(payment.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium">£{parseFloat(payment.amount).toFixed(2)}</p>
+                          <p className={`text-sm capitalize ${
+                            payment.status === 'completed' 
+                              ? 'text-green-600' 
+                              : payment.status === 'failed' 
+                              ? 'text-red-600' 
+                              : 'text-yellow-600'
+                          }`}>
+                            {payment.status}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <CreditCard className="h-5 w-5" />
+                    <span>Payment History</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-8">
+                    <CreditCard className="h-12 w-12 text-neutral-300 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-neutral-900 mb-2">No payments yet</h3>
+                    <p className="text-neutral-500">Your payment history will appear here once you make payments for events.</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
+      </main>
     </div>
   );
 }

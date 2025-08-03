@@ -34,11 +34,14 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
-  username: varchar("username").unique(), // unique username
+  username: varchar("username").unique().notNull(), // unique username, required
+  phoneNumber: varchar("phone_number"),
+  dateOfBirth: date("date_of_birth").notNull(), // required for age verification
+  postcode: varchar("postcode").notNull(), // required
   gender: varchar("gender", { length: 20 }),
-  ukMobileNumber: varchar("uk_mobile_number").unique(),
   stripeCustomerId: varchar("stripe_customer_id"),
   stripeSubscriptionId: varchar("stripe_subscription_id"),
+  profileCompletedAt: timestamp("profile_completed_at"), // tracks when mandatory fields completed
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -314,6 +317,47 @@ export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+  profileCompletedAt: true,
+}).extend({
+  username: z.string().min(3, "Username must be at least 3 characters").max(20, "Username must be less than 20 characters").regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores"),
+  dateOfBirth: z.string().min(1, "Date of birth is required").refine((date) => {
+    const birthDate = new Date(date);
+    const today = new Date();
+    const age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    const dayDiff = today.getDate() - birthDate.getDate();
+    const actualAge = monthDiff > 0 || (monthDiff === 0 && dayDiff >= 0) ? age : age - 1;
+    return actualAge >= 18;
+  }, "You must be at least 18 years old to sign up"),
+  postcode: z.string().min(1, "Postcode is required").max(10, "Postcode must be less than 10 characters"),
+  email: z.string().email("Please enter a valid email address").optional(),
+  phoneNumber: z.string().regex(/^(\+44|0)[0-9]{10}$/, "Please enter a valid UK phone number").optional(),
+});
+
+// Profile completion schema (for mandatory fields after signup)
+export const profileCompletionSchema = insertUserSchema.pick({
+  username: true,
+  dateOfBirth: true,
+  postcode: true,
+});
+
+// Profile update schema (editable fields only)
+export const updateProfileSchema = z.object({
+  firstName: z.string().min(1, "First name is required").max(50, "First name must be less than 50 characters").optional(),
+  lastName: z.string().min(1, "Last name is required").max(50, "Last name must be less than 50 characters").optional(),
+  email: z.string().email("Please enter a valid email address").optional(),
+  phoneNumber: z.string().regex(/^(\+44|0)[0-9]{10}$/, "Please enter a valid UK phone number").optional(),
+  dateOfBirth: z.string().min(1, "Date of birth is required").refine((date) => {
+    const birthDate = new Date(date);
+    const today = new Date();
+    const age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    const dayDiff = today.getDate() - birthDate.getDate();
+    const actualAge = monthDiff > 0 || (monthDiff === 0 && dayDiff >= 0) ? age : age - 1;
+    return actualAge >= 18;
+  }, "You must be at least 18 years old").optional(),
+  postcode: z.string().min(1, "Postcode is required").max(10, "Postcode must be less than 10 characters").optional(),
+  gender: z.string().max(20, "Gender must be less than 20 characters").optional(),
 });
 
 export const insertTeamSchema = createInsertSchema(teams).omit({
@@ -384,6 +428,8 @@ export const insertActivityLogSchema = createInsertSchema(activityLogs).omit({
 
 // Types
 export type UpsertUser = z.infer<typeof insertUserSchema>;
+export type ProfileCompletion = z.infer<typeof profileCompletionSchema>;
+export type UpdateProfile = z.infer<typeof updateProfileSchema>;
 export type User = typeof users.$inferSelect;
 export type Team = typeof teams.$inferSelect;
 export type InsertTeam = z.infer<typeof insertTeamSchema>;

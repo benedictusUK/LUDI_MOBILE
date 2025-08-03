@@ -34,6 +34,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Profile management routes
+  app.put('/api/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { updateProfileSchema } = await import('@shared/schema');
+      const profileData = updateProfileSchema.parse(req.body);
+      
+      const updatedUser = await storage.updateUserProfile(userId, profileData);
+      res.json(updatedUser);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          message: "Validation failed",
+          errors: error.errors
+        });
+      }
+      console.error("Error updating profile:", error);
+      res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
+  app.post('/api/profile/complete', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { profileCompletionSchema } = await import('@shared/schema');
+      const profileData = profileCompletionSchema.parse(req.body);
+      
+      // Check if username is available
+      const isUsernameAvailable = await storage.checkUsernameAvailability(profileData.username, userId);
+      if (!isUsernameAvailable) {
+        return res.status(400).json({
+          message: "Username is already taken",
+          errors: [{ path: ["username"], message: "Username is already taken" }]
+        });
+      }
+      
+      const updatedUser = await storage.completeUserProfile(userId, profileData);
+      res.json(updatedUser);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          message: "Validation failed",
+          errors: error.errors
+        });
+      }
+      console.error("Error completing profile:", error);
+      res.status(500).json({ message: "Failed to complete profile" });
+    }
+  });
+
+  app.get('/api/profile/check-username/:username', isAuthenticated, async (req: any, res) => {
+    try {
+      const { username } = req.params;
+      const userId = req.user.claims.sub;
+      const isAvailable = await storage.checkUsernameAvailability(username, userId);
+      res.json({ available: isAvailable });
+    } catch (error) {
+      console.error("Error checking username availability:", error);
+      res.status(500).json({ message: "Failed to check username availability" });
+    }
+  });
+
   // Dashboard routes
   app.get('/api/dashboard/stats', isAuthenticated, async (req: any, res) => {
     try {

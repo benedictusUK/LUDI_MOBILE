@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import LogoReveal from "@/components/ui/logo-reveal";
+import { ProfileCompletionModal } from "@/components/ui/profile-completion-modal";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Home from "@/pages/home";
@@ -19,6 +20,13 @@ function Router() {
   const { isAuthenticated, isLoading } = useAuth();
   const [showLogoReveal, setShowLogoReveal] = useState(true);
   const [hasShownReveal, setHasShownReveal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+
+  // Get user data when authenticated
+  const { data: user } = useQuery({
+    queryKey: ["/api/auth/user"],
+    enabled: isAuthenticated && !isLoading,
+  });
 
   // Show logo reveal only on first visit to authenticated app
   useEffect(() => {
@@ -38,11 +46,28 @@ function Router() {
   // Show logo reveal when user becomes authenticated for the first time (not loading states)
   const shouldShowReveal = isAuthenticated && !isLoading && showLogoReveal && !hasShownReveal;
 
+  // Check if profile needs to be completed
+  const isProfileIncomplete = user && (!(user as any).username || !(user as any).dateOfBirth || !(user as any).postcode);
+
+  // Show profile completion modal after logo reveal is complete
+  useEffect(() => {
+    if (isAuthenticated && !isLoading && hasShownReveal && isProfileIncomplete) {
+      setShowProfileModal(true);
+    }
+  }, [isAuthenticated, isLoading, hasShownReveal, isProfileIncomplete]);
+
   return (
     <>
       {shouldShowReveal && (
         <LogoReveal onComplete={handleLogoRevealComplete} />
       )}
+      
+      {/* Profile completion modal */}
+      <ProfileCompletionModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        user={user}
+      />
       
       <Switch>
         {isLoading || !isAuthenticated ? (

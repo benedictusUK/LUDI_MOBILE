@@ -30,6 +30,8 @@ import {
   type InsertActivityLog,
   type BlockedMember,
   type InsertBlockedMember,
+  type ProfileCompletion,
+  type UpdateProfile,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, count, sql, or, notInArray } from "drizzle-orm";
@@ -41,6 +43,9 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   updateUserStripeInfo(userId: string, stripeCustomerId: string, stripeSubscriptionId?: string): Promise<User>;
+  updateUserProfile(userId: string, profileData: UpdateProfile): Promise<User>;
+  completeUserProfile(userId: string, profileData: ProfileCompletion): Promise<User>;
+  checkUsernameAvailability(username: string, excludeUserId?: string): Promise<boolean>;
 
   // Team operations
   createTeam(teamData: InsertTeam, ownerId: string): Promise<Team>;
@@ -153,6 +158,47 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, userId))
       .returning();
     return user;
+  }
+
+  async updateUserProfile(userId: string, profileData: UpdateProfile): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({
+        ...profileData,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  async completeUserProfile(userId: string, profileData: ProfileCompletion): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({
+        ...profileData,
+        profileCompletedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  async checkUsernameAvailability(username: string, excludeUserId?: string): Promise<boolean> {
+    let query;
+    
+    if (excludeUserId) {
+      // Check if username exists for users other than the excluded user
+      query = db.select().from(users).where(
+        and(eq(users.username, username), sql`${users.id} != ${excludeUserId}`)
+      );
+    } else {
+      query = db.select().from(users).where(eq(users.username, username));
+    }
+    
+    const [existingUser] = await query;
+    return !existingUser;
   }
 
   // Team operations
