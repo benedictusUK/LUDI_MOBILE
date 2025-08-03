@@ -23,7 +23,7 @@ export default function LogoReveal({ onComplete, skipAnimation = false }: LogoRe
         setIsComplete(true);
         onComplete?.();
       }
-    }, currentStep === 0 ? 1500 : currentStep === 1 ? 1300 : currentStep === 2 ? 1500 : 0);
+    }, currentStep === 0 ? 1500 : currentStep === 1 ? 1300 : currentStep === 2 ? 2000 : 0);
 
     return () => clearTimeout(timer);
   }, [currentStep, onComplete, skipAnimation]);
@@ -94,9 +94,9 @@ export default function LogoReveal({ onComplete, skipAnimation = false }: LogoRe
           <div className="w-64 mx-auto mt-4 h-1 bg-gray-200 rounded-full overflow-hidden">
             <motion.div
               className="h-full bg-gradient-to-r from-primary to-secondary rounded-full"
-              initial={{ width: 0 }}
-              animate={{ width: currentStep >= 2 ? "100%" : 0 }}
-              transition={{ duration: 1.2, ease: "easeInOut" }}
+              initial={{ width: "0%" }}
+              animate={{ width: currentStep >= 2 ? "100%" : "0%" }}
+              transition={{ duration: 1.4, ease: "easeOut", delay: 0.2 }}
             />
           </div>
         </div>
