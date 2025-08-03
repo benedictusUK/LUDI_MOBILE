@@ -1,10 +1,9 @@
-import React, { useEffect } from "react";
+
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
-import { queryClient } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
-import { SPORTS } from "@shared/schema";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { z } from "zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,163 +16,204 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { apiRequest } from "@/lib/queryClient";
-import { z } from "zod";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { isUnauthorizedError } from "@/lib/authUtils";
+import { SPORTS } from "@shared/schema";
 
-// Form validation schema
+// Custom Time Input Component with auto-colon insertion
+function TimeInput({ 
+  value, 
+  onChange, 
+  placeholder = "HH:MM", 
+  required = false,
+  ...props 
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  required?: boolean;
+  [key: string]: any;
+}) {
+  const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let input = e.target.value.replace(/[^\d]/g, ''); // Remove non-digits
+    
+    if (input.length >= 2) {
+      // Auto-insert colon after 2 digits
+      input = input.slice(0, 2) + ':' + input.slice(2, 4);
+    }
+    
+    // Limit to HH:MM format (5 characters max)
+    if (input.length > 5) {
+      input = input.slice(0, 5);
+    }
+    
+    onChange(input);
+  };
+
+  return (
+    <Input
+      type="text"
+      pattern="^([01]?[0-9]|2[0-3]):[0-5][0-9]$"
+      placeholder={placeholder}
+      inputMode="numeric"
+      value={value}
+      onChange={handleTimeChange}
+      maxLength={5}
+      {...props}
+    />
+  );
+}
+
 const eventFormSchema = z.object({
   name: z.string().min(1, "Event name is required"),
+  requirements: z.string().min(1, "Description is required"),
   sport: z.string().min(1, "Sport is required"),
   location: z.string().min(1, "Location is required"),
-  address: z.string().optional(),
-  postcode: z.string().optional(),
-  gender: z.enum(["male", "female", "mixed"]),
-  requirements: z.string().min(1, "Description is required"),
+  address: z.string().optional().or(z.literal("")),
+  postcode: z.string().optional().or(z.literal("")),
+  gender: z.enum(["male", "female", "mixed"]).default("mixed"),
   startDate: z.string().min(1, "Start date is required"),
   startTime: z.string().min(1, "Start time is required"),
-  endDate: z.string().optional(),
-  endTime: z.string().optional(),
+  endDate: z.string().optional().or(z.literal("")),
+  endTime: z.string().optional().or(z.literal("")),
   primaryTeamId: z.string().min(1, "Primary team is required"),
-  secondaryTeamIds: z.array(z.string()).optional(),
-  maxParticipants: z.coerce.number().optional(),
-  cost: z.coerce.number().optional(),
-  isPublished: z.boolean().default(true),
+  secondaryTeamIds: z.array(z.string()).optional().default([]),
+  maxParticipants: z.string().optional(),
+  cost: z.string().optional(),
+  isPublished: z.boolean().default(false),
   requiresPayment: z.boolean().default(false),
 });
 
 type EventFormData = z.infer<typeof eventFormSchema>;
 
 interface EventFormProps {
-  isEditing?: boolean;
-  initialData?: any;
-  teams?: any[];
   onCancel: () => void;
-  eventId?: string;
+  onSuccess: () => void;
+  eventId?: string; // For editing existing events
 }
 
-export function EventForm({ isEditing = false, initialData, teams = [], onCancel, eventId }: EventFormProps) {
+export default function EventForm({ onCancel, onSuccess, eventId }: EventFormProps) {
   const { toast } = useToast();
-  
+  const isEditing = !!eventId;
+
+  // Fetch teams for selection
+  const { data: teams = [] } = useQuery({
+    queryKey: ["/api/teams"],
+  });
+
+  // Fetch existing event data if editing
+  const { data: existingEvent } = useQuery({
+    queryKey: ["/api/events", eventId],
+    enabled: !!eventId,
+  });
+
   const form = useForm<EventFormData>({
     resolver: zodResolver(eventFormSchema),
-    defaultValues: isEditing && initialData ? {
-      name: initialData.name || "",
-      sport: initialData.sport || "",
-      location: initialData.location || "",
-      address: initialData.address || "",
-      postcode: initialData.postcode || "",
-      gender: initialData.gender || "mixed",
-      requirements: initialData.requirements || "",
-      startDate: initialData.startDate || "",
-      startTime: initialData.startTime || "",
-      endDate: initialData.endDate || "",
-      endTime: initialData.endTime || "",
-      primaryTeamId: initialData.primaryTeamId || "",
-      secondaryTeamIds: initialData.secondaryTeamIds || [],
-      maxParticipants: initialData.maxParticipants || undefined,
-      cost: initialData.cost || undefined,
-      isPublished: initialData.isPublished ?? true,
-      requiresPayment: initialData.requiresPayment ?? false,
-    } : {
+    defaultValues: {
       name: "",
+      requirements: "",
       sport: "",
       location: "",
       address: "",
       postcode: "",
       gender: "mixed",
-      requirements: "",
       startDate: "",
       startTime: "",
       endDate: "",
       endTime: "",
       primaryTeamId: "",
       secondaryTeamIds: [],
-      maxParticipants: undefined,
-      cost: undefined,
-      isPublished: true,
+      maxParticipants: "",
+      cost: "",
+      isPublished: false,
       requiresPayment: false,
     },
   });
 
-  // Reset form with initial data when editing
+  // Update form values when existing event data loads
   useEffect(() => {
-    if (isEditing && initialData) {
-      console.log("Setting form data:", initialData);
-      // Use setTimeout to ensure Select components are properly rendered
+    if (existingEvent && typeof existingEvent === 'object') {
+      const event = existingEvent as any;
+      
+      // Use setTimeout to ensure the form is ready before resetting
       setTimeout(() => {
-        const formData = {
-          name: initialData.name || "",
-          sport: initialData.sport || "",
-          location: initialData.location || "",
-          address: initialData.address || "",
-          postcode: initialData.postcode || "",
-          gender: initialData.gender || "mixed",
-          requirements: initialData.requirements || "",
-          startDate: initialData.startDate || "",
-          startTime: initialData.startTime || "",
-          endDate: initialData.endDate || "",
-          endTime: initialData.endTime || "",
-          primaryTeamId: initialData.primaryTeamId || "",
-          secondaryTeamIds: initialData.secondaryTeamIds || [],
-          maxParticipants: initialData.maxParticipants || undefined,
-          cost: initialData.cost || undefined,
-          isPublished: initialData.isPublished ?? true,
-          requiresPayment: initialData.requiresPayment ?? false,
-        };
-        console.log("Resetting form with:", formData);
-        form.reset(formData);
-        
-        // Force update individual fields to ensure they're set
-        Object.entries(formData).forEach(([key, value]) => {
-          if (value !== undefined && value !== "") {
-            form.setValue(key as any, value);
-          }
+        form.reset({
+          name: event.name || "",
+          requirements: event.requirements || "",
+          sport: event.sport || "",
+          location: event.location || "",
+          address: event.address || "",
+          postcode: event.postcode || "",
+          gender: event.gender || "mixed",
+          startDate: event.startDate || "",
+          startTime: event.startTime || "",
+          endDate: event.endDate || "",
+          endTime: event.endTime || "",
+          primaryTeamId: event.primaryTeamId || "",
+          secondaryTeamIds: event.secondaryTeamIds || [],
+          maxParticipants: event.participants?.toString() || "",
+          cost: event.cost || "",
+          isPublished: event.isPublished || false,
+          requiresPayment: event.requiresPayment || false,
         });
-      }, 200);
+        
+        // Force update critical Select fields
+        form.setValue("sport", event.sport || "");
+        form.setValue("gender", event.gender || "mixed");
+        form.setValue("primaryTeamId", event.primaryTeamId || "");
+      }, 100);
     }
-  }, [isEditing, initialData, form]);
+  }, [existingEvent, form]);
 
   const createEventMutation = useMutation({
     mutationFn: async (data: EventFormData) => {
-      const endpoint = isEditing ? `/api/events/${eventId}` : "/api/events";
-      const method = isEditing ? "PATCH" : "POST";
-      if (isEditing) {
-        return fetch(endpoint, {
-          method,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data),
-        }).then(res => res.json());
-      } else {
-        return apiRequest(endpoint, {
-          method,
-          body: data,
-        });
-      }
+      // Convert string fields to appropriate types for backend
+      const processedData = {
+        ...data,
+        cost: data.cost || "0.00",
+        participants: data.maxParticipants ? parseInt(data.maxParticipants) : null,
+        // Convert empty strings to null for optional fields
+        endDate: data.endDate || null,
+        endTime: data.endTime || null,
+        secondaryTeamIds: data.secondaryTeamIds || [],
+      };
+      
+      const url = isEditing ? `/api/events/${eventId}` : "/api/events";
+      const method = isEditing ? "PUT" : "POST";
+      return apiRequest(method, url, processedData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-      if (eventId) {
-        queryClient.invalidateQueries({ queryKey: ["/api/events", eventId] });
-      }
-      
       toast({
         title: "Success",
-        description: `Event ${isEditing ? "updated" : "created"} successfully!`,
+        description: `Event ${isEditing ? "updated" : "created"} successfully`,
       });
-      onCancel();
+      onSuccess();
     },
     onError: (error: any) => {
-      let errorMessage = `Failed to ${isEditing ? "update" : "create"} event. Please try again.`;
-      
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+
+      // Parse error message for detailed feedback
+      let errorMessage = `Failed to ${isEditing ? "update" : "create"} event`;
       try {
-        if (error.message) {
-          const parsed = JSON.parse(error.message);
-          errorMessage = parsed.message || errorMessage;
+        const errorData = JSON.parse(error.message.split(': ')[1] || '{}');
+        if (errorData.message) {
+          errorMessage = errorData.message;
         }
       } catch (e) {
+        // If parsing fails, check if it's a simple error message
         if (error.message && error.message.includes(':')) {
           const parts = error.message.split(': ');
           if (parts.length > 1) {
@@ -196,25 +236,6 @@ export function EventForm({ isEditing = false, initialData, teams = [], onCancel
 
   const sportOptions = [...SPORTS];
 
-  // Early return with loading state if teams is still loading (but allow empty teams array)
-  if (teams === undefined || teams === null) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>{isEditing ? "Edit Event" : "Create New Event"}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center py-8">
-            <div className="text-center">
-              <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading teams...</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <Card>
       <CardHeader>
@@ -222,100 +243,109 @@ export function EventForm({ isEditing = false, initialData, teams = [], onCancel
       </CardHeader>
       <CardContent>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <Tabs defaultValue="basic" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="basic">Basic Info</TabsTrigger>
-              <TabsTrigger value="location">Location</TabsTrigger>
-              <TabsTrigger value="datetime">Date & Time</TabsTrigger>
-              <TabsTrigger value="settings">Settings</TabsTrigger>
-            </TabsList>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Basic Information */}
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="name">Event Name *</Label>
+                <Input
+                  id="name"
+                  {...form.register("name")}
+                  placeholder="Enter event name"
+                />
+                {form.formState.errors.name && (
+                  <p className="text-sm text-red-500 mt-1">
+                    {form.formState.errors.name.message}
+                  </p>
+                )}
+              </div>
 
-            {/* Basic Information Tab */}
-            <TabsContent value="basic" className="space-y-4 mt-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="name">Event Name *</Label>
-                  <Input
-                    id="name"
-                    {...form.register("name")}
-                    placeholder="Enter event name"
-                  />
-                  {form.formState.errors.name && (
-                    <p className="text-sm text-red-500 mt-1">
-                      {form.formState.errors.name.message}
-                    </p>
-                  )}
-                </div>
+              <div>
+                <Label htmlFor="sport">Sport *</Label>
+                <Select
+                  value={form.watch("sport")}
+                  onValueChange={(value) => form.setValue("sport", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a sport" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sportOptions.map((sport) => (
+                      <SelectItem key={sport} value={sport}>
+                        {sport}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {form.formState.errors.sport && (
+                  <p className="text-sm text-red-500 mt-1">
+                    {form.formState.errors.sport.message}
+                  </p>
+                )}
+              </div>
 
-                <div>
-                  <Label htmlFor="sport">Sport *</Label>
-                  <Select
-                    value={form.watch("sport")}
-                    onValueChange={(value) => form.setValue("sport", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a sport" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {sportOptions.map((sport) => (
-                        <SelectItem key={sport} value={sport}>
-                          {sport}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {form.formState.errors.sport && (
-                    <p className="text-sm text-red-500 mt-1">
-                      {form.formState.errors.sport.message}
-                    </p>
-                  )}
-                </div>
+              <div>
+                <Label htmlFor="location">Location *</Label>
+                <Input
+                  id="location"
+                  {...form.register("location")}
+                  placeholder="Enter event location"
+                />
+                {form.formState.errors.location && (
+                  <p className="text-sm text-red-500 mt-1">
+                    {form.formState.errors.location.message}
+                  </p>
+                )}
+              </div>
 
-                <div>
-                  <Label htmlFor="gender">Event Gender *</Label>
-                  <Select
-                    value={form.watch("gender")}
-                    onValueChange={(value: "male" | "female" | "mixed") => form.setValue("gender", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select gender requirement" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="male">Male Only</SelectItem>
-                      <SelectItem value="female">Female Only</SelectItem>
-                      <SelectItem value="mixed">Mixed Gender</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {form.formState.errors.gender && (
-                    <p className="text-sm text-red-500 mt-1">
-                      {form.formState.errors.gender.message}
-                    </p>
-                  )}
-                </div>
+              <div>
+                <Label htmlFor="address">Address (for Flare Gun radius)</Label>
+                <Input
+                  id="address"
+                  {...form.register("address")}
+                  placeholder="Enter full address"
+                />
+                {form.formState.errors.address && (
+                  <p className="text-sm text-red-500 mt-1">
+                    {form.formState.errors.address.message}
+                  </p>
+                )}
+              </div>
 
-                <div>
-                  <Label htmlFor="primaryTeamId">Primary Team *</Label>
-                  <Select
-                    value={form.watch("primaryTeamId")}
-                    onValueChange={(value) => form.setValue("primaryTeamId", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select primary team" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(teams || []).map((team: any) => (
-                        <SelectItem key={team.id} value={team.id}>
-                          {team.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {form.formState.errors.primaryTeamId && (
-                    <p className="text-sm text-red-500 mt-1">
-                      {form.formState.errors.primaryTeamId.message}
-                    </p>
-                  )}
-                </div>
+              <div>
+                <Label htmlFor="postcode">Postcode (for Flare Gun radius)</Label>
+                <Input
+                  id="postcode"
+                  {...form.register("postcode")}
+                  placeholder="Enter postcode"
+                />
+                {form.formState.errors.postcode && (
+                  <p className="text-sm text-red-500 mt-1">
+                    {form.formState.errors.postcode.message}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="gender">Event Gender *</Label>
+                <Select
+                  value={form.watch("gender")}
+                  onValueChange={(value) => form.setValue("gender", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select gender requirement" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="male">Male Only</SelectItem>
+                    <SelectItem value="female">Female Only</SelectItem>
+                    <SelectItem value="mixed">Mixed Gender</SelectItem>
+                  </SelectContent>
+                </Select>
+                {form.formState.errors.gender && (
+                  <p className="text-sm text-red-500 mt-1">
+                    {form.formState.errors.gender.message}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -332,64 +362,11 @@ export function EventForm({ isEditing = false, initialData, teams = [], onCancel
                   </p>
                 )}
               </div>
-            </TabsContent>
+            </div>
 
-            {/* Location Tab */}
-            <TabsContent value="location" className="space-y-4 mt-6">
-              <div>
-                <Label htmlFor="location">Venue/Location *</Label>
-                <Input
-                  id="location"
-                  {...form.register("location")}
-                  placeholder="e.g., Central Park Tennis Courts"
-                />
-                {form.formState.errors.location && (
-                  <p className="text-sm text-red-500 mt-1">
-                    {form.formState.errors.location.message}
-                  </p>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="md:col-span-2">
-                  <Label htmlFor="address">Full Address (for Flare Gun radius)</Label>
-                  <Input
-                    id="address"
-                    {...form.register("address")}
-                    placeholder="123 Main Street, City"
-                  />
-                  {form.formState.errors.address && (
-                    <p className="text-sm text-red-500 mt-1">
-                      {form.formState.errors.address.message}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <Label htmlFor="postcode">Postcode</Label>
-                  <Input
-                    id="postcode"
-                    {...form.register("postcode")}
-                    placeholder="SW1A 1AA"
-                  />
-                  {form.formState.errors.postcode && (
-                    <p className="text-sm text-red-500 mt-1">
-                      {form.formState.errors.postcode.message}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
-                <p className="text-sm text-blue-700 dark:text-blue-300">
-                  <strong>Flare Gun Feature:</strong> Adding an address and postcode enables the flare gun to find nearby players within a reasonable travel radius.
-                </p>
-              </div>
-            </TabsContent>
-
-            {/* Date & Time Tab */}
-            <TabsContent value="datetime" className="space-y-4 mt-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Date, Time & Settings */}
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="startDate">Start Date *</Label>
                   <Input
@@ -405,23 +382,11 @@ export function EventForm({ isEditing = false, initialData, teams = [], onCancel
                 </div>
                 <div>
                   <Label htmlFor="startTime">Start Time * (24h)</Label>
-                  <Input
+                  <TimeInput
                     id="startTime"
-                    type="text"
-                    pattern="^([01]?[0-9]|2[0-3]):[0-5][0-9]$"
-                    placeholder="HH:MM"
                     value={form.watch("startTime") || ""}
-                    onChange={(e) => {
-                      let input = e.target.value.replace(/[^\d]/g, '');
-                      if (input.length >= 2) {
-                        input = input.slice(0, 2) + ':' + input.slice(2, 4);
-                      }
-                      if (input.length > 5) {
-                        input = input.slice(0, 5);
-                      }
-                      form.setValue("startTime", input);
-                    }}
-                    maxLength={5}
+                    onChange={(value) => form.setValue("startTime", value)}
+                    placeholder="HH:MM"
                     required
                   />
                   {form.formState.errors.startTime && (
@@ -432,9 +397,9 @@ export function EventForm({ isEditing = false, initialData, teams = [], onCancel
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="endDate">End Date (optional)</Label>
+                  <Label htmlFor="endDate">End Date</Label>
                   <Input
                     id="endDate"
                     type="date"
@@ -442,67 +407,42 @@ export function EventForm({ isEditing = false, initialData, teams = [], onCancel
                   />
                 </div>
                 <div>
-                  <Label htmlFor="endTime">End Time (optional)</Label>
-                  <Input
+                  <Label htmlFor="endTime">End Time (24h)</Label>
+                  <TimeInput
                     id="endTime"
-                    type="text"
-                    pattern="^([01]?[0-9]|2[0-3]):[0-5][0-9]$"
-                    placeholder="HH:MM"
                     value={form.watch("endTime") || ""}
-                    onChange={(e) => {
-                      let input = e.target.value.replace(/[^\d]/g, '');
-                      if (input.length >= 2) {
-                        input = input.slice(0, 2) + ':' + input.slice(2, 4);
-                      }
-                      if (input.length > 5) {
-                        input = input.slice(0, 5);
-                      }
-                      form.setValue("endTime", input);
-                    }}
-                    maxLength={5}
-                  />
-                </div>
-              </div>
-
-              {/* Recurring Events Section - Placeholder for future development */}
-              <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
-                <div className="text-center">
-                  <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Recurring Events</h3>
-                  <p className="text-xs text-gray-500 dark:text-gray-500">
-                    Weekly, monthly, and custom recurring events coming soon!
-                  </p>
-                </div>
-              </div>
-            </TabsContent>
-
-            {/* Settings Tab */}
-            <TabsContent value="settings" className="space-y-4 mt-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="maxParticipants">Max Participants</Label>
-                  <Input
-                    id="maxParticipants"
-                    type="number"
-                    min="1"
-                    {...form.register("maxParticipants")}
-                    placeholder="No limit"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="cost">Event Cost (£)</Label>
-                  <Input
-                    id="cost"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    {...form.register("cost")}
-                    placeholder="0.00"
+                    onChange={(value) => form.setValue("endTime", value)}
+                    placeholder="HH:MM"
                   />
                 </div>
               </div>
 
               <div>
-                <Label htmlFor="secondaryTeamIds">Additional Teams (Optional)</Label>
+                <Label htmlFor="primaryTeamId">Primary Team *</Label>
+                <Select
+                  value={form.watch("primaryTeamId")}
+                  onValueChange={(value) => form.setValue("primaryTeamId", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select primary team" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(teams as any[]).map((team: any) => (
+                      <SelectItem key={team.id} value={team.id}>
+                        {team.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {form.formState.errors.primaryTeamId && (
+                  <p className="text-sm text-red-500 mt-1">
+                    {form.formState.errors.primaryTeamId.message}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="secondaryTeamIds">Secondary Teams (Optional)</Label>
                 <div className="relative">
                   <Select
                     onValueChange={(value) => {
@@ -513,10 +453,10 @@ export function EventForm({ isEditing = false, initialData, teams = [], onCancel
                     }}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Add additional teams..." />
+                      <SelectValue placeholder="Add secondary teams..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {(teams || [])
+                      {(teams as any[])
                         .filter((team: any) => 
                           team.id !== form.watch("primaryTeamId") && 
                           !form.watch("secondaryTeamIds")?.includes(team.id)
@@ -529,11 +469,11 @@ export function EventForm({ isEditing = false, initialData, teams = [], onCancel
                     </SelectContent>
                   </Select>
                   
-                  {/* Display selected additional teams as removable tags */}
-                  {form.watch("secondaryTeamIds") && form.watch("secondaryTeamIds")!.length > 0 && (
+                  {/* Display selected secondary teams as removable tags */}
+                  {form.watch("secondaryTeamIds") && form.watch("secondaryTeamIds").length > 0 && (
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {form.watch("secondaryTeamIds")!.map((teamId: string) => {
-                        const team = (teams || []).find((t: any) => t.id === teamId);
+                      {form.watch("secondaryTeamIds").map((teamId: string) => {
+                        const team = (teams as any[]).find((t: any) => t.id === teamId);
                         return team ? (
                           <div
                             key={teamId}
@@ -558,44 +498,68 @@ export function EventForm({ isEditing = false, initialData, teams = [], onCancel
                 </div>
               </div>
 
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="isPublished"
-                  checked={form.watch("isPublished")}
-                  onCheckedChange={(checked) => form.setValue("isPublished", checked)}
-                />
-                <Label htmlFor="isPublished">Publish Event</Label>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="maxParticipants">Max Participants</Label>
+                  <Input
+                    id="maxParticipants"
+                    type="number"
+                    min="1"
+                    {...form.register("maxParticipants")}
+                    placeholder="No limit"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="cost">Event Cost (£)</Label>
+                  <Input
+                    id="cost"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    {...form.register("cost")}
+                    placeholder="0.00"
+                  />
+                </div>
               </div>
 
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="requiresPayment"
-                  checked={form.watch("requiresPayment")}
-                  onCheckedChange={(checked) => form.setValue("requiresPayment", checked)}
-                />
-                <Label htmlFor="requiresPayment">Requires Payment</Label>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="requiresPayment"
+                    checked={form.watch("requiresPayment")}
+                    onCheckedChange={(checked) => form.setValue("requiresPayment", checked)}
+                  />
+                  <Label htmlFor="requiresPayment">Requires Payment</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="isPublished"
+                    checked={form.watch("isPublished")}
+                    onCheckedChange={(checked) => form.setValue("isPublished", checked)}
+                  />
+                  <Label htmlFor="isPublished">Publish Event</Label>
+                </div>
               </div>
-            </TabsContent>
-          </Tabs>
+            </div>
+          </div>
 
-          {/* Form Actions */}
           <div className="flex justify-end space-x-4 pt-6 border-t">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onCancel}
-              disabled={createEventMutation.isPending}
-            >
+            <Button type="button" variant="outline" onClick={onCancel}>
               Cancel
             </Button>
-            <Button
-              type="submit"
+            <Button 
+              type="submit" 
               disabled={createEventMutation.isPending}
+              className="min-w-32"
             >
-              {createEventMutation.isPending
-                ? (isEditing ? "Updating..." : "Creating...")
-                : (isEditing ? "Update Event" : "Create Event")
-              }
+              {createEventMutation.isPending ? (
+                <div className="flex items-center space-x-2">
+                  <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                  <span>{isEditing ? "Updating..." : "Creating..."}</span>
+                </div>
+              ) : (
+                isEditing ? "Update Event" : "Create Event"
+              )}
             </Button>
           </div>
         </form>
@@ -603,5 +567,3 @@ export function EventForm({ isEditing = false, initialData, teams = [], onCancel
     </Card>
   );
 }
-
-export default EventForm;
