@@ -1,215 +1,49 @@
 # replit.md
 
 ## Overview
-
-LUDI is a full-stack sports event management platform that allows users to create and manage sports teams, organize events, and handle team communications. The application features a modern React frontend with shadcn/ui components, an Express.js backend with Replit authentication, and PostgreSQL database integration using Drizzle ORM.
+LUDI is a full-stack sports event management platform enabling users to create and manage sports teams, organize events, and handle team communications. It aims to provide a modern, efficient, and user-friendly solution for sports enthusiasts to connect, plan, and participate in activities. The platform integrates team, event, and user management with real-time notifications and robust authentication, enhancing community engagement and streamlining sports event organization.
 
 ## User Preferences
-
 Preferred communication style: Simple, everyday language.
 
 ## System Architecture
+### Core Architectural Decisions
+1. **Monorepo Structure**: Shared TypeScript types between frontend and backend for end-to-end type safety.
+2. **Session-Based Authentication**: Utilizes server-side sessions stored in PostgreSQL for enhanced security and simplified token management, integrated with Replit OAuth.
+3. **Drizzle ORM**: Chosen for its type safety, performance, and SQL-like syntax for PostgreSQL database interactions.
+4. **shadcn/ui**: Provides a highly customizable, accessible, and themeable UI component library built on Radix UI and Tailwind CSS, following a "new-york" style with a sports-focused color palette.
+5. **TanStack Query**: Manages complex server state, providing features like caching, synchronization, optimistic updates, and background refetching for optimal performance and user experience.
+6. **Neon PostgreSQL**: Leveraged as a serverless PostgreSQL database solution for automatic scaling, cost efficiency, and WebSocket support.
+7. **Activity Logging**: Implemented a comprehensive audit trail system to track user actions, particularly voting and team management activities, with IP tracking.
+8. **Responsive Design**: Mobile-first approach with Tailwind breakpoints for broad device compatibility.
 
-### Frontend Architecture
-- **Framework**: React 18 with TypeScript and Vite as the build tool
-- **UI Library**: shadcn/ui components built on Radix UI primitives
-- **Styling**: Tailwind CSS with custom design tokens optimized for sports applications
-- **Routing**: Wouter for lightweight client-side routing
-- **State Management**: TanStack Query (React Query) for server state management
-- **Form Handling**: React Hook Form with Zod validation
+### Technical Implementations
+*   **Frontend**: React 18 with TypeScript and Vite, Wouter for routing, React Hook Form with Zod for form handling, and Tailwind CSS for styling.
+*   **Backend**: Express.js with TypeScript, RESTful API endpoints, and Drizzle ORM for PostgreSQL.
+*   **Database**: PostgreSQL (via Neon serverless) with Drizzle ORM for schema definition and Drizzle Kit for migrations.
+*   **Authentication**: Replit OAuth (OIDC) with server-side sessions, HTTP-only cookies, and automatic user creation/updates.
+*   **Business Logic**: Comprehensive modules for user, team, and event management, including role-based access, join requests, member blocking, and a real-time notification system.
+*   **UI/UX**: Custom sports-focused color palette (primary blue, secondary green, accent red), with `shadcn/ui` components ensuring WCAG compliance. Includes a custom loading component system and an animated logo reveal.
 
-### Backend Architecture
-- **Framework**: Express.js with TypeScript
-- **Authentication**: Replit OAuth integration with session-based authentication
-- **Database ORM**: Drizzle ORM with PostgreSQL dialect
-- **Session Storage**: PostgreSQL-backed sessions using connect-pg-simple
-- **API Design**: RESTful API endpoints with proper error handling
-
-### Database Architecture
-- **Primary Database**: PostgreSQL (via Neon serverless)
-- **ORM**: Drizzle with type-safe schema definitions
-- **Migration Strategy**: Drizzle Kit for schema management
-- **Connection**: Neon serverless with WebSocket support for optimal performance
-
-## Key Components
-
-### Authentication System
-- **Provider**: Replit OAuth with OIDC (OpenID Connect)
-- **Session Management**: Server-side sessions stored in PostgreSQL
-- **Security**: HTTP-only cookies with secure flags for production
-- **User Management**: Automatic user creation/updates on authentication
-
-### Core Business Logic
-- **User Management**: Profile creation and management integrated with Replit identity
-- **Team Management**: Create teams, manage memberships, role-based access
-- **Event Management**: Create events, link to teams, scheduling with recurrence options
-- **Notification System**: Real-time notifications for team and event updates
-
-### UI Component System
-- **Design System**: shadcn/ui with "new-york" style variant
-- **Theme**: Custom sports-focused color palette with primary blue, secondary green, and accent red
-- **Responsive Design**: Mobile-first approach with Tailwind breakpoints
-- **Accessibility**: Radix UI primitives ensure WCAG compliance
-
-## Data Flow
-
-### Authentication Flow
-1. User accesses protected route
-2. Express middleware checks session validity
-3. If unauthenticated, redirects to Replit OAuth
-4. OAuth callback creates/updates user in database
-5. Session established with user context
-
-### API Request Flow
-1. Frontend makes authenticated requests with credentials
-2. Express middleware validates session
-3. Business logic processes request with user context
-4. Database operations via Drizzle ORM
-5. Response with appropriate error handling
-
-### Client State Management
-1. TanStack Query manages all server state
-2. Optimistic updates for better user experience
-3. Automatic background refetching for data consistency
-4. Error boundaries handle unauthorized access
+### Feature Specifications
+*   **Authentication**: Secure Replit OAuth integration for user login and profile management.
+*   **User Management**: Profile creation, updates (including mandatory fields like username, dateOfBirth, postcode, phoneNumber, gender), and secure session management.
+*   **Team Management**: Creation, membership management, role-based access (owner/admin hierarchy), join request handling, member blocking, and team search functionality.
+*   **Event Management**: Creation, scheduling (with recurrence options), linking to teams, attendance tracking (three-state voting system: Can Attend, Can't Attend, Potential Players), and location-based features (address, postcode). Gender preferences for teams and events to facilitate appropriate matchups.
+*   **Notifications**: Real-time notifications for team and event updates, including specific handling for join requests.
+*   **Data Validation**: Robust validation for all input fields, including uniqueness checks for usernames and team names.
 
 ## External Dependencies
-
-### Core Dependencies
-- **@neondatabase/serverless**: PostgreSQL connection for Neon database
-- **@radix-ui/***: Accessible UI component primitives
-- **@tanstack/react-query**: Server state management
-- **drizzle-orm**: Type-safe database operations
-- **express**: Web server framework
-- **passport**: Authentication middleware
-
-### Development Tools
-- **Vite**: Fast development server and build tool
-- **TypeScript**: Type safety across the application
-- **Tailwind CSS**: Utility-first styling framework
-- **Zod**: Runtime schema validation
-- **React Hook Form**: Form state management
-
-### Replit-Specific Integrations
-- **Replit Authentication**: OAuth provider for user management
-- **Replit Database**: Environment variable configuration
-- **Replit Cartographer**: Development-time code mapping
-
-## Deployment Strategy
-
-### Development Environment
-- **Hot Reload**: Vite development server with HMR
-- **Database**: Neon PostgreSQL with development connection string
-- **Authentication**: Replit OAuth with development credentials
-- **Asset Serving**: Vite handles static assets and bundling
-
-### Production Build
-- **Frontend**: Vite builds optimized React bundle to `dist/public`
-- **Backend**: esbuild bundles Express server to `dist/index.js`
-- **Database**: Production PostgreSQL connection via DATABASE_URL
-- **Static Serving**: Express serves built frontend assets
-
-### Environment Configuration
-- **DATABASE_URL**: PostgreSQL connection string (required)
-- **SESSION_SECRET**: Secret for session encryption (required)
-- **REPL_ID**: Replit environment identifier
-- **ISSUER_URL**: OAuth provider URL (defaults to replit.com/oidc)
-
-### Recent Changes
-
-**February 3, 2025 - Mandatory Profile Fields & Gender Safety System**
-- **Mandatory Profile Completion**: Implemented comprehensive profile requirements with username, dateOfBirth, postcode, phoneNumber, and gender fields
-- **Gender Safety Restrictions**: Limited gender selection to male/female only for sports safety compliance
-- **Team/Event Gender Attributes**: Added gender preferences (Male/Female/Mixed) to teams and events for appropriate matchups
-- **Team Social Sport Option**: Added "Team Social" to available sports for non-sporting team building activities
-- **Database Schema Enhancement**: Applied NOT NULL constraints to all mandatory profile fields with proper validation
-- **Profile Completion Modal**: Enforces mandatory field completion before platform access
-- **Event Form Gender Fix**: Resolved gender field visibility issue when editing existing events with proper form population
-- **Loading Animation Enhancement**: Fixed logo reveal animation to run completely before displaying dashboard
-- **Dashboard Navigation Fix**: Connected "View All Teams" link to properly navigate to teams page
-
-**February 3, 2025 - Flare Gun Enhancement & Location Features**
-- **Flare Gun Icon Update**: Changed flare gun icon from lightning bolt (Zap) to proper flare gun icon (Target) with red color scheme
-- **Location-Based Radius Detection**: Added address and postcode fields to events for enhanced flare gun radius detection functionality
-- **Database Schema Extension**: Added address (TEXT) and postcode (VARCHAR) columns to events table for location-based features
-- **Event Form Enhancement**: Integrated address and postcode fields into event creation/editing forms with proper labels and validation
-- **TypeScript Improvements**: Fixed flare gun modal type annotations and default values for better error handling
-
-**February 3, 2025 - Event Form Field Retention Fix**
-- **Event Editing Enhancement**: Fixed issue where sport, gender, and primary team fields weren't retained when editing events
-- **Form Reset Timing**: Implemented proper form reset timing with setTimeout to ensure Select components display correct values
-- **Database Schema Synchronization**: Added missing database columns (recurrence_type, recurrence_end_date, parent_event_id) to resolve event creation failures
-- **Select Field Handling**: Enhanced Select component value binding to properly display existing event data during editing
-
-**February 3, 2025 - Advanced Member Management System**
-- **Team Hierarchy Implementation**: Complete owner/admin hierarchy system with role-based permissions
-- **Join Request Notifications**: All team admins and owners receive notifications for join requests with approve/reject functionality
-- **Member Blocking System**: Admins and owners can block members with reasons, maintaining manageable blocked member lists
-- **Advanced Member Controls**: Role promotion/demotion, member removal, and comprehensive member management UI
-- **Database Schema Extension**: Added blocked_members table with unique constraints and proper relationships
-- **Notification Enhancement**: Special handling for join request notifications with interactive approve/reject buttons
-- **Security Features**: Blocked users cannot rejoin teams, proper permission checks for all management actions
-- **Comprehensive API Routes**: Full CRUD operations for member management, blocking, and join request handling
-- **Enhanced Search Modal**: Fixed API route conflicts and improved team search functionality with proper error handling
-
-**February 3, 2025**
-- **Team Search Functionality**: Implemented comprehensive team search system allowing users to discover and join public teams
-- **Join/Request System**: Added automatic team joining for open teams and request notifications for approval-required teams
-- **Total Players Count Fix**: Fixed dashboard stats to show distinct users across all teams instead of counting duplicates
-- **Search Modal UI**: Created intuitive search interface with real-time results, team previews, and member counts
-- **Database Optimization**: Enhanced team queries to efficiently handle search operations and membership checks
-- **LUDI Loader System**: Created comprehensive loading component system with multiple variants (inline, full-screen, and custom sizes)
-- **Animated Logo Reveal**: Implemented engaging multi-stage LUDI logo animation with trophy spin-in, letter-by-letter text reveal, gradient effects, and sparkle particles
-- **Branding Update**: Changed application name from SportSync to LUDI across all components with custom tagline "Don't just watch"
-- **Navigation Enhancement**: Made LUDI title clickable to navigate back to dashboard
-- **Dashboard Interactivity**: Added clickable navigation from dashboard stats to respective pages
-- **Participants Field Fix**: Added missing participants field to events database schema and form mapping
-
-**February 2, 2025**
-- **Performance Optimization**: Implemented comprehensive performance improvements for voting and navigation
-- **Optimistic Updates**: Added instant UI feedback for voting actions with automatic rollback on errors
-- **Smart Prefetching**: Event details, attendance, and activity data pre-load on events page for instant navigation
-- **Hover Prefetching**: Activity logs load on card hover for seamless user experience
-- **Cache Management**: Enhanced query client with intelligent 30-second freshness for secondary data
-- **Database Optimization**: Reduced voting queries from 3 to 1 with asynchronous activity logging
-- **Voting System Completion**: Successfully implemented and debugged comprehensive three-state attendance tracking
-- **Progress Bar Enhancement**: Fixed percentage calculations for "Can Attend", "Can't Attend", and "Potential Players" sections
-- **Database Query Optimization**: Resolved potential players query to properly filter out users who have already voted
-- **User Experience Polish**: All voting functionality now displays accurate statistics and visual progress indicators
-- **Mobile Testing**: Confirmed full functionality across desktop and mobile platforms with proper responsive design
-- **Event Editing Fix**: Resolved issue where event descriptions were being discarded during editing
-- **Field Mapping Correction**: Fixed frontend-backend field mapping mismatch between 'description' and 'requirements' fields
-- **Data Persistence**: Event descriptions now properly retain and display existing data when editing events
-- **Critical Bug Fix**: Resolved Stripe API version configuration issue that was preventing application startup
-- **Application Stability**: Fixed server crash related to invalid Stripe API version "2025-06-30.basil" by using default version
-- **Deployment Success**: Application now starts successfully and serves on port 5000 with all features functional
-- **Uniqueness Validation**: Implemented comprehensive username and team name uniqueness constraints
-- **Enhanced Error Messages**: Added detailed validation error messages for team and event creation
-- **Database Schema Updates**: Added unique constraints to team names and usernames
-- **API Validation**: Added dedicated validation routes for checking username and team name availability
-- **Form Improvements**: Enhanced frontend error handling to display specific validation messages
-- **Team Color Theming**: Applied selected team colors across all team views including cards, modals, and headers
-- **Schema Fixes**: Resolved maxPlayers field validation to properly accept null values for unlimited team size
-
-**February 1, 2025**
-- **Mobile Navigation**: Added responsive hamburger menu with all desktop navigation options
-- **Event Creation Fixes**: Resolved validation schema issues and ensured created events display properly
-- **Form Validation**: Made description, end date, end time, participants, and cost truly optional
-- **Event-Team Association**: Fixed issue where created events weren't visible by properly linking events to teams
-
-**January 31, 2025**
-- **Audit Functionality**: Implemented complete activity logging system for voting actions
-- **Reports Integration**: Moved audit functionality from Settings to Events page with role-based access
-- **Database Enhancement**: Added activity_logs table to track all voting activity with timestamps
-- **Event Form Fixes**: Resolved validation issues for optional fields and changed currency to £
-- **UI Improvements**: Fixed ScrollArea component errors and enhanced event creation flow
-
-### Key Architectural Decisions
-
-1. **Monorepo Structure**: Single repository with shared TypeScript types between frontend and backend for type safety
-2. **Session-Based Auth**: Chose sessions over JWT for better security and simpler token management
-3. **Drizzle ORM**: Selected for type safety and performance over traditional ORMs
-4. **shadcn/ui**: Provides accessible, customizable components without vendor lock-in
-5. **TanStack Query**: Handles complex server state scenarios with caching and synchronization
-6. **Neon PostgreSQL**: Serverless database for automatic scaling and cost optimization
-7. **Activity Logging**: Comprehensive audit trail system for all voting actions with IP tracking
+*   **@neondatabase/serverless**: For connecting to the Neon PostgreSQL database.
+*   **@radix-ui/***: Provides accessible UI component primitives used by shadcn/ui.
+*   **@tanstack/react-query**: Utilized for server state management in the frontend.
+*   **drizzle-orm**: ORM for type-safe database interactions with PostgreSQL.
+*   **express**: Core web framework for the backend.
+*   **passport**: Authentication middleware used in the Express.js backend.
+*   **Vite**: Frontend build tool and development server.
+*   **TypeScript**: Used across both frontend and backend for type safety.
+*   **Tailwind CSS**: Utility-first CSS framework for styling.
+*   **Zod**: Schema validation library used for form and API validation.
+*   **React Hook Form**: Library for efficient form state management.
+*   **Replit Authentication**: OAuth provider for user authentication.
+*   **connect-pg-simple**: For PostgreSQL-backed session storage.
