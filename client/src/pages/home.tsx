@@ -140,7 +140,9 @@ export default function Home() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Your Teams</CardTitle>
-              <Button variant="link" className="text-primary">Manage All</Button>
+              <Link href="/teams">
+                <Button variant="link" className="text-primary">View All Teams</Button>
+              </Link>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">

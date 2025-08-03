@@ -38,9 +38,12 @@ function Router() {
   }, []);
 
   const handleLogoRevealComplete = () => {
-    setShowLogoReveal(false);
-    setHasShownReveal(true);
-    sessionStorage.setItem('ludi-logo-revealed', 'true');
+    // Add a small delay to ensure the animation completes fully
+    setTimeout(() => {
+      setShowLogoReveal(false);
+      setHasShownReveal(true);
+      sessionStorage.setItem('ludi-logo-revealed', 'true');
+    }, 500); // Half second delay to ensure animation completes
   };
 
   // Show logo reveal when user becomes authenticated for the first time (not loading states)
