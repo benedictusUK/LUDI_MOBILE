@@ -23,7 +23,7 @@ export default function LogoReveal({ onComplete, skipAnimation = false }: LogoRe
         setIsComplete(true);
         onComplete?.();
       }
-    }, currentStep === 0 ? 800 : currentStep === 1 ? 600 : currentStep === 2 ? 400 : 0);
+    }, currentStep === 0 ? 1500 : currentStep === 1 ? 1300 : currentStep === 2 ? 1500 : 0);
 
     return () => clearTimeout(timer);
   }, [currentStep, onComplete, skipAnimation]);

@@ -50,7 +50,7 @@ function Router() {
   useEffect(() => {
     if (isAuthenticated && !isLoading) {
       // Show LUDI loader for minimum duration to preload data
-      const minLoadTime = 3000; // 3 seconds minimum
+      const minLoadTime = 5000; // 5 seconds minimum to allow full animation
       const startTime = Date.now();
       
       const checkDataLoaded = () => {
