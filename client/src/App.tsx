@@ -6,7 +6,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import LogoReveal from "@/components/ui/logo-reveal";
-import { LudiFullScreenLoader } from "@/components/ui/ludi-loader";
 import { ProfileCompletionModal } from "@/components/ui/profile-completion-modal";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
@@ -107,7 +106,7 @@ function Router() {
     <>
       {/* Show LUDI loader during initial data loading */}
       {isAuthenticated && !isLoading && showInitialLoader && (
-        <LudiFullScreenLoader message="Preparing your dashboard..." />
+        <LogoReveal onComplete={() => {}} skipAnimation={false} />
       )}
 
       {shouldShowReveal && (
