@@ -22,7 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { SPORTS } from "@shared/schema";
 import { 
-  Zap, 
+  Target, 
   Users, 
   ThumbsUp, 
   ThumbsDown, 
@@ -43,7 +43,7 @@ export function FlareGunModal({ event, isAuthorized }: FlareGunModalProps) {
   const { toast } = useToast();
 
   // Fetch flare responses for this event
-  const { data: flareResponses, refetch: refetchResponses } = useQuery({
+  const { data: flareResponses = [], refetch: refetchResponses } = useQuery({
     queryKey: ["/api/events", event.id, "flare-responses"],
     enabled: isOpen,
   });
@@ -119,7 +119,7 @@ export function FlareGunModal({ event, isAuthorized }: FlareGunModalProps) {
       <DialogTrigger asChild>
         {isAuthorized && (
           <Button variant="outline" size="sm">
-            <Zap className="h-4 w-4 mr-2" />
+            <Target className="h-4 w-4 mr-2" />
             Flare Gun
           </Button>
         )}
@@ -127,7 +127,7 @@ export function FlareGunModal({ event, isAuthorized }: FlareGunModalProps) {
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Zap className="h-5 w-5 text-yellow-500" />
+            <Target className="h-5 w-5 text-red-500" />
             Flare Gun - Find Nearby Players
           </DialogTitle>
           <DialogDescription>

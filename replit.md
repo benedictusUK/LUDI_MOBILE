@@ -128,6 +128,13 @@ Preferred communication style: Simple, everyday language.
 - **Loading Animation Enhancement**: Fixed logo reveal animation to run completely before displaying dashboard
 - **Dashboard Navigation Fix**: Connected "View All Teams" link to properly navigate to teams page
 
+**February 3, 2025 - Flare Gun Enhancement & Location Features**
+- **Flare Gun Icon Update**: Changed flare gun icon from lightning bolt (Zap) to proper flare gun icon (Target) with red color scheme
+- **Location-Based Radius Detection**: Added address and postcode fields to events for enhanced flare gun radius detection functionality
+- **Database Schema Extension**: Added address (TEXT) and postcode (VARCHAR) columns to events table for location-based features
+- **Event Form Enhancement**: Integrated address and postcode fields into event creation/editing forms with proper labels and validation
+- **TypeScript Improvements**: Fixed flare gun modal type annotations and default values for better error handling
+
 **February 3, 2025 - Event Form Field Retention Fix**
 - **Event Editing Enhancement**: Fixed issue where sport, gender, and primary team fields weren't retained when editing events
 - **Form Reset Timing**: Implemented proper form reset timing with setTimeout to ensure Select components display correct values

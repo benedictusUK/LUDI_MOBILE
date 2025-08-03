@@ -71,6 +71,8 @@ const eventFormSchema = z.object({
   requirements: z.string().min(1, "Description is required"),
   sport: z.string().min(1, "Sport is required"),
   location: z.string().min(1, "Location is required"),
+  address: z.string().optional().or(z.literal("")),
+  postcode: z.string().optional().or(z.literal("")),
   gender: z.enum(["male", "female", "mixed"]).default("mixed"),
   startDate: z.string().min(1, "Start date is required"),
   startTime: z.string().min(1, "Start time is required"),
@@ -114,6 +116,8 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
       requirements: "",
       sport: "",
       location: "",
+      address: "",
+      postcode: "",
       gender: "mixed",
       startDate: "",
       startTime: "",
@@ -140,6 +144,8 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
           requirements: event.requirements || "",
           sport: event.sport || "",
           location: event.location || "",
+          address: event.address || "",
+          postcode: event.postcode || "",
           gender: event.gender || "mixed",
           startDate: event.startDate || "",
           startTime: event.startTime || "",
@@ -288,6 +294,34 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                 {form.formState.errors.location && (
                   <p className="text-sm text-red-500 mt-1">
                     {form.formState.errors.location.message}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="address">Address (for Flare Gun radius)</Label>
+                <Input
+                  id="address"
+                  {...form.register("address")}
+                  placeholder="Enter full address"
+                />
+                {form.formState.errors.address && (
+                  <p className="text-sm text-red-500 mt-1">
+                    {form.formState.errors.address.message}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="postcode">Postcode (for Flare Gun radius)</Label>
+                <Input
+                  id="postcode"
+                  {...form.register("postcode")}
+                  placeholder="Enter postcode"
+                />
+                {form.formState.errors.postcode && (
+                  <p className="text-sm text-red-500 mt-1">
+                    {form.formState.errors.postcode.message}
                   </p>
                 )}
               </div>

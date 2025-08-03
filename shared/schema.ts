@@ -124,6 +124,8 @@ export const events = pgTable("events", {
   endDate: date("end_date"),
   endTime: varchar("end_time", { length: 10 }),
   location: text("location"),
+  address: text("address"), // Full address for location-based features like flare gun radius
+  postcode: varchar("postcode", { length: 20 }), // Postcode for radius calculations
   cost: decimal("cost", { precision: 10, scale: 2 }).default("0.00"),
   participants: integer("participants"), // Maximum number of participants
   requirements: text("requirements"),
