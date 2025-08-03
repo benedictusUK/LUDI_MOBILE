@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import LogoReveal from "@/components/ui/logo-reveal";
+import { LudiFullScreenLoader } from "@/components/ui/ludi-loader";
 import { ProfileCompletionModal } from "@/components/ui/profile-completion-modal";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
@@ -21,6 +22,8 @@ function Router() {
   const [showLogoReveal, setShowLogoReveal] = useState(true);
   const [hasShownReveal, setHasShownReveal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showInitialLoader, setShowInitialLoader] = useState(true);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
   // Get user data when authenticated
   const { data: user } = useQuery({
@@ -28,14 +31,55 @@ function Router() {
     enabled: isAuthenticated && !isLoading,
   });
 
-  // Show logo reveal only on first visit to authenticated app
+  // Preload dashboard data when authenticated
+  const { data: dashboardStats } = useQuery({
+    queryKey: ["/api/dashboard/stats"],
+    enabled: isAuthenticated && !isLoading,
+  });
+
+  const { data: teams } = useQuery({
+    queryKey: ["/api/teams"],
+    enabled: isAuthenticated && !isLoading,
+  });
+
+  const { data: events } = useQuery({
+    queryKey: ["/api/events"],
+    enabled: isAuthenticated && !isLoading,
+  });
+
+  // Handle initial loading sequence
   useEffect(() => {
-    const hasSeenReveal = sessionStorage.getItem('ludi-logo-revealed');
-    if (hasSeenReveal) {
-      setShowLogoReveal(false);
-      setHasShownReveal(true);
+    if (isAuthenticated && !isLoading) {
+      // Show LUDI loader for minimum duration to preload data
+      const minLoadTime = 3000; // 3 seconds minimum
+      const startTime = Date.now();
+      
+      const checkDataLoaded = () => {
+        const dataLoaded = user && dashboardStats && teams && events;
+        const elapsedTime = Date.now() - startTime;
+        
+        if (dataLoaded && elapsedTime >= minLoadTime) {
+          setShowInitialLoader(false);
+          setInitialLoadComplete(true);
+          
+          // Check if we should show logo reveal
+          const hasSeenReveal = sessionStorage.getItem('ludi-logo-revealed');
+          if (!hasSeenReveal) {
+            setShowLogoReveal(true);
+            setHasShownReveal(false);
+          } else {
+            setShowLogoReveal(false);
+            setHasShownReveal(true);
+          }
+        } else {
+          // Check again in 100ms
+          setTimeout(checkDataLoaded, 100);
+        }
+      };
+      
+      checkDataLoaded();
     }
-  }, []);
+  }, [isAuthenticated, isLoading, user, dashboardStats, teams, events]);
 
   const handleLogoRevealComplete = () => {
     // Add a small delay to ensure the animation completes fully
@@ -46,8 +90,8 @@ function Router() {
     }, 500); // Half second delay to ensure animation completes
   };
 
-  // Show logo reveal when user becomes authenticated for the first time (not loading states)
-  const shouldShowReveal = isAuthenticated && !isLoading && showLogoReveal && !hasShownReveal;
+  // Show logo reveal after initial loading is complete
+  const shouldShowReveal = isAuthenticated && !isLoading && initialLoadComplete && showLogoReveal && !hasShownReveal;
 
   // Check if profile needs to be completed
   const isProfileIncomplete = user && (!(user as any).username || !(user as any).dateOfBirth || !(user as any).postcode);
@@ -61,6 +105,11 @@ function Router() {
 
   return (
     <>
+      {/* Show LUDI loader during initial data loading */}
+      {isAuthenticated && !isLoading && showInitialLoader && (
+        <LudiFullScreenLoader message="Preparing your dashboard..." />
+      )}
+
       {shouldShowReveal && (
         <LogoReveal onComplete={handleLogoRevealComplete} />
       )}
@@ -75,7 +124,7 @@ function Router() {
       <Switch>
         {isLoading || !isAuthenticated ? (
           <Route path="/" component={Landing} />
-        ) : (
+        ) : initialLoadComplete && hasShownReveal ? (
           <>
             <Route path="/" component={Home} />
             <Route path="/events" component={Events} />
@@ -84,8 +133,8 @@ function Router() {
             <Route path="/notifications" component={Notifications} />
             <Route path="/settings" component={Settings} />
           </>
-        )}
-        <Route component={NotFound} />
+        ) : null}
+        {isLoading || !isAuthenticated ? <Route component={NotFound} /> : null}
       </Switch>
     </>
   );
