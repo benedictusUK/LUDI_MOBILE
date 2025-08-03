@@ -1,11 +1,39 @@
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import LogoReveal from "@/components/ui/logo-reveal";
 
 export default function Landing() {
+  const [showLogoReveal, setShowLogoReveal] = useState(true);
+  const [hasShownReveal, setHasShownReveal] = useState(false);
+
+  // Show logo reveal on first visit to landing page
+  useEffect(() => {
+    const hasSeenLandingReveal = sessionStorage.getItem('ludi-landing-revealed');
+    if (hasSeenLandingReveal) {
+      setShowLogoReveal(false);
+      setHasShownReveal(true);
+    }
+  }, []);
+
+  const handleLogoRevealComplete = () => {
+    setShowLogoReveal(false);
+    setHasShownReveal(true);
+    sessionStorage.setItem('ludi-landing-revealed', 'true');
+  };
+
   const handleLogin = () => {
     window.location.href = "/api/login";
   };
 
+  const shouldShowReveal = showLogoReveal && !hasShownReveal;
+
   return (
+    <>
+      {shouldShowReveal && (
+        <LogoReveal onComplete={handleLogoRevealComplete} />
+      )}
+      
+      <div style={{ display: shouldShowReveal ? 'none' : 'block' }}>
     <div className="min-h-screen bg-gradient-to-br from-primary to-blue-800 text-white">
       {/* Navigation */}
       <nav className="bg-white/10 backdrop-blur-sm border-b border-white/20 sticky top-0 z-50">
@@ -111,15 +139,17 @@ export default function Landing() {
           <div className="text-center">
             <div className="flex items-center justify-center mb-4">
               <i className="fas fa-trophy text-white text-2xl mr-3"></i>
-              <span className="text-xl font-bold">SportSync</span>
+              <span className="text-xl font-bold tracking-wider">LUDI</span>
             </div>
             <p className="text-blue-100 mb-6">
-              The complete sports event management platform for teams, organizers, and athletes.
+              Don't just watch - The complete sports event management platform for teams, organizers, and athletes.
             </p>
-            <p className="text-blue-200 text-sm">© 2024 SportSync. All rights reserved.</p>
+            <p className="text-blue-200 text-sm">© 2024 LUDI. All rights reserved.</p>
           </div>
         </div>
       </footer>
     </div>
+      </div>
+    </>
   );
 }
