@@ -89,6 +89,11 @@ export interface IStorage {
     unreadNotifications: number;
   }>;
 
+  // Team search and join operations
+  searchTeams(query: string, userId: string): Promise<(Team & { memberCount: number; isMember: boolean })[]>;
+  requestToJoinTeam(teamId: string, userId: string): Promise<void>;
+  joinTeam(teamId: string, userId: string): Promise<TeamMembership>;
+
   // Activity log operations
   logActivity(activity: InsertActivityLog): Promise<ActivityLog>;
   getEventActivityLogs(eventId: string): Promise<(ActivityLog & { user: User })[]>;
@@ -620,7 +625,7 @@ export class DatabaseStorage implements IStorage {
 
     // Get total players in user's teams
     const totalPlayers = await db
-      .select({ count: count(teamMemberships.id) })
+      .selectDistinct({ userId: teamMemberships.userId })
       .from(teamMemberships)
       .innerJoin(teams, eq(teamMemberships.teamId, teams.id))
       .where(eq(teams.ownerId, userId));
@@ -639,7 +644,7 @@ export class DatabaseStorage implements IStorage {
     return {
       upcomingEvents: upcomingEvents[0]?.count || 0,
       activeTeams: activeTeams[0]?.count || 0,
-      totalPlayers: totalPlayers[0]?.count || 0,
+      totalPlayers: totalPlayers.length,
       unreadNotifications: unreadNotifications[0]?.count || 0,
     };
   }
@@ -747,6 +752,93 @@ export class DatabaseStorage implements IStorage {
         createdAt: member.createdAt,
         updatedAt: member.updatedAt
       }));
+  }
+
+  // Team search and join operations
+  async searchTeams(query: string, userId: string): Promise<(Team & { memberCount: number; isMember: boolean })[]> {
+    const searchResults = await db
+      .select({
+        id: teams.id,
+        name: teams.name,
+        description: teams.description,
+        sports: teams.sports,
+        color: teams.color,
+        isPrivate: teams.isPrivate,
+        requiresApproval: teams.requiresApproval,
+        maxPlayers: teams.maxPlayers,
+        ownerId: teams.ownerId,
+        createdAt: teams.createdAt,
+        updatedAt: teams.updatedAt,
+        memberCount: count(teamMemberships.id),
+      })
+      .from(teams)
+      .leftJoin(teamMemberships, eq(teams.id, teamMemberships.teamId))
+      .where(
+        and(
+          eq(teams.isPrivate, false), // Only search public teams
+          sql`LOWER(${teams.name}) LIKE LOWER('%' || ${query} || '%')`
+        )
+      )
+      .groupBy(teams.id)
+      .orderBy(teams.name);
+
+    // Check membership for each team
+    const resultsWithMembership = [];
+    for (const team of searchResults) {
+      const membership = await this.getUserTeam(userId, team.id);
+      resultsWithMembership.push({
+        ...team,
+        isMember: !!membership,
+      });
+    }
+
+    return resultsWithMembership;
+  }
+
+  async requestToJoinTeam(teamId: string, userId: string): Promise<void> {
+    // Create a notification for the team owner
+    const team = await this.getTeam(teamId);
+    if (!team) {
+      throw new Error("Team not found");
+    }
+
+    const user = await this.getUser(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    await this.createNotification({
+      userId: team.ownerId,
+      type: "team_join_request",
+      title: "New Team Join Request",
+      message: `${user.firstName} ${user.lastName} wants to join ${team.name}`,
+      metadata: { teamId, requestUserId: userId },
+      isRead: false,
+    });
+  }
+
+  async joinTeam(teamId: string, userId: string): Promise<TeamMembership> {
+    // Check if user is already a member
+    const existingMembership = await this.getUserTeam(userId, teamId);
+    if (existingMembership) {
+      throw new Error("User is already a member of this team");
+    }
+
+    // Check team capacity
+    const team = await this.getTeam(teamId);
+    if (!team) {
+      throw new Error("Team not found");
+    }
+
+    if (team.maxPlayers) {
+      const currentMembers = await this.getTeamMembers(teamId);
+      if (currentMembers.length >= team.maxPlayers) {
+        throw new Error("Team is at maximum capacity");
+      }
+    }
+
+    // Add user to team
+    return await this.addTeamMember(teamId, userId, "member");
   }
 }
 

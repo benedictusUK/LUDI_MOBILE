@@ -118,6 +118,11 @@ Preferred communication style: Simple, everyday language.
 ### Recent Changes
 
 **February 3, 2025**
+- **Team Search Functionality**: Implemented comprehensive team search system allowing users to discover and join public teams
+- **Join/Request System**: Added automatic team joining for open teams and request notifications for approval-required teams
+- **Total Players Count Fix**: Fixed dashboard stats to show distinct users across all teams instead of counting duplicates
+- **Search Modal UI**: Created intuitive search interface with real-time results, team previews, and member counts
+- **Database Optimization**: Enhanced team queries to efficiently handle search operations and membership checks
 - **LUDI Loader System**: Created comprehensive loading component system with multiple variants (inline, full-screen, and custom sizes)
 - **Animated Logo Reveal**: Implemented engaging multi-stage LUDI logo animation with trophy spin-in, letter-by-letter text reveal, gradient effects, and sparkle particles
 - **Branding Update**: Changed application name from SportSync to LUDI across all components with custom tagline "Don't just watch"

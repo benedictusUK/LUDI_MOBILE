@@ -265,7 +265,11 @@ export default function Teams() {
   const [showMembersModal, setShowMembersModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showSearchModal, setShowSearchModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   const { data: teams = [], isLoading } = useQuery({
     queryKey: ["/api/teams"],
@@ -343,6 +347,55 @@ export default function Teams() {
     },
   });
 
+  // Search teams functionality
+  const searchTeams = async (query: string) => {
+    if (!query || query.trim().length < 2) {
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const response = await apiRequest("GET", `/api/teams/search?q=${encodeURIComponent(query.trim())}`);
+      setSearchResults(response);
+    } catch (error) {
+      console.error("Search error:", error);
+      setSearchResults([]);
+      toast({
+        title: "Error",
+        description: "Failed to search teams",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Join team mutation
+  const joinTeamMutation = useMutation({
+    mutationFn: async (teamId: string) => {
+      const response = await apiRequest("POST", `/api/teams/${teamId}/request-join`);
+      return response;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/teams"] });
+      toast({
+        title: "Success",
+        description: data.message || "Successfully joined team",
+      });
+      setShowSearchModal(false);
+      setSearchQuery("");
+      setSearchResults([]);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to join team",
+        variant: "destructive",
+      });
+    },
+  });
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-neutral-50">
@@ -367,13 +420,23 @@ export default function Teams() {
               <h1 className="text-3xl font-bold text-neutral-900 mb-2">Team Management</h1>
               <p className="text-neutral-500">Create and manage your sports teams</p>
             </div>
-            <Button 
-              onClick={() => setShowCreateForm(true)}
-              className="flex items-center space-x-2"
-            >
-              <i className="fas fa-plus"></i>
-              <span>Create Team</span>
-            </Button>
+            <div className="flex space-x-3">
+              <Button 
+                variant="outline"
+                onClick={() => setShowSearchModal(true)}
+                className="flex items-center space-x-2"
+              >
+                <i className="fas fa-search"></i>
+                <span>Search Teams</span>
+              </Button>
+              <Button 
+                onClick={() => setShowCreateForm(true)}
+                className="flex items-center space-x-2"
+              >
+                <i className="fas fa-plus"></i>
+                <span>Create Team</span>
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -782,6 +845,136 @@ export default function Teams() {
                   disabled={deleteTeamMutation.isPending}
                 >
                   {deleteTeamMutation.isPending ? "Deleting..." : "Delete Team"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Search Teams Modal */}
+        {showSearchModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+              <div className="p-6 border-b">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-semibold text-neutral-900">
+                    Search Teams
+                  </h2>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => {
+                      setShowSearchModal(false);
+                      setSearchQuery("");
+                      setSearchResults([]);
+                    }}
+                  >
+                    <i className="fas fa-times"></i>
+                  </Button>
+                </div>
+              </div>
+              
+              <div className="p-6 space-y-4">
+                <div>
+                  <Label htmlFor="searchInput">Team Name</Label>
+                  <Input
+                    id="searchInput"
+                    type="text"
+                    placeholder="Enter team name to search..."
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      searchTeams(e.target.value);
+                    }}
+                    className="mt-1"
+                  />
+                </div>
+
+                {isSearching && (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full"></div>
+                    <span className="ml-2 text-neutral-600">Searching...</span>
+                  </div>
+                )}
+
+                {searchResults.length > 0 && (
+                  <div className="space-y-3">
+                    <h3 className="font-medium text-neutral-900">Search Results</h3>
+                    {searchResults.map((team: any) => (
+                      <div key={team.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                        <div className="flex items-center space-x-4">
+                          <div 
+                            className="w-12 h-12 rounded-lg flex items-center justify-center text-white font-bold"
+                            style={{ backgroundColor: team.color || '#3b82f6' }}
+                          >
+                            {team.name.substring(0, 2).toUpperCase()}
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-neutral-900">{team.name}</h4>
+                            <p className="text-sm text-neutral-500">
+                              {team.memberCount} member{team.memberCount !== 1 ? 's' : ''}
+                            </p>
+                            {team.sports && team.sports.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {team.sports.slice(0, 3).map((sport: string) => (
+                                  <Badge key={sport} variant="outline" className="text-xs">
+                                    {sport}
+                                  </Badge>
+                                ))}
+                                {team.sports.length > 3 && (
+                                  <Badge variant="outline" className="text-xs">
+                                    +{team.sports.length - 3} more
+                                  </Badge>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          {team.isMember ? (
+                            <Badge variant="secondary">Member</Badge>
+                          ) : (
+                            <Button 
+                              size="sm"
+                              onClick={() => joinTeamMutation.mutate(team.id)}
+                              disabled={joinTeamMutation.isPending}
+                            >
+                              {team.requiresApproval ? "Request to Join" : "Join Team"}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {searchQuery.length >= 2 && !isSearching && searchResults.length === 0 && (
+                  <div className="text-center py-8">
+                    <i className="fas fa-search text-neutral-300 text-4xl mb-4"></i>
+                    <h3 className="text-lg font-medium text-neutral-900 mb-2">No teams found</h3>
+                    <p className="text-neutral-500">Try searching with different keywords</p>
+                  </div>
+                )}
+
+                {searchQuery.length < 2 && (
+                  <div className="text-center py-8">
+                    <i className="fas fa-search text-neutral-300 text-4xl mb-4"></i>
+                    <h3 className="text-lg font-medium text-neutral-900 mb-2">Search for teams</h3>
+                    <p className="text-neutral-500">Enter at least 2 characters to search</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-6 border-t bg-neutral-50 flex justify-end">
+                <Button 
+                  variant="outline"
+                  onClick={() => {
+                    setShowSearchModal(false);
+                    setSearchQuery("");
+                    setSearchResults([]);
+                  }}
+                >
+                  Close
                 </Button>
               </div>
             </div>

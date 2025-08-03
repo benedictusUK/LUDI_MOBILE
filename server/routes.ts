@@ -162,6 +162,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Search teams
+  app.get('/api/teams/search', isAuthenticated, async (req: any, res) => {
+    try {
+      const { q: query } = req.query;
+      const userId = req.user.claims.sub;
+
+      if (!query || query.trim().length < 2) {
+        return res.status(400).json({ message: "Search query must be at least 2 characters" });
+      }
+
+      const results = await storage.searchTeams(query.trim(), userId);
+      res.json(results);
+    } catch (error) {
+      console.error("Error searching teams:", error);
+      res.status(500).json({ message: "Failed to search teams" });
+    }
+  });
+
+  // Request to join team
+  app.post('/api/teams/:id/request-join', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id: teamId } = req.params;
+      const userId = req.user.claims.sub;
+
+      const team = await storage.getTeam(teamId);
+      if (!team) {
+        return res.status(404).json({ message: "Team not found" });
+      }
+
+      if (team.requiresApproval) {
+        await storage.requestToJoinTeam(teamId, userId);
+        res.json({ message: "Join request sent to team owner" });
+      } else {
+        const membership = await storage.joinTeam(teamId, userId);
+        res.json({ message: "Successfully joined team", membership });
+      }
+    } catch (error: any) {
+      console.error("Error joining team:", error);
+      res.status(400).json({ message: error.message || "Failed to join team" });
+    }
+  });
+
   // Invite member to team
   app.post("/api/teams/:id/invite", isAuthenticated, async (req: any, res) => {
     try {
