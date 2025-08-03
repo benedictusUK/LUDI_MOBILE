@@ -1,4 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
+import { useLocation } from "wouter";
 
 interface DashboardStatsProps {
   stats?: {
@@ -10,6 +11,8 @@ interface DashboardStatsProps {
 }
 
 export default function DashboardStats({ stats }: DashboardStatsProps) {
+  const [, setLocation] = useLocation();
+
   if (!stats) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -34,7 +37,10 @@ export default function DashboardStats({ stats }: DashboardStatsProps) {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      <Card>
+      <Card 
+        className="cursor-pointer hover:shadow-lg transition-shadow"
+        onClick={() => setLocation("/events")}
+      >
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -48,7 +54,10 @@ export default function DashboardStats({ stats }: DashboardStatsProps) {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card 
+        className="cursor-pointer hover:shadow-lg transition-shadow"
+        onClick={() => setLocation("/teams")}
+      >
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -76,7 +85,10 @@ export default function DashboardStats({ stats }: DashboardStatsProps) {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card 
+        className="cursor-pointer hover:shadow-lg transition-shadow"
+        onClick={() => setLocation("/notifications")}
+      >
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div>
