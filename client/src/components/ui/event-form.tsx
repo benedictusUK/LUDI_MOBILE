@@ -58,7 +58,25 @@ export function EventForm({ isEditing = false, initialData, teams = [], onCancel
   
   const form = useForm<EventFormData>({
     resolver: zodResolver(eventFormSchema),
-    defaultValues: {
+    defaultValues: isEditing && initialData ? {
+      name: initialData.name || "",
+      sport: initialData.sport || "",
+      location: initialData.location || "",
+      address: initialData.address || "",
+      postcode: initialData.postcode || "",
+      gender: initialData.gender || "mixed",
+      requirements: initialData.requirements || "",
+      startDate: initialData.startDate || "",
+      startTime: initialData.startTime || "",
+      endDate: initialData.endDate || "",
+      endTime: initialData.endTime || "",
+      primaryTeamId: initialData.primaryTeamId || "",
+      secondaryTeamIds: initialData.secondaryTeamIds || [],
+      maxParticipants: initialData.maxParticipants || undefined,
+      cost: initialData.cost || undefined,
+      isPublished: initialData.isPublished ?? true,
+      requiresPayment: initialData.requiresPayment ?? false,
+    } : {
       name: "",
       sport: "",
       location: "",
@@ -82,9 +100,10 @@ export function EventForm({ isEditing = false, initialData, teams = [], onCancel
   // Reset form with initial data when editing
   useEffect(() => {
     if (isEditing && initialData) {
+      console.log("Setting form data:", initialData);
       // Use setTimeout to ensure Select components are properly rendered
       setTimeout(() => {
-        form.reset({
+        const formData = {
           name: initialData.name || "",
           sport: initialData.sport || "",
           location: initialData.location || "",
@@ -102,8 +121,17 @@ export function EventForm({ isEditing = false, initialData, teams = [], onCancel
           cost: initialData.cost || undefined,
           isPublished: initialData.isPublished ?? true,
           requiresPayment: initialData.requiresPayment ?? false,
+        };
+        console.log("Resetting form with:", formData);
+        form.reset(formData);
+        
+        // Force update individual fields to ensure they're set
+        Object.entries(formData).forEach(([key, value]) => {
+          if (value !== undefined && value !== "") {
+            form.setValue(key as any, value);
+          }
         });
-      }, 100);
+      }, 200);
     }
   }, [isEditing, initialData, form]);
 
@@ -111,13 +139,18 @@ export function EventForm({ isEditing = false, initialData, teams = [], onCancel
     mutationFn: async (data: EventFormData) => {
       const endpoint = isEditing ? `/api/events/${eventId}` : "/api/events";
       const method = isEditing ? "PATCH" : "POST";
-      return apiRequest(endpoint, { 
-        method, 
-        body: JSON.stringify(data),
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
+      if (isEditing) {
+        return fetch(endpoint, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        }).then(res => res.json());
+      } else {
+        return apiRequest(endpoint, {
+          method,
+          body: data,
+        });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
