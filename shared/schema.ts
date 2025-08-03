@@ -79,6 +79,7 @@ export const events = pgTable("events", {
   endTime: varchar("end_time", { length: 10 }),
   location: text("location"),
   cost: decimal("cost", { precision: 10, scale: 2 }).default("0.00"),
+  participants: integer("participants"), // Maximum number of participants
   requirements: text("requirements"),
   recurrence: varchar("recurrence", { length: 50 }).default("none"), // none, weekly, monthly, custom
   primaryTeamId: varchar("primary_team_id").notNull().references(() => teams.id),

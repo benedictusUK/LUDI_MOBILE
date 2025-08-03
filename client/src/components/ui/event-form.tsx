@@ -140,7 +140,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
         endTime: event.endTime || "",
         primaryTeamId: event.primaryTeamId || "",
         secondaryTeamIds: event.secondaryTeamIds || [],
-        maxParticipants: event.maxParticipants?.toString() || "",
+        maxParticipants: event.participants?.toString() || "",
         cost: event.cost || "",
         isPublished: event.isPublished || false,
         requiresPayment: event.requiresPayment || false,
@@ -154,7 +154,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
       const processedData = {
         ...data,
         cost: data.cost || "0.00",
-        maxParticipants: data.maxParticipants ? parseInt(data.maxParticipants) : null,
+        participants: data.maxParticipants ? parseInt(data.maxParticipants) : null,
         // Convert empty strings to null for optional fields
         endDate: data.endDate || null,
         endTime: data.endTime || null,
