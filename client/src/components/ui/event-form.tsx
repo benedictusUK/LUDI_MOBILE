@@ -111,7 +111,13 @@ export function EventForm({ isEditing = false, initialData, teams = [], onCancel
     mutationFn: async (data: EventFormData) => {
       const endpoint = isEditing ? `/api/events/${eventId}` : "/api/events";
       const method = isEditing ? "PATCH" : "POST";
-      return apiRequest(endpoint, { method, body: data });
+      return apiRequest(endpoint, { 
+        method, 
+        body: JSON.stringify(data),
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
@@ -157,8 +163,8 @@ export function EventForm({ isEditing = false, initialData, teams = [], onCancel
 
   const sportOptions = [...SPORTS];
 
-  // Early return with loading state if teams is still loading
-  if (!teams || teams.length === 0) {
+  // Early return with loading state if teams is still loading (but allow empty teams array)
+  if (teams === undefined || teams === null) {
     return (
       <Card>
         <CardHeader>
@@ -366,11 +372,23 @@ export function EventForm({ isEditing = false, initialData, teams = [], onCancel
                 </div>
                 <div>
                   <Label htmlFor="startTime">Start Time * (24h)</Label>
-                  <TimeInput
+                  <Input
                     id="startTime"
-                    value={form.watch("startTime") || ""}
-                    onChange={(value) => form.setValue("startTime", value)}
+                    type="text"
+                    pattern="^([01]?[0-9]|2[0-3]):[0-5][0-9]$"
                     placeholder="HH:MM"
+                    value={form.watch("startTime") || ""}
+                    onChange={(e) => {
+                      let input = e.target.value.replace(/[^\d]/g, '');
+                      if (input.length >= 2) {
+                        input = input.slice(0, 2) + ':' + input.slice(2, 4);
+                      }
+                      if (input.length > 5) {
+                        input = input.slice(0, 5);
+                      }
+                      form.setValue("startTime", input);
+                    }}
+                    maxLength={5}
                     required
                   />
                   {form.formState.errors.startTime && (
@@ -392,11 +410,23 @@ export function EventForm({ isEditing = false, initialData, teams = [], onCancel
                 </div>
                 <div>
                   <Label htmlFor="endTime">End Time (optional)</Label>
-                  <TimeInput
+                  <Input
                     id="endTime"
-                    value={form.watch("endTime") || ""}
-                    onChange={(value) => form.setValue("endTime", value)}
+                    type="text"
+                    pattern="^([01]?[0-9]|2[0-3]):[0-5][0-9]$"
                     placeholder="HH:MM"
+                    value={form.watch("endTime") || ""}
+                    onChange={(e) => {
+                      let input = e.target.value.replace(/[^\d]/g, '');
+                      if (input.length >= 2) {
+                        input = input.slice(0, 2) + ':' + input.slice(2, 4);
+                      }
+                      if (input.length > 5) {
+                        input = input.slice(0, 5);
+                      }
+                      form.setValue("endTime", input);
+                    }}
+                    maxLength={5}
                   />
                 </div>
               </div>
