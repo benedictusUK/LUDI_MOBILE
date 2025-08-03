@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import LudiLoader from "@/components/ui/ludi-loader";
 import { queryClient } from "@/lib/queryClient";
 import { ArrowLeft, Calendar, Clock, MapPin, Users, Vote, X, CheckCircle, XCircle, MinusCircle } from "lucide-react";
 import { Link } from "wouter";
@@ -160,11 +161,8 @@ export default function EventDetails() {
 
   if (eventLoading || attendanceLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-neutral-600">Loading event details...</p>
-        </div>
+      <div className="flex items-center justify-center min-h-screen bg-neutral-50">
+        <LudiLoader size="lg" />
       </div>
     );
   }

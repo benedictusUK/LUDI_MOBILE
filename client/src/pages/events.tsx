@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
 import Navigation from "@/components/ui/nav";
@@ -15,7 +15,7 @@ import { LudiInlineLoader } from "@/components/ui/ludi-loader";
 
 export default function Events() {
   const { toast } = useToast();
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingEvent, setEditingEvent] = useState<string | null>(null);
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
@@ -288,8 +288,20 @@ export default function Events() {
                           backgroundColor: teamColor,
                           borderColor: teamColor
                         }}
-                        onClick={() => {
-                          window.location.href = `/events/${event.id}`;
+                        onClick={async () => {
+                          // Pre-load event data before navigation
+                          await Promise.all([
+                            queryClient.prefetchQuery({
+                              queryKey: ["/api/events", event.id],
+                            }),
+                            queryClient.prefetchQuery({
+                              queryKey: ["/api/events", event.id, "attendance"],
+                            }),
+                            queryClient.prefetchQuery({
+                              queryKey: ["/api/events", event.id, "activity"],
+                            }),
+                          ]);
+                          setLocation(`/events/${event.id}`);
                         }}
                       >
                         Vote
