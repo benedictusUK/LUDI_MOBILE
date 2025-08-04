@@ -14,6 +14,7 @@ import { ArrowLeft, Calendar, Clock, MapPin, Users, Vote, X, CheckCircle, XCircl
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { FlareGunModal } from "@/components/ui/flare-gun-modal";
+import { ReservePlayersManager } from "@/components/ui/reserve-players-manager";
 
 export default function EventDetails() {
   const [, params] = useRoute("/events/:id");
@@ -467,6 +468,23 @@ export default function EventDetails() {
               </Card>
             )}
           </div>
+
+          {/* Reserve Players Manager */}
+          {(event as any).isPublished && eventId && (event as any).reserveSpots > 0 && (
+            <div>
+              <ReservePlayersManager 
+                eventId={eventId}
+                isAdmin={
+                  user && eventData?.primaryTeam && (
+                    eventData.primaryTeam.ownerId === (user as any).id || 
+                    eventData.primaryTeam.memberships?.some((m: any) => 
+                      m.userId === (user as any).id && m.role === 'admin'
+                    )
+                  )
+                }
+              />
+            </div>
+          )}
 
           {/* Attendance List */}
           {(event as any).isPublished && attendance && (attendance as any[]).length > 0 && (

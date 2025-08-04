@@ -81,6 +81,7 @@ const eventFormSchema = z.object({
   primaryTeamId: z.string().min(1, "Primary team is required"),
   secondaryTeamIds: z.array(z.string()).optional().default([]),
   maxParticipants: z.string().optional(),
+  reserveSpots: z.string().optional(),
   cost: z.string().optional(),
   isPublished: z.boolean().default(false),
   requiresPayment: z.boolean().default(false),
@@ -126,6 +127,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
       primaryTeamId: "",
       secondaryTeamIds: [],
       maxParticipants: "",
+      reserveSpots: "",
       cost: "",
       isPublished: false,
       requiresPayment: false,
@@ -154,6 +156,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
           primaryTeamId: event.primaryTeamId || "",
           secondaryTeamIds: event.secondaryTeamIds || [],
           maxParticipants: event.participants?.toString() || "",
+          reserveSpots: event.reserveSpots?.toString() || "",
           cost: event.cost || "",
           isPublished: event.isPublished || false,
           requiresPayment: event.requiresPayment || false,
@@ -174,6 +177,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
         ...data,
         cost: data.cost || "0.00",
         participants: data.maxParticipants ? parseInt(data.maxParticipants) : null,
+        reserveSpots: data.reserveSpots ? parseInt(data.reserveSpots) : 0,
         // Convert empty strings to null for optional fields
         endDate: data.endDate || null,
         endTime: data.endTime || null,
@@ -498,7 +502,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="maxParticipants">Max Participants</Label>
                   <Input
@@ -508,6 +512,19 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                     {...form.register("maxParticipants")}
                     placeholder="No limit"
                   />
+                </div>
+                <div>
+                  <Label htmlFor="reserveSpots">Reserve Spots</Label>
+                  <Input
+                    id="reserveSpots"
+                    type="number"
+                    min="0"
+                    {...form.register("reserveSpots")}
+                    placeholder="0"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Extra spots for overflow or backup players
+                  </p>
                 </div>
                 <div>
                   <Label htmlFor="cost">Event Cost (£)</Label>

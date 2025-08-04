@@ -129,6 +129,7 @@ export const events = pgTable("events", {
   postcode: varchar("postcode", { length: 20 }), // Postcode for radius calculations
   cost: decimal("cost", { precision: 10, scale: 2 }).default("0.00"),
   participants: integer("participants"), // Maximum number of participants
+  reserveSpots: integer("reserve_spots").default(0), // Number of reserve spots available
   requirements: text("requirements"),
   gender: varchar("gender", { enum: ["male", "female", "mixed"] }).notNull().default("mixed"), // event gender restriction
   recurrence: varchar("recurrence", { length: 50 }).default("none"), // none, weekly, monthly, custom
@@ -163,7 +164,7 @@ export const eventAttendance = pgTable("event_attendance", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   eventId: varchar("event_id").notNull().references(() => events.id, { onDelete: "cascade" }),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  status: varchar("status", { length: 50 }).default("pending"), // pending, attending, not_attending, voted_late
+  status: varchar("status", { length: 50 }).default("pending"), // pending, attending, not_attending, voted_late, reserve, promoted
   votedAt: timestamp("voted_at"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [
@@ -480,6 +481,10 @@ export const insertEventSchema = createInsertSchema(events).omit({
     if (val === "" || val === null || val === undefined) return null;
     return typeof val === 'string' ? parseInt(val) || null : val;
   }).refine((val) => val === null || val > 0, "Maximum participants must be greater than 0"),
+  reserveSpots: z.union([z.string(), z.number()]).optional().transform((val) => {
+    if (typeof val === 'string') return val === '' ? 0 : parseInt(val);
+    return val || 0;
+  }).refine((val) => val >= 0, "Reserve spots cannot be negative"),
 });
 
 export const insertEventAttendanceSchema = createInsertSchema(eventAttendance).omit({

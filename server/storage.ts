@@ -76,6 +76,19 @@ export interface IStorage {
   recordAttendance(attendance: InsertEventAttendance): Promise<EventAttendance>;
   getEventAttendance(eventId: string): Promise<(EventAttendance & { user: User })[]>;
   getUserAttendance(userId: string, eventId: string): Promise<EventAttendance | undefined>;
+  
+  // Reserve player management
+  promoteReservePlayer(eventId: string, userId: string, promotedById: string): Promise<EventAttendance>;
+  demotePlayerToReserve(eventId: string, userId: string, demotedById: string): Promise<EventAttendance>;
+  getReservePlayers(eventId: string): Promise<(EventAttendance & { user: User })[]>;
+  getEventCapacityInfo(eventId: string): Promise<{
+    maxParticipants: number | null;
+    reserveSpots: number;
+    attendingCount: number;
+    reserveCount: number;
+    availableSpots: number;
+    availableReserveSpots: number;
+  }>;
 
   // Payment operations
   createPayment(payment: InsertPayment): Promise<Payment>;
@@ -603,20 +616,47 @@ export class DatabaseStorage implements IStorage {
 
 
   async recordAttendance(attendance: InsertEventAttendance): Promise<EventAttendance> {
+    // Get event capacity information
+    const capacityInfo = await this.getEventCapacityInfo(attendance.eventId);
+    
+    let finalStatus = attendance.status;
+    
+    // If user is voting to attend but event is at capacity, place them in reserve
+    if (attendance.status === "attending") {
+      if (capacityInfo.maxParticipants && capacityInfo.attendingCount >= capacityInfo.maxParticipants) {
+        // Event is full, check if reserve spots are available
+        if (capacityInfo.availableReserveSpots > 0) {
+          finalStatus = "reserve";
+        } else {
+          throw new Error("Event is full and no reserve spots available");
+        }
+      }
+    }
+
     const [newAttendance] = await db
       .insert(eventAttendance)
       .values({
         ...attendance,
+        status: finalStatus,
         votedAt: new Date(),
       })
       .onConflictDoUpdate({
         target: [eventAttendance.eventId, eventAttendance.userId],
         set: {
-          status: attendance.status,
+          status: finalStatus,
           votedAt: new Date(),
         },
       })
       .returning();
+
+    // Log the attendance change
+    await this.logActivity({
+      eventId: attendance.eventId,
+      userId: attendance.userId,
+      action: finalStatus === "reserve" ? "placed_in_reserve" : `voted_${finalStatus}`,
+      newStatus: finalStatus,
+    });
+
     return newAttendance;
   }
 
@@ -1249,6 +1289,143 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(flareResponses.respondedAt));
 
     return responses;
+  }
+
+  // Reserve player management methods
+  async promoteReservePlayer(eventId: string, userId: string, promotedById: string): Promise<EventAttendance> {
+    // Check if user is currently in reserve status
+    const existingAttendance = await this.getUserAttendance(userId, eventId);
+    if (!existingAttendance || existingAttendance.status !== "reserve") {
+      throw new Error("User is not currently in reserve status");
+    }
+
+    // Check capacity limits
+    const capacityInfo = await this.getEventCapacityInfo(eventId);
+    if (capacityInfo.maxParticipants && capacityInfo.attendingCount >= capacityInfo.maxParticipants) {
+      throw new Error("Event is at maximum capacity");
+    }
+
+    // Update status to attending
+    const [updatedAttendance] = await db
+      .update(eventAttendance)
+      .set({ 
+        status: "attending",
+        votedAt: new Date()
+      })
+      .where(and(eq(eventAttendance.eventId, eventId), eq(eventAttendance.userId, userId)))
+      .returning();
+
+    // Log the promotion activity
+    await this.logActivity({
+      eventId,
+      userId,
+      action: "promoted_from_reserve",
+      previousStatus: "reserve",
+      newStatus: "attending",
+    });
+
+    return updatedAttendance;
+  }
+
+  async demotePlayerToReserve(eventId: string, userId: string, demotedById: string): Promise<EventAttendance> {
+    // Check if user is currently attending
+    const existingAttendance = await this.getUserAttendance(userId, eventId);
+    if (!existingAttendance || existingAttendance.status !== "attending") {
+      throw new Error("User is not currently attending");
+    }
+
+    // Check reserve capacity
+    const capacityInfo = await this.getEventCapacityInfo(eventId);
+    if (capacityInfo.reserveCount >= capacityInfo.reserveSpots) {
+      throw new Error("Reserve spots are full");
+    }
+
+    // Update status to reserve
+    const [updatedAttendance] = await db
+      .update(eventAttendance)
+      .set({ 
+        status: "reserve",
+        votedAt: new Date()
+      })
+      .where(and(eq(eventAttendance.eventId, eventId), eq(eventAttendance.userId, userId)))
+      .returning();
+
+    // Log the demotion activity
+    await this.logActivity({
+      eventId,
+      userId,
+      action: "demoted_to_reserve",
+      previousStatus: "attending",
+      newStatus: "reserve",
+    });
+
+    return updatedAttendance;
+  }
+
+  async getReservePlayers(eventId: string): Promise<(EventAttendance & { user: User })[]> {
+    const reserves = await db
+      .select({
+        id: eventAttendance.id,
+        eventId: eventAttendance.eventId,
+        userId: eventAttendance.userId,
+        status: eventAttendance.status,
+        votedAt: eventAttendance.votedAt,
+        createdAt: eventAttendance.createdAt,
+        user: users,
+      })
+      .from(eventAttendance)
+      .innerJoin(users, eq(eventAttendance.userId, users.id))
+      .where(and(eq(eventAttendance.eventId, eventId), eq(eventAttendance.status, "reserve")))
+      .orderBy(eventAttendance.votedAt);
+
+    return reserves;
+  }
+
+  async getEventCapacityInfo(eventId: string): Promise<{
+    maxParticipants: number | null;
+    reserveSpots: number;
+    attendingCount: number;
+    reserveCount: number;
+    availableSpots: number;
+    availableReserveSpots: number;
+  }> {
+    // Get event details
+    const [event] = await db
+      .select({ participants: events.participants, reserveSpots: events.reserveSpots })
+      .from(events)
+      .where(eq(events.id, eventId));
+
+    if (!event) {
+      throw new Error("Event not found");
+    }
+
+    // Count attending and reserve players
+    const attendanceCounts = await db
+      .select({
+        status: eventAttendance.status,
+        count: count()
+      })
+      .from(eventAttendance)
+      .where(eq(eventAttendance.eventId, eventId))
+      .groupBy(eventAttendance.status);
+
+    const attendingCount = attendanceCounts.find(c => c.status === "attending")?.count || 0;
+    const reserveCount = attendanceCounts.find(c => c.status === "reserve")?.count || 0;
+
+    const maxParticipants = event.participants;
+    const reserveSpots = event.reserveSpots || 0;
+    
+    const availableSpots = maxParticipants ? Math.max(0, maxParticipants - attendingCount) : Infinity;
+    const availableReserveSpots = Math.max(0, reserveSpots - reserveCount);
+
+    return {
+      maxParticipants,
+      reserveSpots,
+      attendingCount: Number(attendingCount),
+      reserveCount: Number(reserveCount),
+      availableSpots: availableSpots === Infinity ? -1 : Number(availableSpots),
+      availableReserveSpots: Number(availableReserveSpots),
+    };
   }
 }
 

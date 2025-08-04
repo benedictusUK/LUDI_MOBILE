@@ -7,6 +7,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Check, X, Clock, Users } from "lucide-react";
 import type { EventAttendance, User } from "@shared/schema";
+import { ReservePlayersManager } from "./reserve-players-manager";
 
 interface EventAttendanceProps {
   eventId: string;

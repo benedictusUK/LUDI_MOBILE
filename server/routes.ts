@@ -789,6 +789,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Reserve player management routes
+  app.post('/api/events/:id/promote-reserve', isAuthenticated, async (req: any, res) => {
+    try {
+      const eventId = req.params.id;
+      const { userId } = req.body;
+      const promotedById = req.user.claims.sub;
+
+      // Check if the promoter has admin rights for this event
+      const event = await storage.getEvent(eventId);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+
+      const userTeam = await storage.getUserTeam(promotedById, event.primaryTeamId);
+      const team = await storage.getTeam(event.primaryTeamId);
+      if (!userTeam || (!["admin", "captain"].includes(userTeam.role) && team?.ownerId !== promotedById)) {
+        return res.status(403).json({ message: "Not authorized to manage reserves" });
+      }
+
+      const updatedAttendance = await storage.promoteReservePlayer(eventId, userId, promotedById);
+      res.json(updatedAttendance);
+    } catch (error) {
+      console.error("Error promoting reserve player:", error);
+      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to promote player" });
+    }
+  });
+
+  app.post('/api/events/:id/demote-to-reserve', isAuthenticated, async (req: any, res) => {
+    try {
+      const eventId = req.params.id;
+      const { userId } = req.body;
+      const demotedById = req.user.claims.sub;
+
+      // Check if the demoter has admin rights for this event
+      const event = await storage.getEvent(eventId);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+
+      const userTeam = await storage.getUserTeam(demotedById, event.primaryTeamId);
+      const team = await storage.getTeam(event.primaryTeamId);
+      if (!userTeam || (!["admin", "captain"].includes(userTeam.role) && team?.ownerId !== demotedById)) {
+        return res.status(403).json({ message: "Not authorized to manage reserves" });
+      }
+
+      const updatedAttendance = await storage.demotePlayerToReserve(eventId, userId, demotedById);
+      res.json(updatedAttendance);
+    } catch (error) {
+      console.error("Error demoting player to reserve:", error);
+      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to demote player" });
+    }
+  });
+
+  app.get('/api/events/:id/reserves', isAuthenticated, async (req, res) => {
+    try {
+      const eventId = req.params.id;
+      const reserves = await storage.getReservePlayers(eventId);
+      res.json(reserves);
+    } catch (error) {
+      console.error("Error fetching reserve players:", error);
+      res.status(500).json({ message: "Failed to fetch reserve players" });
+    }
+  });
+
+  app.get('/api/events/:id/capacity', isAuthenticated, async (req, res) => {
+    try {
+      const eventId = req.params.id;
+      const capacity = await storage.getEventCapacityInfo(eventId);
+      res.json(capacity);
+    } catch (error) {
+      console.error("Error fetching event capacity:", error);
+      res.status(500).json({ message: "Failed to fetch event capacity" });
+    }
+  });
+
   // Payment routes
   app.post('/api/create-payment-intent', isAuthenticated, async (req: any, res) => {
     try {
