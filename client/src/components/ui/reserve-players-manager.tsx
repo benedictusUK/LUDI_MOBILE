@@ -18,17 +18,17 @@ export function ReservePlayersManager({ eventId, isAdmin = false }: ReservePlaye
   const queryClient = useQueryClient();
 
   // Fetch reserve players
-  const { data: reserves = [], isLoading: reservesLoading } = useQuery({
+  const { data: reserves = [], isLoading: reservesLoading } = useQuery<any[]>({
     queryKey: ["/api/events", eventId, "reserves"],
   });
 
   // Fetch event capacity info
-  const { data: capacity, isLoading: capacityLoading } = useQuery({
+  const { data: capacity, isLoading: capacityLoading } = useQuery<any>({
     queryKey: ["/api/events", eventId, "capacity"],
   });
 
   // Fetch all attendance for context
-  const { data: attendance = [], isLoading: attendanceLoading } = useQuery({
+  const { data: attendance = [], isLoading: attendanceLoading } = useQuery<any[]>({
     queryKey: ["/api/events", eventId, "attendance"],
   });
 
@@ -199,14 +199,17 @@ export function ReservePlayersManager({ eventId, isAdmin = false }: ReservePlaye
                         size="sm"
                         variant="outline"
                         onClick={() => handlePromotePlayer(reserve.userId)}
-                        disabled={
-                          promotePlayerMutation.isPending ||
-                          ((capacity as any)?.maxParticipants && (capacity as any).attendingCount >= (capacity as any).maxParticipants)
-                        }
+                        disabled={promotePlayerMutation.isPending}
                         className="flex items-center gap-1"
+                        title={(capacity as any)?.maxParticipants && (capacity as any).attendingCount >= (capacity as any).maxParticipants 
+                          ? "Admin can promote reserves even when at capacity (creates overflow)" 
+                          : "Promote reserve player to main event"}
                       >
                         <ArrowUp className="h-4 w-4" />
                         Promote
+                        {(capacity as any)?.maxParticipants && (capacity as any).attendingCount >= (capacity as any).maxParticipants && (
+                          <span className="text-xs text-orange-600 ml-1">(Overflow)</span>
+                        )}
                       </Button>
                     </div>
                   )}

@@ -1299,11 +1299,8 @@ export class DatabaseStorage implements IStorage {
       throw new Error("User is not currently in reserve status");
     }
 
-    // Check capacity limits
-    const capacityInfo = await this.getEventCapacityInfo(eventId);
-    if (capacityInfo.maxParticipants && capacityInfo.attendingCount >= capacityInfo.maxParticipants) {
-      throw new Error("Event is at maximum capacity");
-    }
+    // NOTE: Admins can promote reserves even when at capacity (allowing overflow like 14/10)
+    // This is intentional for admin control and flexibility
 
     // Update status to attending
     const [updatedAttendance] = await db
