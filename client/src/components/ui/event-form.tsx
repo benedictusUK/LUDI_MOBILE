@@ -522,9 +522,6 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                     {...form.register("reserveSpots")}
                     placeholder="0"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Extra spots for overflow or backup players
-                  </p>
                 </div>
                 <div>
                   <Label htmlFor="cost">Event Cost (£)</Label>

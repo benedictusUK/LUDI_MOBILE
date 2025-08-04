@@ -260,7 +260,7 @@ export function ReservePlayersManager({ eventId, isAdmin = false }: ReservePlaye
                     <Badge variant="default" className="bg-green-100 text-green-800">
                       Attending
                     </Badge>
-                    {capacity && (capacity as any).reserveSpots > 0 && (
+                    {isAdmin && capacity && (capacity as any).reserveSpots > 0 && (
                       <Button
                         size="sm"
                         variant="outline"
