@@ -59,6 +59,7 @@ export interface IStorage {
   removeTeamMember(teamId: string, userId: string): Promise<void>;
   getTeamMembers(teamId: string): Promise<(TeamMembership & { user: User })[]>;
   updateTeam(id: string, updates: Partial<InsertTeam>): Promise<Team>;
+  updateTeamImage(teamId: string, userId: string, imagePath: string): Promise<void>;
   deleteTeam(id: string): Promise<void>;
   getUserTeam(userId: string, teamId: string): Promise<TeamMembership | undefined>;
 
@@ -253,6 +254,7 @@ export class DatabaseStorage implements IStorage {
         requiresApproval: teams.requiresApproval,
         ownerId: teams.ownerId,
         inviteCode: teams.inviteCode,
+        teamImagePath: teams.teamImagePath,
         createdAt: teams.createdAt,
         updatedAt: teams.updatedAt,
         role: teamMemberships.role,
@@ -313,6 +315,19 @@ export class DatabaseStorage implements IStorage {
       .where(eq(teams.id, id))
       .returning();
     return team;
+  }
+
+  async updateTeamImage(teamId: string, userId: string, imagePath: string): Promise<void> {
+    // Check if user is team owner 
+    const team = await this.getTeam(teamId);
+    if (!team || team.ownerId !== userId) {
+      throw new Error("Only team owners can update team images");
+    }
+
+    await db
+      .update(teams)
+      .set({ teamImagePath: imagePath, updatedAt: new Date() })
+      .where(eq(teams.id, teamId));
   }
 
   async deleteTeam(id: string): Promise<void> {
@@ -854,6 +869,7 @@ export class DatabaseStorage implements IStorage {
         maxPlayers: teams.maxPlayers,
         ownerId: teams.ownerId,
         inviteCode: teams.inviteCode,
+        teamImagePath: teams.teamImagePath,
         createdAt: teams.createdAt,
         updatedAt: teams.updatedAt,
         memberCount: count(teamMemberships.id),

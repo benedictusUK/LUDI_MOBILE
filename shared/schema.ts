@@ -89,6 +89,7 @@ export const teams = pgTable("teams", {
   requiresApproval: boolean("requires_approval").default(true),
   ownerId: varchar("owner_id").notNull().references(() => users.id),
   inviteCode: varchar("invite_code").unique(),
+  teamImagePath: varchar("team_image_path"), // path to team's uploaded image
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

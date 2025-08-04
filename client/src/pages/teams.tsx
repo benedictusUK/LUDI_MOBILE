@@ -14,6 +14,8 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { ObjectUploader } from "@/components/ObjectUploader";
+import type { UploadResult } from '@uppy/core';
 
 // Sports options
 const SPORTS_OPTIONS = [
@@ -466,17 +468,72 @@ export default function Teams() {
           ) : (
             (teams as any[]).map((team: any) => (
               <Card key={team.id} className="overflow-hidden">
-                <div 
-                  className="h-32 relative"
-                  style={{ 
-                    background: `linear-gradient(135deg, ${team.color || '#3b82f6'}, ${team.color || '#3b82f6'}dd)` 
-                  }}
-                >
-                  <img 
-                    src="https://pixabay.com/get/g4180ccc4c1955ff77d8d09ee0a3f70c86ad763442d2be03a192f87a0e6c68bc3117c7a82bf4656202aff56e0d721e9767a71e5dcf4aaf368d865bf8caeb7be09_1280.jpg" 
-                    alt={`${team.name} team banner`}
-                    className="w-full h-full object-cover mix-blend-overlay opacity-30"
-                  />
+                <div className="h-32 relative">
+                  {team.teamImagePath ? (
+                    <img 
+                      src={team.teamImagePath}
+                      alt={`${team.name} team image`}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div 
+                      className="w-full h-full flex items-center justify-center"
+                      style={{ 
+                        background: `linear-gradient(135deg, ${team.color || '#3b82f6'}, ${team.color || '#3b82f6'}dd)` 
+                      }}
+                    >
+                      <i className="fas fa-users text-white text-4xl opacity-50"></i>
+                    </div>
+                  )}
+                  
+                  {/* Upload button for team owners */}
+                  {team.isOwner && (
+                    <div className="absolute top-4 left-4">
+                      <ObjectUploader
+                        maxNumberOfFiles={1}
+                        maxFileSize={5242880} // 5MB
+                        onGetUploadParameters={async () => {
+                          const response = await apiRequest('/api/objects/upload', {
+                            method: 'POST'
+                          });
+                          return {
+                            method: 'PUT' as const,
+                            url: response.uploadURL,
+                          };
+                        }}
+                        onComplete={async (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
+                          if (result.successful && result.successful.length > 0) {
+                            const uploadedFile = result.successful[0];
+                            try {
+                              await apiRequest(`/api/teams/${team.id}/image`, {
+                                method: 'PUT',
+                                body: JSON.stringify({ imageURL: uploadedFile.uploadURL }),
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                },
+                              });
+                              
+                              // Refresh teams data
+                              queryClient.invalidateQueries({ queryKey: ['/api/teams'] });
+                              toast({ title: "Team image updated successfully!" });
+                            } catch (error) {
+                              console.error('Error updating team image:', error);
+                              toast({ 
+                                title: "Error updating team image", 
+                                description: "Please try again.",
+                                variant: "destructive" 
+                              });
+                            }
+                          }
+                        }}
+                        buttonClassName="bg-black/20 hover:bg-black/40 text-white border-white/30 text-xs"
+                      >
+                        <i className="fas fa-camera mr-1"></i>
+                        Upload
+                      </ObjectUploader>
+                    </div>
+                  )}
+                  
                   <div className="absolute top-4 right-4">
                     <Badge variant={
                       team.isOwner ? "default" :
