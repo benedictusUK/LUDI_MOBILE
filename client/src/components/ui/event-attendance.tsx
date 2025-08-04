@@ -20,7 +20,7 @@ export function EventAttendance({ eventId, eventName, startDate, cost }: EventAt
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: attendance = [], isLoading } = useQuery({
+  const { data: attendance = [], isLoading } = useQuery<(EventAttendance & { user: User })[]>({
     queryKey: ['/api/events', eventId, 'attendance'],
   });
 
@@ -86,9 +86,9 @@ export function EventAttendance({ eventId, eventName, startDate, cost }: EventAt
     );
   }
 
-  const attendingCount = attendance.filter((a: any) => a.status === 'attending').length;
-  const notAttendingCount = attendance.filter((a: any) => a.status === 'not_attending').length;
-  const pendingCount = attendance.filter((a: any) => a.status === 'pending').length;
+  const attendingCount = attendance.filter((a) => a.status === 'attending').length;
+  const notAttendingCount = attendance.filter((a) => a.status === 'not_attending').length;
+  const pendingCount = attendance.filter((a) => a.status === 'pending').length;
 
   return (
     <Card>
@@ -145,14 +145,16 @@ export function EventAttendance({ eventId, eventName, startDate, cost }: EventAt
         <div className="space-y-2">
           <h4 className="font-medium text-sm">Responses ({attendance.length})</h4>
           <div className="space-y-1 max-h-40 overflow-y-auto">
-            {attendance.map((attendee: any) => (
+            {attendance.map((attendee) => (
               <div key={attendee.id} className="flex items-center justify-between py-1">
                 <div className="flex items-center gap-2">
                   <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs">
                     {attendee.user.firstName?.[0] || attendee.user.email?.[0] || '?'}
                   </div>
                   <span className="text-sm">
-                    {attendee.user.firstName} {attendee.user.lastName} 
+                    {attendee.user.firstName && attendee.user.lastName 
+                      ? `${attendee.user.firstName} ${attendee.user.lastName}` 
+                      : (attendee.user.email || 'Unknown User')}
                   </span>
                 </div>
                 <Badge variant={getStatusBadgeVariant(attendee.status)} className="text-xs">
