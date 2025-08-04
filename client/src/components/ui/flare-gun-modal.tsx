@@ -32,35 +32,43 @@ import {
   HelpCircle
 } from "lucide-react";
 
-// Custom Flare Gun SVG Icon
+// Custom Flare Gun SVG Icon - Based on provided reference images
 const FlareGunIcon = ({ className }: { className?: string }) => (
   <svg 
     viewBox="0 0 100 100" 
     className={className}
     fill="currentColor"
+    stroke="currentColor"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
   >
-    {/* Trigger guard */}
-    <path d="M8 65 Q8 70 12 70 L16 70 Q20 70 20 65 L20 55 Q20 50 16 50 L12 50 Q8 50 8 55 Z" stroke="currentColor" strokeWidth="2" fill="none" />
+    {/* Main barrel - longer and more prominent */}
+    <path d="M25 35 L85 25 Q90 24 92 27 Q94 30 90 32 L30 42 Z" fill="currentColor" />
     
-    {/* Grip */}
-    <path d="M15 70 Q12 75 12 82 Q12 88 18 88 Q24 88 24 82 L24 75 Q24 70 20 70" stroke="currentColor" strokeWidth="2" fill="none" />
+    {/* Barrel opening */}
+    <circle cx="88" cy="28.5" r="3" fill="none" />
     
-    {/* Barrel */}
-    <rect x="20" y="30" width="65" height="12" rx="6" />
-    
-    {/* Barrel extension */}
-    <rect x="80" y="32" width="15" height="8" rx="4" />
-    
-    {/* Sight */}
-    <rect x="75" y="28" width="3" height="6" />
-    <rect x="88" y="28" width="3" height="6" />
+    {/* Trigger guard - distinctive curved shape */}
+    <path d="M15 50 Q10 50 8 55 Q6 60 8 65 Q10 70 15 70 L25 70" fill="none" />
     
     {/* Trigger */}
-    <circle cx="14" cy="58" r="2" />
+    <path d="M18 58 Q15 60 15 63 Q15 66 18 66" fill="none" />
     
-    {/* Decorative elements on grip */}
-    <circle cx="18" cy="76" r="1.5" />
-    <circle cx="18" cy="82" r="1.5" />
+    {/* Pistol grip - curved ergonomic shape */}
+    <path d="M25 42 L25 70 Q25 75 22 78 Q18 82 15 82 Q10 82 8 78 Q6 74 8 70 L12 65" fill="none" />
+    
+    {/* Grip texture lines */}
+    <line x1="20" y1="55" x2="20" y2="65" strokeWidth="1.5" />
+    <line x1="17" y1="57" x2="17" y2="67" strokeWidth="1.5" />
+    <line x1="14" y1="59" x2="14" y2="69" strokeWidth="1.5" />
+    
+    {/* Safety/sight elements */}
+    <circle cx="75" cy="30" r="1.5" />
+    <circle cx="82" cy="28" r="1.5" />
+    
+    {/* Flare effect coming from barrel */}
+    <path d="M88 28.5 L95 26 L97 28.5 L95 31 Z" fill="currentColor" opacity="0.7" />
   </svg>
 );
 
