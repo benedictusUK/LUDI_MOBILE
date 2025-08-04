@@ -802,10 +802,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Event not found" });
       }
 
-      const userTeam = await storage.getUserTeam(promotedById, event.primaryTeamId);
-      const team = await storage.getTeam(event.primaryTeamId);
-      if (!userTeam || (!["admin", "captain"].includes(userTeam.role) && team?.ownerId !== promotedById)) {
-        return res.status(403).json({ message: "Not authorized to manage reserves" });
+      // Event creators can always manage reserves for their events
+      const isEventCreator = event.createdById === promotedById;
+      
+      if (!isEventCreator) {
+        // If not event creator, check team permissions
+        const userTeam = await storage.getUserTeam(promotedById, event.primaryTeamId);
+        const team = await storage.getTeam(event.primaryTeamId);
+        if (!userTeam || (!["admin", "captain"].includes(userTeam.role) && team?.ownerId !== promotedById)) {
+          return res.status(403).json({ message: "Not authorized to manage reserves" });
+        }
       }
 
       const updatedAttendance = await storage.promoteReservePlayer(eventId, userId, promotedById);
@@ -828,10 +834,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Event not found" });
       }
 
-      const userTeam = await storage.getUserTeam(demotedById, event.primaryTeamId);
-      const team = await storage.getTeam(event.primaryTeamId);
-      if (!userTeam || (!["admin", "captain"].includes(userTeam.role) && team?.ownerId !== demotedById)) {
-        return res.status(403).json({ message: "Not authorized to manage reserves" });
+      // Event creators can always manage reserves for their events
+      const isEventCreator = event.createdById === demotedById;
+      
+      if (!isEventCreator) {
+        // If not event creator, check team permissions
+        const userTeam = await storage.getUserTeam(demotedById, event.primaryTeamId);
+        const team = await storage.getTeam(event.primaryTeamId);
+        if (!userTeam || (!["admin", "captain"].includes(userTeam.role) && team?.ownerId !== demotedById)) {
+          return res.status(403).json({ message: "Not authorized to manage reserves" });
+        }
       }
 
       const updatedAttendance = await storage.demotePlayerToReserve(eventId, userId, demotedById);
