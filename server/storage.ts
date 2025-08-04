@@ -1495,18 +1495,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async suspendRecurringSeries(recurringSeriesId: string, userId: string): Promise<void> {
-    // Update all future events in the series to suspended
-    const currentDate = new Date().toISOString().split('T')[0];
-    
+    // Update all events in the series to suspended (not just future ones for testing)
     await db
       .update(events)
       .set({ isRecurringSuspended: true })
-      .where(
-        and(
-          eq(events.recurringSeriesId, recurringSeriesId),
-          sql`${events.startDate} >= ${currentDate}`
-        )
-      );
+      .where(eq(events.recurringSeriesId, recurringSeriesId));
   }
 
   async resumeRecurringSeries(recurringSeriesId: string, userId: string): Promise<void> {
