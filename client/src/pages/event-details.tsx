@@ -321,11 +321,11 @@ export default function EventDetails() {
             {(event as any).isPublished && (
               <Card className="mt-6">
                 <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Vote className="w-5 h-5 mr-2" />
-                    Attendance
-                  </CardTitle>
-                  <div className="ml-auto">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center">
+                      <Vote className="w-5 h-5 mr-2" />
+                      Attendance
+                    </CardTitle>
                     <FlareGunModal 
                       event={eventData} 
                       isAuthorized={
