@@ -8,6 +8,14 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+**August 4, 2025 - Team Image Upload System & Custom Flare Gun Icon**
+- **Complete Team Image Upload System**: Successfully implemented full team image upload functionality with Google Cloud Storage integration
+- **Object Storage Integration**: Configured bucket with proper public/private directories and URL normalization for secure image serving
+- **Upload UI/UX**: Added camera icon upload button for team owners with 5MB file size limit and proper permission controls
+- **Database Integration**: Team images properly stored and served through `/objects/` endpoints with ACL security
+- **Custom Flare Gun Icon**: Replaced generic Target icon with custom SVG flare gun design based on user-provided image
+- **Enhanced Personalization**: Teams can now use custom images instead of generic banners for better visual identification
+
 **February 3, 2025 - Enhanced LUDI Startup Animation**
 - **Complete Logo Reveal Animation**: Implemented full logo reveal animation during app startup with extended 5-second minimum duration
 - **Elaborate Animation Sequence**: Trophy spin with glow → Letter-by-letter LUDI reveal → Underline animation → "Don't just watch" tagline → Sparkle effects

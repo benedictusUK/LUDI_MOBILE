@@ -32,6 +32,38 @@ import {
   HelpCircle
 } from "lucide-react";
 
+// Custom Flare Gun SVG Icon
+const FlareGunIcon = ({ className }: { className?: string }) => (
+  <svg 
+    viewBox="0 0 100 100" 
+    className={className}
+    fill="currentColor"
+  >
+    {/* Trigger guard */}
+    <path d="M8 65 Q8 70 12 70 L16 70 Q20 70 20 65 L20 55 Q20 50 16 50 L12 50 Q8 50 8 55 Z" stroke="currentColor" strokeWidth="2" fill="none" />
+    
+    {/* Grip */}
+    <path d="M15 70 Q12 75 12 82 Q12 88 18 88 Q24 88 24 82 L24 75 Q24 70 20 70" stroke="currentColor" strokeWidth="2" fill="none" />
+    
+    {/* Barrel */}
+    <rect x="20" y="30" width="65" height="12" rx="6" />
+    
+    {/* Barrel extension */}
+    <rect x="80" y="32" width="15" height="8" rx="4" />
+    
+    {/* Sight */}
+    <rect x="75" y="28" width="3" height="6" />
+    <rect x="88" y="28" width="3" height="6" />
+    
+    {/* Trigger */}
+    <circle cx="14" cy="58" r="2" />
+    
+    {/* Decorative elements on grip */}
+    <circle cx="18" cy="76" r="1.5" />
+    <circle cx="18" cy="82" r="1.5" />
+  </svg>
+);
+
 interface FlareGunModalProps {
   event: any;
   isAuthorized: boolean;
@@ -119,7 +151,7 @@ export function FlareGunModal({ event, isAuthorized }: FlareGunModalProps) {
       <DialogTrigger asChild>
         {isAuthorized && (
           <Button variant="outline" size="sm">
-            <Target className="h-4 w-4 mr-2" />
+            <FlareGunIcon className="h-4 w-4 mr-2" />
             Flare Gun
           </Button>
         )}
@@ -127,7 +159,7 @@ export function FlareGunModal({ event, isAuthorized }: FlareGunModalProps) {
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Target className="h-5 w-5 text-red-500" />
+            <FlareGunIcon className="h-5 w-5 text-red-500" />
             Flare Gun - Find Nearby Players
           </DialogTitle>
           <DialogDescription>
