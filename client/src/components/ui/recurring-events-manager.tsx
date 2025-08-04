@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, Clock, Users, AlertTriangle, Play, Pause, Trash2 } from "lucide-react";
+import { Calendar, Clock, Users, AlertTriangle, Play, Pause, Trash2, X } from "lucide-react";
 
 interface RecurringEventsManagerProps {
   eventId: string;
@@ -174,7 +174,7 @@ export default function RecurringEventsManager({
   return (
     <>
       <Card className="w-full max-w-4xl mx-auto">
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-row items-start justify-between">
           <div>
             <CardTitle className="flex items-center gap-2">
               <Calendar className="w-5 h-5" />
@@ -184,46 +184,53 @@ export default function RecurringEventsManager({
               {eventsList.length} events in this series
             </p>
           </div>
-          <div className="flex gap-2">
-            {futureEvents.length > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setActionDialog({ 
-                  type: 'delete-series', 
-                  eventId: futureEvents[0]?.id, 
-                  show: true 
-                })}
-                className="text-red-600 hover:text-red-700 flex items-center gap-2"
-              >
-                <Trash2 className="w-4 h-4" />
-                Delete Series
-              </Button>
-            )}
-            {isSuspended ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setActionDialog({ type: 'resume', show: true })}
-                className="flex items-center gap-2"
-              >
-                <Play className="w-4 h-4" />
-                Resume Series
-              </Button>
-            ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setActionDialog({ type: 'suspend', show: true })}
-                className="flex items-center gap-2"
-              >
-                <Pause className="w-4 h-4" />
-                Suspend Series
-              </Button>
-            )}
-            <Button variant="outline" size="sm" onClick={onClose}>
-              Close
+          <div className="flex flex-col gap-2 items-end">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              className="p-1 h-8 w-8"
+            >
+              <X className="w-4 h-4" />
             </Button>
+            <div className="flex flex-col gap-1">
+              {futureEvents.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setActionDialog({ 
+                    type: 'delete-series', 
+                    eventId: futureEvents[0]?.id, 
+                    show: true 
+                  })}
+                  className="text-red-600 hover:text-red-700 flex items-center gap-2 justify-start"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete Series
+                </Button>
+              )}
+              {isSuspended ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setActionDialog({ type: 'resume', show: true })}
+                  className="flex items-center gap-2 justify-start"
+                >
+                  <Play className="w-4 h-4" />
+                  Resume Series
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setActionDialog({ type: 'suspend', show: true })}
+                  className="flex items-center gap-2 justify-start"
+                >
+                  <Pause className="w-4 h-4" />
+                  Suspend Series
+                </Button>
+              )}
+            </div>
           </div>
         </CardHeader>
 
