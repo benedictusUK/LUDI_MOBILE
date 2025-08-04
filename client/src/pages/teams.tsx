@@ -494,9 +494,14 @@ export default function Teams() {
                         maxFileSize={5242880} // 5MB
                         onGetUploadParameters={async () => {
                           const response = await apiRequest('POST', '/api/objects/upload');
+                          const data = await response.json();
+                          console.log('Got upload response:', data);
+                          if (!data.uploadURL) {
+                            throw new Error('No upload URL received');
+                          }
                           return {
                             method: 'PUT' as const,
-                            url: response.uploadURL,
+                            url: data.uploadURL,
                           };
                         }}
                         onComplete={async (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
@@ -504,7 +509,9 @@ export default function Teams() {
                             const uploadedFile = result.successful[0];
                             console.log('Upload result:', uploadedFile);
                             try {
-                              await apiRequest('PUT', `/api/teams/${team.id}/image`, { imageURL: uploadedFile.uploadURL });
+                              const updateResponse = await apiRequest('PUT', `/api/teams/${team.id}/image`, { imageURL: uploadedFile.uploadURL });
+                              const updateData = await updateResponse.json();
+                              console.log('Image update response:', updateData);
                               
                               // Refresh teams data
                               queryClient.invalidateQueries({ queryKey: ['/api/teams'] });
