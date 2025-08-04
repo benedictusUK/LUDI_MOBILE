@@ -398,8 +398,8 @@ export const insertUserSchema = createInsertSchema(users).omit({
     return actualAge >= 18;
   }, "You must be at least 18 years old to sign up"),
   postcode: z.string().min(1, "Postcode is required").max(10, "Postcode must be less than 10 characters"),
-  email: z.string().email("Please enter a valid email address").optional(),
-  phoneNumber: z.string().regex(/^(\+44|0)[0-9]{10}$/, "Please enter a valid UK phone number").optional(),
+  email: z.string().email("Please enter a valid email address"),
+  phoneNumber: z.string().regex(/^(\+44|0)[0-9]{10}$/, "Please enter a valid UK phone number"),
 });
 
 // Profile completion schema (for mandatory fields after signup)

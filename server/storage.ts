@@ -1106,7 +1106,7 @@ export class DatabaseStorage implements IStorage {
           phoneNumber: sql<string>`blocker.phone_number`,
           dateOfBirth: sql<string>`blocker.date_of_birth`,
           postcode: sql<string>`blocker.postcode`,
-          gender: sql<string>`blocker.gender`,
+          gender: sql<"male" | "female">`blocker.gender`,
           sportsInterests: sql<string[]>`blocker.sports_interests`,
           travelRadius: sql<number>`blocker.travel_radius`,
           stripeCustomerId: sql<string>`blocker.stripe_customer_id`,
