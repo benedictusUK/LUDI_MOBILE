@@ -8,6 +8,12 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+**August 4, 2025 - Recurring Events Management UI Improvements**
+- **Fixed Scrollability**: Added scrollable content area to recurring events management popup with max-height constraint for better UX with large event lists
+- **Optimized Trash Icon Placement**: Moved "Delete Series" button with trash icon to popup header for single, prominent placement at top of window
+- **Maintained Individual Delete Functionality**: Preserved individual "Delete" buttons for each event while consolidating series deletion control
+- **Enhanced User Experience**: Improved popup navigation and reduced visual clutter while maintaining all deletion functionality
+
 **August 4, 2025 - Complete Reserve Player System Implementation**
 - **Reserve System with Admin Overflow**: Successfully implemented comprehensive reserve player system with critical overflow capability allowing admins to promote reserves beyond capacity (e.g., 14/10 players)
 - **Backend Implementation**: Added complete storage methods for reserve management, promotion/demotion with admin authorization checks

@@ -185,6 +185,21 @@ export default function RecurringEventsManager({
             </p>
           </div>
           <div className="flex gap-2">
+            {futureEvents.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setActionDialog({ 
+                  type: 'delete-series', 
+                  eventId: futureEvents[0]?.id, 
+                  show: true 
+                })}
+                className="text-red-600 hover:text-red-700 flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete Series
+              </Button>
+            )}
             {isSuspended ? (
               <Button
                 variant="outline"
@@ -212,7 +227,7 @@ export default function RecurringEventsManager({
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-6 max-h-96 overflow-y-auto">
           {/* Series Status */}
           <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
             <div className="flex items-center gap-2">
@@ -266,18 +281,6 @@ export default function RecurringEventsManager({
                       >
                         Delete
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setActionDialog({ 
-                          type: 'delete-series', 
-                          eventId: event.id, 
-                          show: true 
-                        })}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
                     </div>
                   </div>
                 ))}
@@ -289,7 +292,7 @@ export default function RecurringEventsManager({
           {pastEvents.length > 0 && (
             <div>
               <h3 className="text-lg font-semibold mb-3">Past Events ({pastEvents.length})</h3>
-              <div className="space-y-2 max-h-60 overflow-y-auto">
+              <div className="space-y-2">
                 {pastEvents.map((event: any) => (
                   <div key={event.id} className="flex items-center justify-between p-3 border rounded-lg bg-gray-50">
                     <div className="flex items-center gap-3">
