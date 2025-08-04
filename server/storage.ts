@@ -324,10 +324,14 @@ export class DatabaseStorage implements IStorage {
       throw new Error("Only team owners can update team images");
     }
 
+    console.log("Updating team", teamId, "with image path:", imagePath);
+    
     await db
       .update(teams)
       .set({ teamImagePath: imagePath, updatedAt: new Date() })
       .where(eq(teams.id, teamId));
+      
+    console.log("Team image updated successfully");
   }
 
   async deleteTeam(id: string): Promise<void> {

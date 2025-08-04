@@ -53,8 +53,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     const userId = req.user.claims.sub;
     try {
+      console.log("Received image URL:", req.body.imageURL);
+      
       const objectStorageService = new ObjectStorageService();
       const objectPath = objectStorageService.normalizeObjectEntityPath(req.body.imageURL);
+      
+      console.log("Normalized object path:", objectPath);
 
       // Update team with the image path
       await storage.updateTeamImage(req.params.id, userId, objectPath);
