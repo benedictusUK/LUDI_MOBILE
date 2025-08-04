@@ -31,52 +31,16 @@ import {
   XCircle,
   HelpCircle
 } from "lucide-react";
+import flareGunIcon from "@assets/IMG_6963_1754302090076.webp";
 
-// Custom Flare Gun SVG Icon - Based on classic flare gun design
+// Flare Gun Icon using the provided image
 const FlareGunIcon = ({ className }: { className?: string }) => (
-  <svg 
-    viewBox="0 0 100 100" 
+  <img 
+    src={flareGunIcon} 
+    alt="Flare Gun" 
     className={className}
-    fill="currentColor"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    {/* Main barrel - wide, short, angled upward */}
-    <path d="M30 45 L75 35 Q80 34 82 37 Q84 40 80 42 L35 52 Z" fill="currentColor" stroke="none" />
-    
-    {/* Barrel end with flare opening */}
-    <ellipse cx="78" cy="38.5" rx="4" ry="2.5" fill="none" strokeWidth="1.5" />
-    
-    {/* Trigger mechanism housing */}
-    <rect x="25" y="45" width="12" height="15" rx="2" fill="currentColor" stroke="none" />
-    
-    {/* Large trigger guard - characteristic of flare guns */}
-    <path d="M20 52 Q15 52 12 57 Q10 62 12 67 Q15 72 20 72 L30 72" fill="none" strokeWidth="2.5" />
-    
-    {/* Trigger */}
-    <path d="M22 60 Q19 62 19 65 Q19 68 22 68" fill="none" strokeWidth="2" />
-    
-    {/* Pistol grip with distinctive flare gun shape */}
-    <path d="M30 52 L30 72 Q30 77 27 80 Q23 84 18 84 Q12 84 10 80 Q8 76 10 72 L14 67" fill="none" strokeWidth="2.5" />
-    
-    {/* Grip texture - crosshatch pattern typical of flare guns */}
-    <line x1="25" y1="58" x2="25" y2="68" strokeWidth="1" />
-    <line x1="22" y1="60" x2="22" y2="70" strokeWidth="1" />
-    <line x1="19" y1="62" x2="19" y2="72" strokeWidth="1" />
-    <line x1="16" y1="64" x2="16" y2="74" strokeWidth="1" />
-    
-    {/* Sight on top of barrel */}
-    <rect x="65" y="32" width="2" height="4" rx="1" fill="currentColor" />
-    
-    {/* Safety catch */}
-    <circle cx="35" cy="48" r="1.5" fill="currentColor" />
-    
-    {/* Flare spark effect */}
-    <path d="M78 38.5 L85 36 L87 38.5 L85 41 Z" fill="currentColor" opacity="0.6" />
-    <circle cx="88" cy="38.5" r="1" fill="currentColor" opacity="0.4" />
-  </svg>
+    style={{ filter: 'brightness(0) saturate(100%) invert(27%) sepia(51%) saturate(2878%) hue-rotate(346deg) brightness(104%) contrast(97%)' }}
+  />
 );
 
 interface FlareGunModalProps {
