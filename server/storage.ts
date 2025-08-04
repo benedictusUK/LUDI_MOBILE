@@ -1469,7 +1469,7 @@ export class DatabaseStorage implements IStorage {
     while (currentDate <= endGenerationDate) {
       const shouldCreateEvent = parentEvent.recurrenceType === "daily" || 
         (parentEvent.recurrenceType === "weekly" && 
-         parentEvent.recurrenceDaysOfWeek.includes(currentDate.toLocaleDateString('en-US', { weekday: 'lowercase' }))) ||
+         parentEvent.recurrenceDaysOfWeek.includes(currentDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase())) ||
         parentEvent.recurrenceType === "monthly";
 
       if (shouldCreateEvent) {
