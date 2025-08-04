@@ -32,43 +32,50 @@ import {
   HelpCircle
 } from "lucide-react";
 
-// Custom Flare Gun SVG Icon - Based on provided reference images
+// Custom Flare Gun SVG Icon - Based on classic flare gun design
 const FlareGunIcon = ({ className }: { className?: string }) => (
   <svg 
     viewBox="0 0 100 100" 
     className={className}
     fill="currentColor"
     stroke="currentColor"
-    strokeWidth="2.5"
+    strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
   >
-    {/* Main barrel - longer and more prominent */}
-    <path d="M25 35 L85 25 Q90 24 92 27 Q94 30 90 32 L30 42 Z" fill="currentColor" />
+    {/* Main barrel - wide, short, angled upward */}
+    <path d="M30 45 L75 35 Q80 34 82 37 Q84 40 80 42 L35 52 Z" fill="currentColor" stroke="none" />
     
-    {/* Barrel opening */}
-    <circle cx="88" cy="28.5" r="3" fill="none" />
+    {/* Barrel end with flare opening */}
+    <ellipse cx="78" cy="38.5" rx="4" ry="2.5" fill="none" strokeWidth="1.5" />
     
-    {/* Trigger guard - distinctive curved shape */}
-    <path d="M15 50 Q10 50 8 55 Q6 60 8 65 Q10 70 15 70 L25 70" fill="none" />
+    {/* Trigger mechanism housing */}
+    <rect x="25" y="45" width="12" height="15" rx="2" fill="currentColor" stroke="none" />
+    
+    {/* Large trigger guard - characteristic of flare guns */}
+    <path d="M20 52 Q15 52 12 57 Q10 62 12 67 Q15 72 20 72 L30 72" fill="none" strokeWidth="2.5" />
     
     {/* Trigger */}
-    <path d="M18 58 Q15 60 15 63 Q15 66 18 66" fill="none" />
+    <path d="M22 60 Q19 62 19 65 Q19 68 22 68" fill="none" strokeWidth="2" />
     
-    {/* Pistol grip - curved ergonomic shape */}
-    <path d="M25 42 L25 70 Q25 75 22 78 Q18 82 15 82 Q10 82 8 78 Q6 74 8 70 L12 65" fill="none" />
+    {/* Pistol grip with distinctive flare gun shape */}
+    <path d="M30 52 L30 72 Q30 77 27 80 Q23 84 18 84 Q12 84 10 80 Q8 76 10 72 L14 67" fill="none" strokeWidth="2.5" />
     
-    {/* Grip texture lines */}
-    <line x1="20" y1="55" x2="20" y2="65" strokeWidth="1.5" />
-    <line x1="17" y1="57" x2="17" y2="67" strokeWidth="1.5" />
-    <line x1="14" y1="59" x2="14" y2="69" strokeWidth="1.5" />
+    {/* Grip texture - crosshatch pattern typical of flare guns */}
+    <line x1="25" y1="58" x2="25" y2="68" strokeWidth="1" />
+    <line x1="22" y1="60" x2="22" y2="70" strokeWidth="1" />
+    <line x1="19" y1="62" x2="19" y2="72" strokeWidth="1" />
+    <line x1="16" y1="64" x2="16" y2="74" strokeWidth="1" />
     
-    {/* Safety/sight elements */}
-    <circle cx="75" cy="30" r="1.5" />
-    <circle cx="82" cy="28" r="1.5" />
+    {/* Sight on top of barrel */}
+    <rect x="65" y="32" width="2" height="4" rx="1" fill="currentColor" />
     
-    {/* Flare effect coming from barrel */}
-    <path d="M88 28.5 L95 26 L97 28.5 L95 31 Z" fill="currentColor" opacity="0.7" />
+    {/* Safety catch */}
+    <circle cx="35" cy="48" r="1.5" fill="currentColor" />
+    
+    {/* Flare spark effect */}
+    <path d="M78 38.5 L85 36 L87 38.5 L85 41 Z" fill="currentColor" opacity="0.6" />
+    <circle cx="88" cy="38.5" r="1" fill="currentColor" opacity="0.4" />
   </svg>
 );
 
