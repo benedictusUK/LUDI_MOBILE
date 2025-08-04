@@ -323,7 +323,7 @@ export default function EventDetails() {
                 <CardHeader>
                   <CardTitle className="flex items-center">
                     <Vote className="w-5 h-5 mr-2" />
-                    Attendance Voting
+                    Attendance
                   </CardTitle>
                   <div className="ml-auto">
                     <FlareGunModal 
