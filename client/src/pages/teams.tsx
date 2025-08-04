@@ -483,8 +483,13 @@ export default function Teams() {
                       team.role === "admin" ? "secondary" :
                       team.role === "captain" ? "secondary" :
                       "outline"
+                    } className={
+                      team.isOwner ? "bg-yellow-100 text-yellow-800" :
+                      team.role === "admin" ? "bg-blue-100 text-blue-800" :
+                      team.role === "captain" ? "bg-green-100 text-green-800" :
+                      ""
                     }>
-                      {team.isOwner ? "Owner" : team.role}
+                      {team.isOwner ? "Owner" : team.role === "captain" ? "Captain" : team.role}
                     </Badge>
                   </div>
                 </div>
@@ -615,6 +620,16 @@ export default function Teams() {
                       <i className="fas fa-users"></i>
                       <span>View Members</span>
                     </Button>
+                    {(selectedTeam.isOwner || selectedTeam.role === "admin") && (
+                      <Button 
+                        variant="outline" 
+                        className="flex items-center space-x-2"
+                        onClick={() => setShowMemberManagement(true)}
+                      >
+                        <i className="fas fa-user-cog"></i>
+                        <span>Manage Members</span>
+                      </Button>
+                    )}
                     <Link href={`/events?team=${selectedTeam.id}`}>
                       <Button variant="outline" className="flex items-center space-x-2 w-full">
                         <i className="fas fa-calendar"></i>
@@ -992,8 +1007,8 @@ export default function Teams() {
             onClose={() => setShowMemberManagement(false)}
             teamId={selectedTeam.id}
             teamName={selectedTeam.name}
-            isOwner={selectedTeam.ownerId === selectedTeam.userId}
-            isAdmin={selectedTeam.role === 'admin'}
+            isOwner={selectedTeam.isOwner || false}
+            isAdmin={selectedTeam.role === 'admin' || selectedTeam.isOwner}
           />
         )}
       </main>

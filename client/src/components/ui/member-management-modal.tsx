@@ -110,19 +110,21 @@ export function MemberManagementModal({
   const getRoleIcon = (role: string, isTeamOwner: boolean) => {
     if (isTeamOwner) return <Crown className="h-4 w-4 text-yellow-500" />;
     if (role === "admin") return <Shield className="h-4 w-4 text-blue-500" />;
+    if (role === "captain") return <Shield className="h-4 w-4 text-green-500" />;
     return <User className="h-4 w-4 text-gray-500" />;
   };
 
   const getRoleBadge = (role: string, isTeamOwner: boolean) => {
     if (isTeamOwner) return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">Owner</Badge>;
     if (role === "admin") return <Badge variant="secondary" className="bg-blue-100 text-blue-800">Admin</Badge>;
+    if (role === "captain") return <Badge variant="secondary" className="bg-green-100 text-green-800">Captain</Badge>;
     return <Badge variant="outline">Member</Badge>;
   };
 
   const canManageMember = (memberUserId: string, memberRole: string, memberIsOwner: boolean) => {
     if (memberIsOwner) return false; // Cannot manage owner
     if (isOwner) return true; // Owner can manage everyone
-    if (isAdmin && memberRole !== "admin") return true; // Admin can manage members but not other admins
+    if (isAdmin && memberRole !== "admin" && memberRole !== "owner") return true; // Admin can manage members and captains but not other admins or owner
     return false;
   };
 
@@ -148,10 +150,10 @@ export function MemberManagementModal({
             <div className="space-y-4">
               {membersLoading ? (
                 <div className="text-center py-8">Loading members...</div>
-              ) : members.length === 0 ? (
+              ) : (members as any[]).length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">No members found</div>
               ) : (
-                members.map((membership: any) => {
+                (members as any[]).map((membership: any) => {
                   const isTeamOwner = membership.team ? membership.user.id === membership.team.ownerId : false;
                   const canManage = canManageMember(membership.user.id, membership.role, isTeamOwner);
 
@@ -187,7 +189,8 @@ export function MemberManagementModal({
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="member">Member</SelectItem>
-                              {isOwner && <SelectItem value="admin">Admin</SelectItem>}
+                              <SelectItem value="captain">Captain</SelectItem>
+                              {(isOwner || isAdmin) && <SelectItem value="admin">Admin</SelectItem>}
                             </SelectContent>
                           </Select>
 
@@ -225,10 +228,10 @@ export function MemberManagementModal({
             <div className="space-y-4">
               {blockedLoading ? (
                 <div className="text-center py-8">Loading blocked members...</div>
-              ) : blockedMembers.length === 0 ? (
+              ) : (blockedMembers as any[]).length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">No blocked members</div>
               ) : (
-                blockedMembers.map((blocked: any) => (
+                (blockedMembers as any[]).map((blocked: any) => (
                   <div key={blocked.id} className="flex items-center justify-between p-4 border rounded-lg bg-red-50">
                     <div className="flex items-center space-x-3">
                       <AlertTriangle className="h-5 w-5 text-red-500" />
