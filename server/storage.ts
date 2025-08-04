@@ -72,6 +72,13 @@ export interface IStorage {
   deleteEvent(id: string): Promise<void>;
   addEventTeam(eventId: string, teamId: string): Promise<EventTeam>;
 
+  // Recurring event operations
+  createRecurringEvents(parentEvent: InsertEvent, numberOfWeeks?: number): Promise<Event[]>;
+  getRecurringEventsSeries(recurringSeriesId: string): Promise<Event[]>;
+  suspendRecurringSeries(recurringSeriesId: string, userId: string): Promise<void>;
+  resumeRecurringSeries(recurringSeriesId: string, userId: string): Promise<void>;
+  deleteRecurringEvent(eventId: string, deleteSeriesAfter?: boolean): Promise<void>;
+
   // Event attendance operations
   recordAttendance(attendance: InsertEventAttendance): Promise<EventAttendance>;
   getEventAttendance(eventId: string): Promise<(EventAttendance & { user: User })[]>;
@@ -1423,6 +1430,116 @@ export class DatabaseStorage implements IStorage {
       availableSpots: availableSpots === Infinity ? -1 : Number(availableSpots),
       availableReserveSpots: Number(availableReserveSpots),
     };
+  }
+
+  // Recurring Events Methods
+  async createRecurringEvents(parentEvent: InsertEvent, numberOfWeeks: number = 4): Promise<Event[]> {
+    if (parentEvent.recurrenceType === "none") {
+      // Create single event
+      return [await this.createEvent(parentEvent)];
+    }
+
+    const recurringSeriesId = randomUUID();
+    const createdEvents: Event[] = [];
+    
+    // Helper function to get next date based on recurrence
+    const getNextEventDate = (currentDate: Date, recurrenceType: string, daysOfWeek: string[]): Date => {
+      const nextDate = new Date(currentDate);
+      
+      switch (recurrenceType) {
+        case "daily":
+          nextDate.setDate(nextDate.getDate() + 1);
+          break;
+        case "weekly":
+          nextDate.setDate(nextDate.getDate() + 7);
+          break;
+        case "monthly":
+          nextDate.setMonth(nextDate.getMonth() + 1);
+          break;
+      }
+      
+      return nextDate;
+    };
+
+    // Generate events for the specified number of weeks
+    let currentDate = new Date(parentEvent.startDate);
+    const endGenerationDate = new Date(currentDate);
+    endGenerationDate.setDate(endGenerationDate.getDate() + (numberOfWeeks * 7));
+
+    while (currentDate <= endGenerationDate) {
+      const shouldCreateEvent = parentEvent.recurrenceType === "daily" || 
+        (parentEvent.recurrenceType === "weekly" && 
+         parentEvent.recurrenceDaysOfWeek.includes(currentDate.toLocaleDateString('en-US', { weekday: 'lowercase' }))) ||
+        parentEvent.recurrenceType === "monthly";
+
+      if (shouldCreateEvent) {
+        const eventData: InsertEvent = {
+          ...parentEvent,
+          startDate: currentDate.toISOString().split('T')[0],
+          endDate: parentEvent.endDate ? 
+            new Date(new Date(parentEvent.endDate).getTime() + (currentDate.getTime() - new Date(parentEvent.startDate).getTime())).toISOString().split('T')[0] : 
+            null,
+          recurringSeriesId,
+        };
+
+        const createdEvent = await this.createEvent(eventData);
+        createdEvents.push(createdEvent);
+      }
+
+      currentDate = getNextEventDate(currentDate, parentEvent.recurrenceType, parentEvent.recurrenceDaysOfWeek);
+    }
+
+    return createdEvents;
+  }
+
+  async getRecurringEventsSeries(recurringSeriesId: string): Promise<Event[]> {
+    return db
+      .select()
+      .from(events)
+      .where(eq(events.recurringSeriesId, recurringSeriesId))
+      .orderBy(events.startDate);
+  }
+
+  async suspendRecurringSeries(recurringSeriesId: string, userId: string): Promise<void> {
+    // Update all future events in the series to suspended
+    const currentDate = new Date().toISOString().split('T')[0];
+    
+    await db
+      .update(events)
+      .set({ isRecurringSuspended: true })
+      .where(
+        and(
+          eq(events.recurringSeriesId, recurringSeriesId),
+          sql`${events.startDate} >= ${currentDate}`
+        )
+      );
+  }
+
+  async resumeRecurringSeries(recurringSeriesId: string, userId: string): Promise<void> {
+    await db
+      .update(events)
+      .set({ isRecurringSuspended: false })
+      .where(eq(events.recurringSeriesId, recurringSeriesId));
+  }
+
+  async deleteRecurringEvent(eventId: string, deleteSeriesAfter: boolean = false): Promise<void> {
+    const event = await this.getEvent(eventId);
+    if (!event) throw new Error("Event not found");
+
+    if (deleteSeriesAfter && event.recurringSeriesId) {
+      // Delete this event and all future events in the series
+      await db
+        .delete(events)
+        .where(
+          and(
+            eq(events.recurringSeriesId, event.recurringSeriesId),
+            sql`${events.startDate} >= ${event.startDate}`
+          )
+        );
+    } else {
+      // Delete only this single event
+      await this.deleteEvent(eventId);
+    }
   }
 }
 

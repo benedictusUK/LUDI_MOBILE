@@ -876,6 +876,126 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Recurring Events API endpoints
+  app.post('/api/events/recurring', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const eventData = { ...req.body, createdById: userId };
+      
+      // Validate the event data
+      const validatedData = insertEventSchema.parse(eventData);
+      
+      // Create recurring events (4 weeks ahead by default)
+      const createdEvents = await storage.createRecurringEvents(validatedData, 4);
+      
+      res.json(createdEvents);
+    } catch (error) {
+      console.error("Error creating recurring events:", error);
+      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to create recurring events" });
+    }
+  });
+
+  app.get('/api/events/series/:seriesId', isAuthenticated, async (req, res) => {
+    try {
+      const { seriesId } = req.params;
+      const seriesEvents = await storage.getRecurringEventsSeries(seriesId);
+      res.json(seriesEvents);
+    } catch (error) {
+      console.error("Error fetching recurring events series:", error);
+      res.status(500).json({ message: "Failed to fetch recurring events series" });
+    }
+  });
+
+  app.post('/api/events/series/:seriesId/suspend', isAuthenticated, async (req: any, res) => {
+    try {
+      const { seriesId } = req.params;
+      const userId = req.user.claims.sub;
+      
+      // Check authorization - user must be event creator or team admin
+      const seriesEvents = await storage.getRecurringEventsSeries(seriesId);
+      if (seriesEvents.length === 0) {
+        return res.status(404).json({ message: "Recurring series not found" });
+      }
+      
+      const firstEvent = seriesEvents[0];
+      const isEventCreator = firstEvent.createdById === userId;
+      
+      if (!isEventCreator) {
+        const userTeam = await storage.getUserTeam(userId, firstEvent.primaryTeamId);
+        const team = await storage.getTeam(firstEvent.primaryTeamId);
+        if (!userTeam || (!["admin", "captain"].includes(userTeam.role) && team?.ownerId !== userId)) {
+          return res.status(403).json({ message: "Not authorized to manage recurring events" });
+        }
+      }
+      
+      await storage.suspendRecurringSeries(seriesId, userId);
+      res.json({ message: "Recurring series suspended successfully" });
+    } catch (error) {
+      console.error("Error suspending recurring series:", error);
+      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to suspend recurring series" });
+    }
+  });
+
+  app.post('/api/events/series/:seriesId/resume', isAuthenticated, async (req: any, res) => {
+    try {
+      const { seriesId } = req.params;
+      const userId = req.user.claims.sub;
+      
+      // Check authorization - user must be event creator or team admin
+      const seriesEvents = await storage.getRecurringEventsSeries(seriesId);
+      if (seriesEvents.length === 0) {
+        return res.status(404).json({ message: "Recurring series not found" });
+      }
+      
+      const firstEvent = seriesEvents[0];
+      const isEventCreator = firstEvent.createdById === userId;
+      
+      if (!isEventCreator) {
+        const userTeam = await storage.getUserTeam(userId, firstEvent.primaryTeamId);
+        const team = await storage.getTeam(firstEvent.primaryTeamId);
+        if (!userTeam || (!["admin", "captain"].includes(userTeam.role) && team?.ownerId !== userId)) {
+          return res.status(403).json({ message: "Not authorized to manage recurring events" });
+        }
+      }
+      
+      await storage.resumeRecurringSeries(seriesId, userId);
+      res.json({ message: "Recurring series resumed successfully" });
+    } catch (error) {
+      console.error("Error resuming recurring series:", error);
+      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to resume recurring series" });
+    }
+  });
+
+  app.delete('/api/events/:id/recurring', isAuthenticated, async (req: any, res) => {
+    try {
+      const eventId = req.params.id;
+      const { deleteSeriesAfter } = req.query;
+      const userId = req.user.claims.sub;
+      
+      // Check authorization
+      const event = await storage.getEvent(eventId);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+      
+      const isEventCreator = event.createdById === userId;
+      
+      if (!isEventCreator) {
+        const userTeam = await storage.getUserTeam(userId, event.primaryTeamId);
+        const team = await storage.getTeam(event.primaryTeamId);
+        if (!userTeam || (!["admin", "captain"].includes(userTeam.role) && team?.ownerId !== userId)) {
+          return res.status(403).json({ message: "Not authorized to delete recurring events" });
+        }
+      }
+      
+      await storage.deleteRecurringEvent(eventId, deleteSeriesAfter === 'true');
+      res.json({ message: "Event(s) deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting recurring event:", error);
+      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to delete recurring event" });
+    }
+  });
+
   // Payment routes
   app.post('/api/create-payment-intent', isAuthenticated, async (req: any, res) => {
     try {

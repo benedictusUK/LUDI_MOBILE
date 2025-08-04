@@ -85,6 +85,10 @@ const eventFormSchema = z.object({
   cost: z.string().optional(),
   isPublished: z.boolean().default(false),
   requiresPayment: z.boolean().default(false),
+  // Recurring events fields
+  recurrenceType: z.enum(["none", "daily", "weekly", "monthly"]).default("none"),
+  recurrenceDaysOfWeek: z.array(z.string()).optional().default([]),
+  recurrenceEndDate: z.string().optional().or(z.literal("")),
 });
 
 type EventFormData = z.infer<typeof eventFormSchema>;
@@ -131,6 +135,9 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
       cost: "",
       isPublished: false,
       requiresPayment: false,
+      recurrenceType: "none",
+      recurrenceDaysOfWeek: [],
+      recurrenceEndDate: "",
     },
   });
 
@@ -160,6 +167,9 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
           cost: event.cost || "",
           isPublished: event.isPublished || false,
           requiresPayment: event.requiresPayment || false,
+          recurrenceType: event.recurrenceType || "none",
+          recurrenceDaysOfWeek: event.recurrenceDaysOfWeek || [],
+          recurrenceEndDate: event.recurrenceEndDate || "",
         });
         
         // Force update critical Select fields
@@ -184,9 +194,14 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
         secondaryTeamIds: data.secondaryTeamIds || [],
       };
       
-      const url = isEditing ? `/api/events/${eventId}` : "/api/events";
-      const method = isEditing ? "PUT" : "POST";
-      return apiRequest(method, url, processedData);
+      if (isEditing) {
+        // For editing, use regular update endpoint
+        return apiRequest("PUT", `/api/events/${eventId}`, processedData);
+      } else {
+        // For creating, use recurring or regular endpoint based on recurrence type
+        const url = data.recurrenceType !== "none" ? "/api/events/recurring" : "/api/events";
+        return apiRequest("POST", url, processedData);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
@@ -534,6 +549,69 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                     placeholder="0.00"
                   />
                 </div>
+              </div>
+
+              {/* Recurring Events Section */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="recurrenceType">Recurrence Pattern</Label>
+                  <Select
+                    value={form.watch("recurrenceType")}
+                    onValueChange={(value: "none" | "daily" | "weekly" | "monthly") => 
+                      form.setValue("recurrenceType", value)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select recurrence pattern" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No Recurrence</SelectItem>
+                      <SelectItem value="daily">Daily</SelectItem>
+                      <SelectItem value="weekly">Weekly</SelectItem>
+                      <SelectItem value="monthly">Monthly</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {form.watch("recurrenceType") === "weekly" && (
+                  <div className="space-y-2">
+                    <Label>Days of Week</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"].map((day) => (
+                        <div key={day} className="flex items-center space-x-1">
+                          <input
+                            type="checkbox"
+                            id={day}
+                            checked={form.watch("recurrenceDaysOfWeek").includes(day)}
+                            onChange={(e) => {
+                              const currentDays = form.watch("recurrenceDaysOfWeek");
+                              if (e.target.checked) {
+                                form.setValue("recurrenceDaysOfWeek", [...currentDays, day]);
+                              } else {
+                                form.setValue("recurrenceDaysOfWeek", currentDays.filter(d => d !== day));
+                              }
+                            }}
+                            className="rounded border-gray-300"
+                          />
+                          <Label htmlFor={day} className="text-sm capitalize">{day.slice(0, 3)}</Label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {form.watch("recurrenceType") !== "none" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="recurrenceEndDate">Recurrence End Date (Optional)</Label>
+                    <Input
+                      id="recurrenceEndDate"
+                      type="date"
+                      value={form.watch("recurrenceEndDate")}
+                      onChange={(e) => form.setValue("recurrenceEndDate", e.target.value)}
+                      min={new Date().toISOString().split('T')[0]}
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center justify-between">

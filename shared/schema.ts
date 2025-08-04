@@ -143,8 +143,11 @@ export const events = pgTable("events", {
   overduePaymentReminders: boolean("overdue_payment_reminders").default(false),
 
   // Recurring events
-  recurrenceType: varchar("recurrence_type", { enum: ["none", "weekly", "monthly"] }).default("none"),
+  recurrenceType: varchar("recurrence_type", { enum: ["none", "daily", "weekly", "monthly"] }).default("none"),
   recurrenceEndDate: date("recurrence_end_date"),
+  recurrenceDaysOfWeek: text("recurrence_days_of_week").array().default(sql`'{}'`), // e.g., ['monday', 'wednesday', 'friday']
+  recurringSeriesId: varchar("recurring_series_id"), // Groups all events in a recurring series
+  isRecurringSuspended: boolean("is_recurring_suspended").default(false), // For pausing recurrence
   parentEventId: varchar("parent_event_id"), // Self-reference handled in relations
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -485,6 +488,12 @@ export const insertEventSchema = createInsertSchema(events).omit({
     if (typeof val === 'string') return val === '' ? 0 : parseInt(val);
     return val || 0;
   }).refine((val) => val >= 0, "Reserve spots cannot be negative"),
+  // Recurring event fields
+  recurrenceType: z.enum(["none", "daily", "weekly", "monthly"]).default("none"),
+  recurrenceEndDate: z.string().optional().transform((val) => val || null),
+  recurrenceDaysOfWeek: z.array(z.string()).default([]),
+  recurringSeriesId: z.string().optional(),
+  isRecurringSuspended: z.boolean().default(false),
 });
 
 export const insertEventAttendanceSchema = createInsertSchema(eventAttendance).omit({

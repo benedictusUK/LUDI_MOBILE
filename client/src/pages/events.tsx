@@ -5,6 +5,7 @@ import { useLocation } from "wouter";
 import Navigation from "@/components/ui/nav";
 import EventForm from "@/components/ui/event-form";
 import AuditModal from "@/components/ui/audit-modal";
+import RecurringEventsManager from "@/components/ui/recurring-events-manager";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +24,15 @@ export default function Events() {
     isOpen: false,
     eventId: "",
     eventName: "",
+  });
+  const [recurringManager, setRecurringManager] = useState<{
+    isOpen: boolean;
+    eventId: string;
+    recurringSeriesId: string;
+  }>({
+    isOpen: false,
+    eventId: "",
+    recurringSeriesId: "",
   });
 
   // Extract team parameter from URL
@@ -225,7 +235,15 @@ export default function Events() {
                       background: `linear-gradient(135deg, ${teamColor} 0%, ${teamColor}dd 100%)` 
                     }}
                   >
-                    <div className="absolute top-4 right-4">
+                    <div className="absolute top-4 right-4 flex gap-2">
+                      {event.recurringSeriesId && (
+                        <Badge 
+                          variant="secondary" 
+                          className="bg-white/20 text-white border-white/30"
+                        >
+                          Recurring
+                        </Badge>
+                      )}
                       <Badge 
                         variant={event.isPublished ? "default" : "secondary"}
                         className={event.isPublished ? "" : "bg-white/20 text-white border-white/30"}
@@ -339,6 +357,23 @@ export default function Events() {
                         Audit
                       </Button>
                     )}
+                    {event.recurringSeriesId && (
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        style={{ 
+                          borderColor: teamColor,
+                          color: teamColor
+                        }}
+                        onClick={() => setRecurringManager({
+                          isOpen: true,
+                          eventId: event.id,
+                          recurringSeriesId: event.recurringSeriesId,
+                        })}
+                      >
+                        Manage Series
+                      </Button>
+                    )}
                     <Button 
                       size="sm" 
                       variant="outline" 
@@ -364,6 +399,17 @@ export default function Events() {
         isOpen={auditModal.isOpen}
         onClose={() => setAuditModal({ isOpen: false, eventId: "", eventName: "" })}
       />
+
+      {/* Recurring Events Manager Modal */}
+      {recurringManager.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <RecurringEventsManager
+            eventId={recurringManager.eventId}
+            recurringSeriesId={recurringManager.recurringSeriesId}
+            onClose={() => setRecurringManager({ isOpen: false, eventId: "", recurringSeriesId: "" })}
+          />
+        </div>
+      )}
     </div>
   );
 }
