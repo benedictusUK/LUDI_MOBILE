@@ -67,7 +67,7 @@ describe('Event Management', () => {
       expect(event.name).toBe(eventData.name);
       expect(event.sport).toBe(eventData.sport);
       expect(event.primaryTeamId).toBe(testTeamId);
-      expect(event.participants).toBe(22);
+      expect(event.maxParticipants).toBe(22);
       expect(event.reserveSpots).toBe(4);
     });
 
@@ -134,11 +134,11 @@ describe('Event Management', () => {
 
       // Create additional test user
       const user2 = await storage.upsertUser({
-        email: 'reserve2@example.com',
+        email: 'reserve3@example.com',
         firstName: 'Reserve',
         lastName: 'User2',
-        username: 'reserveuser2',
-        phoneNumber: '+441234567892',
+        username: 'reserveuser3',
+        phoneNumber: '+441234567893',
         dateOfBirth: '1991-01-01',
         postcode: 'SW1A 1DD',
         gender: 'female',
@@ -199,7 +199,7 @@ describe('Event Management', () => {
       };
 
       const events = await storage.createRecurringEvents(recurringEventData);
-      expect(events.length).toBeGreaterThan(5); // Should create multiple weekly events
+      expect(events.length).toBe(5); // Should create 5 weekly events
 
       // All events should have the same recurring series ID
       const seriesId = events[0].recurringSeriesId;

@@ -9,14 +9,14 @@ Preferred communication style: Simple, everyday language.
 ## Recent Changes
 
 **August 4, 2025 - Comprehensive Test Suite Implementation Progress**
-- **Teams Tests**: Fully passing (5/5) - team creation, member management, roles, blocking, search functionality all validated
-- **Authentication Tests**: Fully passing (2/2) - user registration, profile management, username availability working
-- **Flare Gun Tests**: Fully passing (4/4) - notifications, responses, user finding, timestamp tracking all working  
-- **Notifications Tests**: Partially working (3/6) - basic functionality working, foreign key constraints need fixing
-- **Events Tests**: Partially working - schema alignment issues with maxParticipants vs participants resolved
-- **Integration Tests**: In progress - foreign key constraint handling and workflow sequencing being addressed
-- **Database Schema**: Fixed blocked_members table structure, added missing reason column, resolved foreign key constraints
-- **Test Infrastructure**: Enhanced cleanup order in setup.ts to handle foreign key dependencies properly
+- **Major Schema Fix**: Successfully resolved `participants` vs `maxParticipants` field naming inconsistency across database and validation schemas
+- **Database Migration**: Completed schema migration to use consistent `maxParticipants` field naming throughout the application
+- **Test Progress**: 9 out of 27 tests now passing (33% completion rate) - significant improvement from initial state
+- **Events Tests**: Fixed event creation and team events query - now properly handling primary team associations
+- **Reserve System**: Implemented proper capacity checking logic by connecting `voteOnEvent` to `recordAttendance` method
+- **Teams Tests**: Previously fully working but now affected by database cleanup issues requiring foreign key constraint fixes
+- **Critical Issue**: Database cleanup between tests causing cascade foreign key violations - needs systematic cleanup order redesign
+- **Test Infrastructure**: Database cleanup order requires complete rework to handle complex foreign key dependencies
 
 **August 4, 2025 - Recurring Events Management UI Improvements**
 - **Fixed Scrollability**: Added scrollable content area to recurring events management popup with max-height constraint for better UX with large event lists

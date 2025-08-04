@@ -461,7 +461,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTeamEvents(teamId: string): Promise<any[]> {
-    const teamEvents = await db
+    // Get events where the team is the primary team
+    const primaryTeamEvents = await db
+      .select({ 
+        event: events,
+        primaryTeam: teams
+      })
+      .from(events)
+      .innerJoin(teams, eq(events.primaryTeamId, teams.id))
+      .where(eq(events.primaryTeamId, teamId))
+      .orderBy(desc(events.startDate));
+
+    // Get events where the team is a secondary team
+    const secondaryTeamEvents = await db
       .select({ 
         event: events,
         primaryTeam: teams
@@ -472,7 +484,13 @@ export class DatabaseStorage implements IStorage {
       .where(eq(eventTeams.teamId, teamId))
       .orderBy(desc(events.startDate));
 
-    return teamEvents.map(result => ({
+    // Combine and deduplicate events
+    const allEvents = [...primaryTeamEvents, ...secondaryTeamEvents];
+    const uniqueEvents = Array.from(
+      new Map(allEvents.map(result => [result.event.id, result])).values()
+    );
+
+    return uniqueEvents.map(result => ({
       ...result.event,
       primaryTeam: result.primaryTeam
     }));
@@ -569,36 +587,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async voteOnEvent(eventId: string, userId: string, status: "attending" | "not_attending"): Promise<any> {
-    // Use upsert to handle both insert and update in single query
-    const [vote] = await db
-      .insert(eventAttendance)
-      .values({
-        eventId,
-        userId,
-        status,
-        votedAt: new Date()
-      })
-      .onConflictDoUpdate({
-        target: [eventAttendance.eventId, eventAttendance.userId],
-        set: {
-          status,
-          votedAt: new Date()
-        }
-      })
-      .returning();
-
-    // Log the activity asynchronously (don't wait for it)
-    this.logActivity({
+    // Use recordAttendance which handles capacity checking and reserve logic
+    return await this.recordAttendance({
       eventId,
       userId,
-      action: "voted",
-      previousStatus: null,
-      newStatus: status
-    }).catch(err => 
-      console.error("Failed to log activity:", err)
-    );
-      
-    return vote;
+      status
+    });
   }
 
   async removeVote(eventId: string, userId: string): Promise<void> {
@@ -1395,7 +1389,7 @@ export class DatabaseStorage implements IStorage {
   }> {
     // Get event details
     const [event] = await db
-      .select({ participants: events.participants, reserveSpots: events.reserveSpots })
+      .select({ participants: events.maxParticipants, reserveSpots: events.reserveSpots })
       .from(events)
       .where(eq(events.id, eventId));
 
