@@ -479,11 +479,12 @@ export default function Teams() {
                   />
                   <div className="absolute top-4 right-4">
                     <Badge variant={
-                      team.role === "admin" ? "default" :
+                      team.isOwner ? "default" :
+                      team.role === "admin" ? "secondary" :
                       team.role === "captain" ? "secondary" :
                       "outline"
                     }>
-                      {team.role}
+                      {team.isOwner ? "Owner" : team.role}
                     </Badge>
                   </div>
                 </div>

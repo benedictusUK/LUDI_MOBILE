@@ -239,7 +239,7 @@ export class DatabaseStorage implements IStorage {
     return team;
   }
 
-  async getUserTeams(userId: string): Promise<(Team & { role: string; memberCount: number })[]> {
+  async getUserTeams(userId: string): Promise<(Team & { role: string; memberCount: number; isOwner: boolean })[]> {
     const result = await db
       .select({
         id: teams.id,
@@ -257,11 +257,12 @@ export class DatabaseStorage implements IStorage {
         updatedAt: teams.updatedAt,
         role: teamMemberships.role,
         memberCount: count(teamMemberships.id),
+        isOwner: sql<boolean>`CASE WHEN ${teams.ownerId} = ${userId} THEN true ELSE false END`,
       })
       .from(teams)
       .innerJoin(teamMemberships, eq(teams.id, teamMemberships.teamId))
       .where(eq(teamMemberships.userId, userId))
-      .groupBy(teams.id, teamMemberships.role);
+      .groupBy(teams.id, teamMemberships.role, teams.ownerId);
 
     return result;
   }
@@ -284,7 +285,7 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(teamMemberships.teamId, teamId), eq(teamMemberships.userId, userId)));
   }
 
-  async getTeamMembers(teamId: string): Promise<(TeamMembership & { user: User })[]> {
+  async getTeamMembers(teamId: string): Promise<(TeamMembership & { user: User; team: { ownerId: string } })[]> {
     const result = await db
       .select({
         id: teamMemberships.id,
@@ -293,9 +294,13 @@ export class DatabaseStorage implements IStorage {
         role: teamMemberships.role,
         joinedAt: teamMemberships.joinedAt,
         user: users,
+        team: {
+          ownerId: teams.ownerId,
+        },
       })
       .from(teamMemberships)
       .innerJoin(users, eq(teamMemberships.userId, users.id))
+      .innerJoin(teams, eq(teamMemberships.teamId, teams.id))
       .where(eq(teamMemberships.teamId, teamId));
 
     return result;

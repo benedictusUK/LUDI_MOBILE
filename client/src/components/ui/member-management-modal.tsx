@@ -152,7 +152,7 @@ export function MemberManagementModal({
                 <div className="text-center py-8 text-muted-foreground">No members found</div>
               ) : (
                 members.map((membership: any) => {
-                  const isTeamOwner = membership.user.id === membership.team?.ownerId;
+                  const isTeamOwner = membership.team ? membership.user.id === membership.team.ownerId : false;
                   const canManage = canManageMember(membership.user.id, membership.role, isTeamOwner);
 
                   return (
