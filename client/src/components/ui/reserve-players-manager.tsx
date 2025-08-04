@@ -171,19 +171,20 @@ export function ReservePlayersManager({ eventId, isAdmin = false }: ReservePlaye
               {(reserves as any[]).map((reserve: any, index: number) => (
                 <div
                   key={reserve.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+                  className="p-4 border rounded-lg hover:bg-gray-50 space-y-3"
                 >
+                  {/* First line: User info */}
                   <div className="flex items-center gap-3">
-                    <Badge variant="outline" className="text-xs">
+                    <Badge variant="outline" className="text-xs flex-shrink-0">
                       #{index + 1}
                     </Badge>
-                    <Avatar className="h-10 w-10">
+                    <Avatar className="h-10 w-10 flex-shrink-0">
                       <AvatarImage src={reserve.user.profileImageUrl} />
                       <AvatarFallback>
                         {reserve.user.firstName?.[0]}{reserve.user.lastName?.[0]}
                       </AvatarFallback>
                     </Avatar>
-                    <div>
+                    <div className="flex-1">
                       <p className="font-medium">
                         {reserve.user.firstName} {reserve.user.lastName}
                       </p>
@@ -193,8 +194,12 @@ export function ReservePlayersManager({ eventId, isAdmin = false }: ReservePlaye
                     </div>
                   </div>
                   
+                  {/* Second line: Actions */}
                   {isAdmin && (
-                    <div className="flex gap-2">
+                    <div className="flex justify-between items-center">
+                      <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+                        Reserve
+                      </Badge>
                       <Button
                         size="sm"
                         variant="outline"
@@ -237,26 +242,28 @@ export function ReservePlayersManager({ eventId, isAdmin = false }: ReservePlaye
               {attendingPlayers.map((player: any) => (
                 <div
                   key={player.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+                  className="p-4 border rounded-lg hover:bg-gray-50 space-y-3"
                 >
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                  {/* First line: User info */}
+                  <div className="flex items-center gap-3">
                     <Avatar className="h-10 w-10 flex-shrink-0">
                       <AvatarImage src={player.user.profileImageUrl} />
                       <AvatarFallback>
                         {player.user.firstName?.[0]}{player.user.lastName?.[0]}
                       </AvatarFallback>
                     </Avatar>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium truncate">
+                    <div className="flex-1">
+                      <p className="font-medium">
                         {player.user.firstName} {player.user.lastName}
                       </p>
-                      <p className="text-sm text-gray-500 truncate">
+                      <p className="text-sm text-gray-500">
                         Confirmed {new Date(player.votedAt).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
                   
-                  <div className="flex gap-2 flex-shrink-0">
+                  {/* Second line: Status and actions */}
+                  <div className="flex items-center justify-between">
                     <Badge variant="default" className="bg-green-100 text-green-800">
                       Attending
                     </Badge>
@@ -269,7 +276,7 @@ export function ReservePlayersManager({ eventId, isAdmin = false }: ReservePlaye
                           demotePlayerMutation.isPending ||
                           (capacity as any).reserveCount >= (capacity as any).reserveSpots
                         }
-                        className="flex items-center gap-1 whitespace-nowrap"
+                        className="flex items-center gap-1"
                       >
                         <ArrowDown className="h-4 w-4" />
                         To Reserve
