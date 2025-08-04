@@ -128,7 +128,7 @@ export const events = pgTable("events", {
   address: text("address"), // Full address for location-based features like flare gun radius
   postcode: varchar("postcode", { length: 20 }), // Postcode for radius calculations
   cost: decimal("cost", { precision: 10, scale: 2 }).default("0.00"),
-  participants: integer("participants"), // Maximum number of participants
+  maxParticipants: integer("max_participants"), // Maximum number of participants
   reserveSpots: integer("reserve_spots").default(0), // Number of reserve spots available
   requirements: text("requirements"),
   gender: varchar("gender", { enum: ["male", "female", "mixed"] }).notNull().default("mixed"), // event gender restriction
