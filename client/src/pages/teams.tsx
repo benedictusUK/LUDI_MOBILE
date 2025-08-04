@@ -493,16 +493,26 @@ export default function Teams() {
                         maxNumberOfFiles={1}
                         maxFileSize={5242880} // 5MB
                         onGetUploadParameters={async () => {
-                          const response = await apiRequest('POST', '/api/objects/upload');
-                          const data = await response.json();
-                          console.log('Got upload response:', data);
-                          if (!data.uploadURL) {
-                            throw new Error('No upload URL received');
+                          try {
+                            console.log('Requesting upload URL...');
+                            const response = await apiRequest('POST', '/api/objects/upload');
+                            console.log('Raw response:', response);
+                            const data = await response.json();
+                            console.log('Parsed upload response:', data);
+                            console.log('Upload URL:', data.uploadURL);
+                            if (!data.uploadURL) {
+                              throw new Error('No upload URL received');
+                            }
+                            const result = {
+                              method: 'PUT' as const,
+                              url: data.uploadURL,
+                            };
+                            console.log('Returning to Uppy:', result);
+                            return result;
+                          } catch (error) {
+                            console.error('Error getting upload parameters:', error);
+                            throw error;
                           }
-                          return {
-                            method: 'PUT' as const,
-                            url: data.uploadURL,
-                          };
                         }}
                         onComplete={async (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
                           if (result.successful && result.successful.length > 0) {
