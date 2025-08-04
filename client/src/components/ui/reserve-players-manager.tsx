@@ -239,24 +239,24 @@ export function ReservePlayersManager({ eventId, isAdmin = false }: ReservePlaye
                   key={player.id}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
                 >
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <Avatar className="h-10 w-10 flex-shrink-0">
                       <AvatarImage src={player.user.profileImageUrl} />
                       <AvatarFallback>
                         {player.user.firstName?.[0]}{player.user.lastName?.[0]}
                       </AvatarFallback>
                     </Avatar>
-                    <div>
-                      <p className="font-medium">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium truncate">
                         {player.user.firstName} {player.user.lastName}
                       </p>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-gray-500 truncate">
                         Confirmed {new Date(player.votedAt).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
                   
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-shrink-0">
                     <Badge variant="default" className="bg-green-100 text-green-800">
                       Attending
                     </Badge>
@@ -269,10 +269,10 @@ export function ReservePlayersManager({ eventId, isAdmin = false }: ReservePlaye
                           demotePlayerMutation.isPending ||
                           (capacity as any).reserveCount >= (capacity as any).reserveSpots
                         }
-                        className="flex items-center gap-1"
+                        className="flex items-center gap-1 whitespace-nowrap"
                       >
                         <ArrowDown className="h-4 w-4" />
-                        Move to Reserve
+                        To Reserve
                       </Button>
                     )}
                   </div>

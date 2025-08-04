@@ -504,7 +504,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
 
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <Label htmlFor="maxParticipants">Max Participants</Label>
+                  <Label htmlFor="maxParticipants">Max Players</Label>
                   <Input
                     id="maxParticipants"
                     type="number"
