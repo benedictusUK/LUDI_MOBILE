@@ -15,17 +15,17 @@ export default function DashboardStats({ stats }: DashboardStatsProps) {
 
   if (!stats) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         {[...Array(4)].map((_, i) => (
           <Card key={i}>
-            <CardContent className="p-6">
+            <CardContent className="p-4">
               <div className="animate-pulse">
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="h-4 bg-neutral-200 rounded w-24 mb-2"></div>
-                    <div className="h-8 bg-neutral-200 rounded w-16"></div>
+                    <div className="h-6 bg-neutral-200 rounded w-16"></div>
                   </div>
-                  <div className="h-12 w-12 bg-neutral-200 rounded-lg"></div>
+                  <div className="h-10 w-10 bg-neutral-200 rounded-lg"></div>
                 </div>
               </div>
             </CardContent>
