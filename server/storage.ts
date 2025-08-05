@@ -1479,12 +1479,26 @@ export class DatabaseStorage implements IStorage {
       return nextDate;
     };
 
-    // Generate events for the specified number of weeks
+    // For weekly recurrence, find the first occurrence of the selected day
     let currentDate = new Date(parentEvent.startDate);
+    if (parentEvent.recurrenceType === "weekly" && parentEvent.recurrenceDaysOfWeek.length > 0) {
+      const targetDayName = parentEvent.recurrenceDaysOfWeek[0]; // Take the first selected day
+      const targetDay = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"].indexOf(targetDayName);
+      const currentDay = currentDate.getDay();
+      
+      // Calculate days until the target day
+      let daysUntilTarget = (targetDay - currentDay + 7) % 7;
+      if (daysUntilTarget === 0 && currentDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() !== targetDayName) {
+        daysUntilTarget = 7; // If today is not the target day, wait for next week
+      }
+      
+      currentDate.setDate(currentDate.getDate() + daysUntilTarget);
+    }
+    
     const endGenerationDate = new Date(currentDate);
     endGenerationDate.setDate(endGenerationDate.getDate() + (numberOfWeeks * 7));
 
-    console.log("Start date:", currentDate);
+    console.log("Adjusted start date:", currentDate);
     console.log("End generation date:", endGenerationDate);
     console.log("Recurrence type:", parentEvent.recurrenceType);
     console.log("Days of week:", parentEvent.recurrenceDaysOfWeek);
