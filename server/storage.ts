@@ -1417,7 +1417,16 @@ export class DatabaseStorage implements IStorage {
         status: teamInvitations.status,
         invitedAt: teamInvitations.invitedAt,
         respondedAt: teamInvitations.respondedAt,
-        team: teams,
+        team: {
+          id: teams.id,
+          name: teams.name,
+          description: teams.description,
+          ownerId: teams.ownerId,
+          gender: teams.gender,
+          postcode: teams.postcode,
+          createdAt: teams.createdAt,
+          updatedAt: teams.updatedAt,
+        },
         invitedBy: {
           id: sql<string>`inviter.id`,
           username: sql<string>`inviter.username`,
