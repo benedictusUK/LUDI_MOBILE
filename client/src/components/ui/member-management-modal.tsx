@@ -170,9 +170,9 @@ export function MemberManagementModal({
 
         <Tabs defaultValue="members" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="members">Members ({members.length})</TabsTrigger>
+            <TabsTrigger value="members">Members ({(members as any[]).length})</TabsTrigger>
             <TabsTrigger value="invite">Invite Players</TabsTrigger>
-            <TabsTrigger value="blocked">Blocked ({blockedMembers.length})</TabsTrigger>
+            <TabsTrigger value="blocked">Blocked ({(blockedMembers as any[]).length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="members" className="space-y-4">
@@ -183,7 +183,7 @@ export function MemberManagementModal({
                 <div className="text-center py-8 text-muted-foreground">No members found</div>
               ) : (
                 (members as any[]).map((membership: any) => {
-                  const isTeamOwner = membership.team ? membership.user.id === membership.team.ownerId : false;
+                  const isTeamOwner = membership.team?.ownerId ? membership.user.id === membership.team.ownerId : false;
                   const canManage = canManageMember(membership.user.id, membership.role, isTeamOwner);
 
                   return (
@@ -253,7 +253,7 @@ export function MemberManagementModal({
                       )}
 
                       {/* Leave Team Button - for current user only */}
-                      {membership.user.id === currentUser?.id && !isOwner && (
+                      {membership.user.id === currentUser?.id && !isTeamOwner && (
                         <div className="pt-2 border-t">
                           <Button
                             variant="outline"

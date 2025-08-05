@@ -314,6 +314,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Remove team member
+  app.delete('/api/teams/:id/members/:userId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id: teamId, userId } = req.params;
+      const currentUserId = req.user.claims.sub;
+
+      // Check if current user can remove members (team owner or admin)
+      const membership = await storage.getUserTeam(currentUserId, teamId);
+      const team = await storage.getTeam(teamId);
+      
+      if (!team || (team.ownerId !== currentUserId && (!membership || membership.role !== 'admin'))) {
+        return res.status(403).json({ message: "Only team owners and admins can remove members" });
+      }
+
+      // Don't allow removing the team owner
+      if (team.ownerId === userId) {
+        return res.status(400).json({ message: "Cannot remove team owner" });
+      }
+
+      await storage.removeTeamMember(teamId, userId);
+      res.json({ message: "Member removed successfully" });
+    } catch (error: any) {
+      console.error("Error removing team member:", error);
+      res.status(400).json({ message: error.message || "Failed to remove member" });
+    }
+  });
+
   // Get blocked members
   app.get('/api/teams/:id/blocked', isAuthenticated, async (req: any, res) => {
     try {

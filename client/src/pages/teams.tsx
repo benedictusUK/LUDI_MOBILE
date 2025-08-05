@@ -760,7 +760,7 @@ export default function Teams() {
                         <div className="flex items-center space-x-3">
                           <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
                             <span className="text-white font-medium">
-                              {member.firstName?.[0] || member.email[0].toUpperCase()}
+                              {member.firstName?.[0] || member.email?.[0]?.toUpperCase() || 'U'}
                             </span>
                           </div>
                           <div>
