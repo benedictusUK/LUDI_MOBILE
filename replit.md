@@ -8,6 +8,28 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+**August 5, 2025 - Complete Team Management & Invitation System Overhaul**
+- **Leave Team Functionality**: Successfully implemented comprehensive Leave Team feature for team members
+  - Added prominent red "Leave Team" button to team management modal for non-owner members
+  - Implemented proper confirmation dialog to prevent accidental team departures
+  - Connected to existing backend `/api/teams/:id/leave` route with automatic dashboard refresh
+  - Fixed activity logging constraint issue that was causing database errors
+  - Button correctly hidden for team owners (who must transfer ownership or delete team instead)
+- **Enhanced Invitation System**: Completed robust invitation workflow with automatic cleanup and resend capabilities
+  - Fixed SQL syntax errors in invitation acceptance that were preventing team joins
+  - Implemented automatic cleanup of old declined/accepted invitations to allow resending
+  - Added proper notification marking as "read" when invitations are accepted or declined
+  - Resolved unique constraint violations by removing previous invitation records before creating new ones
+  - Fixed missing import errors (`ne` function) that were blocking invitation sending
+- **Team Member Management**: Improved member visibility and access controls
+  - Enhanced "View Members" functionality to properly display team member lists
+  - Maintained proper role-based access with "Manage Members" restricted to admins/owners only
+  - Added comprehensive debug information for ownership detection troubleshooting
+- **Database Integrity**: Resolved multiple database constraint and foreign key issues
+  - Cleared problematic declined invitation records that were blocking re-invitations
+  - Fixed avatar fallback logic to handle null/undefined email addresses gracefully
+  - Implemented proper error handling for team membership edge cases
+
 **August 5, 2025 - OAuth Authentication Implementation (Prepared) & Manual Registration**
 - **OAuth Infrastructure**: Successfully implemented Google and Apple OAuth authentication alongside existing Replit auth
   - Created comprehensive OAuth providers module with proper error handling and fallbacks
