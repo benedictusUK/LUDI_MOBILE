@@ -325,6 +325,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Send team invitation
+  app.post('/api/teams/:id/invitations', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id: teamId } = req.params;
+      const { userId } = req.body;
+      const currentUserId = req.user.claims.sub;
+
+      // Check if current user can send invitations (team owner or admin)
+      const membership = await storage.getUserTeam(currentUserId, teamId);
+      const team = await storage.getTeam(teamId);
+      
+      if (!team || (team.ownerId !== currentUserId && (!membership || membership.role !== 'admin'))) {
+        return res.status(403).json({ message: "Only team owners and admins can send invitations" });
+      }
+
+      // Check if user is already a member
+      const existingMembership = await storage.getUserTeam(userId, teamId);
+      if (existingMembership) {
+        return res.status(400).json({ message: "User is already a team member" });
+      }
+
+      // Check if user is blocked
+      const blockedMembers = await storage.getBlockedMembers(teamId);
+      const isBlocked = blockedMembers.some(blocked => blocked.userId === userId);
+      if (isBlocked) {
+        return res.status(400).json({ message: "Cannot invite blocked user" });
+      }
+
+      // For now, automatically add the user (in a real app, you'd send a notification)
+      // In the future, this could create an invitation record that the user can accept/decline
+      await storage.addTeamMember(teamId, userId);
+
+      // Create notification for the invited user
+      const inviter = await storage.getUser(currentUserId);
+      await storage.createNotification({
+        userId: userId,
+        title: "Team Invitation",
+        message: `${inviter?.username || 'Someone'} added you to the team "${team.name}"`,
+        type: "team",
+        relatedId: teamId
+      });
+
+      res.json({ message: "User successfully invited to the team" });
+    } catch (error: any) {
+      console.error("Error sending team invitation:", error);
+      res.status(400).json({ message: error.message || "Failed to send invitation" });
+    }
+  });
+
   // Approve join request
   app.post('/api/teams/:id/approve-join/:userId', isAuthenticated, async (req: any, res) => {
     try {
@@ -362,6 +411,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error checking username:", error);
       res.status(500).json({ message: "Failed to check username" });
+    }
+  });
+
+  // Search users for team invitations
+  app.get('/api/users/search', isAuthenticated, async (req: any, res) => {
+    try {
+      const { q: query, excludeTeam } = req.query;
+      
+      if (!query || query.length < 2) {
+        return res.json([]);
+      }
+
+      let excludeUserIds: string[] = [];
+      
+      // If excludeTeam is provided, get team member IDs to exclude from search
+      if (excludeTeam) {
+        const teamMembers = await storage.getTeamMembers(excludeTeam);
+        excludeUserIds = teamMembers.map(member => member.userId);
+      }
+
+      const users = await storage.searchUsers(query, excludeUserIds);
+      
+      // Remove sensitive information before sending to client
+      const sanitizedUsers = users.map(user => ({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        profileImageUrl: user.profileImageUrl,
+        phoneNumber: user.phoneNumber // Include for search display purposes
+      }));
+
+      res.json(sanitizedUsers);
+    } catch (error) {
+      console.error("Error searching users:", error);
+      res.status(500).json({ message: "Failed to search users" });
     }
   });
 

@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Textarea } from "./textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { AlertTriangle, Crown, Shield, User, Ban, CheckCircle, XCircle } from "lucide-react";
+import { AlertTriangle, Crown, Shield, User, Ban, CheckCircle, XCircle, UserPlus } from "lucide-react";
+import { UserSearchModal } from "./user-search-modal";
 
 interface MemberManagementModalProps {
   isOpen: boolean;
@@ -32,6 +33,7 @@ export function MemberManagementModal({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [blockReason, setBlockReason] = useState("");
+  const [showInviteModal, setShowInviteModal] = useState(false);
 
   // Fetch team members
   const { data: members = [], isLoading: membersLoading } = useQuery({
@@ -141,9 +143,10 @@ export function MemberManagementModal({
         </DialogHeader>
 
         <Tabs defaultValue="members" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="members">Team Members</TabsTrigger>
-            <TabsTrigger value="blocked">Blocked Members</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="members">Members ({members.length})</TabsTrigger>
+            <TabsTrigger value="invite">Invite Players</TabsTrigger>
+            <TabsTrigger value="blocked">Blocked ({blockedMembers.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="members" className="space-y-4">
@@ -224,6 +227,33 @@ export function MemberManagementModal({
             </div>
           </TabsContent>
 
+          <TabsContent value="invite" className="space-y-4">
+            <div className="text-center space-y-4">
+              <div className="flex flex-col items-center space-y-3">
+                <UserPlus className="h-12 w-12 text-primary opacity-50" />
+                <div>
+                  <h3 className="text-lg font-semibold">Invite Players to Your Team</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Search for users by username, email, or phone number and invite multiple players at once
+                  </p>
+                </div>
+                <Button
+                  onClick={() => setShowInviteModal(true)}
+                  className="mt-4"
+                  disabled={!isOwner && !isAdmin}
+                >
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Search & Invite Players
+                </Button>
+                {!isOwner && !isAdmin && (
+                  <p className="text-xs text-muted-foreground">
+                    Only team owners and admins can invite players
+                  </p>
+                )}
+              </div>
+            </div>
+          </TabsContent>
+
           <TabsContent value="blocked" className="space-y-4">
             <div className="space-y-4">
               {blockedLoading ? (
@@ -289,6 +319,14 @@ export function MemberManagementModal({
             )}
           </TabsContent>
         </Tabs>
+
+        {/* User Search Modal */}
+        <UserSearchModal
+          isOpen={showInviteModal}
+          onClose={() => setShowInviteModal(false)}
+          teamId={teamId}
+          teamName={teamName}
+        />
       </DialogContent>
     </Dialog>
   );

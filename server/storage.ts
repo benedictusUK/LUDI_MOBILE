@@ -38,13 +38,14 @@ import {
   type InsertFlareResponse,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, count, sql, or, notInArray } from "drizzle-orm";
+import { eq, and, desc, count, sql, or, notInArray, asc, inArray } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
   // User operations (required for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  searchUsers(query: string, excludeUserIds?: string[]): Promise<User[]>;
   upsertUser(user: UpsertUser): Promise<User>;
   upsertAuthUser(user: AuthUser): Promise<User>;
   updateUserStripeInfo(userId: string, stripeCustomerId: string, stripeSubscriptionId?: string): Promise<User>;
@@ -155,6 +156,34 @@ export class DatabaseStorage implements IStorage {
   async getUserByUsername(username: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.username, username));
     return user;
+  }
+
+  async searchUsers(query: string, excludeUserIds: string[] = []): Promise<User[]> {
+    const searchQuery = `%${query.toLowerCase()}%`;
+    
+    let whereCondition = or(
+      sql`LOWER(${users.username}) LIKE ${searchQuery}`,
+      sql`LOWER(${users.email}) LIKE ${searchQuery}`,
+      sql`LOWER(${users.phoneNumber}) LIKE ${searchQuery}`,
+      sql`LOWER(${users.firstName}) LIKE ${searchQuery}`,
+      sql`LOWER(${users.lastName}) LIKE ${searchQuery}`
+    );
+
+    // Exclude specified user IDs if provided
+    if (excludeUserIds.length > 0) {
+      whereCondition = and(
+        whereCondition,
+        sql`${users.id} NOT IN (${sql.join(excludeUserIds.map(id => sql`${id}`), sql`, `)})`
+      );
+    }
+
+    const results = await db
+      .select()
+      .from(users)
+      .where(whereCondition)
+      .limit(20); // Limit results to avoid too many matches
+
+    return results;
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
