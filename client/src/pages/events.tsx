@@ -90,9 +90,9 @@ export default function Events() {
     // User can edit if they're the team owner
     if (primaryTeam.ownerId === (user as any).id) return true;
     
-    // User can edit if they have admin role in the team
-    const userMembership = primaryTeam.members?.find((member: any) => member.userId === (user as any).id);
-    return userMembership?.role === "admin";
+    // User can edit if they have admin or captain role in the team
+    // The team object already contains the user's role since getUserTeams returns the user's role
+    return primaryTeam.role === "admin" || primaryTeam.role === "captain";
   };
 
   // Filter events by selected team if specified
