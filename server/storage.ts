@@ -1324,7 +1324,7 @@ export class DatabaseStorage implements IStorage {
       throw new Error("Cannot invite blocked user");
     }
 
-    // Check if invitation already exists
+    // Check if there's a pending invitation (don't allow duplicate pending invitations)
     const existingInvitation = await db
       .select()
       .from(teamInvitations)
@@ -1468,6 +1468,16 @@ export class DatabaseStorage implements IStorage {
       })
       .where(eq(teamInvitations.id, invitationId));
 
+    // Mark the original invitation notification as read
+    await db
+      .update(notifications)
+      .set({ readAt: new Date() })
+      .where(and(
+        eq(notifications.userId, userId),
+        eq(notifications.relatedId, invitationId),
+        eq(notifications.type, "team_invitation")
+      ));
+
     // Notify the inviter
     const team = await this.getTeam(invitation.teamId);
     const user = await this.getUser(userId);
@@ -1508,6 +1518,16 @@ export class DatabaseStorage implements IStorage {
         respondedAt: new Date()
       })
       .where(eq(teamInvitations.id, invitationId));
+
+    // Mark the original invitation notification as read
+    await db
+      .update(notifications)
+      .set({ readAt: new Date() })
+      .where(and(
+        eq(notifications.userId, userId),
+        eq(notifications.relatedId, invitationId),
+        eq(notifications.type, "team_invitation")
+      ));
 
     // Notify the inviter
     const team = await this.getTeam(invitation.teamId);

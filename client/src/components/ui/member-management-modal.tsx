@@ -282,8 +282,12 @@ export function MemberManagementModal({
                       
                       {/* Debug info - Remove after testing */}
                       {membership.user.id === currentUser?.id && (
-                        <div className="text-xs text-gray-500 mt-2">
-                          Current User: {currentUser?.id} | Team Owner: {(teamData as any)?.ownerId} | Show Leave: {!isCurrentUserOwner ? 'Yes' : 'No'}
+                        <div className="text-xs text-gray-500 mt-2 p-2 bg-gray-100 rounded">
+                          <div>Current User: {currentUser?.id}</div>
+                          <div>Team Owner: {(teamData as any)?.ownerId}</div>
+                          <div>Is Owner: {isCurrentUserOwner ? 'Yes' : 'No'}</div>
+                          <div>Show Leave Button: {!isCurrentUserOwner ? 'Yes' : 'No'}</div>
+                          <div>Team Data: {JSON.stringify(teamData)}</div>
                         </div>
                       )}
                     </div>
