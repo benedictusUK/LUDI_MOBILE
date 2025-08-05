@@ -966,6 +966,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post('/api/events/series/:seriesId/publish', isAuthenticated, async (req: any, res) => {
+    try {
+      const { seriesId } = req.params;
+      const userId = req.user.claims.sub;
+      
+      // Check authorization - user must be event creator or team admin
+      const seriesEvents = await storage.getRecurringEventsSeries(seriesId);
+      if (seriesEvents.length === 0) {
+        return res.status(404).json({ message: "Recurring series not found" });
+      }
+      
+      const firstEvent = seriesEvents[0];
+      const isEventCreator = firstEvent.createdById === userId;
+      
+      if (!isEventCreator) {
+        const userTeam = await storage.getUserTeam(userId, firstEvent.primaryTeamId);
+        const team = await storage.getTeam(firstEvent.primaryTeamId);
+        if (!userTeam || (!["admin", "captain"].includes(userTeam.role) && team?.ownerId !== userId)) {
+          return res.status(403).json({ message: "Not authorized to publish recurring events" });
+        }
+      }
+      
+      await storage.publishRecurringSeries(seriesId, userId);
+      res.json({ message: "Recurring series published successfully" });
+    } catch (error) {
+      console.error("Error publishing recurring series:", error);
+      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to publish recurring series" });
+    }
+  });
+
   app.delete('/api/events/:id/recurring', isAuthenticated, async (req: any, res) => {
     try {
       const eventId = req.params.id;

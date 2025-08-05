@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, Clock, Users, AlertTriangle, Play, Pause, Trash2, X } from "lucide-react";
+import { Calendar, Clock, Users, AlertTriangle, Play, Pause, Trash2, X, CheckCircle } from "lucide-react";
 
 interface RecurringEventsManagerProps {
   eventId: string;
@@ -30,7 +30,7 @@ export default function RecurringEventsManager({
 }: RecurringEventsManagerProps) {
   const { toast } = useToast();
   const [actionDialog, setActionDialog] = useState<{
-    type: 'suspend' | 'resume' | 'delete' | 'delete-series';
+    type: 'suspend' | 'resume' | 'delete' | 'delete-series' | 'publish-all';
     eventId?: string;
     show: boolean;
   }>({ type: 'suspend', show: false });
@@ -78,6 +78,27 @@ export default function RecurringEventsManager({
       toast({
         title: "Error",
         description: error.message || "Failed to resume recurring series",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Publish series mutation
+  const publishSeriesMutation = useMutation({
+    mutationFn: () => apiRequest('POST', `/api/events/series/${recurringSeriesId}/publish`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/events/series', recurringSeriesId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/events'] });
+      toast({
+        title: "Success",
+        description: "All events in series published successfully",
+      });
+      setActionDialog({ type: 'publish-all', show: false });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to publish series",
         variant: "destructive",
       });
     },
@@ -136,6 +157,9 @@ export default function RecurringEventsManager({
       case 'resume':
         resumeSeriesMutation.mutate();
         break;
+      case 'publish-all':
+        publishSeriesMutation.mutate();
+        break;
       case 'delete':
         if (actionDialog.eventId) {
           deleteEventMutation.mutate(actionDialog.eventId);
@@ -170,6 +194,7 @@ export default function RecurringEventsManager({
   const pastEvents = eventsList.filter((event: any) => event.startDate < currentDate);
   const firstEvent = eventsList[0];
   const isSuspended = firstEvent?.isRecurringSuspended;
+  const hasUnpublishedEvents = eventsList.some((event: any) => !event.isPublished);
 
   return (
     <>
@@ -194,6 +219,17 @@ export default function RecurringEventsManager({
               <X className="w-4 h-4" />
             </Button>
             <div className="flex flex-col gap-1">
+              {hasUnpublishedEvents && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setActionDialog({ type: 'publish-all', show: true })}
+                  className="text-green-600 hover:text-green-700 flex items-center gap-2 justify-start"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  Publish All
+                </Button>
+              )}
               {futureEvents.length > 0 && (
                 <Button
                   variant="ghost"
@@ -273,6 +309,9 @@ export default function RecurringEventsManager({
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      {!event.isPublished && (
+                        <Badge variant="outline" className="text-xs text-orange-600 border-orange-300">Unpublished</Badge>
+                      )}
                       {event.isRecurringSuspended && (
                         <Badge variant="secondary" className="text-xs">Suspended</Badge>
                       )}
@@ -346,6 +385,9 @@ export default function RecurringEventsManager({
               {actionDialog.type === 'delete-series' && 
                 "This will delete this event and all future events in the recurring series. This action cannot be undone."
               }
+              {actionDialog.type === 'publish-all' && 
+                "This will publish all unpublished events in this recurring series, making them visible to team members."
+              }
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -354,11 +396,14 @@ export default function RecurringEventsManager({
               onClick={handleAction}
               className={actionDialog.type.includes('delete') ? 
                 "bg-red-600 hover:bg-red-700" : 
+                actionDialog.type === 'publish-all' ?
+                "bg-green-600 hover:bg-green-700" :
                 "bg-blue-600 hover:bg-blue-700"
               }
             >
               {actionDialog.type === 'suspend' && 'Suspend Series'}
               {actionDialog.type === 'resume' && 'Resume Series'}
+              {actionDialog.type === 'publish-all' && 'Publish All'}
               {actionDialog.type === 'delete' && 'Delete Event'}
               {actionDialog.type === 'delete-series' && 'Delete Series'}
             </AlertDialogAction>

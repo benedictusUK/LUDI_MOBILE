@@ -1545,6 +1545,13 @@ export class DatabaseStorage implements IStorage {
       .where(eq(events.recurringSeriesId, recurringSeriesId));
   }
 
+  async publishRecurringSeries(recurringSeriesId: string, userId: string): Promise<void> {
+    await db
+      .update(events)
+      .set({ isPublished: true })
+      .where(eq(events.recurringSeriesId, recurringSeriesId));
+  }
+
   async deleteRecurringEvent(eventId: string, deleteSeriesAfter: boolean = false): Promise<void> {
     const event = await this.getEvent(eventId);
     if (!event) throw new Error("Event not found");
