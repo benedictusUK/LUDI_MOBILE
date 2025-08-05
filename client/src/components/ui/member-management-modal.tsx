@@ -37,6 +37,15 @@ export function MemberManagementModal({
   const [blockReason, setBlockReason] = useState("");
   const [showInviteModal, setShowInviteModal] = useState(false);
 
+  // Fetch team details to get actual ownership info
+  const { data: teamData } = useQuery({
+    queryKey: ["/api/teams", teamId],
+    enabled: isOpen,
+  });
+
+  // Determine if current user is owner of this specific team
+  const isCurrentUserOwner = teamData?.ownerId === currentUser?.id;
+
   // Fetch team members
   const { data: members = [], isLoading: membersLoading } = useQuery({
     queryKey: ["/api/teams", teamId, "members"],
@@ -252,8 +261,8 @@ export function MemberManagementModal({
                         </div>
                       )}
 
-                      {/* Leave Team Button - for current user only */}
-                      {membership.user.id === currentUser?.id && !isTeamOwner && (
+                      {/* Leave Team Button - for current user only, not team owners */}
+                      {membership.user.id === currentUser?.id && !isCurrentUserOwner && (
                         <div className="pt-2 border-t">
                           <Button
                             variant="outline"
@@ -265,6 +274,13 @@ export function MemberManagementModal({
                             <LogOut className="h-4 w-4 mr-2" />
                             Leave Team
                           </Button>
+                        </div>
+                      )}
+                      
+                      {/* Debug info - Remove after testing */}
+                      {membership.user.id === currentUser?.id && (
+                        <div className="text-xs text-gray-500 mt-2">
+                          Current User: {currentUser?.id} | Team Owner: {teamData?.ownerId} | Show Leave: {!isCurrentUserOwner ? 'Yes' : 'No'}
                         </div>
                       )}
                     </div>
