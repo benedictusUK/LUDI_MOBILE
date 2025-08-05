@@ -1225,8 +1225,29 @@ export class DatabaseStorage implements IStorage {
       throw new Error("Not authorized to approve join requests");
     }
 
+    // Prevent self-approval
+    if (userId === approverId) {
+      throw new Error("Cannot approve your own join request");
+    }
+
+    // Check if user is already a member
+    const existingMembership = await this.getUserTeam(userId, teamId);
+    if (existingMembership) {
+      throw new Error("User is already a member of this team");
+    }
+
     // Add user to team
-    const membership = await this.joinTeam(teamId, userId);
+    const membership = await this.addTeamMember(teamId, userId, "member");
+
+    // Mark the join request notification as read
+    await db
+      .update(notifications)
+      .set({ readAt: new Date() })
+      .where(and(
+        eq(notifications.type, "team_join_request"),
+        eq(notifications.relatedId, teamId),
+        eq(notifications.userId, approverId)
+      ));
 
     // Notify the user that their request was approved
     const user = await this.getUser(userId);
@@ -1253,6 +1274,16 @@ export class DatabaseStorage implements IStorage {
         (rejectorMembership && !["admin"].includes(rejectorMembership.role) && team.ownerId !== rejectedById)) {
       throw new Error("Not authorized to reject join requests");
     }
+
+    // Mark the join request notification as read
+    await db
+      .update(notifications)
+      .set({ readAt: new Date() })
+      .where(and(
+        eq(notifications.type, "team_join_request"),
+        eq(notifications.relatedId, teamId),
+        eq(notifications.userId, rejectedById)
+      ));
 
     // Notify the user that their request was rejected
     const user = await this.getUser(userId);
