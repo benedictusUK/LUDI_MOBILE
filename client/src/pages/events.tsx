@@ -393,15 +393,17 @@ export default function Events() {
                         Manage Series
                       </Button>
                     )}
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      onClick={() => deleteEventMutation.mutate(event.id)}
-                      disabled={deleteEventMutation.isPending}
-                      className="hover:bg-red-50 hover:border-red-300 hover:text-red-600"
-                    >
-                      Delete
-                    </Button>
+                    {canEditEvent(event) && (
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={() => deleteEventMutation.mutate(event.id)}
+                        disabled={deleteEventMutation.isPending}
+                        className="hover:bg-red-50 hover:border-red-300 hover:text-red-600"
+                      >
+                        Delete
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
