@@ -79,11 +79,10 @@ export default function Home() {
       <Navigation />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-neutral-900 mb-2">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-neutral-900">
             Welcome back, {(user as any)?.firstName || "User"}!
           </h1>
-          <p className="text-neutral-500">Overview of your sports activities and upcoming events</p>
         </div>
 
         {/* Stats Grid */}
