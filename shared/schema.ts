@@ -227,6 +227,7 @@ export const notifications = pgTable("notifications", {
   relatedId: varchar("related_id"), // ID of related event, team, etc.
   metadata: text("metadata"), // JSON string for additional data like requestUserId
   isRead: boolean("is_read").default(false),
+  readAt: timestamp("read_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
