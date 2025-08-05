@@ -78,6 +78,23 @@ export default function Events() {
     queryKey: ["/api/teams"],
   });
 
+  const { user } = useAuth();
+
+  // Helper function to check if user can edit an event
+  const canEditEvent = (event: any) => {
+    if (!user || !event?.primaryTeamId) return false;
+    
+    const primaryTeam = (teams as any[]).find((team: any) => team.id === event.primaryTeamId);
+    if (!primaryTeam) return false;
+    
+    // User can edit if they're the team owner
+    if (primaryTeam.ownerId === (user as any).id) return true;
+    
+    // User can edit if they have admin role in the team
+    const userMembership = primaryTeam.members?.find((member: any) => member.userId === (user as any).id);
+    return userMembership?.role === "admin";
+  };
+
   // Filter events by selected team if specified
   const filteredEvents = selectedTeamId 
     ? (events as any[]).filter((event: any) => event.primaryTeamId === selectedTeamId)
@@ -325,20 +342,22 @@ export default function Events() {
                         Vote
                       </Button>
                     )}
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      style={{ 
-                        borderColor: teamColor,
-                        color: teamColor
-                      }}
-                      onClick={() => {
-                        setEditingEvent(event.id);
-                        setShowCreateForm(false);
-                      }}
-                    >
-                      Edit
-                    </Button>
+                    {canEditEvent(event) && (
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        style={{ 
+                          borderColor: teamColor,
+                          color: teamColor
+                        }}
+                        onClick={() => {
+                          setEditingEvent(event.id);
+                          setShowCreateForm(false);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                    )}
                     {event.enableVoting && (
                       <Button 
                         size="sm" 
