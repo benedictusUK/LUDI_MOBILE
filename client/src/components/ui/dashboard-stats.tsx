@@ -15,92 +15,88 @@ export default function DashboardStats({ stats }: DashboardStatsProps) {
 
   if (!stats) {
     return (
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        {[...Array(4)].map((_, i) => (
-          <Card key={i}>
-            <CardContent className="p-3">
-              <div className="animate-pulse">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                  <div className="mb-2 sm:mb-0">
-                    <div className="h-3 bg-neutral-200 rounded w-16 mb-1"></div>
-                    <div className="h-5 bg-neutral-200 rounded w-12"></div>
-                  </div>
-                  <div className="h-8 w-8 bg-neutral-200 rounded-lg self-end sm:self-auto"></div>
+      <div className="space-y-3 mb-6">
+        {/* Loading state for top row */}
+        <div className="grid grid-cols-2 gap-3">
+          {[...Array(2)].map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-3">
+                <div className="animate-pulse">
+                  <div className="h-3 bg-neutral-200 rounded w-20 mb-1"></div>
+                  <div className="h-6 bg-neutral-200 rounded w-12"></div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        {/* Loading state for bottom row */}
+        <div className="grid grid-cols-3 gap-2">
+          {[...Array(3)].map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-3">
+                <div className="animate-pulse">
+                  <div className="h-3 bg-neutral-200 rounded w-16 mb-1"></div>
+                  <div className="h-5 bg-neutral-200 rounded w-10"></div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3 mb-6">
-      <Card 
-        className="cursor-pointer hover:shadow-lg transition-shadow"
-        onClick={() => setLocation("/events")}
-      >
-        <CardContent className="p-3">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-            <div className="mb-2 sm:mb-0">
-              <p className="text-xs sm:text-sm font-medium text-neutral-500">Upcoming Events</p>
-              <p className="text-xl sm:text-2xl font-bold text-neutral-900">{stats.upcomingEvents}</p>
-            </div>
-            <div className="bg-primary p-2 rounded-lg self-end sm:self-auto w-8 h-8 flex items-center justify-center">
-              <i className="fas fa-calendar text-white text-sm"></i>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="space-y-3 mb-6">
+      {/* Top row - 2 thin tiles */}
+      <div className="grid grid-cols-2 gap-3">
+        <Card>
+          <CardContent className="p-3">
+            <p className="text-xs font-medium text-neutral-500">Total Teams</p>
+            <p className="text-xl font-bold text-neutral-900">{stats.activeTeams}</p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-3">
+            <p className="text-xs font-medium text-neutral-500">Total Players</p>
+            <p className="text-xl font-bold text-neutral-900">{stats.totalPlayers}</p>
+          </CardContent>
+        </Card>
+      </div>
 
-      <Card 
-        className="cursor-pointer hover:shadow-lg transition-shadow"
-        onClick={() => setLocation("/teams")}
-      >
-        <CardContent className="p-3">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-            <div className="mb-2 sm:mb-0">
-              <p className="text-xs sm:text-sm font-medium text-neutral-500">Active Teams</p>
-              <p className="text-xl sm:text-2xl font-bold text-neutral-900">{stats.activeTeams}</p>
-            </div>
-            <div className="bg-secondary p-2 rounded-lg self-end sm:self-auto w-8 h-8 flex items-center justify-center">
-              <i className="fas fa-users text-white text-sm"></i>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Bottom row - 3 tiles */}
+      <div className="grid grid-cols-3 gap-2">
+        <Card 
+          className="cursor-pointer hover:shadow-lg transition-shadow"
+          onClick={() => setLocation("/events")}
+        >
+          <CardContent className="p-3">
+            <p className="text-xs font-medium text-neutral-500">My Events</p>
+            <p className="text-lg font-bold text-neutral-900">{stats.upcomingEvents}</p>
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardContent className="p-3">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-            <div className="mb-2 sm:mb-0">
-              <p className="text-xs sm:text-sm font-medium text-neutral-500">Total Players</p>
-              <p className="text-xl sm:text-2xl font-bold text-neutral-900">{stats.totalPlayers}</p>
-            </div>
-            <div className="bg-accent p-2 rounded-lg self-end sm:self-auto w-8 h-8 flex items-center justify-center">
-              <i className="fas fa-user-friends text-white text-sm"></i>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        <Card 
+          className="cursor-pointer hover:shadow-lg transition-shadow"
+          onClick={() => setLocation("/teams")}
+        >
+          <CardContent className="p-3">
+            <p className="text-xs font-medium text-neutral-500">My Teams</p>
+            <p className="text-lg font-bold text-neutral-900">{stats.activeTeams}</p>
+          </CardContent>
+        </Card>
 
-      <Card 
-        className="cursor-pointer hover:shadow-lg transition-shadow"
-        onClick={() => setLocation("/notifications")}
-      >
-        <CardContent className="p-3">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-            <div className="mb-2 sm:mb-0">
-              <p className="text-xs sm:text-sm font-medium text-neutral-500">Notifications</p>
-              <p className="text-xl sm:text-2xl font-bold text-neutral-900">{stats.unreadNotifications}</p>
-            </div>
-            <div className="bg-yellow-500 p-2 rounded-lg self-end sm:self-auto w-8 h-8 flex items-center justify-center">
-              <i className="fas fa-bell text-white text-sm"></i>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        <Card 
+          className="cursor-pointer hover:shadow-lg transition-shadow"
+          onClick={() => setLocation("/notifications")}
+        >
+          <CardContent className="p-3">
+            <p className="text-xs font-medium text-neutral-500">Notifications</p>
+            <p className="text-lg font-bold text-neutral-900">{stats.unreadNotifications}</p>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
