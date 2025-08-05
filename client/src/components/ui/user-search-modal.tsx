@@ -10,7 +10,7 @@ import { ScrollArea } from "./scroll-area";
 import { Separator } from "./separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Search, UserPlus, Mail, Phone, User, X } from "lucide-react";
+import { Search, UserPlus, Mail, User, X } from "lucide-react";
 
 interface UserSearchResult {
   id: string;
@@ -212,7 +212,7 @@ export function UserSearchModal({
               <div className="flex flex-col items-center justify-center py-8 text-gray-500">
                 <Search className="h-12 w-12 mb-4 opacity-50" />
                 <p className="text-sm">Enter at least 2 characters to search for users</p>
-                <p className="text-xs mt-1">Search by username, email, phone, or name</p>
+                <p className="text-xs mt-1">Search by username, email, or name</p>
               </div>
             ) : searchResults.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-gray-500">
@@ -262,12 +262,6 @@ export function UserSearchModal({
                               <div className="flex items-center gap-1">
                                 <Mail className="h-3 w-3" />
                                 <span className="truncate max-w-32">{user.email}</span>
-                              </div>
-                            )}
-                            {user.phoneNumber && (
-                              <div className="flex items-center gap-1">
-                                <Phone className="h-3 w-3" />
-                                <span>{user.phoneNumber}</span>
                               </div>
                             )}
                           </div>
