@@ -150,6 +150,74 @@ export default function Notifications() {
     },
   });
 
+  // Approve join request mutation
+  const approveJoinRequestMutation = useMutation({
+    mutationFn: async ({ teamId, userId }: { teamId: string; userId: string }) => {
+      const response = await apiRequest("POST", `/api/teams/${teamId}/approve-join/${userId}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/teams"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      toast({
+        title: "Success",
+        description: "Join request approved successfully!",
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to approve join request",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Reject join request mutation
+  const rejectJoinRequestMutation = useMutation({
+    mutationFn: async ({ teamId, userId }: { teamId: string; userId: string }) => {
+      const response = await apiRequest("POST", `/api/teams/${teamId}/reject-join/${userId}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+      toast({
+        title: "Success",
+        description: "Join request rejected",
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to reject join request",
+        variant: "destructive",
+      });
+    },
+  });
+
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case "event":
@@ -303,6 +371,40 @@ export default function Notifications() {
                             disabled={declineInvitationMutation.isPending}
                           >
                             Decline
+                          </Button>
+                        </div>
+                      )}
+
+                      {notification.type === "team_join_request" && !notification.isRead && (
+                        <div className="flex gap-2 mt-3" onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() => {
+                              const metadata = notification.metadata ? JSON.parse(notification.metadata) : {};
+                              approveJoinRequestMutation.mutate({
+                                teamId: metadata.teamId,
+                                userId: metadata.requestUserId
+                              });
+                            }}
+                            disabled={approveJoinRequestMutation.isPending}
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              const metadata = notification.metadata ? JSON.parse(notification.metadata) : {};
+                              rejectJoinRequestMutation.mutate({
+                                teamId: metadata.teamId,
+                                userId: metadata.requestUserId
+                              });
+                            }}
+                            disabled={rejectJoinRequestMutation.isPending}
+                          >
+                            Reject
                           </Button>
                         </div>
                       )}

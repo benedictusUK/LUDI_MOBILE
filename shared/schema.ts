@@ -225,6 +225,7 @@ export const notifications = pgTable("notifications", {
   message: text("message").notNull(),
   type: varchar("type", { length: 50 }).notNull(), // event, team, payment, system, flare_gun
   relatedId: varchar("related_id"), // ID of related event, team, etc.
+  metadata: text("metadata"), // JSON string for additional data like requestUserId
   isRead: boolean("is_read").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });

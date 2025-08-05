@@ -1052,8 +1052,12 @@ export class DatabaseStorage implements IStorage {
         userId: admin.id,
         type: "team_join_request",
         title: "New Team Join Request",
-        message: `${user.firstName} ${user.lastName} wants to join ${team.name}`,
+        message: `${user.firstName || user.username || 'User'} ${user.lastName || ''} wants to join ${team.name}`.trim(),
         relatedId: teamId,
+        metadata: JSON.stringify({
+          teamId: teamId,
+          requestUserId: userId
+        }),
         isRead: false,
       });
     }
