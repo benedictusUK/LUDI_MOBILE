@@ -22,14 +22,14 @@ Preferred communication style: Simple, everyday language.
 *   **Backend**: Express.js with TypeScript, RESTful API endpoints, and Drizzle ORM for PostgreSQL.
 *   **Database**: PostgreSQL (via Neon serverless) with Drizzle ORM for schema definition and Drizzle Kit for migrations.
 *   **Authentication**: Replit OAuth (OIDC) with server-side sessions, HTTP-only cookies, and automatic user creation/updates. Also supports Google and Apple OAuth.
-*   **Business Logic**: Comprehensive modules for user, team, and event management, including role-based access, join requests, member blocking, recurring events, reserve player system, and a real-time notification system.
+*   **Business Logic**: Comprehensive modules for user, team, and event management, including role-based access with three-tier permissions (owner/admin/captain), join requests with automatic notification management, member blocking, recurring events, reserve player system, and a real-time notification system with comprehensive event management authorization.
 *   **UI/UX**: Custom sports-focused color palette (primary blue, secondary green, accent red), with `shadcn/ui` components ensuring WCAG compliance. Includes a custom loading component system and an animated logo reveal.
 
 ### Feature Specifications
 *   **Authentication**: Secure Replit OAuth integration for user login and profile management, with support for Google and Apple OAuth.
 *   **User Management**: Profile creation, updates (including mandatory fields like username, dateOfBirth, postcode, phoneNumber, gender), and secure session management.
-*   **Team Management**: Creation, membership management, role-based access (owner/admin hierarchy), join request handling, member blocking, team search, and "Leave Team" functionality.
-*   **Event Management**: Creation, scheduling (with recurrence options), linking to teams, attendance tracking (three-state voting system: Can Attend, Can't Attend, Potential Players), location-based features, and "Publish All" for series. Includes a reserve player system with admin overflow.
+*   **Team Management**: Creation, membership management, role-based access (owner/admin/captain hierarchy), join request handling, member blocking, team search, and "Leave Team" functionality.
+*   **Event Management**: Creation, scheduling (with recurrence options), linking to teams, attendance tracking (three-state voting system: Can Attend, Can't Attend, Potential Players), location-based features, and "Publish All" for series. Includes a reserve player system with admin overflow. Features comprehensive role-based authorization for editing, series management, and deletion - accessible to team owners, admins, and captains with both backend security and frontend UI visibility controls.
 *   **Notifications**: Real-time notifications for team and event updates, including specific handling for join requests.
 *   **Data Validation**: Robust validation for all input fields, including uniqueness checks for usernames and team names.
 
