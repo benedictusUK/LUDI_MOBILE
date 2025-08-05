@@ -264,13 +264,11 @@ export default function Teams() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<any>(null);
   const [showManageModal, setShowManageModal] = useState(false);
-  const [showInviteModal, setShowInviteModal] = useState(false);
   const [showMembersModal, setShowMembersModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showMemberManagement, setShowMemberManagement] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -307,27 +305,7 @@ export default function Teams() {
     },
   });
 
-  // Invite member mutation
-  const inviteMemberMutation = useMutation({
-    mutationFn: async ({ teamId, email }: { teamId: string; email: string }) => {
-      await apiRequest("POST", `/api/teams/${teamId}/invite`, { email });
-    },
-    onSuccess: () => {
-      setInviteEmail("");
-      setShowInviteModal(false);
-      toast({
-        title: "Success",
-        description: "Invitation sent successfully",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to send invitation",
-        variant: "destructive",
-      });
-    },
-  });
+
 
   // Update team settings mutation
   const updateTeamMutation = useMutation({
@@ -674,14 +652,6 @@ export default function Teams() {
                     <Button 
                       variant="outline" 
                       className="flex items-center space-x-2"
-                      onClick={() => setShowInviteModal(true)}
-                    >
-                      <i className="fas fa-user-plus"></i>
-                      <span>Invite Members</span>
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      className="flex items-center space-x-2"
                       onClick={() => setShowMembersModal(true)}
                     >
                       <i className="fas fa-users"></i>
@@ -755,58 +725,7 @@ export default function Teams() {
           </div>
         )}
 
-        {/* Invite Members Modal */}
-        {showInviteModal && selectedTeam && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-              <div className="p-6 border-b">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-semibold text-neutral-900">
-                    Invite Member to {selectedTeam.name}
-                  </h2>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => setShowInviteModal(false)}
-                  >
-                    <i className="fas fa-times"></i>
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="p-6 space-y-4">
-                <div>
-                  <Label htmlFor="inviteEmail">Email Address</Label>
-                  <Input
-                    id="inviteEmail"
-                    type="email"
-                    placeholder="Enter member's email"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                  />
-                </div>
-                <p className="text-sm text-neutral-500">
-                  An invitation will be sent to this email address. The user will be able to join your team once they accept.
-                </p>
-              </div>
 
-              <div className="p-6 border-t bg-neutral-50 flex justify-end space-x-3">
-                <Button 
-                  variant="outline"
-                  onClick={() => setShowInviteModal(false)}
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  onClick={() => inviteMemberMutation.mutate({ teamId: selectedTeam.id, email: inviteEmail })}
-                  disabled={!inviteEmail || inviteMemberMutation.isPending}
-                >
-                  {inviteMemberMutation.isPending ? "Sending..." : "Send Invitation"}
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* View Members Modal */}
         {showMembersModal && selectedTeam && (
