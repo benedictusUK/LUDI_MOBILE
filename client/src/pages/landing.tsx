@@ -46,8 +46,8 @@ export default function Landing() {
                   <Button onClick={() => window.location.href = '/api/login'} variant="secondary" size="sm">
                     Sign In
                   </Button>
-                  <Button onClick={() => window.location.href = '/api/login'} variant="outline" size="sm" className="border-white text-white hover:bg-white hover:text-primary">
-                    Sign up
+                  <Button onClick={() => window.location.href = '/api/login'} variant="outline" size="sm" className="border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white">
+                    Join
                   </Button>
                 </div>
               </div>
@@ -81,7 +81,7 @@ export default function Landing() {
                       onClick={() => window.location.href = '/api/login'} 
                       size="lg" 
                       variant="outline" 
-                      className="border-blue-300 text-blue-200 hover:bg-blue-100 hover:text-blue-800 flex-1"
+                      className="border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white flex-1"
                     >
                       Create Account
                     </Button>
