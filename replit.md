@@ -8,7 +8,13 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-**August 5, 2025 - Dashboard UI Optimization and Recurring Events Bug Fix**
+**August 5, 2025 - Publish All Feature and Dashboard Optimization**
+- **Publish All Functionality**: Added bulk publishing feature for recurring event series
+  - New "Publish All" button appears when series contains unpublished events
+  - Implemented backend endpoint `/api/events/series/:seriesId/publish` with proper authorization
+  - Added visual indicators showing "Unpublished" badges on individual events
+  - Green confirmation dialog with clear messaging about publishing all events in series
+  - Automatic UI refresh after successful bulk publishing operation
 - **Mobile Dashboard Optimization**: Redesigned dashboard stats layout for maximum space efficiency
   - Removed colored icon squares for cleaner design and more screen space
   - Implemented 2-row layout: "Total Teams" and "Total Players" on top, "My Events", "My Teams", and "Notifications" below
