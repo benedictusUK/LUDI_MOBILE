@@ -115,16 +115,17 @@ export function ProfileCompletionModal({ isOpen, onClose, user }: ProfileComplet
 
   return (
     <Dialog open={isOpen && !isProfileComplete} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-md max-h-[85vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>Complete Your Profile</DialogTitle>
           <DialogDescription>
             Please complete your profile to get started with LUDI. You must be at least 18 years old to use our platform.
           </DialogDescription>
         </DialogHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <div className="flex-1 overflow-y-auto">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pr-2">
             <FormField
               control={form.control}
               name="username"
@@ -368,15 +369,16 @@ export function ProfileCompletionModal({ isOpen, onClose, user }: ProfileComplet
               )}
             />
 
-            <Button 
-              type="submit" 
-              className="w-full" 
-              disabled={completeProfileMutation.isPending || (usernameAvailability.checked && !usernameAvailability.available)}
-            >
-              {completeProfileMutation.isPending ? "Completing Profile..." : "Complete Profile"}
-            </Button>
-          </form>
-        </Form>
+              <Button 
+                type="submit" 
+                className="w-full" 
+                disabled={completeProfileMutation.isPending || (usernameAvailability.checked && !usernameAvailability.available)}
+              >
+                {completeProfileMutation.isPending ? "Completing Profile..." : "Complete Profile"}
+              </Button>
+            </form>
+          </Form>
+        </div>
       </DialogContent>
     </Dialog>
   );
