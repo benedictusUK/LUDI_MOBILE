@@ -1242,7 +1242,10 @@ export class DatabaseStorage implements IStorage {
     // Mark the join request notification as read
     await db
       .update(notifications)
-      .set({ readAt: new Date() })
+      .set({ 
+        isRead: true,
+        readAt: new Date() 
+      })
       .where(and(
         eq(notifications.type, "team_join_request"),
         eq(notifications.relatedId, teamId),
@@ -1278,7 +1281,10 @@ export class DatabaseStorage implements IStorage {
     // Mark the join request notification as read
     await db
       .update(notifications)
-      .set({ readAt: new Date() })
+      .set({ 
+        isRead: true,
+        readAt: new Date() 
+      })
       .where(and(
         eq(notifications.type, "team_join_request"),
         eq(notifications.relatedId, teamId),
