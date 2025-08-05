@@ -376,7 +376,7 @@ export default function Events() {
                         Audit
                       </Button>
                     )}
-                    {event.recurringSeriesId && (
+                    {event.recurringSeriesId && canEditEvent(event) && (
                       <Button 
                         size="sm" 
                         variant="outline"
