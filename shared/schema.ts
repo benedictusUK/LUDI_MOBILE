@@ -402,6 +402,15 @@ export const insertUserSchema = createInsertSchema(users).omit({
   phoneNumber: z.string().regex(/^(\+44|0)[0-9]{10}$/, "Please enter a valid UK phone number"),
 });
 
+// Auth-specific user schema for Replit OAuth (only requires basic fields)
+export const authUserSchema = z.object({
+  id: z.string(),
+  email: z.string().email(),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  profileImageUrl: z.string().optional(),
+});
+
 // Profile completion schema (for mandatory fields after signup)
 export const profileCompletionSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters").max(20, "Username must be less than 20 characters").regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores"),
@@ -525,6 +534,7 @@ export const insertActivityLogSchema = createInsertSchema(activityLogs).omit({
 
 // Types
 export type UpsertUser = z.infer<typeof insertUserSchema>;
+export type AuthUser = z.infer<typeof authUserSchema>;
 export type ProfileCompletion = z.infer<typeof profileCompletionSchema>;
 export type UpdateProfile = z.infer<typeof updateProfileSchema>;
 export type User = typeof users.$inferSelect;

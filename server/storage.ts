@@ -12,6 +12,7 @@ import {
   blockedMembers,
   type User,
   type UpsertUser,
+  type AuthUser,
   type Team,
   type InsertTeam,
   type Event,
@@ -45,6 +46,7 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
+  upsertAuthUser(user: AuthUser): Promise<User>;
   updateUserStripeInfo(userId: string, stripeCustomerId: string, stripeSubscriptionId?: string): Promise<User>;
   updateUserProfile(userId: string, profileData: UpdateProfile): Promise<User>;
   completeUserProfile(userId: string, profileData: ProfileCompletion): Promise<User>;
@@ -163,6 +165,24 @@ export class DatabaseStorage implements IStorage {
         target: users.id,
         set: {
           ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return user;
+  }
+
+  async upsertAuthUser(userData: AuthUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values([userData])
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          email: userData.email,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          profileImageUrl: userData.profileImageUrl,
           updatedAt: new Date(),
         },
       })
