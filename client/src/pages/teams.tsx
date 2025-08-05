@@ -379,6 +379,35 @@ export default function Teams() {
     },
   });
 
+  // Leave team mutation
+  const leaveTeamMutation = useMutation({
+    mutationFn: async (teamId: string) => {
+      await apiRequest("POST", `/api/teams/${teamId}/leave`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/teams"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      setShowManageModal(false);
+      toast({
+        title: "Success",
+        description: "You have left the team successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to leave team",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleLeaveTeam = (teamId: string) => {
+    if (confirm("Are you sure you want to leave this team? This action cannot be undone.")) {
+      leaveTeamMutation.mutate(teamId);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-neutral-50">
@@ -673,6 +702,16 @@ export default function Teams() {
                         <span>Team Events</span>
                       </Button>
                     </Link>
+                    {!selectedTeam.isOwner && (
+                      <Button 
+                        variant="destructive" 
+                        className="flex items-center space-x-2"
+                        onClick={() => handleLeaveTeam(selectedTeam.id)}
+                      >
+                        <i className="fas fa-sign-out-alt"></i>
+                        <span>Leave Team</span>
+                      </Button>
+                    )}
                     <Button 
                       variant="outline" 
                       className="flex items-center space-x-2"
