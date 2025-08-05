@@ -42,9 +42,9 @@ export default function Landing() {
                     <span className="text-xl font-bold text-white tracking-wider">LUDI</span>
                   </div>
                 </div>
-                <div className="max-w-xs">
-                  <OAuthButtons showReplit={false} />
-                </div>
+                <Button onClick={() => window.location.href = '/api/login'} variant="secondary">
+                  Sign In
+                </Button>
               </div>
             </div>
           </nav>

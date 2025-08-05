@@ -11,6 +11,10 @@ interface OAuthButtonsProps {
 
 export function OAuthButtons({ showReplit = true, className = "" }: OAuthButtonsProps) {
   const [isLoading, setIsLoading] = useState<string | null>(null);
+  
+  // Hide Google and Apple sign-in until OAuth credentials are configured
+  const showGoogleAuth = false; // Set to true when GOOGLE_CLIENT_ID is available
+  const showAppleAuth = false;  // Set to true when APPLE_CLIENT_ID is available
 
   const handleGoogleSignIn = () => {
     setIsLoading('google');
@@ -86,53 +90,72 @@ export function OAuthButtons({ showReplit = true, className = "" }: OAuthButtons
 
   return (
     <div className={`space-y-3 ${className}`}>
-      {/* Google Sign-In */}
-      <Button
-        type="button"
-        variant="outline"
-        className="w-full h-12 text-base font-medium bg-white hover:bg-gray-50 border-gray-300 text-gray-700"
-        onClick={handleGoogleSignIn}
-        disabled={isLoading !== null}
-      >
-        {isLoading === 'google' ? (
-          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-700 mr-3"></div>
-        ) : (
-          <FcGoogle className="mr-3 h-5 w-5" />
-        )}
-        Continue with Google
-      </Button>
+      {/* Google Sign-In - Hidden until credentials are configured */}
+      {showGoogleAuth && (
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full h-12 text-base font-medium bg-white hover:bg-gray-50 border-gray-300 text-gray-700"
+          onClick={handleGoogleSignIn}
+          disabled={isLoading !== null}
+        >
+          {isLoading === 'google' ? (
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-700 mr-3"></div>
+          ) : (
+            <FcGoogle className="mr-3 h-5 w-5" />
+          )}
+          Continue with Google
+        </Button>
+      )}
 
-      {/* Apple Sign-In */}
-      <Button
-        type="button"
-        variant="outline"
-        className="w-full h-12 text-base font-medium bg-black hover:bg-gray-900 border-black text-white"
-        onClick={handleAppleSignIn}
-        disabled={isLoading !== null}
-      >
-        {isLoading === 'apple' ? (
-          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
-        ) : (
-          <SiApple className="mr-3 h-5 w-5" />
-        )}
-        Continue with Apple
-      </Button>
+      {/* Apple Sign-In - Hidden until credentials are configured */}
+      {showAppleAuth && (
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full h-12 text-base font-medium bg-black hover:bg-gray-900 border-black text-white"
+          onClick={handleAppleSignIn}
+          disabled={isLoading !== null}
+        >
+          {isLoading === 'apple' ? (
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
+          ) : (
+            <SiApple className="mr-3 h-5 w-5" />
+          )}
+          Continue with Apple
+        </Button>
+      )}
 
-      {/* Replit Sign-In (optional) */}
+      {/* Replit Sign-In */}
       {showReplit && (
         <Button
           type="button"
           variant="outline"
-          className="w-full h-12 text-base font-medium bg-orange-50 hover:bg-orange-100 border-orange-300 text-orange-700"
+          className="w-full h-12 text-base font-medium bg-blue-600 hover:bg-blue-700 border-blue-600 text-white"
           onClick={handleReplitSignIn}
           disabled={isLoading !== null}
         >
           {isLoading === 'replit' ? (
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-orange-700 mr-3"></div>
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
           ) : (
             <SiReplit className="mr-3 h-5 w-5" />
           )}
           Continue with Replit
+        </Button>
+      )}
+      
+      {/* When no OAuth providers are available, show traditional sign in */}
+      {!showGoogleAuth && !showAppleAuth && !showReplit && (
+        <Button
+          type="button"
+          className="w-full h-12 text-base font-medium"
+          onClick={handleReplitSignIn}
+          disabled={isLoading !== null}
+        >
+          {isLoading === 'replit' ? (
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
+          ) : null}
+          Sign In
         </Button>
       )}
     </div>
