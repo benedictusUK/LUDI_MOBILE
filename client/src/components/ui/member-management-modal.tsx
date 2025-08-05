@@ -161,10 +161,11 @@ export function MemberManagementModal({
                   const canManage = canManageMember(membership.user.id, membership.role, isTeamOwner);
 
                   return (
-                    <div key={membership.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div key={membership.id} className="p-4 border rounded-lg space-y-3">
+                      {/* Member Info */}
                       <div className="flex items-center space-x-3">
                         {getRoleIcon(membership.role, isTeamOwner)}
-                        <div>
+                        <div className="flex-1">
                           <div className="flex items-center space-x-2">
                             <span className="font-medium">
                               {membership.user.firstName} {membership.user.lastName}
@@ -177,8 +178,9 @@ export function MemberManagementModal({
                         </div>
                       </div>
 
+                      {/* Management Actions - Stacked Layout */}
                       {canManage && (
-                        <div className="flex items-center space-x-2">
+                        <div className="space-y-2">
                           {/* Role Management */}
                           <Select
                             value={membership.role}
@@ -187,7 +189,7 @@ export function MemberManagementModal({
                             }
                             disabled={updateRoleMutation.isPending}
                           >
-                            <SelectTrigger className="w-32">
+                            <SelectTrigger className="w-full">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -197,27 +199,30 @@ export function MemberManagementModal({
                             </SelectContent>
                           </Select>
 
-                          {/* Block Member */}
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => blockMemberMutation.mutate({ userId: membership.user.id, reason: blockReason })}
-                            disabled={blockMemberMutation.isPending}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Ban className="h-4 w-4" />
-                          </Button>
+                          {/* Action Buttons */}
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => blockMemberMutation.mutate({ userId: membership.user.id, reason: blockReason })}
+                              disabled={blockMemberMutation.isPending}
+                              className="text-red-600 hover:text-red-700 flex-1"
+                            >
+                              <Ban className="h-4 w-4 mr-2" />
+                              Block
+                            </Button>
 
-                          {/* Remove Member */}
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => removeMemberMutation.mutate(membership.user.id)}
-                            disabled={removeMemberMutation.isPending}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <XCircle className="h-4 w-4" />
-                          </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => removeMemberMutation.mutate(membership.user.id)}
+                              disabled={removeMemberMutation.isPending}
+                              className="text-red-600 hover:text-red-700 flex-1"
+                            >
+                              <XCircle className="h-4 w-4 mr-2" />
+                              Remove
+                            </Button>
+                          </div>
                         </div>
                       )}
                     </div>
