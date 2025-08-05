@@ -41,7 +41,7 @@ import {
   type InsertFlareResponse,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, count, sql, or, notInArray, asc, inArray } from "drizzle-orm";
+import { eq, and, desc, count, sql, or, notInArray, asc, inArray, ne } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
