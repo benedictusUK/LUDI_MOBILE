@@ -21,6 +21,10 @@ Preferred communication style: Simple, everyday language.
   - Improved navigation bar with both sign-in and join options
 - **Profile Completion**: Enhanced modal with welcoming messages for new users vs returning users
 - **Database Schema**: Extended user table with `authProvider` enum field for multi-provider support
+- **Dashboard Fix**: Corrected "My Events" count to properly show future events from user's teams
+  - Fixed dashboard stats query to check both primary team relationships and event-teams junction table
+  - Added filtering for published events only
+  - Now accurately counts upcoming events for team members
 
 **August 5, 2025 - Publish All Feature and Dashboard Optimization**
 - **Publish All Functionality**: Added bulk publishing feature for recurring event series
