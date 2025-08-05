@@ -42,9 +42,14 @@ export default function Landing() {
                     <span className="text-xl font-bold text-white tracking-wider">LUDI</span>
                   </div>
                 </div>
-                <Button onClick={() => window.location.href = '/api/login'} variant="secondary">
-                  Sign In
-                </Button>
+                <div className="flex gap-2">
+                  <Button onClick={() => window.location.href = '/api/login'} variant="secondary" size="sm">
+                    Sign In
+                  </Button>
+                  <Button onClick={() => window.location.href = '/api/login'} variant="outline" size="sm" className="border-white text-white hover:bg-white hover:text-primary">
+                    Join
+                  </Button>
+                </div>
               </div>
             </div>
           </nav>
@@ -63,9 +68,27 @@ export default function Landing() {
                   <p className="text-xl mb-8 text-blue-100">
                     Create events, manage teams, coordinate schedules, and engage your sports community all in one powerful platform.
                   </p>
-                  <div className="max-w-sm">
-                    <OAuthButtons />
+                  <div className="flex flex-col sm:flex-row gap-4 max-w-md">
+                    <Button 
+                      onClick={() => window.location.href = '/api/login'} 
+                      size="lg" 
+                      variant="secondary"
+                      className="flex-1"
+                    >
+                      Sign In
+                    </Button>
+                    <Button 
+                      onClick={() => window.location.href = '/api/login'} 
+                      size="lg" 
+                      variant="outline" 
+                      className="border-white text-white hover:bg-white hover:text-primary flex-1"
+                    >
+                      Create Account
+                    </Button>
                   </div>
+                  <p className="text-sm text-blue-200 mt-3 max-w-md">
+                    New to LUDI? Click "Create Account" to get started. Both options will guide you through setting up your sports profile.
+                  </p>
                 </div>
                 <div className="relative">
                   <img 

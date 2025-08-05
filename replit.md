@@ -8,14 +8,18 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-**August 5, 2025 - OAuth Authentication Implementation (Prepared)**
+**August 5, 2025 - OAuth Authentication Implementation (Prepared) & Manual Registration**
 - **OAuth Infrastructure**: Successfully implemented Google and Apple OAuth authentication alongside existing Replit auth
   - Created comprehensive OAuth providers module with proper error handling and fallbacks
   - Added `authProvider` field to user schema to track authentication source
   - Implemented OAuth buttons component with loading states and proper styling
   - OAuth features are currently hidden until user configures API credentials on desktop
   - Ready to enable by setting `showGoogleAuth` and `showAppleAuth` flags to true when credentials are available
-- **Enhanced Landing Page**: Updated with modern OAuth button design and improved mobile navigation
+- **Enhanced Landing Page**: Updated with clear manual registration options
+  - Added prominent "Sign In" and "Create Account" buttons for user choice
+  - Added explanatory text clarifying both paths lead to profile completion
+  - Improved navigation bar with both sign-in and join options
+- **Profile Completion**: Enhanced modal with welcoming messages for new users vs returning users
 - **Database Schema**: Extended user table with `authProvider` enum field for multi-provider support
 
 **August 5, 2025 - Publish All Feature and Dashboard Optimization**

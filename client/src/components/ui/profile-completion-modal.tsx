@@ -117,9 +117,14 @@ export function ProfileCompletionModal({ isOpen, onClose, user }: ProfileComplet
     <Dialog open={isOpen && !isProfileComplete} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md max-h-[85vh] flex flex-col">
         <DialogHeader className="flex-shrink-0">
-          <DialogTitle>Complete Your Profile</DialogTitle>
+          <DialogTitle>
+            {user?.profileCompletedAt ? "Update Your Profile" : "Welcome to LUDI!"}
+          </DialogTitle>
           <DialogDescription>
-            Please complete your profile to get started with LUDI. You must be at least 18 years old to use our platform.
+            {user?.profileCompletedAt 
+              ? "Update your profile information to keep your sports community connected."
+              : "Complete your sports profile to join teams, create events, and connect with the community. You must be at least 18 years old to use our platform."
+            }
           </DialogDescription>
         </DialogHeader>
 
