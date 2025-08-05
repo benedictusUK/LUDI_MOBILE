@@ -57,16 +57,16 @@ export const sessions = pgTable(
 
 // User storage table (required for Replit Auth)
 export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id").primaryKey(),
   email: varchar("email").unique().notNull(),
-  firstName: varchar("first_name").notNull(),
-  lastName: varchar("last_name").notNull(),
+  firstName: varchar("first_name"),
+  lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
-  username: varchar("username").unique().notNull(), // unique username, required
-  phoneNumber: varchar("phone_number").notNull(),
-  dateOfBirth: date("date_of_birth").notNull(), // required for age verification
-  postcode: varchar("postcode").notNull(), // required
-  gender: varchar("gender", { enum: ["male", "female"] }).notNull(), // limited to male/female
+  username: varchar("username").unique(), // will be required for profile completion
+  phoneNumber: varchar("phone_number"),
+  dateOfBirth: date("date_of_birth"), // will be required for profile completion
+  postcode: varchar("postcode"), // will be required for profile completion
+  gender: varchar("gender", { enum: ["male", "female"] }), // will be required for profile completion
   sportsInterests: text("sports_interests").array().default(sql`'{}'::text[]`), // sports user is interested in
   travelRadius: integer("travel_radius").default(10), // km radius willing to travel
   stripeCustomerId: varchar("stripe_customer_id"),
