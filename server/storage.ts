@@ -815,6 +815,7 @@ export class DatabaseStorage implements IStorage {
   async getDashboardStats(userId: string): Promise<{
     upcomingEvents: number;
     activeTeams: number;
+    totalTeams: number;
     totalPlayers: number;
     unreadNotifications: number;
   }> {
@@ -846,11 +847,16 @@ export class DatabaseStorage implements IStorage {
 
     const totalUpcomingEvents = (upcomingEventsFromPrimary[0]?.count || 0) + (upcomingEventsFromJunction[0]?.count || 0);
 
-    // Get active teams count
+    // Get active teams count (user's teams)
     const activeTeams = await db
       .select({ count: count() })
       .from(teamMemberships)
       .where(eq(teamMemberships.userId, userId));
+
+    // Get total teams count (platform-wide)
+    const totalTeams = await db
+      .select({ count: count() })
+      .from(teams);
 
     // Get total players in user's teams
     const totalPlayers = await db
@@ -873,6 +879,7 @@ export class DatabaseStorage implements IStorage {
     return {
       upcomingEvents: totalUpcomingEvents,
       activeTeams: activeTeams[0]?.count || 0,
+      totalTeams: totalTeams[0]?.count || 0,
       totalPlayers: totalPlayers.length,
       unreadNotifications: unreadNotifications[0]?.count || 0,
     };

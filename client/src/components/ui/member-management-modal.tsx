@@ -43,8 +43,7 @@ export function MemberManagementModal({
     enabled: isOpen,
   });
 
-  // Debug: Log team data
-  console.log('Team Data:', teamData, 'Team Error:', teamError, 'Current User:', currentUser?.id);
+
 
   // Determine if current user is owner of this specific team
   const isCurrentUserOwner = (teamData as any)?.ownerId === currentUser?.id;
@@ -279,17 +278,8 @@ export function MemberManagementModal({
                           </Button>
                         </div>
                       )}
-                      
-                      {/* Debug info - Remove after testing */}
-                      {membership.user.id === currentUser?.id && (
-                        <div className="text-xs text-gray-500 mt-2 p-2 bg-gray-100 rounded">
-                          <div>Current User: {currentUser?.id}</div>
-                          <div>Team Owner: {(teamData as any)?.ownerId}</div>
-                          <div>Is Owner: {isCurrentUserOwner ? 'Yes' : 'No'}</div>
-                          <div>Show Leave Button: {!isCurrentUserOwner ? 'Yes' : 'No'}</div>
-                          <div>Team Data: {JSON.stringify(teamData)}</div>
-                        </div>
-                      )}
+
+
                     </div>
                   );
                 })

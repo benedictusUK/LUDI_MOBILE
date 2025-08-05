@@ -5,6 +5,7 @@ interface DashboardStatsProps {
   stats?: {
     upcomingEvents: number;
     activeTeams: number;
+    totalTeams: number;
     totalPlayers: number;
     unreadNotifications: number;
   };
@@ -53,7 +54,7 @@ export default function DashboardStats({ stats }: DashboardStatsProps) {
         <Card>
           <CardContent className="p-3">
             <p className="text-xs font-medium text-neutral-500">Total Teams</p>
-            <p className="text-xl font-bold text-neutral-900">{stats.activeTeams}</p>
+            <p className="text-xl font-bold text-neutral-900">{stats.totalTeams}</p>
           </CardContent>
         </Card>
         
