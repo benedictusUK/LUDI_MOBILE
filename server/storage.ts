@@ -1300,14 +1300,14 @@ export class DatabaseStorage implements IStorage {
     // Remove from team
     await this.removeTeamMember(teamId, userId);
 
-    // Log the activity
-    await this.logActivity({
-      userId,
-      action: "left_team",
-      details: `Left team ${team.name}`,
-      ipAddress: "system",
-      teamId
-    });
+    // Log the activity (skip activity logging for team leave as it doesn't relate to a specific event)
+    // await this.logActivity({
+    //   userId,
+    //   action: "left_team", 
+    //   details: `Left team ${team.name}`,
+    //   ipAddress: "system",
+    //   teamId
+    // });
   }
 
   // Team invitation methods
