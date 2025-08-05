@@ -498,8 +498,8 @@ export class DatabaseStorage implements IStorage {
       index === self.findIndex(e => e.event.id === eventData.event.id)
     );
 
-    // Sort by start date descending
-    uniqueEvents.sort((a, b) => new Date(b.event.startDate).getTime() - new Date(a.event.startDate).getTime());
+    // Sort by start date ascending (next event first)
+    uniqueEvents.sort((a, b) => new Date(a.event.startDate).getTime() - new Date(b.event.startDate).getTime());
 
     // Return events with primary team data and user attendance
     return uniqueEvents.map(result => ({
