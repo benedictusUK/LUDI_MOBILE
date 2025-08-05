@@ -8,6 +8,18 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+**August 5, 2025 - Dashboard UI Optimization and Recurring Events Bug Fix**
+- **Mobile Dashboard Optimization**: Redesigned dashboard stats layout for maximum space efficiency
+  - Removed colored icon squares for cleaner design and more screen space
+  - Implemented 2-row layout: "Total Teams" and "Total Players" on top, "My Events", "My Teams", and "Notifications" below
+  - Changed to 2-column grid on all screen sizes (including mobile) with compact tiles
+  - Removed subtitle text under welcome message for additional space savings
+- **Critical Recurring Events Fix**: Resolved major bug where recurring events weren't being created
+  - Fixed date calculation logic that was comparing start date day-of-week with selected recurrence days
+  - Implemented proper logic to find first occurrence of selected day from start date
+  - Weekly recurring events now correctly generate on the selected days regardless of start date
+- **Enhanced Space Utilization**: Dashboard now shows upcoming events above the fold on mobile devices
+
 **August 4, 2025 - Comprehensive Test Suite Implementation MAJOR PROGRESS**
 - **Major Schema Fix**: Successfully resolved `participants` vs `maxParticipants` field naming inconsistency across database and validation schemas
 - **Database Migration**: Completed schema migration to use consistent `maxParticipants` field naming throughout the application

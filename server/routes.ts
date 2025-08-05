@@ -882,15 +882,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const eventData = { ...req.body, createdById: userId };
       
-      console.log("Creating recurring events with data:", JSON.stringify(eventData, null, 2));
-      
       // Validate the event data
       const validatedData = insertEventSchema.parse(eventData);
-      console.log("Validated event data:", JSON.stringify(validatedData, null, 2));
       
       // Create recurring events (4 weeks ahead by default)
       const createdEvents = await storage.createRecurringEvents(validatedData, 4);
-      console.log("Created events count:", createdEvents.length);
       
       res.json(createdEvents);
     } catch (error) {
