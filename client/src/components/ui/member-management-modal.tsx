@@ -10,8 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Textarea } from "./textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { AlertTriangle, Crown, Shield, User, Ban, CheckCircle, XCircle, UserPlus } from "lucide-react";
+import { AlertTriangle, Crown, Shield, User, Ban, CheckCircle, XCircle, UserPlus, LogOut } from "lucide-react";
 import { UserSearchModal } from "./user-search-modal";
+import { useAuth } from "@/hooks/useAuth";
 
 interface MemberManagementModalProps {
   isOpen: boolean;
@@ -32,6 +33,7 @@ export function MemberManagementModal({
 }: MemberManagementModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user: currentUser } = useAuth();
   const [blockReason, setBlockReason] = useState("");
   const [showInviteModal, setShowInviteModal] = useState(false);
 
@@ -106,6 +108,30 @@ export function MemberManagementModal({
     },
     onError: (error: any) => {
       toast({ title: "Error", description: error.message || "Failed to remove member", variant: "destructive" });
+    },
+  });
+
+  // Leave team mutation
+  const leaveTeamMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", `/api/teams/${teamId}/leave`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/teams"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/teams", teamId, "members"] });
+      toast({
+        title: "Success",
+        description: "Successfully left the team",
+      });
+      onClose();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to leave team",
+        variant: "destructive",
+      });
     },
   });
 
@@ -223,6 +249,22 @@ export function MemberManagementModal({
                               Remove
                             </Button>
                           </div>
+                        </div>
+                      )}
+
+                      {/* Leave Team Button - for current user only */}
+                      {membership.user.id === currentUser?.id && !isOwner && (
+                        <div className="pt-2 border-t">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => leaveTeamMutation.mutate()}
+                            disabled={leaveTeamMutation.isPending}
+                            className="text-red-600 hover:text-red-700 w-full"
+                          >
+                            <LogOut className="h-4 w-4 mr-2" />
+                            Leave Team
+                          </Button>
                         </div>
                       )}
                     </div>

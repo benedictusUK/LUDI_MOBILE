@@ -340,37 +340,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Only team owners and admins can send invitations" });
       }
 
-      // Check if user is already a member
-      const existingMembership = await storage.getUserTeam(userId, teamId);
-      if (existingMembership) {
-        return res.status(400).json({ message: "User is already a team member" });
-      }
-
-      // Check if user is blocked
-      const blockedMembers = await storage.getBlockedMembers(teamId);
-      const isBlocked = blockedMembers.some(blocked => blocked.userId === userId);
-      if (isBlocked) {
-        return res.status(400).json({ message: "Cannot invite blocked user" });
-      }
-
-      // For now, automatically add the user (in a real app, you'd send a notification)
-      // In the future, this could create an invitation record that the user can accept/decline
-      await storage.addTeamMember(teamId, userId);
-
-      // Create notification for the invited user
-      const inviter = await storage.getUser(currentUserId);
-      await storage.createNotification({
-        userId: userId,
-        title: "Team Invitation",
-        message: `${inviter?.username || 'Someone'} added you to the team "${team.name}"`,
-        type: "team",
-        relatedId: teamId
-      });
-
-      res.json({ message: "User successfully invited to the team" });
+      // Create invitation (this will handle all validation)
+      const invitation = await storage.createTeamInvitation(teamId, userId, currentUserId);
+      res.json({ message: "Invitation sent successfully", invitation });
     } catch (error: any) {
       console.error("Error sending team invitation:", error);
       res.status(400).json({ message: error.message || "Failed to send invitation" });
+    }
+  });
+
+  // Accept team invitation
+  app.post('/api/invitations/:invitationId/accept', isAuthenticated, async (req: any, res) => {
+    try {
+      const { invitationId } = req.params;
+      const userId = req.user.claims.sub;
+      
+      const membership = await storage.acceptTeamInvitation(invitationId, userId);
+      res.json({ message: "Invitation accepted successfully", membership });
+    } catch (error: any) {
+      console.error("Error accepting invitation:", error);
+      res.status(400).json({ message: error.message || "Failed to accept invitation" });
+    }
+  });
+
+  // Decline team invitation
+  app.post('/api/invitations/:invitationId/decline', isAuthenticated, async (req: any, res) => {
+    try {
+      const { invitationId } = req.params;
+      const userId = req.user.claims.sub;
+      
+      await storage.declineTeamInvitation(invitationId, userId);
+      res.json({ message: "Invitation declined successfully" });
+    } catch (error: any) {
+      console.error("Error declining invitation:", error);
+      res.status(400).json({ message: error.message || "Failed to decline invitation" });
+    }
+  });
+
+  // Get user's pending invitations
+  app.get('/api/users/invitations', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const invitations = await storage.getUserInvitations(userId);
+      res.json(invitations);
+    } catch (error) {
+      console.error("Error fetching user invitations:", error);
+      res.status(500).json({ message: "Failed to fetch invitations" });
+    }
+  });
+
+  // Leave team
+  app.post('/api/teams/:id/leave', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id: teamId } = req.params;
+      const userId = req.user.claims.sub;
+      
+      await storage.leaveTeam(teamId, userId);
+      res.json({ message: "Successfully left the team" });
+    } catch (error: any) {
+      console.error("Error leaving team:", error);
+      res.status(400).json({ message: error.message || "Failed to leave team" });
     }
   });
 

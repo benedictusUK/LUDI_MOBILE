@@ -10,6 +10,7 @@ import {
   notificationPreferences,
   activityLogs,
   blockedMembers,
+  teamInvitations,
   type User,
   type UpsertUser,
   type AuthUser,
@@ -31,6 +32,8 @@ import {
   type InsertActivityLog,
   type BlockedMember,
   type InsertBlockedMember,
+  type TeamInvitation,
+  type InsertTeamInvitation,
   type ProfileCompletion,
   type UpdateProfile,
   flareResponses,
@@ -135,6 +138,15 @@ export interface IStorage {
   unblockMember(teamId: string, userId: string): Promise<void>;
   getBlockedMembers(teamId: string): Promise<(BlockedMember & { user: User; blockedBy: User })[]>;
   isUserBlocked(teamId: string, userId: string): Promise<boolean>;
+  leaveTeam(teamId: string, userId: string): Promise<void>;
+  
+  // Team invitations
+  createTeamInvitation(teamId: string, userId: string, invitedById: string): Promise<TeamInvitation>;
+  getTeamInvitations(teamId: string): Promise<(TeamInvitation & { user: User; invitedBy: User; team: Team })[]>;
+  getUserInvitations(userId: string): Promise<(TeamInvitation & { team: Team; invitedBy: User })[]>;
+  acceptTeamInvitation(invitationId: string, userId: string): Promise<TeamMembership>;
+  declineTeamInvitation(invitationId: string, userId: string): Promise<void>;
+  getTeamInvitation(invitationId: string): Promise<TeamInvitation | undefined>;
   
   // Join request management
   approveJoinRequest(teamId: string, userId: string, approverId: string): Promise<TeamMembership>;
@@ -1266,6 +1278,262 @@ export class DatabaseStorage implements IStorage {
 
     return admins;
   }
+
+  // Leave team functionality
+  async leaveTeam(teamId: string, userId: string): Promise<void> {
+    const team = await this.getTeam(teamId);
+    if (!team) {
+      throw new Error("Team not found");
+    }
+
+    // Check if user is the team owner
+    if (team.ownerId === userId) {
+      throw new Error("Team owners cannot leave their team. Please transfer ownership or delete the team instead.");
+    }
+
+    // Check if user is a member
+    const membership = await this.getUserTeam(userId, teamId);
+    if (!membership) {
+      throw new Error("User is not a member of this team");
+    }
+
+    // Remove from team
+    await this.removeTeamMember(teamId, userId);
+
+    // Log the activity
+    await this.logActivity({
+      userId,
+      action: "left_team",
+      details: `Left team ${team.name}`,
+      ipAddress: "system",
+      teamId
+    });
+  }
+
+  // Team invitation methods
+  async createTeamInvitation(teamId: string, userId: string, invitedById: string): Promise<TeamInvitation> {
+    // Check if user is already a member
+    const existingMembership = await this.getUserTeam(userId, teamId);
+    if (existingMembership) {
+      throw new Error("User is already a team member");
+    }
+
+    // Check if user is blocked
+    const isBlocked = await this.isUserBlocked(teamId, userId);
+    if (isBlocked) {
+      throw new Error("Cannot invite blocked user");
+    }
+
+    // Check if invitation already exists
+    const existingInvitation = await db
+      .select()
+      .from(teamInvitations)
+      .where(and(
+        eq(teamInvitations.teamId, teamId),
+        eq(teamInvitations.userId, userId),
+        eq(teamInvitations.status, "pending")
+      ))
+      .limit(1);
+
+    if (existingInvitation.length > 0) {
+      throw new Error("User already has a pending invitation to this team");
+    }
+
+    // Create invitation
+    const [invitation] = await db
+      .insert(teamInvitations)
+      .values({
+        teamId,
+        userId,
+        invitedById,
+        status: "pending"
+      })
+      .returning();
+
+    // Create notification for the invited user
+    const team = await this.getTeam(teamId);
+    const inviter = await this.getUser(invitedById);
+    
+    if (team && inviter) {
+      await this.createNotification({
+        userId,
+        title: "Team Invitation",
+        message: `${inviter.username || inviter.firstName} invited you to join "${team.name}"`,
+        type: "team_invitation",
+        relatedId: invitation.id
+      });
+    }
+
+    return invitation;
+  }
+
+  async getTeamInvitations(teamId: string): Promise<(TeamInvitation & { user: User; invitedBy: User; team: Team })[]> {
+    const result = await db
+      .select({
+        id: teamInvitations.id,
+        teamId: teamInvitations.teamId,
+        userId: teamInvitations.userId,
+        invitedById: teamInvitations.invitedById,
+        status: teamInvitations.status,
+        invitedAt: teamInvitations.invitedAt,
+        respondedAt: teamInvitations.respondedAt,
+        user: users,
+        invitedBy: {
+          id: sql<string>`inviter.id`,
+          username: sql<string>`inviter.username`,
+          firstName: sql<string>`inviter.first_name`,
+          lastName: sql<string>`inviter.last_name`,
+          email: sql<string>`inviter.email`,
+          profileImageUrl: sql<string>`inviter.profile_image_url`,
+        },
+        team: teams,
+      })
+      .from(teamInvitations)
+      .innerJoin(users, eq(teamInvitations.userId, users.id))
+      .innerJoin(teams, eq(teamInvitations.teamId, teams.id))
+      .innerJoin(sql`users AS inviter`, eq(teamInvitations.invitedById, sql`inviter.id`))
+      .where(eq(teamInvitations.teamId, teamId))
+      .orderBy(desc(teamInvitations.invitedAt));
+
+    return result as any;
+  }
+
+  async getUserInvitations(userId: string): Promise<(TeamInvitation & { team: Team; invitedBy: User })[]> {
+    const result = await db
+      .select({
+        id: teamInvitations.id,
+        teamId: teamInvitations.teamId,
+        userId: teamInvitations.userId,
+        invitedById: teamInvitations.invitedById,
+        status: teamInvitations.status,
+        invitedAt: teamInvitations.invitedAt,
+        respondedAt: teamInvitations.respondedAt,
+        team: teams,
+        invitedBy: {
+          id: sql<string>`inviter.id`,
+          username: sql<string>`inviter.username`,
+          firstName: sql<string>`inviter.first_name`,
+          lastName: sql<string>`inviter.last_name`,
+          email: sql<string>`inviter.email`,
+          profileImageUrl: sql<string>`inviter.profile_image_url`,
+        },
+      })
+      .from(teamInvitations)
+      .innerJoin(teams, eq(teamInvitations.teamId, teams.id))
+      .innerJoin(sql`users AS inviter`, eq(teamInvitations.invitedById, sql`inviter.id`))
+      .where(and(
+        eq(teamInvitations.userId, userId),
+        eq(teamInvitations.status, "pending")
+      ))
+      .orderBy(desc(teamInvitations.invitedAt));
+
+    return result as any;
+  }
+
+  async acceptTeamInvitation(invitationId: string, userId: string): Promise<TeamMembership> {
+    // Get the invitation
+    const invitation = await this.getTeamInvitation(invitationId);
+    if (!invitation) {
+      throw new Error("Invitation not found");
+    }
+
+    if (invitation.userId !== userId) {
+      throw new Error("Not authorized to accept this invitation");
+    }
+
+    if (invitation.status !== "pending") {
+      throw new Error("Invitation is no longer pending");
+    }
+
+    // Check if user is still available (not blocked, not already a member)
+    const existingMembership = await this.getUserTeam(userId, invitation.teamId);
+    if (existingMembership) {
+      throw new Error("User is already a team member");
+    }
+
+    const isBlocked = await this.isUserBlocked(invitation.teamId, userId);
+    if (isBlocked) {
+      throw new Error("Cannot join team - user is blocked");
+    }
+
+    // Add user to team
+    const membership = await this.addTeamMember(invitation.teamId, userId, "member");
+
+    // Update invitation status
+    await db
+      .update(teamInvitations)
+      .set({
+        status: "accepted",
+        respondedAt: new Date()
+      })
+      .where(eq(teamInvitations.id, invitationId));
+
+    // Notify the inviter
+    const team = await this.getTeam(invitation.teamId);
+    const user = await this.getUser(userId);
+    
+    if (team && user) {
+      await this.createNotification({
+        userId: invitation.invitedById,
+        title: "Invitation Accepted",
+        message: `${user.username || user.firstName} accepted your invitation to join "${team.name}"`,
+        type: "team_invitation_accepted",
+        relatedId: invitation.teamId
+      });
+    }
+
+    return membership;
+  }
+
+  async declineTeamInvitation(invitationId: string, userId: string): Promise<void> {
+    // Get the invitation
+    const invitation = await this.getTeamInvitation(invitationId);
+    if (!invitation) {
+      throw new Error("Invitation not found");
+    }
+
+    if (invitation.userId !== userId) {
+      throw new Error("Not authorized to decline this invitation");
+    }
+
+    if (invitation.status !== "pending") {
+      throw new Error("Invitation is no longer pending");
+    }
+
+    // Update invitation status
+    await db
+      .update(teamInvitations)
+      .set({
+        status: "declined",
+        respondedAt: new Date()
+      })
+      .where(eq(teamInvitations.id, invitationId));
+
+    // Notify the inviter
+    const team = await this.getTeam(invitation.teamId);
+    const user = await this.getUser(userId);
+    
+    if (team && user) {
+      await this.createNotification({
+        userId: invitation.invitedById,
+        title: "Invitation Declined",
+        message: `${user.username || user.firstName} declined your invitation to join "${team.name}"`,
+        type: "team_invitation_declined",
+        relatedId: invitation.teamId
+      });
+    }
+  }
+
+  async getTeamInvitation(invitationId: string): Promise<TeamInvitation | undefined> {
+    const [invitation] = await db
+      .select()
+      .from(teamInvitations)
+      .where(eq(teamInvitations.id, invitationId))
+      .limit(1);
+
+    return invitation;
+  }
+
   // Flare gun operations
   async findNearbyUsers(eventId: string, sport: string, maxResults: number = 20): Promise<User[]> {
     // Get the event details to find the location/postcode

@@ -116,6 +116,19 @@ export const blockedMembers = pgTable("blocked_members", {
   unique().on(table.teamId, table.userId)
 ]);
 
+// Team invitations table
+export const teamInvitations = pgTable("team_invitations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  teamId: varchar("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  invitedById: varchar("invited_by_id").notNull().references(() => users.id),
+  status: varchar("status", { enum: ["pending", "accepted", "declined"] }).default("pending"),
+  invitedAt: timestamp("invited_at").defaultNow(),
+  respondedAt: timestamp("responded_at"),
+}, (table) => [
+  unique().on(table.teamId, table.userId) // Prevent duplicate invitations
+]);
+
 // Events table
 export const events = pgTable("events", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -289,6 +302,21 @@ export const blockedMembersRelations = relations(blockedMembers, ({ one }) => ({
   }),
   blockedBy: one(users, {
     fields: [blockedMembers.blockedById],
+    references: [users.id],
+  }),
+}));
+
+export const teamInvitationsRelations = relations(teamInvitations, ({ one }) => ({
+  team: one(teams, {
+    fields: [teamInvitations.teamId],
+    references: [teams.id],
+  }),
+  user: one(users, {
+    fields: [teamInvitations.userId],
+    references: [users.id],
+  }),
+  invitedBy: one(users, {
+    fields: [teamInvitations.invitedById],
     references: [users.id],
   }),
 }));
@@ -563,6 +591,14 @@ export const insertBlockedMemberSchema = createInsertSchema(blockedMembers).omit
 });
 export type InsertBlockedMember = z.infer<typeof insertBlockedMemberSchema>;
 export type BlockedMember = typeof blockedMembers.$inferSelect;
+
+export const insertTeamInvitationSchema = createInsertSchema(teamInvitations).omit({
+  id: true,
+  invitedAt: true,
+  respondedAt: true,
+});
+export type InsertTeamInvitation = z.infer<typeof insertTeamInvitationSchema>;
+export type TeamInvitation = typeof teamInvitations.$inferSelect;
 export type FlareResponse = typeof flareResponses.$inferSelect;
 export const insertFlareResponseSchema = createInsertSchema(flareResponses).omit({
   id: true,

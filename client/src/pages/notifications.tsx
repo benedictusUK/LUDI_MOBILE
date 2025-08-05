@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { JoinRequestNotification } from "@/components/ui/join-request-notification";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 
@@ -79,6 +79,74 @@ export default function Notifications() {
         }, 500);
         return;
       }
+    },
+  });
+
+  // Accept invitation mutation
+  const acceptInvitationMutation = useMutation({
+    mutationFn: async (invitationId: string) => {
+      const response = await apiRequest("POST", `/api/invitations/${invitationId}/accept`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/teams"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      toast({
+        title: "Success",
+        description: "Successfully joined the team!",
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to accept invitation",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Decline invitation mutation
+  const declineInvitationMutation = useMutation({
+    mutationFn: async (invitationId: string) => {
+      const response = await apiRequest("POST", `/api/invitations/${invitationId}/decline`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+      toast({
+        title: "Success",
+        description: "Invitation declined",
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to decline invitation",
+        variant: "destructive",
+      });
     },
   });
 
@@ -185,14 +253,14 @@ export default function Notifications() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {notifications.length === 0 ? (
+              {(notifications as any[]).length === 0 ? (
                 <div className="text-center py-12">
                   <i className="fas fa-bell text-neutral-300 text-6xl mb-4"></i>
                   <h3 className="text-lg font-semibold text-neutral-900 mb-2">No notifications</h3>
                   <p className="text-neutral-500">You're all caught up!</p>
                 </div>
               ) : (
-                notifications.map((notification: any) => (
+                (notifications as any[]).map((notification: any) => (
                   <div 
                     key={notification.id} 
                     className={`flex items-start space-x-4 p-4 border border-gray-100 rounded-lg hover:bg-neutral-50 transition-colors cursor-pointer ${
@@ -215,6 +283,29 @@ export default function Notifications() {
                       <p className="text-xs text-neutral-400 mt-1">
                         {new Date(notification.createdAt).toLocaleDateString()}
                       </p>
+                      
+                      {/* Team invitation action buttons */}
+                      {notification.type === "team_invitation" && !notification.isRead && (
+                        <div className="flex gap-2 mt-3" onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() => acceptInvitationMutation.mutate(notification.relatedId)}
+                            disabled={acceptInvitationMutation.isPending}
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            Accept
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => declineInvitationMutation.mutate(notification.relatedId)}
+                            disabled={declineInvitationMutation.isPending}
+                          >
+                            Decline
+                          </Button>
+                        </div>
+                      )}
                     </div>
                     {!notification.isRead && (
                       <div className="flex-shrink-0">
