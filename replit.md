@@ -35,6 +35,10 @@ Preferred communication style: Simple, everyday language.
   - Implemented automatic notification marking as read when requests are processed
   - Added proper validation to prevent self-approval and duplicate memberships
   - Enhanced notification system with metadata field for storing requestUserId and teamId
+- **Event Authorization Security**: Fixed critical security issue where any user could edit any event
+  - Added proper authorization checks to event update endpoint
+  - Only team owners and admins can now edit events from their primary team
+  - Prevents unauthorized event modifications and maintains data integrity
 
 **August 5, 2025 - OAuth Authentication Implementation (Prepared) & Manual Registration**
 - **OAuth Infrastructure**: Successfully implemented Google and Apple OAuth authentication alongside existing Replit auth

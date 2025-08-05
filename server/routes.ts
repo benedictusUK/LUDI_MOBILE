@@ -697,6 +697,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/events/:id', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      const eventId = req.params.id;
+      
+      // Get the event to check authorization
+      const existingEvent = await storage.getEvent(eventId);
+      if (!existingEvent) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+
+      // Check if user has admin access to the primary team
+      const userTeamMembership = await storage.getUserTeam(userId, existingEvent.primaryTeamId);
+      const team = await storage.getTeam(existingEvent.primaryTeamId);
+      
+      // Allow editing if user is team owner or has admin role
+      const canEdit = (team && team.ownerId === userId) || 
+                     (userTeamMembership && userTeamMembership.role === "admin");
+      
+      if (!canEdit) {
+        return res.status(403).json({ 
+          message: "Not authorized to edit this event. Only team owners and admins can edit events." 
+        });
+      }
       
       // Parse and validate the event data
       const eventData = insertEventSchema.parse({
@@ -704,7 +725,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdById: userId,
       });
       
-      const event = await storage.updateEvent(req.params.id, eventData);
+      const event = await storage.updateEvent(eventId, eventData);
       res.json(event);
     } catch (error: any) {
       console.error("Error updating event:", error);
