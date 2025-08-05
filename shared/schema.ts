@@ -62,6 +62,7 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
+  authProvider: varchar("auth_provider", { enum: ["replit", "google", "apple"] }).default("replit"), // tracks OAuth provider
   username: varchar("username").unique(), // will be required for profile completion
   phoneNumber: varchar("phone_number"),
   dateOfBirth: date("date_of_birth"), // will be required for profile completion
@@ -402,13 +403,14 @@ export const insertUserSchema = createInsertSchema(users).omit({
   phoneNumber: z.string().regex(/^(\+44|0)[0-9]{10}$/, "Please enter a valid UK phone number"),
 });
 
-// Auth-specific user schema for Replit OAuth (only requires basic fields)
+// Auth-specific user schema for OAuth providers (only requires basic fields)
 export const authUserSchema = z.object({
   id: z.string(),
   email: z.string().email(),
   firstName: z.string().optional(),
   lastName: z.string().optional(),
   profileImageUrl: z.string().optional(),
+  authProvider: z.enum(["replit", "google", "apple"]).default("replit"),
 });
 
 // Profile completion schema (for mandatory fields after signup)
