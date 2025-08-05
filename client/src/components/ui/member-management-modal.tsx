@@ -38,13 +38,16 @@ export function MemberManagementModal({
   const [showInviteModal, setShowInviteModal] = useState(false);
 
   // Fetch team details to get actual ownership info
-  const { data: teamData } = useQuery({
+  const { data: teamData, error: teamError } = useQuery({
     queryKey: ["/api/teams", teamId],
     enabled: isOpen,
   });
 
+  // Debug: Log team data
+  console.log('Team Data:', teamData, 'Team Error:', teamError, 'Current User:', currentUser?.id);
+
   // Determine if current user is owner of this specific team
-  const isCurrentUserOwner = teamData?.ownerId === currentUser?.id;
+  const isCurrentUserOwner = (teamData as any)?.ownerId === currentUser?.id;
 
   // Fetch team members
   const { data: members = [], isLoading: membersLoading } = useQuery({
@@ -280,7 +283,7 @@ export function MemberManagementModal({
                       {/* Debug info - Remove after testing */}
                       {membership.user.id === currentUser?.id && (
                         <div className="text-xs text-gray-500 mt-2">
-                          Current User: {currentUser?.id} | Team Owner: {teamData?.ownerId} | Show Leave: {!isCurrentUserOwner ? 'Yes' : 'No'}
+                          Current User: {currentUser?.id} | Team Owner: {(teamData as any)?.ownerId} | Show Leave: {!isCurrentUserOwner ? 'Yes' : 'No'}
                         </div>
                       )}
                     </div>
