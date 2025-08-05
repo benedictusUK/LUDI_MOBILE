@@ -777,8 +777,20 @@ export class DatabaseStorage implements IStorage {
     totalPlayers: number;
     unreadNotifications: number;
   }> {
-    // Get upcoming events for user's teams
-    const upcomingEvents = await db
+    // Get upcoming events for user's teams (check both primary team and event_teams associations)
+    const upcomingEventsFromPrimary = await db
+      .select({ count: count() })
+      .from(events)
+      .innerJoin(teamMemberships, eq(events.primaryTeamId, teamMemberships.teamId))
+      .where(
+        and(
+          eq(teamMemberships.userId, userId),
+          eq(events.isPublished, true),
+          sql`${events.startDate} >= CURRENT_DATE`
+        )
+      );
+
+    const upcomingEventsFromJunction = await db
       .select({ count: count() })
       .from(events)
       .innerJoin(eventTeams, eq(events.id, eventTeams.eventId))
@@ -786,9 +798,12 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(teamMemberships.userId, userId),
+          eq(events.isPublished, true),
           sql`${events.startDate} >= CURRENT_DATE`
         )
       );
+
+    const totalUpcomingEvents = (upcomingEventsFromPrimary[0]?.count || 0) + (upcomingEventsFromJunction[0]?.count || 0);
 
     // Get active teams count
     const activeTeams = await db
@@ -815,7 +830,7 @@ export class DatabaseStorage implements IStorage {
       );
 
     return {
-      upcomingEvents: upcomingEvents[0]?.count || 0,
+      upcomingEvents: totalUpcomingEvents,
       activeTeams: activeTeams[0]?.count || 0,
       totalPlayers: totalPlayers.length,
       unreadNotifications: unreadNotifications[0]?.count || 0,
