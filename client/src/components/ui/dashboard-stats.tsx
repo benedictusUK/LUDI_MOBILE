@@ -41,14 +41,14 @@ export default function DashboardStats({ stats }: DashboardStatsProps) {
         className="cursor-pointer hover:shadow-lg transition-shadow"
         onClick={() => setLocation("/events")}
       >
-        <CardContent className="p-6">
+        <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-neutral-500">Upcoming Events</p>
-              <p className="text-3xl font-bold text-neutral-900">{stats.upcomingEvents}</p>
+              <p className="text-2xl font-bold text-neutral-900">{stats.upcomingEvents}</p>
             </div>
-            <div className="bg-primary p-3 rounded-lg">
-              <i className="fas fa-calendar text-white text-xl"></i>
+            <div className="bg-primary p-2 rounded-lg">
+              <i className="fas fa-calendar text-white text-lg"></i>
             </div>
           </div>
         </CardContent>
@@ -58,28 +58,28 @@ export default function DashboardStats({ stats }: DashboardStatsProps) {
         className="cursor-pointer hover:shadow-lg transition-shadow"
         onClick={() => setLocation("/teams")}
       >
-        <CardContent className="p-6">
+        <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-neutral-500">Active Teams</p>
-              <p className="text-3xl font-bold text-neutral-900">{stats.activeTeams}</p>
+              <p className="text-2xl font-bold text-neutral-900">{stats.activeTeams}</p>
             </div>
-            <div className="bg-secondary p-3 rounded-lg">
-              <i className="fas fa-users text-white text-xl"></i>
+            <div className="bg-secondary p-2 rounded-lg">
+              <i className="fas fa-users text-white text-lg"></i>
             </div>
           </div>
         </CardContent>
       </Card>
 
       <Card>
-        <CardContent className="p-6">
+        <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-neutral-500">Total Players</p>
-              <p className="text-3xl font-bold text-neutral-900">{stats.totalPlayers}</p>
+              <p className="text-2xl font-bold text-neutral-900">{stats.totalPlayers}</p>
             </div>
-            <div className="bg-accent p-3 rounded-lg">
-              <i className="fas fa-user-friends text-white text-xl"></i>
+            <div className="bg-accent p-2 rounded-lg">
+              <i className="fas fa-user-friends text-white text-lg"></i>
             </div>
           </div>
         </CardContent>
@@ -89,14 +89,14 @@ export default function DashboardStats({ stats }: DashboardStatsProps) {
         className="cursor-pointer hover:shadow-lg transition-shadow"
         onClick={() => setLocation("/notifications")}
       >
-        <CardContent className="p-6">
+        <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-neutral-500">Notifications</p>
-              <p className="text-3xl font-bold text-neutral-900">{stats.unreadNotifications}</p>
+              <p className="text-2xl font-bold text-neutral-900">{stats.unreadNotifications}</p>
             </div>
-            <div className="bg-yellow-500 p-3 rounded-lg">
-              <i className="fas fa-bell text-white text-xl"></i>
+            <div className="bg-yellow-500 p-2 rounded-lg">
+              <i className="fas fa-bell text-white text-lg"></i>
             </div>
           </div>
         </CardContent>

@@ -25,7 +25,7 @@ export default function Home() {
     queryKey: ["/api/events"],
   });
 
-  // Filter to upcoming events only and get user's attendance status
+  // Filter to upcoming events only and sort by soonest first
   const upcomingEvents = (events as any[])
     .filter((event: any) => {
       const eventDate = new Date(event.startDate);
@@ -33,6 +33,7 @@ export default function Home() {
       today.setHours(0, 0, 0, 0);
       return eventDate >= today;
     })
+    .sort((a: any, b: any) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
     .slice(0, 3);
 
   const userTeams = (teams as any[]).slice(0, 3);
