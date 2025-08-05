@@ -1339,6 +1339,15 @@ export class DatabaseStorage implements IStorage {
       throw new Error("User already has a pending invitation to this team");
     }
 
+    // Check if there are any previous invitations (accepted/declined) and delete them to allow resending
+    await db
+      .delete(teamInvitations)
+      .where(and(
+        eq(teamInvitations.teamId, teamId),
+        eq(teamInvitations.userId, userId),
+        ne(teamInvitations.status, "pending")
+      ));
+
     // Create invitation
     const [invitation] = await db
       .insert(teamInvitations)
