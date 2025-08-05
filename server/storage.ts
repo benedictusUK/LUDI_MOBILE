@@ -1448,8 +1448,12 @@ export class DatabaseStorage implements IStorage {
 
   // Recurring Events Methods
   async createRecurringEvents(parentEvent: InsertEvent, numberOfWeeks: number = 4): Promise<Event[]> {
+    console.log("Creating recurring events - parentEvent:", JSON.stringify(parentEvent, null, 2));
+    console.log("Number of weeks:", numberOfWeeks);
+    
     if (parentEvent.recurrenceType === "none") {
       // Create single event
+      console.log("Creating single event (no recurrence)");
       return [await this.createEvent(parentEvent)];
     }
 
@@ -1480,11 +1484,21 @@ export class DatabaseStorage implements IStorage {
     const endGenerationDate = new Date(currentDate);
     endGenerationDate.setDate(endGenerationDate.getDate() + (numberOfWeeks * 7));
 
+    console.log("Start date:", currentDate);
+    console.log("End generation date:", endGenerationDate);
+    console.log("Recurrence type:", parentEvent.recurrenceType);
+    console.log("Days of week:", parentEvent.recurrenceDaysOfWeek);
+
     while (currentDate <= endGenerationDate) {
+      const dayOfWeek = currentDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+      console.log("Checking date:", currentDate.toISOString().split('T')[0], "Day:", dayOfWeek);
+      
       const shouldCreateEvent = parentEvent.recurrenceType === "daily" || 
         (parentEvent.recurrenceType === "weekly" && 
-         parentEvent.recurrenceDaysOfWeek.includes(currentDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase())) ||
+         parentEvent.recurrenceDaysOfWeek.includes(dayOfWeek)) ||
         parentEvent.recurrenceType === "monthly";
+
+      console.log("Should create event:", shouldCreateEvent);
 
       if (shouldCreateEvent) {
         const eventData: InsertEvent = {
@@ -1496,13 +1510,17 @@ export class DatabaseStorage implements IStorage {
           recurringSeriesId,
         };
 
+        console.log("Creating event for date:", eventData.startDate);
         const createdEvent = await this.createEvent(eventData);
+        console.log("Created event ID:", createdEvent.id);
         createdEvents.push(createdEvent);
       }
 
       currentDate = getNextEventDate(currentDate, parentEvent.recurrenceType, parentEvent.recurrenceDaysOfWeek);
+      console.log("Next date:", currentDate.toISOString().split('T')[0]);
     }
 
+    console.log("Total events created:", createdEvents.length);
     return createdEvents;
   }
 
