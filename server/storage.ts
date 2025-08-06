@@ -731,7 +731,7 @@ export class DatabaseStorage implements IStorage {
           title: "Automatically Promoted!",
           message: `A spot opened up! You've been automatically promoted from the reserve list to the main event for "${event.name}".`,
           relatedId: eventId,
-          relatedType: "event"
+
         });
       }
     } catch (error) {
@@ -1697,28 +1697,58 @@ export class DatabaseStorage implements IStorage {
 
   // Flare gun operations
   async findNearbyUsers(eventId: string, sport: string, maxResults: number = 20): Promise<User[]> {
-    // Get the event details to find the location/postcode
+    // Get the event details to find the location/postcode and associated teams
     const [event] = await db
-      .select({ location: events.location, primaryTeamId: events.primaryTeamId })
+      .select({ 
+        location: events.location, 
+        primaryTeamId: events.primaryTeamId,
+        secondaryTeamIds: events.secondaryTeamIds
+      })
       .from(events)
       .where(eq(events.id, eventId));
 
     if (!event) return [];
 
+    // Get all team IDs associated with this event
+    const associatedTeamIds = [event.primaryTeamId];
+    if (event.secondaryTeamIds && Array.isArray(event.secondaryTeamIds)) {
+      associatedTeamIds.push(...event.secondaryTeamIds);
+    }
+
     // Find users who:
     // 1. Have this sport in their interests
-    // 2. Are not members of ANY team (to avoid spamming existing team members)
-    // 3. Are within travel radius (simplified - this could be enhanced with actual distance calculation)
+    // 2. Are NOT members of teams associated with this specific event
+    // 3. Have flare gun notifications enabled
+    // 4. Have completed their profile
     const nearbyUsers = await db
-      .select()
+      .select({
+        id: users.id,
+        username: users.username,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email,
+        profileImageUrl: users.profileImageUrl,
+        sportsInterests: users.sportsInterests,
+        postcode: users.postcode,
+        profileCompletedAt: users.profileCompletedAt,
+      })
       .from(users)
+      .leftJoin(notificationPreferences, eq(users.id, notificationPreferences.userId))
       .where(
         and(
           sql`${sport} = ANY(${users.sportsInterests})`,
-          // Exclude users who are already members of any team
-          sql`${users.id} NOT IN (SELECT user_id FROM team_memberships)`,
+          // Exclude users who are members of teams associated with this event
+          sql`${users.id} NOT IN (
+            SELECT user_id FROM team_memberships 
+            WHERE team_id = ANY(${associatedTeamIds})
+          )`,
           // Only include users who have completed their profile
-          sql`${users.profileCompletedAt} IS NOT NULL`
+          sql`${users.profileCompletedAt} IS NOT NULL`,
+          // Only include users who have flare gun notifications enabled (default to true if no preferences set)
+          or(
+            eq(notificationPreferences.flareGunReminders, true),
+            sql`${notificationPreferences.userId} IS NULL`
+          )
         )
       )
       .limit(maxResults);
@@ -1728,20 +1758,38 @@ export class DatabaseStorage implements IStorage {
 
   async sendFlareNotifications(eventId: string, userIds: string[]): Promise<void> {
     // Get event details for notification
-    const [event] = await db
-      .select({ name: events.name, location: events.location, startDate: events.startDate, startTime: events.startTime })
+    const [eventResult] = await db
+      .select({ 
+        event: events,
+        team: teams
+      })
       .from(events)
+      .innerJoin(teams, eq(events.primaryTeamId, teams.id))
       .where(eq(events.id, eventId));
 
-    if (!event) return;
+    if (!eventResult) return;
 
-    // Create notifications for each user
+    const { event, team } = eventResult;
+
+    // Create notifications for each user with event metadata
+    const eventData = {
+      id: event.id,
+      title: event.name,
+      startDate: event.startDate,
+      startTime: event.startTime,
+      location: event.location,
+      description: event.description || null,
+      sport: event.sport,
+      primaryTeamName: team.name
+    };
+
     const notificationData = userIds.map(userId => ({
       userId,
       title: "🚀 Flare Gun Alert!",
-      message: `New event "${event.name}" needs players! Location: ${event.location}. Time: ${event.startDate} ${event.startTime}`,
+      message: `${team.name} needs players for "${event.name}"! Check out the event details and join if interested.`,
       type: "flare_gun",
       relatedId: eventId,
+      metadata: JSON.stringify({ eventData })
     }));
 
     await db.insert(notifications).values(notificationData);
@@ -1907,7 +1955,7 @@ export class DatabaseStorage implements IStorage {
         title: "Promoted to Main Event!",
         message: `You've been promoted from the reserve list to the main event for "${event.name}".`,
         relatedId: eventId,
-        relatedType: "event"
+
       });
     }
 

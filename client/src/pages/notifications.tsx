@@ -480,12 +480,12 @@ export default function Notifications() {
                               </div>
                               <div className="flex items-center gap-2">
                                 <Link href={`/events/${metadata.eventData.id}`}>
-                                  <Button variant="outline" size="sm" className="text-xs">
-                                    View Event
+                                  <Button variant="default" size="sm" className="text-xs">
+                                    See event
                                   </Button>
                                 </Link>
                                 <Button
-                                  variant="default"
+                                  variant="outline"
                                   size="sm"
                                   className="text-xs"
                                   onClick={() => addToMyEventsMutation.mutate(metadata.eventData.id)}
@@ -493,7 +493,7 @@ export default function Notifications() {
                                 >
                                   {addToMyEventsMutation.isPending ? (
                                     <div className="flex items-center gap-1">
-                                      <div className="w-2 h-2 border border-white border-t-transparent rounded-full animate-spin" />
+                                      <div className="w-2 h-2 border border-neutral-600 border-t-transparent rounded-full animate-spin" />
                                       Adding...
                                     </div>
                                   ) : (
