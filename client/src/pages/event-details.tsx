@@ -387,7 +387,7 @@ export default function EventDetails() {
                         >
                           <Users className="w-4 h-4 mr-2 flex-shrink-0" />
                           <span className="text-center">
-                            {capacity && (capacity as any).availableSpots <= 0 ? "Become a reserve" : "I can attend"}
+                            {capacity && capacity.maxParticipants && (capacity as any).availableSpots <= 0 ? "Become a reserve" : "I can attend"}
                           </span>
                         </Button>
                         <Button
