@@ -673,11 +673,18 @@ export class DatabaseStorage implements IStorage {
 
   async voteOnEvent(eventId: string, userId: string, status: "attending" | "not_attending"): Promise<any> {
     // Use recordAttendance which handles capacity checking and reserve logic
-    return await this.recordAttendance({
+    const result = await this.recordAttendance({
       eventId,
       userId,
       status
     });
+
+    // Automatically add event to user's followed events when they vote to attend
+    if (status === "attending") {
+      await this.addUserEvent(userId, eventId);
+    }
+
+    return result;
   }
 
   async removeVote(eventId: string, userId: string): Promise<void> {
@@ -804,6 +811,11 @@ export class DatabaseStorage implements IStorage {
       action: finalStatus === "reserve" ? "placed_in_reserve" : `voted_${finalStatus}`,
       newStatus: finalStatus,
     });
+
+    // Automatically add event to user's followed events when they vote to attend or become a reserve
+    if (finalStatus === "attending" || finalStatus === "reserve") {
+      await this.addUserEvent(attendance.userId, attendance.eventId);
+    }
 
     // If user changed from attending to not_attending, auto-promote first reserve player
     if (attendance.status === "not_attending") {
@@ -1966,6 +1978,9 @@ export class DatabaseStorage implements IStorage {
       previousStatus: "reserve",
       newStatus: "attending",
     });
+
+    // Ensure event is in user's followed events when promoted
+    await this.addUserEvent(userId, eventId);
 
     // Get event and user details for notification
     const event = await this.getEvent(eventId);
