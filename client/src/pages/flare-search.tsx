@@ -25,7 +25,7 @@ export default function FlareSearch() {
   const [searchParams, setSearchParams] = useState({
     postcode: "",
     radius: "10",
-    sport: ""
+    sport: "all"
   });
   const [hasSearched, setHasSearched] = useState(false);
 
@@ -42,7 +42,7 @@ export default function FlareSearch() {
   };
 
   const resetSearch = () => {
-    setSearchParams({ postcode: "", radius: "10", sport: "" });
+    setSearchParams({ postcode: "", radius: "10", sport: "all" });
     setHasSearched(false);
   };
 
@@ -111,7 +111,7 @@ export default function FlareSearch() {
                   <SelectValue placeholder="Any sport" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Any sport</SelectItem>
+                  <SelectItem value="all">Any sport</SelectItem>
                   {SPORTS.map((sport) => (
                     <SelectItem key={sport} value={sport}>
                       {sport}
