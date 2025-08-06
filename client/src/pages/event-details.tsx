@@ -310,7 +310,7 @@ export default function EventDetails() {
                 
                 {(event as any).requirements && (
                   <div>
-                    <label className="text-sm font-medium text-neutral-600">Requirements</label>
+                    <label className="text-sm font-medium text-neutral-600">Description</label>
                     <p className="text-neutral-900 whitespace-pre-wrap">{(event as any).requirements}</p>
                   </div>
                 )}

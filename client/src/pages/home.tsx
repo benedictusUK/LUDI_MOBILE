@@ -150,7 +150,11 @@ export default function Home() {
                   <p className="text-neutral-500 text-center py-8">No teams found</p>
                 ) : (
                   userTeams.map((team: any) => (
-                    <div key={team.id} className="flex items-center space-x-4 p-4 border border-gray-100 rounded-lg">
+                    <div 
+                      key={team.id} 
+                      className="flex items-center space-x-4 p-4 border border-gray-100 rounded-lg cursor-pointer hover:bg-gray-50 hover:border-gray-200 transition-colors"
+                      onClick={() => setLocation(`/teams/${team.id}`)}
+                    >
                       <img 
                         src="https://pixabay.com/get/g5202462873eca9619d3df5dc0f91959d63be50f907aa2c040457382b8a99e807adb0e5247e5c503dc64ac68ca06a66f75cf609b2aa65f8cd9dfcf027f2207bfc_1280.jpg" 
                         alt={`${team.name} team`}
