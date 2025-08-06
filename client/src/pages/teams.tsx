@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Link, useLocation } from "wouter";
+import { Link, useLocation, useRoute } from "wouter";
 import Navigation from "@/components/ui/nav";
 import TeamForm from "@/components/ui/team-form";
 import { MemberManagementModal } from "@/components/ui/member-management-modal";
@@ -273,9 +273,24 @@ export default function Teams() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
+  // Check if we're on a specific team detail route
+  const [match, params] = useRoute("/teams/:id");
+  const teamId = params?.id;
+
   const { data: teams = [], isLoading } = useQuery({
     queryKey: ["/api/teams"],
   });
+
+  // Handle team detail route - automatically open manage modal for specific team
+  useEffect(() => {
+    if (teamId && teams.length > 0) {
+      const team = teams.find((t: any) => t.id === teamId);
+      if (team) {
+        setSelectedTeam(team);
+        setShowManageModal(true);
+      }
+    }
+  }, [teamId, teams]);
 
   const { data: teamMembers = [] } = useQuery({
     queryKey: ["/api/teams", selectedTeam?.id, "members"],

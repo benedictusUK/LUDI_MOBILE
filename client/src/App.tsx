@@ -46,6 +46,23 @@ function Router() {
     enabled: isAuthenticated && !isLoading,
   });
 
+  // Preload team details for quick navigation
+  useEffect(() => {
+    if (isAuthenticated && !isLoading && teams) {
+      // Preload team members and details for all user's teams during app startup
+      (teams as any[]).forEach((team: any) => {
+        queryClient.prefetchQuery({
+          queryKey: ["/api/teams", team.id, "members"],
+          staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+        });
+        queryClient.prefetchQuery({
+          queryKey: ["/api/teams", team.id],
+          staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+        });
+      });
+    }
+  }, [isAuthenticated, isLoading, teams]);
+
   // Handle initial loading sequence
   useEffect(() => {
     if (isAuthenticated && !isLoading) {
@@ -129,6 +146,7 @@ function Router() {
             <Route path="/events" component={Events} />
             <Route path="/events/:id" component={EventDetails} />
             <Route path="/teams" component={Teams} />
+            <Route path="/teams/:id" component={Teams} />
             <Route path="/notifications" component={Notifications} />
             <Route path="/settings" component={Settings} />
           </>
