@@ -1745,7 +1745,7 @@ export class DatabaseStorage implements IStorage {
           }
         } catch {
           // If JSON parsing fails, try splitting by comma
-          const ids = event.secondaryTeamIds.split(',').map(id => id.trim()).filter(id => id);
+          const ids = event.secondaryTeamIds.split(',').map((id: string) => id.trim()).filter((id: string) => id);
           associatedTeamIds.push(...ids);
         }
       }

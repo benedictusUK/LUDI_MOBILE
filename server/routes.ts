@@ -795,7 +795,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 associatedTeamIds.push(...parsed);
               }
             } catch {
-              const ids = event.secondaryTeamIds.split(',').map(id => id.trim()).filter(id => id);
+              const ids = event.secondaryTeamIds.split(',').map((id: string) => id.trim()).filter((id: string) => id);
               associatedTeamIds.push(...ids);
             }
           }
@@ -1503,6 +1503,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     res.json({ received: true });
+  });
+
+  // User events routes (for non-team members following events)
+  app.get('/api/events/:eventId/is-in-my-events', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { eventId } = req.params;
+      const isInMyEvents = await storage.isEventInUserEvents(userId, eventId);
+      res.json({ isInMyEvents });
+    } catch (error) {
+      console.error("Error checking if event is in user events:", error);
+      res.status(500).json({ message: "Failed to check event status" });
+    }
+  });
+
+  app.post('/api/events/:eventId/add-to-my-events', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { eventId } = req.params;
+      await storage.addEventToUserEvents(userId, eventId);
+      res.json({ message: "Event added to your events successfully" });
+    } catch (error) {
+      console.error("Error adding event to user events:", error);
+      res.status(500).json({ message: "Failed to add event to your events" });
+    }
+  });
+
+  app.delete('/api/events/:eventId/remove-from-my-events', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { eventId } = req.params;
+      await storage.removeEventFromUserEvents(userId, eventId);
+      res.json({ message: "Event removed from your events successfully" });
+    } catch (error) {
+      console.error("Error removing event from user events:", error);
+      res.status(500).json({ message: "Failed to remove event from your events" });
+    }
   });
 
   const httpServer = createServer(app);
