@@ -162,6 +162,15 @@ export interface IStorage {
   addUserEvent(userId: string, eventId: string): Promise<void>;
   removeUserEvent(userId: string, eventId: string): Promise<void>;
   isUserFollowingEvent(userId: string, eventId: string): Promise<boolean>;
+
+  // Flare gun operations
+  findNearbyUsers(eventId: string, sport: string, maxResults?: number): Promise<User[]>;
+  sendFlareNotifications(eventId: string, userIds: string[]): Promise<void>;
+  respondToFlare(eventId: string, userId: string, status: string): Promise<FlareResponse>;
+  getFlareResponses(eventId: string): Promise<(FlareResponse & { user: User })[]>;
+  activateFlareStatus(eventId: string, userId: string): Promise<void>;
+  deactivateFlareStatus(eventId: string): Promise<void>;
+  searchFlareEvents(postcode: string, radius: number, sport?: string): Promise<Event[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1869,13 +1878,43 @@ export class DatabaseStorage implements IStorage {
     return responses;
   }
 
-  // Search for events that have sent flare guns (events actively seeking players)
-  async searchFlareEvents(postcode: string, radiusMiles: number, sport?: string): Promise<any[]> {
-    // Get events that have recent flare gun activity (sent in last 7 days)
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  async activateFlareStatus(eventId: string, userId: string): Promise<void> {
+    await db
+      .update(events)
+      .set({
+        flareStatus: "active",
+        flareActivatedAt: new Date(),
+        flareActivatedById: userId,
+      })
+      .where(eq(events.id, eventId));
+  }
 
-    let query = db
+  async deactivateFlareStatus(eventId: string): Promise<void> {
+    await db
+      .update(events)
+      .set({
+        flareStatus: "inactive",
+        flareActivatedAt: null,
+        flareActivatedById: null,
+      })
+      .where(eq(events.id, eventId));
+  }
+
+  // Search for events that have active flare status (events actively seeking players)
+  async searchFlareEvents(postcode: string, radiusMiles: number, sport?: string): Promise<any[]> {
+    // Build query to find events with active flare status
+    let whereConditions = and(
+      sql`${events.startDate} >= CURRENT_DATE`, // Future events only
+      eq(events.isPublished, true),
+      eq(events.flareStatus, "active") // Only events with active flare status
+    );
+
+    // Add sport filter if specified and not "all"
+    if (sport && sport !== "all") {
+      whereConditions = and(whereConditions, eq(events.sport, sport));
+    }
+
+    const flareEvents = await db
       .select({
         id: events.id,
         name: events.name,
@@ -1886,35 +1925,14 @@ export class DatabaseStorage implements IStorage {
         postcode: events.postcode,
         requirements: events.requirements,
         maxParticipants: events.maxParticipants,
+        flareStatus: events.flareStatus,
+        flareActivatedAt: events.flareActivatedAt,
         team: teams,
-        flareCount: sql`COUNT(DISTINCT ${notifications.id})`.as('flareCount')
       })
       .from(events)
       .innerJoin(teams, eq(events.primaryTeamId, teams.id))
-      .innerJoin(notifications, and(
-        eq(notifications.relatedId, events.id),
-        eq(notifications.type, "flare_gun"),
-        sql`${notifications.createdAt} > ${sevenDaysAgo}`
-      ))
-      .where(
-        and(
-          sql`${events.startDate} >= CURRENT_DATE`, // Future events only
-          eq(events.isPublished, true)
-        )
-      )
-      .groupBy(events.id, teams.id);
-
-    // Add sport filter if specified
-    if (sport) {
-      query = query.where(and(
-        sql`${events.startDate} >= CURRENT_DATE`,
-        eq(events.isPublished, true),
-        eq(events.sport, sport)
-      ));
-    }
-
-    const flareEvents = await query
-      .orderBy(desc(sql`COUNT(DISTINCT ${notifications.id})`), events.startDate)
+      .where(whereConditions)
+      .orderBy(desc(events.flareActivatedAt), events.startDate)
       .limit(50);
 
     // TODO: Add actual distance calculation based on postcode

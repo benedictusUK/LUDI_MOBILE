@@ -64,11 +64,36 @@ export function FlareGunModal({ event, isAuthorized }: FlareGunModalProps) {
         description: `Alert sent to ${data.recipientCount} nearby players interested in ${event.sport}`,
       });
       refetchResponses();
+      // Invalidate event data to update flare status
+      queryClient.invalidateQueries({ queryKey: ["/api/events", event.id] });
     },
     onError: (error: any) => {
       toast({
         variant: "destructive",
         title: "Failed to send flare gun",
+        description: error.message || "Something went wrong",
+      });
+    },
+  });
+
+  // Toggle flare status mutation
+  const toggleFlareStatusMutation = useMutation({
+    mutationFn: async (status: "active" | "inactive") => {
+      const response = await apiRequest("POST", `/api/events/${event.id}/flare-status`, { status });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: `Flare ${data.flareStatus === 'active' ? 'Activated' : 'Deactivated'}`,
+        description: `Event is ${data.flareStatus === 'active' ? 'now discoverable' : 'no longer discoverable'} in Flare Search`,
+      });
+      // Invalidate event data to update flare status
+      queryClient.invalidateQueries({ queryKey: ["/api/events", event.id] });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: "Failed to update flare status",
         description: error.message || "Something went wrong",
       });
     },
@@ -132,6 +157,40 @@ export function FlareGunModal({ event, isAuthorized }: FlareGunModalProps) {
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* Flare Status Section */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Flare Status</h3>
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="flex items-center gap-3">
+                <div className={`h-3 w-3 rounded-full ${event.flareStatus === "active" ? "bg-orange-500" : "bg-gray-400"}`} />
+                <div>
+                  <p className="font-medium">
+                    Event is {event.flareStatus === "active" ? "discoverable" : "not discoverable"} in Flare Search
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {event.flareStatus === "active" 
+                      ? "Other users can find this event when searching for players to join"
+                      : "Event is hidden from Flare Search results"
+                    }
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant={event.flareStatus === "active" ? "destructive" : "default"}
+                size="sm"
+                onClick={() => toggleFlareStatusMutation.mutate(event.flareStatus === "active" ? "inactive" : "active")}
+                disabled={toggleFlareStatusMutation.isPending}
+              >
+                {toggleFlareStatusMutation.isPending 
+                  ? "Updating..." 
+                  : event.flareStatus === "active" 
+                    ? "Deactivate" 
+                    : "Activate"
+                }
+              </Button>
+            </div>
+          </div>
+
           {/* Send Flare Section */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Send Flare Alert for {event.sport}</h3>

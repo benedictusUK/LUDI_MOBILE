@@ -156,6 +156,11 @@ export const events = pgTable("events", {
   lateVotePenalty: decimal("late_vote_penalty", { precision: 10, scale: 2 }).default("0.00"),
   overduePaymentReminders: boolean("overdue_payment_reminders").default(false),
 
+  // Flare gun status
+  flareStatus: varchar("flare_status", { enum: ["inactive", "active"] }).default("inactive"), // Whether event is actively seeking players
+  flareActivatedAt: timestamp("flare_activated_at"), // When flare was last activated
+  flareActivatedById: varchar("flare_activated_by_id").references(() => users.id), // Who activated the flare
+
   // Recurring events
   recurrenceType: varchar("recurrence_type", { enum: ["none", "daily", "weekly", "monthly"] }).default("none"),
   recurrenceEndDate: date("recurrence_end_date"),

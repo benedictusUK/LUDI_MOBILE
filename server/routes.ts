@@ -1277,6 +1277,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const nearbyUsers = await storage.findNearbyUsers(eventId, sport);
       const userIds = nearbyUsers.map(user => user.id);
 
+      // Activate flare status for this event
+      await storage.activateFlareStatus(eventId, userId);
+
       // Send notifications
       if (userIds.length > 0) {
         await storage.sendFlareNotifications(eventId, userIds);
@@ -1318,6 +1321,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.error("Error responding to flare:", error);
       res.status(500).json({ message: "Failed to respond to flare" });
+    }
+  });
+
+  // Toggle flare status for an event
+  app.post('/api/events/:id/flare-status', isAuthenticated, async (req: any, res) => {
+    try {
+      const eventId = req.params.id;
+      const userId = req.user.claims.sub;
+      const { status } = req.body; // 'active' or 'inactive'
+
+      if (!['active', 'inactive'].includes(status)) {
+        return res.status(400).json({ message: "Invalid flare status. Use 'active' or 'inactive'." });
+      }
+
+      // Verify user owns/manages this event
+      const event = await storage.getEvent(eventId);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+
+      // Check if user is team owner/admin/captain
+      const userTeams = await storage.getUserTeams(userId);
+      const isAuthorized = userTeams.some(team => 
+        team.id === event.primaryTeamId && ['admin', 'captain'].includes(team.role)
+      );
+
+      if (!isAuthorized) {
+        return res.status(403).json({ message: "Not authorized to manage flare status for this event" });
+      }
+
+      if (status === 'active') {
+        await storage.activateFlareStatus(eventId, userId);
+      } else {
+        await storage.deactivateFlareStatus(eventId);
+      }
+
+      res.json({ 
+        message: `Flare status set to ${status}`,
+        eventId,
+        flareStatus: status
+      });
+    } catch (error) {
+      console.error("Error updating flare status:", error);
+      res.status(500).json({ message: "Failed to update flare status" });
     }
   });
 
