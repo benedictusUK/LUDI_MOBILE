@@ -35,7 +35,17 @@ export function ReservePlayersManager({ eventId, isAdmin = false }: ReservePlaye
   // Promotion mutation
   const promotePlayerMutation = useMutation({
     mutationFn: async (userId: string) => {
-      return apiRequest(`/api/events/${eventId}/promote-reserve`, "POST", { userId });
+      const response = await fetch(`/api/events/${eventId}/promote-reserve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ userId }),
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: "Failed to promote player" }));
+        throw new Error(error.message);
+      }
+      return response.json();
     },
     onSuccess: () => {
       // Invalidate related queries
@@ -57,7 +67,17 @@ export function ReservePlayersManager({ eventId, isAdmin = false }: ReservePlaye
   // Demotion mutation
   const demotePlayerMutation = useMutation({
     mutationFn: async (userId: string) => {
-      return apiRequest(`/api/events/${eventId}/demote-to-reserve`, "POST", { userId });
+      const response = await fetch(`/api/events/${eventId}/demote-to-reserve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ userId }),
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: "Failed to demote player" }));
+        throw new Error(error.message);
+      }
+      return response.json();
     },
     onSuccess: () => {
       // Invalidate related queries

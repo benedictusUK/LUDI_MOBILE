@@ -383,19 +383,21 @@ export default function EventDetails() {
                           onClick={() => voteMutation.mutate("attending")}
                           disabled={voteMutation.isPending}
                           style={{ backgroundColor: teamColor, borderColor: teamColor }}
-                          className="flex-1"
+                          className="flex-1 whitespace-normal"
                         >
-                          <Users className="w-4 h-4 mr-2" />
-                          {capacity && (capacity as any).availableSpots <= 0 ? "Become a reserve" : "I can attend"}
+                          <Users className="w-4 h-4 mr-2 flex-shrink-0" />
+                          <span className="text-center">
+                            {capacity && (capacity as any).availableSpots <= 0 ? "Become a reserve" : "I can attend"}
+                          </span>
                         </Button>
                         <Button
                           onClick={() => voteMutation.mutate("not_attending")}
                           disabled={voteMutation.isPending}
                           variant="outline"
-                          className="flex-1 hover:bg-red-50 hover:border-red-300 hover:text-red-600"
+                          className="flex-1 hover:bg-red-50 hover:border-red-300 hover:text-red-600 whitespace-normal"
                         >
-                          <X className="w-4 h-4 mr-2" />
-                          I can't attend
+                          <X className="w-4 h-4 mr-2 flex-shrink-0" />
+                          <span className="text-center">I can't attend</span>
                         </Button>
                       </>
                     )}
