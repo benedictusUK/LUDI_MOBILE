@@ -58,34 +58,34 @@ export default function EventDetails() {
   // Fetch event attendance (priority data)
   const { data: attendance, isLoading: attendanceLoading } = useQuery({
     queryKey: ["/api/events", eventId, "attendance"],
-    enabled: !!eventId,
+    enabled: !!eventId && !!isAuthenticated,
   });
 
   // Fetch potential players (secondary data - only after event loads)
   const { data: potentialPlayers } = useQuery({
     queryKey: ["/api/events", eventId, "potential-players"],
-    enabled: !!eventId && !!event,
+    enabled: !!eventId && !!event && !!isAuthenticated,
     staleTime: 30000, // Cache for 30 seconds
   });
 
   // Fetch activity logs (secondary data - only after event loads)
   const { data: activityLogs } = useQuery({
     queryKey: ["/api/events", eventId, "activity"],
-    enabled: !!eventId && !!event,
+    enabled: !!eventId && !!event && !!isAuthenticated,
     staleTime: 30000, // Cache for 30 seconds
   });
 
   // Fetch event capacity info
   const { data: capacity } = useQuery({
     queryKey: ["/api/events", eventId, "capacity"],
-    enabled: !!eventId && !!event,
+    enabled: !!eventId && !!event && !!isAuthenticated,
     staleTime: 30000, // Cache for 30 seconds
   });
 
-  // Check if event is in user's events
+  // Check if event is in user's events (always call hook)
   const { data: isInMyEvents } = useQuery({
     queryKey: ["/api/events", eventId, "is-in-my-events"],
-    enabled: !!eventId && !!user,
+    enabled: !!eventId && !!user && !!isAuthenticated,
     staleTime: 30000, // Cache for 30 seconds
   });
 
@@ -264,10 +264,10 @@ export default function EventDetails() {
   const teamColor = eventData?.primaryTeam?.color || "#3b82f6";
   const userAttendance = (attendance as any[])?.find((a: any) => a.userId === (user as any)?.id);
   
-  // Check if user is a member of the event's teams
+  // Check if user is a member of the event's teams (always call hook)
   const { data: userTeams } = useQuery({
     queryKey: ["/api/teams"],
-    enabled: !!user,
+    enabled: !!user && !!isAuthenticated,
     retry: false, // Don't retry if unauthorized
   });
   
