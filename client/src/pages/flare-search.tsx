@@ -30,7 +30,7 @@ export default function FlareSearch() {
   const [hasSearched, setHasSearched] = useState(false);
 
   // Search for flare gun events
-  const { data: flareEvents = [], isLoading, refetch } = useQuery({
+  const { data: flareEvents = [], isLoading, refetch } = useQuery<any[]>({
     queryKey: ["/api/flare-events", searchParams.postcode, searchParams.radius, searchParams.sport],
     enabled: false, // Only search when user clicks search
   });
