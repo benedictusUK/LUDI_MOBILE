@@ -50,8 +50,15 @@ interface FlareGunModalProps {
 
 export function FlareGunModal({ event, isAuthorized }: FlareGunModalProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedSport, setSelectedSport] = useState<string>("");
+  const [selectedSport, setSelectedSport] = useState<string>(event?.sport || "");
   const { toast } = useToast();
+
+  // Auto-select event sport when modal opens
+  React.useEffect(() => {
+    if (isOpen && event?.sport) {
+      setSelectedSport(event.sport);
+    }
+  }, [isOpen, event?.sport]);
 
   // Fetch flare responses for this event
   const { data: flareResponses = [], refetch: refetchResponses } = useQuery({

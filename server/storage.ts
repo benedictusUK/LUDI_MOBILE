@@ -1715,6 +1715,9 @@ export class DatabaseStorage implements IStorage {
       associatedTeamIds.push(...event.secondaryTeamIds);
     }
 
+    // Format array for PostgreSQL
+    const teamIdsArray = `{${associatedTeamIds.join(',')}}`;
+
     // Find users who:
     // 1. Have this sport in their interests
     // 2. Are NOT members of teams associated with this specific event
@@ -1740,7 +1743,7 @@ export class DatabaseStorage implements IStorage {
           // Exclude users who are members of teams associated with this event
           sql`${users.id} NOT IN (
             SELECT user_id FROM team_memberships 
-            WHERE team_id = ANY(${associatedTeamIds})
+            WHERE team_id = ANY(${teamIdsArray}::text[])
           )`,
           // Only include users who have completed their profile
           sql`${users.profileCompletedAt} IS NOT NULL`,
