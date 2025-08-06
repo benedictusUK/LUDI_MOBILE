@@ -56,6 +56,13 @@ export default function EventDetails() {
     staleTime: 30000, // Cache for 30 seconds
   });
 
+  // Fetch event capacity info
+  const { data: capacity } = useQuery({
+    queryKey: ["/api/events", eventId, "capacity"],
+    enabled: !!eventId && !!event,
+    staleTime: 30000, // Cache for 30 seconds
+  });
+
   // Vote mutation with optimistic updates
   const voteMutation = useMutation({
     mutationFn: async (status: "attending" | "not_attending") => {
@@ -117,6 +124,8 @@ export default function EventDetails() {
       queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "attendance"] });
       queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "potential-players"] });
       queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "activity"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "capacity"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "reserves"] });
     },
   });
 
@@ -158,6 +167,8 @@ export default function EventDetails() {
       queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "attendance"] });
       queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "potential-players"] });
       queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "activity"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "capacity"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "reserves"] });
     },
   });
 
@@ -354,7 +365,14 @@ export default function EventDetails() {
                           Unvote
                         </Button>
                         <div className="flex-1 text-sm text-neutral-600 p-2">
-                          Your vote: <span className="font-medium capitalize">{userAttendance.status.replace('_', ' ')}</span>
+                          Your vote: <span className="font-medium capitalize">
+                            {userAttendance.status === "reserve" ? "Reserve List" : userAttendance.status.replace('_', ' ')}
+                          </span>
+                          {userAttendance.status === "reserve" && (
+                            <div className="text-xs text-amber-600 font-medium mt-1">
+                              You're on the reserve list - you'll be promoted when a spot opens up
+                            </div>
+                          )}
                           <br />
                           Voted: {new Date(userAttendance.votedAt).toLocaleString()}
                         </div>
@@ -368,7 +386,7 @@ export default function EventDetails() {
                           className="flex-1"
                         >
                           <Users className="w-4 h-4 mr-2" />
-                          I can attend
+                          {capacity && (capacity as any).availableSpots <= 0 ? "Become a reserve" : "I can attend"}
                         </Button>
                         <Button
                           onClick={() => voteMutation.mutate("not_attending")}
