@@ -47,7 +47,7 @@ export function FlareGunModal({ event, isAuthorized }: FlareGunModalProps) {
   const { toast } = useToast();
 
   // Fetch flare responses for this event
-  const { data: flareResponses = [], refetch: refetchResponses } = useQuery({
+  const { data: flareResponses = [], refetch: refetchResponses } = useQuery<any[]>({
     queryKey: ["/api/events", event.id, "flare-responses"],
     enabled: isOpen,
   });
@@ -129,10 +129,12 @@ export function FlareGunModal({ event, isAuthorized }: FlareGunModalProps) {
     }
   };
 
-  const statusCounts = flareResponses?.reduce((acc: any, response: any) => {
-    acc[response.status] = (acc[response.status] || 0) + 1;
-    return acc;
-  }, {}) || {};
+  const statusCounts = Array.isArray(flareResponses) 
+    ? flareResponses.reduce((acc: any, response: any) => {
+        acc[response.status] = (acc[response.status] || 0) + 1;
+        return acc;
+      }, {}) 
+    : {};
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -211,7 +213,7 @@ export function FlareGunModal({ event, isAuthorized }: FlareGunModalProps) {
           </div>
 
           {/* Responses Section */}
-          {flareResponses && flareResponses.length > 0 && (
+          {Array.isArray(flareResponses) && flareResponses.length > 0 && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold">Flare Responses</h3>
@@ -238,7 +240,7 @@ export function FlareGunModal({ event, isAuthorized }: FlareGunModalProps) {
               </div>
 
               <div className="max-h-60 overflow-y-auto space-y-2">
-                {flareResponses.map((response: any) => (
+                {Array.isArray(flareResponses) && flareResponses.map((response: any) => (
                   <div
                     key={response.id}
                     className="flex items-center justify-between p-3 border rounded-lg"
@@ -275,7 +277,7 @@ export function FlareGunModal({ event, isAuthorized }: FlareGunModalProps) {
             </div>
           )}
 
-          {flareResponses && flareResponses.length === 0 && (
+          {Array.isArray(flareResponses) && flareResponses.length === 0 && (
             <div className="text-center py-8 text-gray-500">
               <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No responses yet</p>
