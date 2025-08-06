@@ -1706,7 +1706,7 @@ export class DatabaseStorage implements IStorage {
 
     // Find users who:
     // 1. Have this sport in their interests
-    // 2. Are not already in any team (to avoid duplicates with team search)
+    // 2. Are not already members of this specific team (but can be in other teams)
     // 3. Are within travel radius (simplified - this could be enhanced with actual distance calculation)
     const nearbyUsers = await db
       .select()
@@ -1714,8 +1714,8 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           sql`${sport} = ANY(${users.sportsInterests})`,
-          // Exclude users who are already team members
-          sql`${users.id} NOT IN (SELECT user_id FROM team_memberships)`,
+          // Exclude users who are already members of this specific team
+          sql`${users.id} NOT IN (SELECT user_id FROM team_memberships WHERE team_id = ${event.primaryTeamId})`,
           // Only include users who have completed their profile
           sql`${users.profileCompletedAt} IS NOT NULL`
         )
@@ -1782,6 +1782,62 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(flareResponses.respondedAt));
 
     return responses;
+  }
+
+  // Search for events that have sent flare guns (events actively seeking players)
+  async searchFlareEvents(postcode: string, radiusMiles: number, sport?: string): Promise<any[]> {
+    // Get events that have recent flare gun activity (sent in last 7 days)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    let query = db
+      .select({
+        id: events.id,
+        name: events.name,
+        sport: events.sport,
+        startDate: events.startDate,
+        startTime: events.startTime,
+        location: events.location,
+        postcode: events.postcode,
+        requirements: events.requirements,
+        maxParticipants: events.maxParticipants,
+        team: teams,
+        flareCount: sql`COUNT(DISTINCT ${notifications.id})`.as('flareCount')
+      })
+      .from(events)
+      .innerJoin(teams, eq(events.primaryTeamId, teams.id))
+      .innerJoin(notifications, and(
+        eq(notifications.relatedId, events.id),
+        eq(notifications.type, "flare_gun"),
+        sql`${notifications.createdAt} > ${sevenDaysAgo}`
+      ))
+      .where(
+        and(
+          sql`${events.startDate} >= CURRENT_DATE`, // Future events only
+          eq(events.isPublished, true)
+        )
+      )
+      .groupBy(events.id, teams.id);
+
+    // Add sport filter if specified
+    if (sport) {
+      query = query.where(and(
+        sql`${events.startDate} >= CURRENT_DATE`,
+        eq(events.isPublished, true),
+        eq(events.sport, sport)
+      ));
+    }
+
+    const flareEvents = await query
+      .orderBy(desc(sql`COUNT(DISTINCT ${notifications.id})`), events.startDate)
+      .limit(50);
+
+    // TODO: Add actual distance calculation based on postcode
+    // For now, return all events with a mock distance
+    return flareEvents.map(event => ({
+      ...event,
+      distance: Math.random() * radiusMiles // Mock distance for now
+    }));
   }
 
   // Reserve player management methods

@@ -1263,10 +1263,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Event not found" });
       }
 
-      // Check if user is team owner/admin
+      // Check if user is team owner/admin/captain
       const userTeams = await storage.getUserTeams(userId);
       const isAuthorized = userTeams.some(team => 
-        team.id === event.primaryTeamId && ['admin'].includes(team.role)
+        team.id === event.primaryTeamId && ['admin', 'captain'].includes(team.role)
       );
 
       if (!isAuthorized) {
@@ -1329,6 +1329,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching flare responses:", error);
       res.status(500).json({ message: "Failed to fetch flare responses" });
+    }
+  });
+
+  // Search for flare gun events by location
+  app.get('/api/flare-events', isAuthenticated, async (req, res) => {
+    try {
+      const { postcode, radius = '10', sport } = req.query;
+      
+      if (!postcode) {
+        return res.status(400).json({ message: "Postcode is required" });
+      }
+
+      const events = await storage.searchFlareEvents(
+        postcode as string, 
+        parseInt(radius as string), 
+        sport as string
+      );
+      res.json(events);
+    } catch (error) {
+      console.error("Error searching flare events:", error);
+      res.status(500).json({ message: "Failed to search flare events" });
     }
   });
 

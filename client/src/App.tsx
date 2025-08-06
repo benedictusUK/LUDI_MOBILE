@@ -12,6 +12,7 @@ import Landing from "@/pages/landing";
 import Home from "@/pages/home";
 import Events from "@/pages/events";
 import EventDetails from "@/pages/event-details";
+import FlareSearch from "@/pages/flare-search";
 import Teams from "@/pages/teams";
 import Notifications from "@/pages/notifications";
 import Settings from "@/pages/settings";
@@ -145,6 +146,7 @@ function Router() {
             <Route path="/" component={Home} />
             <Route path="/events" component={Events} />
             <Route path="/events/:id" component={EventDetails} />
+            <Route path="/flare-search" component={FlareSearch} />
             <Route path="/teams" component={Teams} />
             <Route path="/teams/:id" component={Teams} />
             <Route path="/notifications" component={Notifications} />
