@@ -157,6 +157,11 @@ export interface IStorage {
   // Activity log operations
   logActivity(activity: InsertActivityLog): Promise<ActivityLog>;
   getEventActivityLogs(eventId: string): Promise<(ActivityLog & { user: User })[]>;
+
+  // User events operations
+  addUserEvent(userId: string, eventId: string): Promise<void>;
+  removeUserEvent(userId: string, eventId: string): Promise<void>;
+  isUserFollowingEvent(userId: string, eventId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
