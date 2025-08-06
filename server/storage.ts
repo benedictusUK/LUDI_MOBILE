@@ -1706,7 +1706,7 @@ export class DatabaseStorage implements IStorage {
 
     // Find users who:
     // 1. Have this sport in their interests
-    // 2. Are not already members of this specific team (but can be in other teams)
+    // 2. Are not members of ANY team (to avoid spamming existing team members)
     // 3. Are within travel radius (simplified - this could be enhanced with actual distance calculation)
     const nearbyUsers = await db
       .select()
@@ -1714,8 +1714,8 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           sql`${sport} = ANY(${users.sportsInterests})`,
-          // Exclude users who are already members of this specific team
-          sql`${users.id} NOT IN (SELECT user_id FROM team_memberships WHERE team_id = ${event.primaryTeamId})`,
+          // Exclude users who are already members of any team
+          sql`${users.id} NOT IN (SELECT user_id FROM team_memberships)`,
           // Only include users who have completed their profile
           sql`${users.profileCompletedAt} IS NOT NULL`
         )
