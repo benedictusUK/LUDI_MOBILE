@@ -1255,7 +1255,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const eventId = req.params.id;
       const userId = req.user.claims.sub;
-      const { sport } = req.body;
 
       // Verify user owns/manages this event
       const event = await storage.getEvent(eventId);
@@ -1271,6 +1270,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!isAuthorized) {
         return res.status(403).json({ message: "Not authorized to send flare gun for this event" });
+      }
+
+      // Use the event's sport automatically
+      const sport = event.sport;
+      if (!sport) {
+        return res.status(400).json({ message: "Event must have a sport specified to send flare gun" });
       }
 
       // Find nearby users interested in this sport

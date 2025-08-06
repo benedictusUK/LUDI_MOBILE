@@ -1711,8 +1711,23 @@ export class DatabaseStorage implements IStorage {
 
     // Get all team IDs associated with this event
     const associatedTeamIds = [event.primaryTeamId];
-    if (event.secondaryTeamIds && Array.isArray(event.secondaryTeamIds)) {
-      associatedTeamIds.push(...event.secondaryTeamIds);
+    if (event.secondaryTeamIds) {
+      // Handle both array and string formats
+      if (Array.isArray(event.secondaryTeamIds)) {
+        associatedTeamIds.push(...event.secondaryTeamIds);
+      } else if (typeof event.secondaryTeamIds === 'string') {
+        // If it's a string, parse it as JSON or split by comma
+        try {
+          const parsed = JSON.parse(event.secondaryTeamIds);
+          if (Array.isArray(parsed)) {
+            associatedTeamIds.push(...parsed);
+          }
+        } catch {
+          // If JSON parsing fails, try splitting by comma
+          const ids = event.secondaryTeamIds.split(',').map(id => id.trim()).filter(id => id);
+          associatedTeamIds.push(...ids);
+        }
+      }
     }
 
     // Find users who:
@@ -1740,7 +1755,7 @@ export class DatabaseStorage implements IStorage {
           // Exclude users who are members of teams associated with this event
           sql`${users.id} NOT IN (
             SELECT user_id FROM team_memberships 
-            WHERE team_id = ANY(${associatedTeamIds})
+            WHERE team_id = ANY(ARRAY[${associatedTeamIds.map(id => `'${id}'`).join(',')}])
           )`,
           // Only include users who have completed their profile
           sql`${users.profileCompletedAt} IS NOT NULL`,
