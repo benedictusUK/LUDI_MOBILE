@@ -1353,6 +1353,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User events management routes
+  app.post('/api/user-events', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { eventId } = req.body;
+
+      if (!eventId) {
+        return res.status(400).json({ message: "Event ID is required" });
+      }
+
+      await storage.addUserEvent(userId, eventId);
+      res.json({ message: "Event added to your events" });
+    } catch (error) {
+      console.error("Error adding user event:", error);
+      res.status(500).json({ message: "Failed to add event" });
+    }
+  });
+
+  app.delete('/api/user-events/:eventId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { eventId } = req.params;
+
+      await storage.removeUserEvent(userId, eventId);
+      res.json({ message: "Event removed from your events" });
+    } catch (error) {
+      console.error("Error removing user event:", error);
+      res.status(500).json({ message: "Failed to remove event" });
+    }
+  });
+
+  app.get('/api/user-events/:eventId/following', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { eventId } = req.params;
+
+      const isFollowing = await storage.isUserFollowingEvent(userId, eventId);
+      res.json({ isFollowing });
+    } catch (error) {
+      console.error("Error checking user event status:", error);
+      res.status(500).json({ message: "Failed to check event status" });
+    }
+  });
+
   // Stripe webhook (for handling payment confirmations)
   app.post('/api/stripe/webhook', async (req, res) => {
     const sig = req.headers['stripe-signature'];

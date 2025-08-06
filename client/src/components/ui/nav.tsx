@@ -223,6 +223,17 @@ export default function Navigation() {
             >
               Settings
             </Link>
+            <Link 
+              href="/flare-search" 
+              className={`block px-3 py-2 rounded-md text-base font-medium ${
+                isActive("/flare-search") 
+                  ? "text-primary bg-primary/10" 
+                  : "text-neutral-500 hover:text-neutral-900 hover:bg-gray-50"
+              }`}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Flare Search
+            </Link>
             
             {/* User Profile Section */}
             <div className="border-t border-gray-200 pt-4 mt-4">

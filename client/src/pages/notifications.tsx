@@ -6,9 +6,12 @@ import { Button } from "@/components/ui/button";
 import { JoinRequestNotification } from "@/components/ui/join-request-notification";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { Link } from "wouter";
+import { Calendar, MapPin, Clock, Users, Zap } from "lucide-react";
 
 export default function Notifications() {
   const { toast } = useToast();
@@ -218,6 +221,34 @@ export default function Notifications() {
     },
   });
 
+  const addToMyEventsMutation = useMutation({
+    mutationFn: async (eventId: string) => {
+      await apiRequest('/api/user-events', 'POST', { eventId });
+    },
+    onSuccess: () => {
+      toast({ title: "Event added to your events!" });
+      queryClient.invalidateQueries({ queryKey: ["/api/events"] });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Failed to add event",
+        description: "Please try again",
+        variant: "destructive",
+      });
+    },
+  });
+
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case "event":
@@ -408,6 +439,74 @@ export default function Notifications() {
                           </Button>
                         </div>
                       )}
+
+                      {/* Event details and actions */}
+                      {notification.metadata && (() => {
+                        try {
+                          const metadata = JSON.parse(notification.metadata);
+                          return metadata.eventData && (
+                            <div className="mt-3 p-3 bg-neutral-50 rounded-lg border" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-start justify-between mb-2">
+                                <div className="flex-1">
+                                  <h5 className="font-medium text-neutral-900 text-sm">
+                                    {metadata.eventData.title}
+                                  </h5>
+                                  <div className="mt-1 space-y-1 text-xs text-neutral-600">
+                                    <div className="flex items-center gap-1">
+                                      <Calendar className="h-3 w-3" />
+                                      <span>
+                                        {new Date(metadata.eventData.startDate).toLocaleDateString('en-GB', {
+                                          weekday: 'short',
+                                          day: 'numeric',
+                                          month: 'short',
+                                          year: 'numeric'
+                                        })}
+                                      </span>
+                                      {metadata.eventData.startTime && (
+                                        <>
+                                          <Clock className="h-3 w-3 ml-1" />
+                                          <span>{metadata.eventData.startTime}</span>
+                                        </>
+                                      )}
+                                    </div>
+                                    {metadata.eventData.location && (
+                                      <div className="flex items-center gap-1">
+                                        <MapPin className="h-3 w-3" />
+                                        <span>{metadata.eventData.location}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Link href={`/events/${metadata.eventData.id}`}>
+                                  <Button variant="outline" size="sm" className="text-xs">
+                                    View Event
+                                  </Button>
+                                </Link>
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  className="text-xs"
+                                  onClick={() => addToMyEventsMutation.mutate(metadata.eventData.id)}
+                                  disabled={addToMyEventsMutation.isPending}
+                                >
+                                  {addToMyEventsMutation.isPending ? (
+                                    <div className="flex items-center gap-1">
+                                      <div className="w-2 h-2 border border-white border-t-transparent rounded-full animate-spin" />
+                                      Adding...
+                                    </div>
+                                  ) : (
+                                    "Add to my events"
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        } catch (e) {
+                          return null;
+                        }
+                      })()}
                     </div>
                     {!notification.isRead && (
                       <div className="flex-shrink-0">

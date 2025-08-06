@@ -39,6 +39,7 @@ import {
   flareResponses,
   type FlareResponse,
   type InsertFlareResponse,
+  userEvents,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, count, sql, or, notInArray, asc, inArray, ne } from "drizzle-orm";
@@ -1838,6 +1839,30 @@ export class DatabaseStorage implements IStorage {
       ...event,
       distance: Math.random() * radiusMiles // Mock distance for now
     }));
+  }
+
+  // User events management - for events users follow outside of team membership
+  async addUserEvent(userId: string, eventId: string): Promise<void> {
+    await db
+      .insert(userEvents)
+      .values({ userId, eventId })
+      .onConflictDoNothing();
+  }
+
+  async removeUserEvent(userId: string, eventId: string): Promise<void> {
+    await db
+      .delete(userEvents)
+      .where(and(eq(userEvents.userId, userId), eq(userEvents.eventId, eventId)));
+  }
+
+  async isUserFollowingEvent(userId: string, eventId: string): Promise<boolean> {
+    const [result] = await db
+      .select({ id: userEvents.id })
+      .from(userEvents)
+      .where(and(eq(userEvents.userId, userId), eq(userEvents.eventId, eventId)))
+      .limit(1);
+    
+    return !!result;
   }
 
   // Reserve player management methods

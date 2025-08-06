@@ -260,6 +260,16 @@ export const flareResponses = pgTable("flare_responses", {
   unique().on(table.eventId, table.userId)
 ]);
 
+// User followed events - for events user wants to track outside of team membership
+export const userEvents = pgTable("user_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  eventId: varchar("event_id").notNull().references(() => events.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  addedAt: timestamp("added_at").defaultNow(),
+}, (table) => [
+  unique().on(table.eventId, table.userId)
+]);
+
 // Relations
 export const usersRelations = relations(users, ({ many, one }) => ({
   ownedTeams: many(teams),
@@ -270,6 +280,7 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   payments: many(payments),
   notificationPreferences: one(notificationPreferences),
   flareResponses: many(flareResponses),
+  userEvents: many(userEvents),
 }));
 
 export const teamsRelations = relations(teams, ({ one, many }) => ({
@@ -336,6 +347,7 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
   attendance: many(eventAttendance),
   payments: many(payments),
   flareResponses: many(flareResponses),
+  userEvents: many(userEvents),
 }));
 
 export const eventTeamsRelations = relations(eventTeams, ({ one }) => ({
@@ -378,6 +390,17 @@ export const paymentsRelations = relations(payments, ({ one }) => ({
 export const notificationsRelations = relations(notifications, ({ one }) => ({
   user: one(users, {
     fields: [notifications.userId],
+    references: [users.id],
+  }),
+}));
+
+export const userEventsRelations = relations(userEvents, ({ one }) => ({
+  event: one(events, {
+    fields: [userEvents.eventId],
+    references: [events.id],
+  }),
+  user: one(users, {
+    fields: [userEvents.userId],
     references: [users.id],
   }),
 }));
