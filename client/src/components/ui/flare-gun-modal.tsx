@@ -9,18 +9,12 @@ import {
   DialogTitle, 
   DialogTrigger 
 } from "@/components/ui/dialog";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
+
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { SPORTS } from "@shared/schema";
+
 import { 
   Target, 
   Users, 
@@ -50,15 +44,7 @@ interface FlareGunModalProps {
 
 export function FlareGunModal({ event, isAuthorized }: FlareGunModalProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedSport, setSelectedSport] = useState<string>(event?.sport || "");
   const { toast } = useToast();
-
-  // Auto-select event sport when modal opens
-  React.useEffect(() => {
-    if (isOpen && event?.sport) {
-      setSelectedSport(event.sport);
-    }
-  }, [isOpen, event?.sport]);
 
   // Fetch flare responses for this event
   const { data: flareResponses = [], refetch: refetchResponses } = useQuery({
@@ -68,16 +54,15 @@ export function FlareGunModal({ event, isAuthorized }: FlareGunModalProps) {
 
   // Send flare gun mutation
   const sendFlareMutation = useMutation({
-    mutationFn: async (sport: string) => {
-      const response = await apiRequest("POST", `/api/events/${event.id}/flare`, { sport });
+    mutationFn: async () => {
+      const response = await apiRequest("POST", `/api/events/${event.id}/flare`, { sport: event.sport });
       return response.json();
     },
     onSuccess: (data) => {
       toast({
         title: "🚀 Flare Gun Sent!",
-        description: `Alert sent to ${data.recipientCount} nearby players interested in ${selectedSport}`,
+        description: `Alert sent to ${data.recipientCount} nearby players interested in ${event.sport}`,
       });
-      setSelectedSport("");
       refetchResponses();
     },
     onError: (error: any) => {
@@ -90,15 +75,7 @@ export function FlareGunModal({ event, isAuthorized }: FlareGunModalProps) {
   });
 
   const handleSendFlare = () => {
-    if (!selectedSport) {
-      toast({
-        variant: "destructive",
-        title: "Please select a sport",
-        description: "Choose which sport to advertise this event for",
-      });
-      return;
-    }
-    sendFlareMutation.mutate(selectedSport);
+    sendFlareMutation.mutate();
   };
 
   const getStatusIcon = (status: string) => {
@@ -157,31 +134,21 @@ export function FlareGunModal({ event, isAuthorized }: FlareGunModalProps) {
         <div className="space-y-6">
           {/* Send Flare Section */}
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Send Flare Alert</h3>
-            <div className="flex gap-3">
-              <Select value={selectedSport} onValueChange={setSelectedSport}>
-                <SelectTrigger className="flex-1">
-                  <SelectValue placeholder="Select sport to advertise for..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {SPORTS.map((sport) => (
-                    <SelectItem key={sport} value={sport}>
-                      {sport}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <h3 className="text-lg font-semibold">Send Flare Alert for {event.sport}</h3>
+            <div className="flex flex-col gap-3">
               <Button 
                 onClick={handleSendFlare}
-                disabled={!selectedSport || sendFlareMutation.isPending}
+                disabled={sendFlareMutation.isPending}
+                size="lg"
+                className="w-full"
               >
-                {sendFlareMutation.isPending ? "Sending..." : "Send Flare 🚀"}
+                {sendFlareMutation.isPending ? "Sending Flare..." : "Send Flare Gun 🚀"}
               </Button>
+              <p className="text-sm text-gray-600">
+                This will notify users within their travel radius who have {event.sport} in their interests
+                and aren't currently on teams associated with this event.
+              </p>
             </div>
-            <p className="text-sm text-gray-600">
-              This will notify users within their travel radius who have this sport in their interests
-              and aren't currently on any teams.
-            </p>
           </div>
 
           {/* Responses Section */}
