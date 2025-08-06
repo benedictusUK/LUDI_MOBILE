@@ -13,6 +13,7 @@ import { queryClient } from "@/lib/queryClient";
 import { ArrowLeft, Calendar, Clock, MapPin, Users, Vote, X, CheckCircle, XCircle, MinusCircle } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 import { FlareGunModal } from "@/components/ui/flare-gun-modal";
 import { ReservePlayersManager } from "@/components/ui/reserve-players-manager";
 
@@ -20,6 +21,7 @@ export default function EventDetails() {
   const [, params] = useRoute("/events/:id");
   const eventId = params?.id;
   const { user } = useAuth();
+  const { toast } = useToast();
   const [voteDetailsModal, setVoteDetailsModal] = useState<{
     isOpen: boolean;
     type: "attending" | "not_attending" | "no_response";
@@ -60,6 +62,13 @@ export default function EventDetails() {
   const { data: capacity } = useQuery({
     queryKey: ["/api/events", eventId, "capacity"],
     enabled: !!eventId && !!event,
+    staleTime: 30000, // Cache for 30 seconds
+  });
+
+  // Check if event is in user's events
+  const { data: isInMyEvents } = useQuery({
+    queryKey: ["/api/events", eventId, "is-in-my-events"],
+    enabled: !!eventId && !!user,
     staleTime: 30000, // Cache for 30 seconds
   });
 
@@ -172,6 +181,33 @@ export default function EventDetails() {
     },
   });
 
+  // Add to my events mutation
+  const addToMyEventsMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/events/${eventId}/add-to-my-events`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to add event to your events");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Event added to your events successfully!",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "is-in-my-events"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/events"] });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to add event to your events",
+      });
+    },
+  });
+
   if (eventLoading || attendanceLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-neutral-50">
@@ -197,6 +233,37 @@ export default function EventDetails() {
   const eventData = event as any;
   const teamColor = eventData?.primaryTeam?.color || "#3b82f6";
   const userAttendance = (attendance as any[])?.find((a: any) => a.userId === (user as any)?.id);
+  
+  // Check if user is a member of the event's teams
+  const { data: userTeams } = useQuery({
+    queryKey: ["/api/teams"],
+    enabled: !!user,
+  });
+  
+  const isUserTeamMember = () => {
+    if (!user || !userTeams || !eventData) return false;
+    
+    const associatedTeamIds = [eventData.primaryTeamId];
+    if (eventData.secondaryTeamIds) {
+      if (Array.isArray(eventData.secondaryTeamIds)) {
+        associatedTeamIds.push(...eventData.secondaryTeamIds);
+      } else if (typeof eventData.secondaryTeamIds === 'string') {
+        try {
+          const parsed = JSON.parse(eventData.secondaryTeamIds);
+          if (Array.isArray(parsed)) {
+            associatedTeamIds.push(...parsed);
+          }
+        } catch {
+          const ids = eventData.secondaryTeamIds.split(',').map((id: string) => id.trim()).filter((id: string) => id);
+          associatedTeamIds.push(...ids);
+        }
+      }
+    }
+    
+    return (userTeams as any[]).some((team: any) => associatedTeamIds.includes(team.id));
+  };
+  
+  const isTeamMember = isUserTeamMember();
   
   // Calculate vote statistics
   const attendingVoters = (attendance as any[])?.filter((a: any) => a.status === "attending") || [];
@@ -268,13 +335,27 @@ export default function EventDetails() {
               </div>
             </div>
             
-            <div className="text-right">
+            <div className="text-right flex flex-col items-end space-y-2">
               <Badge 
                 variant={eventData.isPublished ? "default" : "secondary"}
-                className="bg-white/20 text-white border-white/30 mb-2"
+                className="bg-white/20 text-white border-white/30"
               >
                 {eventData.isPublished ? "Published" : "Draft"}
               </Badge>
+              
+              {/* Add to my events button for non-team members */}
+              {user && !isTeamMember && !isInMyEvents?.isInMyEvents && (
+                <Button 
+                  variant="secondary" 
+                  size="sm"
+                  onClick={() => addToMyEventsMutation.mutate()}
+                  disabled={addToMyEventsMutation.isPending}
+                  className="bg-white/20 text-white border-white/30 hover:bg-white/30"
+                >
+                  {addToMyEventsMutation.isPending ? "Adding..." : "Add to My Events"}
+                </Button>
+              )}
+              
               {eventData.primaryTeam && (
                 <div className="text-white/90 text-sm">
                   Primary Team: {eventData.primaryTeam.name}
