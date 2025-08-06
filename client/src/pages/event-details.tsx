@@ -24,19 +24,16 @@ export default function EventDetails() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const { toast } = useToast();
   
-  // Redirect to login if not authenticated
+  // Handle authentication issues 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      toast({
-        title: "Authentication Required",
-        description: "You need to be logged in to view event details. Redirecting to login...",
-        variant: "destructive",
-      });
-      setTimeout(() => {
+      // Small delay to prevent flash before redirect
+      const timer = setTimeout(() => {
         window.location.href = "/api/login";
-      }, 1000);
+      }, 200);
+      return () => clearTimeout(timer);
     }
-  }, [isAuthenticated, isLoading, toast]);
+  }, [isAuthenticated, isLoading]);
   const [voteDetailsModal, setVoteDetailsModal] = useState<{
     isOpen: boolean;
     type: "attending" | "not_attending" | "no_response";
@@ -48,9 +45,14 @@ export default function EventDetails() {
   });
 
   // Fetch event details first (priority data)
-  const { data: event, isLoading: eventLoading } = useQuery({
+  const { data: event, isLoading: eventLoading, error: eventError } = useQuery({
     queryKey: ["/api/events", eventId],
-    enabled: !!eventId,
+    enabled: !!eventId && !!isAuthenticated,
+    retry: (failureCount, error) => {
+      // Don't retry on auth errors
+      if (error?.message?.includes('401')) return false;
+      return failureCount < 3;
+    },
   });
 
   // Fetch event attendance (priority data)
@@ -223,10 +225,23 @@ export default function EventDetails() {
     },
   });
 
-  if (eventLoading || attendanceLoading) {
+  // Show loading while auth is being checked or data is loading
+  if (isLoading || eventLoading || attendanceLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-neutral-50">
         <LudiLoader size="lg" />
+      </div>
+    );
+  }
+
+  // Redirect to login if not authenticated (after loading complete)
+  if (!isLoading && !isAuthenticated) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-neutral-900 mb-2">Authentication Required</h2>
+          <p className="text-neutral-600 mb-4">Redirecting to login...</p>
+        </div>
       </div>
     );
   }

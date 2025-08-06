@@ -223,7 +223,7 @@ export default function Notifications() {
 
   const addToMyEventsMutation = useMutation({
     mutationFn: async (eventId: string) => {
-      await apiRequest('/api/user-events', 'POST', { eventId });
+      await apiRequest(`/api/events/${eventId}/add-to-my-events`, 'POST');
     },
     onSuccess: () => {
       toast({ title: "Event added to your events!" });
