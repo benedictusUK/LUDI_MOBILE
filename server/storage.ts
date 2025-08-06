@@ -157,11 +157,6 @@ export interface IStorage {
   // Activity log operations
   logActivity(activity: InsertActivityLog): Promise<ActivityLog>;
   getEventActivityLogs(eventId: string): Promise<(ActivityLog & { user: User })[]>;
-
-  // User events management (for events users follow outside of team membership)
-  addEventToUserEvents(userId: string, eventId: string): Promise<void>;
-  removeEventFromUserEvents(userId: string, eventId: string): Promise<void>;
-  isEventInUserEvents(userId: string, eventId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -512,24 +507,8 @@ export class DatabaseStorage implements IStorage {
       ))
       .where(eq(teamMemberships.userId, userId));
 
-    // Get events user follows individually (outside of team membership)
-    const followedEvents = await db
-      .select({ 
-        event: events,
-        primaryTeam: teams,
-        userAttendance: eventAttendance
-      })
-      .from(events)
-      .innerJoin(teams, eq(events.primaryTeamId, teams.id))
-      .innerJoin(userEvents, eq(events.id, userEvents.eventId))
-      .leftJoin(eventAttendance, and(
-        eq(eventAttendance.eventId, events.id),
-        eq(eventAttendance.userId, userId)
-      ))
-      .where(eq(userEvents.userId, userId));
-
     // Combine and deduplicate events
-    const allEvents = [...primaryTeamEvents, ...secondaryTeamEvents, ...followedEvents];
+    const allEvents = [...primaryTeamEvents, ...secondaryTeamEvents];
     const uniqueEvents = allEvents.filter((eventData, index, self) => 
       index === self.findIndex(e => e.event.id === eventData.event.id)
     );
@@ -1732,23 +1711,8 @@ export class DatabaseStorage implements IStorage {
 
     // Get all team IDs associated with this event
     const associatedTeamIds = [event.primaryTeamId];
-    if (event.secondaryTeamIds) {
-      // Handle both array and string formats
-      if (Array.isArray(event.secondaryTeamIds)) {
-        associatedTeamIds.push(...event.secondaryTeamIds);
-      } else if (typeof event.secondaryTeamIds === 'string') {
-        // If it's a string, parse it as JSON or split by comma
-        try {
-          const parsed = JSON.parse(event.secondaryTeamIds);
-          if (Array.isArray(parsed)) {
-            associatedTeamIds.push(...parsed);
-          }
-        } catch {
-          // If JSON parsing fails, try splitting by comma
-          const ids = event.secondaryTeamIds.split(',').map((id: string) => id.trim()).filter((id: string) => id);
-          associatedTeamIds.push(...ids);
-        }
-      }
+    if (event.secondaryTeamIds && Array.isArray(event.secondaryTeamIds)) {
+      associatedTeamIds.push(...event.secondaryTeamIds);
     }
 
     // Find users who:
@@ -1776,7 +1740,7 @@ export class DatabaseStorage implements IStorage {
           // Exclude users who are members of teams associated with this event
           sql`${users.id} NOT IN (
             SELECT user_id FROM team_memberships 
-            WHERE team_id = ANY(ARRAY[${associatedTeamIds.map(id => `'${id}'`).join(',')}])
+            WHERE team_id = ANY(${associatedTeamIds})
           )`,
           // Only include users who have completed their profile
           sql`${users.profileCompletedAt} IS NOT NULL`,
@@ -1926,20 +1890,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   // User events management - for events users follow outside of team membership
-  async addEventToUserEvents(userId: string, eventId: string): Promise<void> {
+  async addUserEvent(userId: string, eventId: string): Promise<void> {
     await db
       .insert(userEvents)
       .values({ userId, eventId })
       .onConflictDoNothing();
   }
 
-  async removeEventFromUserEvents(userId: string, eventId: string): Promise<void> {
+  async removeUserEvent(userId: string, eventId: string): Promise<void> {
     await db
       .delete(userEvents)
       .where(and(eq(userEvents.userId, userId), eq(userEvents.eventId, eventId)));
   }
 
-  async isEventInUserEvents(userId: string, eventId: string): Promise<boolean> {
+  async isUserFollowingEvent(userId: string, eventId: string): Promise<boolean> {
     const [result] = await db
       .select({ id: userEvents.id })
       .from(userEvents)
@@ -1947,19 +1911,6 @@ export class DatabaseStorage implements IStorage {
       .limit(1);
     
     return !!result;
-  }
-
-  // Legacy method names for backward compatibility
-  async addUserEvent(userId: string, eventId: string): Promise<void> {
-    return this.addEventToUserEvents(userId, eventId);
-  }
-
-  async removeUserEvent(userId: string, eventId: string): Promise<void> {
-    return this.removeEventFromUserEvents(userId, eventId);
-  }
-
-  async isUserFollowingEvent(userId: string, eventId: string): Promise<boolean> {
-    return this.isEventInUserEvents(userId, eventId);
   }
 
   // Reserve player management methods

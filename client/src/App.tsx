@@ -141,30 +141,18 @@ function Router() {
       <Switch>
         {isLoading || !isAuthenticated ? (
           <Route path="/" component={Landing} />
-        ) : (
+        ) : initialLoadComplete && hasShownReveal ? (
           <>
-            {/* Main routes available after logo reveal */}
-            {initialLoadComplete && hasShownReveal ? (
-              <>
-                <Route path="/" component={Home} />
-                <Route path="/events" component={Events} />
-                <Route path="/flare-search" component={FlareSearch} />
-                <Route path="/teams" component={Teams} />
-                <Route path="/teams/:id" component={Teams} />
-                <Route path="/notifications" component={Notifications} />
-                <Route path="/settings" component={Settings} />
-              </>
-            ) : (
-              <>
-                {/* Show home page as fallback during loading */}
-                <Route path="/" component={Home} />
-              </>
-            )}
-            
-            {/* Event details and other critical routes always available when authenticated */}
+            <Route path="/" component={Home} />
+            <Route path="/events" component={Events} />
             <Route path="/events/:id" component={EventDetails} />
+            <Route path="/flare-search" component={FlareSearch} />
+            <Route path="/teams" component={Teams} />
+            <Route path="/teams/:id" component={Teams} />
+            <Route path="/notifications" component={Notifications} />
+            <Route path="/settings" component={Settings} />
           </>
-        )}
+        ) : null}
         {isLoading || !isAuthenticated ? <Route component={NotFound} /> : null}
       </Switch>
     </>

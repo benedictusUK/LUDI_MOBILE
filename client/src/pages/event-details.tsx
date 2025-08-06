@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute } from "wouter";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,27 +13,13 @@ import { queryClient } from "@/lib/queryClient";
 import { ArrowLeft, Calendar, Clock, MapPin, Users, Vote, X, CheckCircle, XCircle, MinusCircle } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
-import { useToast } from "@/hooks/use-toast";
 import { FlareGunModal } from "@/components/ui/flare-gun-modal";
 import { ReservePlayersManager } from "@/components/ui/reserve-players-manager";
-import { isUnauthorizedError } from "@/lib/authUtils";
 
 export default function EventDetails() {
   const [, params] = useRoute("/events/:id");
   const eventId = params?.id;
-  const { user, isAuthenticated, isLoading } = useAuth();
-  const { toast } = useToast();
-  
-  // Handle authentication issues 
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      // Small delay to prevent flash before redirect
-      const timer = setTimeout(() => {
-        window.location.href = "/api/login";
-      }, 200);
-      return () => clearTimeout(timer);
-    }
-  }, [isAuthenticated, isLoading]);
+  const { user } = useAuth();
   const [voteDetailsModal, setVoteDetailsModal] = useState<{
     isOpen: boolean;
     type: "attending" | "not_attending" | "no_response";
@@ -45,47 +31,35 @@ export default function EventDetails() {
   });
 
   // Fetch event details first (priority data)
-  const { data: event, isLoading: eventLoading, error: eventError } = useQuery({
+  const { data: event, isLoading: eventLoading } = useQuery({
     queryKey: ["/api/events", eventId],
-    enabled: !!eventId && !!isAuthenticated,
-    retry: (failureCount, error) => {
-      // Don't retry on auth errors
-      if (error?.message?.includes('401')) return false;
-      return failureCount < 3;
-    },
+    enabled: !!eventId,
   });
 
   // Fetch event attendance (priority data)
   const { data: attendance, isLoading: attendanceLoading } = useQuery({
     queryKey: ["/api/events", eventId, "attendance"],
-    enabled: !!eventId && !!isAuthenticated,
+    enabled: !!eventId,
   });
 
   // Fetch potential players (secondary data - only after event loads)
   const { data: potentialPlayers } = useQuery({
     queryKey: ["/api/events", eventId, "potential-players"],
-    enabled: !!eventId && !!event && !!isAuthenticated,
+    enabled: !!eventId && !!event,
     staleTime: 30000, // Cache for 30 seconds
   });
 
   // Fetch activity logs (secondary data - only after event loads)
   const { data: activityLogs } = useQuery({
     queryKey: ["/api/events", eventId, "activity"],
-    enabled: !!eventId && !!event && !!isAuthenticated,
+    enabled: !!eventId && !!event,
     staleTime: 30000, // Cache for 30 seconds
   });
 
   // Fetch event capacity info
   const { data: capacity } = useQuery({
     queryKey: ["/api/events", eventId, "capacity"],
-    enabled: !!eventId && !!event && !!isAuthenticated,
-    staleTime: 30000, // Cache for 30 seconds
-  });
-
-  // Check if event is in user's events (always call hook)
-  const { data: isInMyEvents } = useQuery({
-    queryKey: ["/api/events", eventId, "is-in-my-events"],
-    enabled: !!eventId && !!user && !!isAuthenticated,
+    enabled: !!eventId && !!event,
     staleTime: 30000, // Cache for 30 seconds
   });
 
@@ -198,50 +172,10 @@ export default function EventDetails() {
     },
   });
 
-  // Add to my events mutation
-  const addToMyEventsMutation = useMutation({
-    mutationFn: async () => {
-      const response = await fetch(`/api/events/${eventId}/add-to-my-events`, {
-        method: "POST",
-        credentials: "include",
-      });
-      if (!response.ok) throw new Error("Failed to add event to your events");
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Event added to your events successfully!",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "is-in-my-events"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/events"] });
-    },
-    onError: (error: any) => {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to add event to your events",
-      });
-    },
-  });
-
-  // Show loading while auth is being checked or data is loading
-  if (isLoading || eventLoading || attendanceLoading) {
+  if (eventLoading || attendanceLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-neutral-50">
         <LudiLoader size="lg" />
-      </div>
-    );
-  }
-
-  // Redirect to login if not authenticated (after loading complete)
-  if (!isLoading && !isAuthenticated) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-neutral-900 mb-2">Authentication Required</h2>
-          <p className="text-neutral-600 mb-4">Redirecting to login...</p>
-        </div>
       </div>
     );
   }
@@ -263,38 +197,6 @@ export default function EventDetails() {
   const eventData = event as any;
   const teamColor = eventData?.primaryTeam?.color || "#3b82f6";
   const userAttendance = (attendance as any[])?.find((a: any) => a.userId === (user as any)?.id);
-  
-  // Check if user is a member of the event's teams (always call hook)
-  const { data: userTeams } = useQuery({
-    queryKey: ["/api/teams"],
-    enabled: !!user && !!isAuthenticated,
-    retry: false, // Don't retry if unauthorized
-  });
-  
-  const isUserTeamMember = () => {
-    if (!user || !userTeams || !eventData) return false;
-    
-    const associatedTeamIds = [eventData.primaryTeamId];
-    if (eventData.secondaryTeamIds) {
-      if (Array.isArray(eventData.secondaryTeamIds)) {
-        associatedTeamIds.push(...eventData.secondaryTeamIds);
-      } else if (typeof eventData.secondaryTeamIds === 'string') {
-        try {
-          const parsed = JSON.parse(eventData.secondaryTeamIds);
-          if (Array.isArray(parsed)) {
-            associatedTeamIds.push(...parsed);
-          }
-        } catch {
-          const ids = eventData.secondaryTeamIds.split(',').map((id: string) => id.trim()).filter((id: string) => id);
-          associatedTeamIds.push(...ids);
-        }
-      }
-    }
-    
-    return (userTeams as any[]).some((team: any) => associatedTeamIds.includes(team.id));
-  };
-  
-  const isTeamMember = isUserTeamMember();
   
   // Calculate vote statistics
   const attendingVoters = (attendance as any[])?.filter((a: any) => a.status === "attending") || [];
@@ -366,27 +268,13 @@ export default function EventDetails() {
               </div>
             </div>
             
-            <div className="text-right flex flex-col items-end space-y-2">
+            <div className="text-right">
               <Badge 
                 variant={eventData.isPublished ? "default" : "secondary"}
-                className="bg-white/20 text-white border-white/30"
+                className="bg-white/20 text-white border-white/30 mb-2"
               >
                 {eventData.isPublished ? "Published" : "Draft"}
               </Badge>
-              
-              {/* Add to my events button for non-team members */}
-              {user && !isTeamMember && !(isInMyEvents as any)?.isInMyEvents && (
-                <Button 
-                  variant="secondary" 
-                  size="sm"
-                  onClick={() => addToMyEventsMutation.mutate()}
-                  disabled={addToMyEventsMutation.isPending}
-                  className="bg-white/20 text-white border-white/30 hover:bg-white/30"
-                >
-                  {addToMyEventsMutation.isPending ? "Adding..." : "Add to My Events"}
-                </Button>
-              )}
-              
               {eventData.primaryTeam && (
                 <div className="text-white/90 text-sm">
                   Primary Team: {eventData.primaryTeam.name}
@@ -499,7 +387,7 @@ export default function EventDetails() {
                         >
                           <Users className="w-4 h-4 mr-2 flex-shrink-0" />
                           <span className="text-center">
-                            {capacity && (capacity as any).maxParticipants && (capacity as any).availableSpots <= 0 ? "Become a reserve" : "I can attend"}
+                            {capacity && capacity.maxParticipants && (capacity as any).availableSpots <= 0 ? "Become a reserve" : "I can attend"}
                           </span>
                         </Button>
                         <Button

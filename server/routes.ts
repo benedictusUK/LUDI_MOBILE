@@ -769,7 +769,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/events/:id/vote", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
-      const eventId = req.params.id;
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
@@ -779,38 +778,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid vote status" });
       }
 
-      const vote = await storage.voteOnEvent(eventId, userId, status);
-      
-      // Check if user is part of the event's teams
-      const event = await storage.getEvent(eventId);
-      if (event) {
-        const associatedTeamIds = [event.primaryTeamId];
-        if (event.secondaryTeamIds) {
-          if (Array.isArray(event.secondaryTeamIds)) {
-            associatedTeamIds.push(...event.secondaryTeamIds);
-          } else if (typeof event.secondaryTeamIds === 'string') {
-            try {
-              const parsed = JSON.parse(event.secondaryTeamIds);
-              if (Array.isArray(parsed)) {
-                associatedTeamIds.push(...parsed);
-              }
-            } catch {
-              const ids = event.secondaryTeamIds.split(',').map((id: string) => id.trim()).filter((id: string) => id);
-              associatedTeamIds.push(...ids);
-            }
-          }
-        }
-
-        // Check if user is a member of any associated teams
-        const userTeams = await storage.getUserTeams(userId);
-        const isTeamMember = userTeams.some(team => associatedTeamIds.includes(team.id));
-        
-        // If user is not a team member, automatically add event to their events
-        if (!isTeamMember) {
-          await storage.addEventToUserEvents(userId, eventId);
-        }
-      }
-      
+      const vote = await storage.voteOnEvent(req.params.id, userId, status);
       res.json(vote);
     } catch (error) {
       console.error("Error voting on event:", error);
@@ -831,42 +799,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error removing vote:", error);
       res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  // Add event to user's events
-  app.post('/api/events/:id/add-to-my-events', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user?.claims?.sub;
-      const eventId = req.params.id;
-      
-      if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-
-      await storage.addEventToUserEvents(userId, eventId);
-      res.json({ message: "Event added to your events successfully" });
-    } catch (error) {
-      console.error("Error adding event to user events:", error);
-      res.status(500).json({ message: "Failed to add event to your events" });
-    }
-  });
-
-  // Check if event is in user's events
-  app.get('/api/events/:id/is-in-my-events', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user?.claims?.sub;
-      const eventId = req.params.id;
-      
-      if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-
-      const isInMyEvents = await storage.isEventInUserEvents(userId, eventId);
-      res.json({ isInMyEvents });
-    } catch (error) {
-      console.error("Error checking if event is in user events:", error);
-      res.status(500).json({ message: "Failed to check event status" });
     }
   });
 
@@ -1323,6 +1255,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const eventId = req.params.id;
       const userId = req.user.claims.sub;
+      const { sport } = req.body;
 
       // Verify user owns/manages this event
       const event = await storage.getEvent(eventId);
@@ -1338,12 +1271,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!isAuthorized) {
         return res.status(403).json({ message: "Not authorized to send flare gun for this event" });
-      }
-
-      // Use the event's sport automatically
-      const sport = event.sport;
-      if (!sport) {
-        return res.status(400).json({ message: "Event must have a sport specified to send flare gun" });
       }
 
       // Find nearby users interested in this sport
@@ -1503,43 +1430,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     res.json({ received: true });
-  });
-
-  // User events routes (for non-team members following events)
-  app.get('/api/events/:eventId/is-in-my-events', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const { eventId } = req.params;
-      const isInMyEvents = await storage.isEventInUserEvents(userId, eventId);
-      res.json({ isInMyEvents });
-    } catch (error) {
-      console.error("Error checking if event is in user events:", error);
-      res.status(500).json({ message: "Failed to check event status" });
-    }
-  });
-
-  app.post('/api/events/:eventId/add-to-my-events', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const { eventId } = req.params;
-      await storage.addEventToUserEvents(userId, eventId);
-      res.json({ message: "Event added to your events successfully" });
-    } catch (error) {
-      console.error("Error adding event to user events:", error);
-      res.status(500).json({ message: "Failed to add event to your events" });
-    }
-  });
-
-  app.delete('/api/events/:eventId/remove-from-my-events', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const { eventId } = req.params;
-      await storage.removeEventFromUserEvents(userId, eventId);
-      res.json({ message: "Event removed from your events successfully" });
-    } catch (error) {
-      console.error("Error removing event from user events:", error);
-      res.status(500).json({ message: "Failed to remove event from your events" });
-    }
   });
 
   const httpServer = createServer(app);
