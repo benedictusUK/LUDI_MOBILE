@@ -659,6 +659,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async removeVote(eventId: string, userId: string): Promise<void> {
+    // Get the user's current attendance status before removing
+    const existingAttendance = await this.getUserAttendance(userId, eventId);
+    const wasAttending = existingAttendance?.status === "attending";
+
     // Remove the vote directly - if it doesn't exist, this will just do nothing
     await db
       .delete(eventAttendance)
@@ -669,11 +673,69 @@ export class DatabaseStorage implements IStorage {
       eventId,
       userId,
       action: "unvoted",
-      previousStatus: null,
+      previousStatus: existingAttendance?.status || null,
       newStatus: null
     }).catch(err => 
       console.error("Failed to log unvote activity:", err)
     );
+
+    // If the user was attending, automatically promote the first reserve player
+    if (wasAttending) {
+      this.autoPromoteFromReserve(eventId).catch(err => 
+        console.error("Failed to auto-promote from reserve:", err)
+      );
+    }
+  }
+
+  // Helper method to automatically promote the first reserve player when a spot opens
+  async autoPromoteFromReserve(eventId: string): Promise<void> {
+    // Get the first reserve player (ordered by when they became a reserve)
+    const reserves = await this.getReservePlayers(eventId);
+    
+    if (reserves.length === 0) {
+      return; // No reserve players to promote
+    }
+
+    const firstReserve = reserves[0];
+    
+    // Promote the first reserve player automatically 
+    try {
+      // Update status to attending directly (bypass admin checks for auto-promotion)
+      const [updatedAttendance] = await db
+        .update(eventAttendance)
+        .set({ 
+          status: "attending",
+          votedAt: new Date()
+        })
+        .where(and(eq(eventAttendance.eventId, eventId), eq(eventAttendance.userId, firstReserve.userId)))
+        .returning();
+
+      // Log the automatic promotion activity
+      await this.logActivity({
+        eventId,
+        userId: firstReserve.userId,
+        action: "auto_promoted_from_reserve",
+        previousStatus: "reserve",
+        newStatus: "attending",
+      });
+
+      // Get event details for notification
+      const event = await this.getEvent(eventId);
+      
+      // Create notification for the auto-promoted user
+      if (event) {
+        await this.createNotification({
+          userId: firstReserve.userId,
+          type: "event_update",
+          title: "Automatically Promoted!",
+          message: `A spot opened up! You've been automatically promoted from the reserve list to the main event for "${event.name}".`,
+          relatedId: eventId,
+          relatedType: "event"
+        });
+      }
+    } catch (error) {
+      console.error("Error in auto-promotion:", error);
+    }
   }
 
 
@@ -720,6 +782,16 @@ export class DatabaseStorage implements IStorage {
       action: finalStatus === "reserve" ? "placed_in_reserve" : `voted_${finalStatus}`,
       newStatus: finalStatus,
     });
+
+    // If user changed from attending to not_attending, auto-promote first reserve player
+    if (attendance.status === "not_attending") {
+      const existingAttendance = await this.getUserAttendance(attendance.userId, attendance.eventId);
+      if (existingAttendance?.status === "attending") {
+        this.autoPromoteFromReserve(attendance.eventId).catch(err => 
+          console.error("Failed to auto-promote from reserve:", err)
+        );
+      }
+    }
 
     return newAttendance;
   }
@@ -1742,6 +1814,22 @@ export class DatabaseStorage implements IStorage {
       newStatus: "attending",
     });
 
+    // Get event and user details for notification
+    const event = await this.getEvent(eventId);
+    const user = await this.getUser(userId);
+    
+    // Create notification for the promoted user
+    if (event && user) {
+      await this.createNotification({
+        userId,
+        type: "event_update",
+        title: "Promoted to Main Event!",
+        message: `You've been promoted from the reserve list to the main event for "${event.name}".`,
+        relatedId: eventId,
+        relatedType: "event"
+      });
+    }
+
     return updatedAttendance;
   }
 
@@ -1794,7 +1882,7 @@ export class DatabaseStorage implements IStorage {
       .from(eventAttendance)
       .innerJoin(users, eq(eventAttendance.userId, users.id))
       .where(and(eq(eventAttendance.eventId, eventId), eq(eventAttendance.status, "reserve")))
-      .orderBy(eventAttendance.votedAt);
+      .orderBy(eventAttendance.votedAt); // Order by voted date - first to reserve gets promoted first
 
     return reserves;
   }
