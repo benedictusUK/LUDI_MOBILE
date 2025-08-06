@@ -221,8 +221,10 @@ export class DatabaseStorage implements IStorage {
         target: users.id,
         set: {
           email: userData.email,
-          firstName: userData.firstName,
-          lastName: userData.lastName,
+          // Only update firstName if it has a value from auth provider
+          ...(userData.firstName && { firstName: userData.firstName }),
+          // Only update lastName if it has a value from auth provider
+          ...(userData.lastName && { lastName: userData.lastName }),
           profileImageUrl: userData.profileImageUrl,
           updatedAt: new Date(),
         },
