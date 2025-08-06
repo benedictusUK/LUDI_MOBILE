@@ -512,8 +512,24 @@ export class DatabaseStorage implements IStorage {
       ))
       .where(eq(teamMemberships.userId, userId));
 
+    // Get events that user has individually followed
+    const followedEvents = await db
+      .select({ 
+        event: events,
+        primaryTeam: teams,
+        userAttendance: eventAttendance
+      })
+      .from(userEvents)
+      .innerJoin(events, eq(userEvents.eventId, events.id))
+      .innerJoin(teams, eq(events.primaryTeamId, teams.id))
+      .leftJoin(eventAttendance, and(
+        eq(eventAttendance.eventId, events.id),
+        eq(eventAttendance.userId, userId)
+      ))
+      .where(eq(userEvents.userId, userId));
+
     // Combine and deduplicate events
-    const allEvents = [...primaryTeamEvents, ...secondaryTeamEvents];
+    const allEvents = [...primaryTeamEvents, ...secondaryTeamEvents, ...followedEvents];
     const uniqueEvents = allEvents.filter((eventData, index, self) => 
       index === self.findIndex(e => e.event.id === eventData.event.id)
     );
