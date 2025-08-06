@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute } from "wouter";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,12 +16,27 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { FlareGunModal } from "@/components/ui/flare-gun-modal";
 import { ReservePlayersManager } from "@/components/ui/reserve-players-manager";
+import { isUnauthorizedError } from "@/lib/authUtils";
 
 export default function EventDetails() {
   const [, params] = useRoute("/events/:id");
   const eventId = params?.id;
-  const { user } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const { toast } = useToast();
+  
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      toast({
+        title: "Authentication Required",
+        description: "You need to be logged in to view event details. Redirecting to login...",
+        variant: "destructive",
+      });
+      setTimeout(() => {
+        window.location.href = "/api/login";
+      }, 1000);
+    }
+  }, [isAuthenticated, isLoading, toast]);
   const [voteDetailsModal, setVoteDetailsModal] = useState<{
     isOpen: boolean;
     type: "attending" | "not_attending" | "no_response";
@@ -238,6 +253,7 @@ export default function EventDetails() {
   const { data: userTeams } = useQuery({
     queryKey: ["/api/teams"],
     enabled: !!user,
+    retry: false, // Don't retry if unauthorized
   });
   
   const isUserTeamMember = () => {
@@ -344,7 +360,7 @@ export default function EventDetails() {
               </Badge>
               
               {/* Add to my events button for non-team members */}
-              {user && !isTeamMember && !isInMyEvents?.isInMyEvents && (
+              {user && !isTeamMember && !(isInMyEvents as any)?.isInMyEvents && (
                 <Button 
                   variant="secondary" 
                   size="sm"
@@ -468,7 +484,7 @@ export default function EventDetails() {
                         >
                           <Users className="w-4 h-4 mr-2 flex-shrink-0" />
                           <span className="text-center">
-                            {capacity && capacity.maxParticipants && (capacity as any).availableSpots <= 0 ? "Become a reserve" : "I can attend"}
+                            {capacity && (capacity as any).maxParticipants && (capacity as any).availableSpots <= 0 ? "Become a reserve" : "I can attend"}
                           </span>
                         </Button>
                         <Button
