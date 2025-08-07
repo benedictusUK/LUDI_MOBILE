@@ -183,10 +183,10 @@ export default function FlareSearch() {
               {flareEvents.map((event: any) => (
                 <Card key={event.id} className="hover:shadow-md transition-shadow">
                   <CardContent className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="space-y-1">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-4 space-y-3 sm:space-y-0">
+                      <div className="space-y-1 flex-1">
                         <h3 className="text-lg font-semibold">{event.name}</h3>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-muted-foreground">
                           <div className="flex items-center gap-1">
                             <Calendar className="h-4 w-4" />
                             {new Date(event.startDate).toLocaleDateString()}
@@ -201,7 +201,7 @@ export default function FlareSearch() {
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <Badge variant="outline">{event.sport}</Badge>
                         <Badge className="bg-orange-100 text-orange-800 border-orange-200">
                           <Zap className="h-3 w-3 mr-1" />
@@ -210,7 +210,7 @@ export default function FlareSearch() {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
                       <div className="flex items-center gap-2">
                         <Avatar className="h-8 w-8">
                           <AvatarFallback className="text-xs">
@@ -225,11 +225,11 @@ export default function FlareSearch() {
                         </div>
                       </div>
                       
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm">
+                      <div className="flex gap-2 w-full sm:w-auto">
+                        <Button variant="outline" size="sm" className="flex-1 sm:flex-none">
                           View Details
                         </Button>
-                        <Button size="sm">
+                        <Button size="sm" className="flex-1 sm:flex-none">
                           <Users className="w-4 h-4 mr-1" />
                           Join Event
                         </Button>
