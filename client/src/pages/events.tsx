@@ -24,7 +24,7 @@ export default function Events() {
   const [location, setLocation] = useLocation();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingEvent, setEditingEvent] = useState<string | null>(null);
-  useScrollToElement(editingEvent ? `event-${editingEvent}` : undefined);
+  useScrollToElement((editingEvent || showCreateForm) ? `edit-form` : undefined);
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [votingStatusFilter, setVotingStatusFilter] = useState<string>("all");
   const [showPastEvents, setShowPastEvents] = useState<boolean>(false);
@@ -376,7 +376,7 @@ export default function Events() {
         </div>
 
         {(showCreateForm || editingEvent) && (
-          <div className="mb-8">
+          <div id="edit-form" className="mb-8">
             <EventForm 
               eventId={editingEvent || undefined}
               onCancel={() => {
