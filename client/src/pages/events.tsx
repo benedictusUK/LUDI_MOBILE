@@ -38,8 +38,12 @@ export default function Events() {
 
   // Extract team parameter from URL
   useEffect(() => {
-    const urlParams = new URLSearchParams(location.split('?')[1] || '');
-    const teamParam = urlParams.get('team');
+    console.log('Current location:', location);
+    // Get the full URL to handle query parameters properly
+    const fullUrl = window.location.href;
+    const url = new URL(fullUrl);
+    const teamParam = url.searchParams.get('team');
+    console.log('Team param extracted:', teamParam);
     setSelectedTeamId(teamParam || null);
   }, [location]);
 
@@ -96,8 +100,13 @@ export default function Events() {
 
   // Filter events by selected team if specified
   const filteredEvents = selectedTeamId 
-    ? (events as any[]).filter((event: any) => event.primaryTeamId === selectedTeamId)
+    ? (events as any[]).filter((event: any) => {
+        console.log('Event:', event.title, 'primaryTeamId:', event.primaryTeamId, 'selectedTeamId:', selectedTeamId);
+        return event.primaryTeamId === selectedTeamId;
+      })
     : events;
+
+  console.log('Events count - Total:', events.length, 'Filtered:', filteredEvents.length);
 
   const selectedTeam = selectedTeamId 
     ? (teams as any[]).find((team: any) => team.id === selectedTeamId)
