@@ -67,8 +67,18 @@ export default function Home() {
   const FootballIcon = ({ className }: { className?: string }) => (
     <svg viewBox="0 0 24 24" className={className} fill="currentColor">
       <circle cx="12" cy="12" r="10" fill="currentColor" />
-      <path d="M12 2c5.523 0 10 4.477 10 10s-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2zm0 2c-4.411 0-8 3.589-8 8s3.589 8 8 8 8-3.589 8-8-3.589-8-8-8z" fill="none" stroke="currentColor" strokeWidth="0.5"/>
-      <path d="M12 7l1.5 3h3l-2.5 2 1 3L12 13l-3 2 1-3-2.5-2h3L12 7z" fill="none" stroke="currentColor" strokeWidth="0.8"/>
+      {/* Central hexagon */}
+      <path d="M12 8l2.5 1.5L13 12l-2.5 1.5L9 12l1.5-2.5L12 8z" fill="white" stroke="currentColor" strokeWidth="0.3"/>
+      {/* Top hexagon */}
+      <path d="M12 3l2 1.2L12.5 7L10 6l-0.5-2.8L12 3z" fill="white" stroke="currentColor" strokeWidth="0.3"/>
+      {/* Bottom hexagon */}
+      <path d="M12 21l-2-1.2L11.5 17L14 18l0.5 2.8L12 21z" fill="white" stroke="currentColor" strokeWidth="0.3"/>
+      {/* Left hexagon */}
+      <path d="M3 12l1.2-2L7 11.5L6 14l-2.8 0.5L3 12z" fill="white" stroke="currentColor" strokeWidth="0.3"/>
+      {/* Right hexagon */}
+      <path d="M21 12l-1.2 2L17 12.5L18 10l2.8-0.5L21 12z" fill="white" stroke="currentColor" strokeWidth="0.3"/>
+      {/* Connecting lines between hexagons */}
+      <path d="M12 8L12 3M12 16L12 21M8.5 10.5L3 12M15.5 13.5L21 12" stroke="currentColor" strokeWidth="0.5"/>
     </svg>
   );
 
