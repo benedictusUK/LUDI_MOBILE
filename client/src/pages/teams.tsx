@@ -450,19 +450,19 @@ export default function Teams() {
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <Button 
+                onClick={() => setShowCreateForm(true)}
+                className="flex items-center justify-center space-x-2"
+              >
+                <i className="fas fa-plus"></i>
+                <span>Create Team</span>
+              </Button>
+              <Button 
                 variant="outline"
                 onClick={() => setShowSearchModal(true)}
                 className="flex items-center justify-center space-x-2"
               >
                 <i className="fas fa-search"></i>
                 <span>Find teams</span>
-              </Button>
-              <Button 
-                onClick={() => setShowCreateForm(true)}
-                className="flex items-center justify-center space-x-2"
-              >
-                <i className="fas fa-plus"></i>
-                <span>Create Team</span>
               </Button>
             </div>
           </div>
