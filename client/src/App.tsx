@@ -164,7 +164,7 @@ function Router() {
             <Route path="/settings" component={Settings} />
           </>
         ) : null}
-        {isLoading || !isAuthenticated ? <Route component={NotFound} /> : null}
+        <Route component={NotFound} />
       </Switch>
     </>
   );

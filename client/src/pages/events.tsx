@@ -40,9 +40,7 @@ export default function Events() {
   useEffect(() => {
     const urlParams = new URLSearchParams(location.split('?')[1] || '');
     const teamParam = urlParams.get('team');
-    if (teamParam) {
-      setSelectedTeamId(teamParam);
-    }
+    setSelectedTeamId(teamParam || null);
   }, [location]);
 
   const { data: events = [], isLoading } = useQuery({
