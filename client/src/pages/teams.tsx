@@ -19,7 +19,7 @@ import { ObjectUploader } from "@/components/ObjectUploader";
 import type { UploadResult } from '@uppy/core';
 import { 
   Users, Trophy, Target, Dumbbell, Zap, Mountain, 
-  Bike, Waves, Heart, Music, Flag, Swords 
+  Bike, Waves, Heart, Music, Flag, Swords, Circle
 } from "lucide-react";
 
 // Sports options
@@ -30,19 +30,59 @@ const SPORTS_OPTIONS = [
   "Snowboarding", "Surfing", "Rock Climbing", "Martial Arts", "Yoga", "Other"
 ];
 
+// Custom SVG sport icons
+const FootballIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+    <circle cx="12" cy="12" r="10" fill="currentColor" />
+    <path d="M12 2c5.523 0 10 4.477 10 10s-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2zm0 2c-4.411 0-8 3.589-8 8s3.589 8 8 8 8-3.589 8-8-3.589-8-8-8z" fill="none" stroke="currentColor" strokeWidth="0.5"/>
+    <path d="M12 7l1.5 3h3l-2.5 2 1 3L12 13l-3 2 1-3-2.5-2h3L12 7z" fill="none" stroke="currentColor" strokeWidth="0.8"/>
+  </svg>
+);
+
+const RugbyIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+    <ellipse cx="12" cy="12" rx="8" ry="10" fill="currentColor" />
+    <path d="M8 12h8M10 8h4M10 16h4" stroke="white" strokeWidth="1" fill="none"/>
+  </svg>
+);
+
+const TennisIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+    <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="2"/>
+    <path d="M4.5 12c0-4 3.5-7.5 7.5-7.5s7.5 3.5 7.5 7.5-3.5 7.5-7.5 7.5-7.5-3.5-7.5-7.5z" fill="none" stroke="currentColor" strokeWidth="0.5"/>
+    <path d="M12 3.5v17M3.5 12h17" stroke="currentColor" strokeWidth="0.5"/>
+  </svg>
+);
+
+const GolfIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+    <path d="M12 2v14" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+    <path d="M12 2l4 4-4 2V2z" fill="currentColor"/>
+    <circle cx="12" cy="19" r="1" fill="currentColor"/>
+    <path d="M8 22h8" stroke="currentColor" strokeWidth="1.5"/>
+  </svg>
+);
+
+const BasketballIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+    <circle cx="12" cy="12" r="9" fill="currentColor"/>
+    <path d="M3 12h18M12 3v18M7 7l10 10M17 7L7 17" stroke="white" strokeWidth="0.8" fill="none"/>
+  </svg>
+);
+
 // Function to get sport icon component based on sport name
 const getSportIcon = (sport: string) => {
   const sportLower = sport?.toLowerCase() || '';
   
-  if (sportLower.includes('football')) return Target; // Football (soccer ball)
-  if (sportLower.includes('rugby')) return Trophy; // Rugby ball shape
-  if (sportLower.includes('soccer')) return Target; // Soccer ball
-  if (sportLower.includes('basketball')) return Trophy; // Basketball
-  if (sportLower.includes('volleyball')) return Trophy; // Volleyball
-  if (sportLower.includes('tennis')) return Swords; // Tennis racquet (crossed)
+  if (sportLower.includes('football')) return FootballIcon; // Soccer ball with pentagon pattern
+  if (sportLower.includes('rugby')) return RugbyIcon; // Oval rugby ball
+  if (sportLower.includes('soccer')) return FootballIcon; // Soccer ball
+  if (sportLower.includes('basketball')) return BasketballIcon; // Basketball with lines
+  if (sportLower.includes('volleyball')) return Circle; // Volleyball
+  if (sportLower.includes('tennis')) return TennisIcon; // Tennis ball with curved lines
   if (sportLower.includes('badminton')) return Swords; // Badminton racquet
-  if (sportLower.includes('baseball') || sportLower.includes('cricket')) return Target; // Ball sports
-  if (sportLower.includes('golf')) return Flag; // Golf flag in hole
+  if (sportLower.includes('baseball') || sportLower.includes('cricket')) return Circle; // Ball sports
+  if (sportLower.includes('golf')) return GolfIcon; // Golf flag and hole
   if (sportLower.includes('swimming')) return Waves; // Keep as is
   if (sportLower.includes('running') || sportLower.includes('marathon')) return Zap; // Keep as is
   if (sportLower.includes('cycling') || sportLower.includes('biking')) return Bike; // Keep as is
