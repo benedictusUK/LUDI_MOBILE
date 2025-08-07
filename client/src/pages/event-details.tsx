@@ -249,21 +249,25 @@ export default function EventDetails() {
           
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-white mb-2">{eventData.name}</h1>
-              <div className="flex items-center space-x-4 text-white/90">
-                <span className="flex items-center">
-                  <Calendar className="w-4 h-4 mr-1" />
+              <h1 className="text-3xl font-bold text-white mb-4">{eventData.name}</h1>
+              <div className="space-y-2 text-white/90">
+                <div className="flex items-center">
+                  <Calendar className="w-4 h-4 mr-2" />
                   {new Date(eventData.startDate).toLocaleDateString()}
-                </span>
-                <span className="flex items-center">
-                  <Clock className="w-4 h-4 mr-1" />
+                  <Clock className="w-4 h-4 ml-4 mr-2" />
                   {eventData.startTime}
-                </span>
+                </div>
                 {eventData.location && (
-                  <span className="flex items-center max-w-60 truncate" title={eventData.location}>
-                    <MapPin className="w-4 h-4 mr-1 flex-shrink-0" />
-                    <span className="truncate">{eventData.location}</span>
-                  </span>
+                  <div className="flex items-center" title={eventData.location}>
+                    <MapPin className="w-4 h-4 mr-2 flex-shrink-0" />
+                    <span>{eventData.location}</span>
+                  </div>
+                )}
+                {eventData.primaryTeam && (
+                  <div className="flex items-center" title={`Primary Team: ${eventData.primaryTeam.name}`}>
+                    <Users className="w-4 h-4 mr-2 flex-shrink-0" />
+                    <span>Primary Team: {eventData.primaryTeam.name}</span>
+                  </div>
                 )}
               </div>
             </div>
@@ -271,15 +275,10 @@ export default function EventDetails() {
             <div className="text-right">
               <Badge 
                 variant={eventData.isPublished ? "default" : "secondary"}
-                className="bg-white/20 text-white border-white/30 mb-2"
+                className="bg-white/20 text-white border-white/30"
               >
                 {eventData.isPublished ? "Published" : "Draft"}
               </Badge>
-              {eventData.primaryTeam && (
-                <div className="text-white/90 text-sm max-w-48 truncate" title={`Primary Team: ${eventData.primaryTeam.name}`}>
-                  Primary Team: {eventData.primaryTeam.name}
-                </div>
-              )}
             </div>
           </div>
         </div>
