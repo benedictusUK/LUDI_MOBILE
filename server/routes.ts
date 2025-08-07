@@ -1388,10 +1388,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Postcode is required" });
       }
 
+      // Pass the authenticated user ID to exclude events from teams that have blocked them
       const events = await storage.searchFlareEvents(
         postcode as string, 
         parseInt(radius as string), 
-        sport as string
+        sport as string,
+        req.user?.id // Pass user ID for blocking filter
       );
       res.json(events);
     } catch (error) {

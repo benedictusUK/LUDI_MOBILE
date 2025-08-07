@@ -337,6 +337,168 @@ describe('Event Management', () => {
       expect(finalNotifications.length).toBe(initialNotifications.length);
     });
 
+    test('should exclude blocked users from flare gun notifications', async () => {
+      // Create event with flare gun capability
+      const event = await storage.createEvent({
+        name: 'Flare Gun Block Test',
+        sport: 'Football',
+        startDate: '2025-08-30',
+        startTime: '19:00',
+        endDate: '2025-08-30',
+        endTime: '21:00',
+        location: 'Test Stadium',
+        address: '789 Test Street',
+        postcode: 'SW1A 1FF',
+        requirements: 'Testing flare gun blocking',
+        gender: 'mixed',
+        maxParticipants: 5,
+        reserveSpots: 2,
+        cost: '12.00',
+        primaryTeamId: testTeamId,
+        secondaryTeamIds: [],
+        createdById: testUserId,
+        recurrenceType: 'none',
+        recurrenceEndDate: null,
+        recurrenceDaysOfWeek: [],
+        isRecurringSuspended: false
+      });
+
+      // Create two test users
+      const user1 = await storage.upsertUser({
+        email: 'flare-user1@example.com',
+        firstName: 'Flare',
+        lastName: 'User1',
+        username: 'flareuser1',
+        phoneNumber: '+441234567897',
+        dateOfBirth: '1995-01-01',
+        postcode: 'SW1A 1GG',
+        gender: 'male',
+        sportsInterests: ['Football'],
+        travelRadius: 10
+      });
+
+      const user2 = await storage.upsertUser({
+        email: 'flare-user2@example.com',
+        firstName: 'Flare',
+        lastName: 'User2',
+        username: 'flareuser2',
+        phoneNumber: '+441234567898',
+        dateOfBirth: '1996-01-01',
+        postcode: 'SW1A 1HH',
+        gender: 'female',
+        sportsInterests: ['Football'],
+        travelRadius: 10
+      });
+
+      // Block user2 from the team
+      await storage.blockMember(testTeamId, user2.id, testUserId, 'Testing flare blocking');
+
+      // Get initial notification counts
+      const initialNotificationsUser1 = await storage.getUserNotifications(user1.id);
+      const initialNotificationsUser2 = await storage.getUserNotifications(user2.id);
+
+      // Send flare notifications to both users
+      await storage.sendFlareNotifications(event.id, [user1.id, user2.id]);
+
+      // Check final notification counts
+      const finalNotificationsUser1 = await storage.getUserNotifications(user1.id);
+      const finalNotificationsUser2 = await storage.getUserNotifications(user2.id);
+
+      // User1 should receive notification (not blocked)
+      expect(finalNotificationsUser1.length).toBe(initialNotificationsUser1.length + 1);
+      const flareNotification1 = finalNotificationsUser1.find(n => n.type === 'flare_gun');
+      expect(flareNotification1).toBeDefined();
+      expect(flareNotification1!.title).toBe('🚀 Flare Gun Alert!');
+
+      // User2 should NOT receive notification (blocked)
+      expect(finalNotificationsUser2.length).toBe(initialNotificationsUser2.length);
+      const flareNotification2 = finalNotificationsUser2.find(n => n.type === 'flare_gun');
+      expect(flareNotification2).toBeUndefined();
+    });
+
+    test('should exclude events from blocking teams in flare search', async () => {
+      // Create a team and event for the test
+      const blockingTeam = await storage.createTeam({
+        name: 'Blocking Team Test',
+        sports: ['Football'],
+        description: 'Team that blocks users',
+        gender: 'mixed',
+        maxPlayers: 15,
+        isPrivate: false,
+        requiresApproval: false
+      }, testUserId);
+
+      const searchTestEvent = await storage.createEvent({
+        name: 'Flare Search Block Test',
+        sport: 'Football',
+        startDate: '2025-09-01',
+        startTime: '18:00',
+        endDate: '2025-09-01',
+        endTime: '20:00',
+        location: 'Search Test Ground',
+        address: '123 Search Street',
+        postcode: 'SW1A 1XX',
+        requirements: 'Testing flare search blocking',
+        gender: 'mixed',
+        maxParticipants: 6,
+        reserveSpots: 2,
+        cost: '15.00',
+        primaryTeamId: blockingTeam.id,
+        secondaryTeamIds: [],
+        createdById: testUserId,
+        recurrenceType: 'none',
+        recurrenceEndDate: null,
+        recurrenceDaysOfWeek: [],
+        isRecurringSuspended: false
+      });
+
+      // Publish event and activate flare
+      await storage.updateEvent(searchTestEvent.id, { isPublished: true, flareStatus: 'active' });
+
+      // Create a test user to search
+      const searchUser = await storage.upsertUser({
+        email: 'search-user@example.com',
+        firstName: 'Search',
+        lastName: 'User',
+        username: 'searchuser',
+        phoneNumber: '+441234567899',
+        dateOfBirth: '1997-01-01',
+        postcode: 'SW1A 1YY',
+        gender: 'male',
+        sportsInterests: ['Football'],
+        travelRadius: 20
+      });
+
+      // Search should include the event initially (user not blocked)
+      const initialSearchResults = await storage.searchFlareEvents(
+        'SW1A 1XX',
+        25,
+        'Football',
+        searchUser.id
+      );
+      expect(initialSearchResults.some(e => e.id === searchTestEvent.id)).toBe(true);
+
+      // Block the search user from the team
+      await storage.blockMember(blockingTeam.id, searchUser.id, testUserId, 'Testing search blocking');
+
+      // Search should exclude the event now (user is blocked)
+      const filteredSearchResults = await storage.searchFlareEvents(
+        'SW1A 1XX',
+        25,
+        'Football',
+        searchUser.id
+      );
+      expect(filteredSearchResults.some(e => e.id === searchTestEvent.id)).toBe(false);
+
+      // Search without user ID should still include the event (no filtering)
+      const unFilteredSearchResults = await storage.searchFlareEvents(
+        'SW1A 1XX',
+        25,
+        'Football'
+      );
+      expect(unFilteredSearchResults.some(e => e.id === searchTestEvent.id)).toBe(true);
+    });
+
     test('should handle recurring events', async () => {
       const recurringEventData = {
         name: 'Weekly Training',

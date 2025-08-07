@@ -1916,7 +1916,22 @@ export class DatabaseStorage implements IStorage {
 
     const { event, team } = eventResult;
 
-    // Create notifications for each user with event metadata
+    // Filter out blocked users from receiving notifications
+    const eligibleUserIds: string[] = [];
+    for (const userId of userIds) {
+      const isBlocked = await this.isUserBlocked(team.id, userId);
+      if (!isBlocked) {
+        eligibleUserIds.push(userId);
+      }
+    }
+
+    // If no eligible users after filtering, exit early
+    if (eligibleUserIds.length === 0) {
+      console.log(`No eligible users for flare notifications (all ${userIds.length} users are blocked from team ${team.id})`);
+      return;
+    }
+
+    // Create notifications for each eligible user with event metadata
     const eventData = {
       id: event.id,
       title: event.name,
@@ -1928,7 +1943,7 @@ export class DatabaseStorage implements IStorage {
       primaryTeamName: team.name
     };
 
-    const notificationData = userIds.map(userId => ({
+    const notificationData = eligibleUserIds.map(userId => ({
       userId,
       title: "🚀 Flare Gun Alert!",
       message: `${team.name} needs players for "${event.name}"! Check out the event details and join if interested.`,
@@ -1938,6 +1953,8 @@ export class DatabaseStorage implements IStorage {
     }));
 
     await db.insert(notifications).values(notificationData);
+
+    console.log(`Sent flare notifications to ${eligibleUserIds.length}/${userIds.length} users (${userIds.length - eligibleUserIds.length} blocked users excluded)`);
   }
 
   async respondToFlare(eventId: string, userId: string, status: "interested" | "not_interested" | "maybe"): Promise<FlareResponse> {
@@ -2001,7 +2018,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Search for events that have active flare status (events actively seeking players)
-  async searchFlareEvents(postcode: string, radiusMiles: number, sport?: string): Promise<any[]> {
+  async searchFlareEvents(postcode: string, radiusMiles: number, sport?: string, userId?: string): Promise<any[]> {
     // Build query to find events with active flare status
     let whereConditions = and(
       sql`${events.startDate} >= CURRENT_DATE`, // Future events only
@@ -2035,9 +2052,22 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(events.flareActivatedAt), events.startDate)
       .limit(50);
 
+    // Filter out events from teams that have blocked the searching user
+    let filteredEvents = flareEvents;
+    if (userId) {
+      const eligibleEvents = [];
+      for (const event of flareEvents) {
+        const isBlocked = await this.isUserBlocked(event.team.id, userId);
+        if (!isBlocked) {
+          eligibleEvents.push(event);
+        }
+      }
+      filteredEvents = eligibleEvents;
+    }
+
     // TODO: Add actual distance calculation based on postcode
     // For now, return all events with a mock distance
-    return flareEvents.map(event => ({
+    return filteredEvents.map(event => ({
       ...event,
       distance: Math.random() * radiusMiles // Mock distance for now
     }));
