@@ -339,7 +339,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserTeams(userId: string): Promise<(Team & { role: string; memberCount: number; isOwner: boolean })[]> {
-    const result = await db
+    // First get the teams the user belongs to with their roles
+    const userTeamsQuery = await db
       .select({
         id: teams.id,
         name: teams.name,
@@ -356,13 +357,25 @@ export class DatabaseStorage implements IStorage {
         createdAt: teams.createdAt,
         updatedAt: teams.updatedAt,
         role: teamMemberships.role,
-        memberCount: count(teamMemberships.id),
         isOwner: sql<boolean>`CASE WHEN ${teams.ownerId} = ${userId} THEN true ELSE false END`,
       })
       .from(teams)
       .innerJoin(teamMemberships, eq(teams.id, teamMemberships.teamId))
-      .where(eq(teamMemberships.userId, userId))
-      .groupBy(teams.id, teamMemberships.role, teams.ownerId);
+      .where(eq(teamMemberships.userId, userId));
+
+    // Then get the member count for each team separately
+    const result = [];
+    for (const team of userTeamsQuery) {
+      const memberCountQuery = await db
+        .select({ count: count(teamMemberships.id) })
+        .from(teamMemberships)
+        .where(eq(teamMemberships.teamId, team.id));
+      
+      result.push({
+        ...team,
+        memberCount: memberCountQuery[0]?.count || 0,
+      });
+    }
 
     return result;
   }
