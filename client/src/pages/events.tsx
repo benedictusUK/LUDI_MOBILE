@@ -327,7 +327,7 @@ export default function Events() {
                     <SelectValue placeholder="All Statuses" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Statuses ({showPastEvents ? allEventsCount : futureEventsCount})</SelectItem>
+                    <SelectItem value="all">All ({showPastEvents ? allEventsCount : futureEventsCount})</SelectItem>
                     <SelectItem value="attending">
                       <div className="flex items-center space-x-2">
                         <div className="w-2 h-2 rounded-full bg-green-500"></div>
