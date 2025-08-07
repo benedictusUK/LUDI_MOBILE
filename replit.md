@@ -3,6 +3,11 @@
 ## Overview
 LUDI is a full-stack sports event management platform enabling users to create and manage sports teams, organize events, and handle team communications. It aims to provide a modern, efficient, and user-friendly solution for sports enthusiasts to connect, plan, and participate in activities. The platform integrates team, event, and user management with real-time notifications and robust authentication, enhancing community engagement and streamlining sports event organization.
 
+## Recent Changes
+*   **Member Viewing Interface (Jan 2025)**: Fixed "View Members" functionality for regular team members with proper data structure handling, displaying full names prominently with usernames as subtext, and accurate role badges (Owner/Admin/Captain/Member). Both admin management modal and regular viewing modal now work correctly.
+*   **Team Member Count Display**: Resolved accurate member count display showing actual numbers instead of hardcoded values, with conditional display for team limits.
+*   **Flare Search Integration**: Completed flare search with working "See Event" and "Add to My Events" functionality using proper API request syntax.
+
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
