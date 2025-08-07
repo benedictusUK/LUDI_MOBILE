@@ -470,18 +470,7 @@ export default function Events() {
                         <h3 className="text-lg font-semibold text-neutral-900">
                           {event.name}
                         </h3>
-                        <div className="flex items-center space-x-2">
-                          <p className="text-sm text-neutral-500">{event.sport}</p>
-                          {event.primaryTeam && (
-                            <span 
-                              className="text-xs px-2 py-1 rounded-full text-white font-medium max-w-32 truncate"
-                              style={{ backgroundColor: teamColor }}
-                              title={event.primaryTeam.name}
-                            >
-                              {event.primaryTeam.name.length > 15 ? `${event.primaryTeam.name.substring(0, 15)}...` : event.primaryTeam.name}
-                            </span>
-                          )}
-                        </div>
+                        <p className="text-sm text-neutral-500">{event.sport}</p>
                       </div>
                     </div>
 
@@ -496,11 +485,19 @@ export default function Events() {
                       <span className="text-neutral-500">Time:</span>
                       <span className="font-medium text-neutral-900">{event.startTime}</span>
                     </div>
+                    {event.primaryTeam && (
+                      <div className="flex items-start justify-between text-sm">
+                        <span className="text-neutral-500 flex-shrink-0">Team:</span>
+                        <span className="font-medium text-neutral-900 text-right ml-2 break-words" title={event.primaryTeam.name}>
+                          {event.primaryTeam.name.length > 20 ? `${event.primaryTeam.name.substring(0, 20)}...` : event.primaryTeam.name}
+                        </span>
+                      </div>
+                    )}
                     {event.location && (
                       <div className="flex items-start justify-between text-sm">
                         <span className="text-neutral-500 flex-shrink-0">Location:</span>
-                        <span className="font-medium text-neutral-900 text-right ml-2 break-words">
-                          {event.location.length > 30 ? `${event.location.substring(0, 30)}...` : event.location}
+                        <span className="font-medium text-neutral-900 text-right ml-2 break-words" title={event.location}>
+                          {event.location.length > 18 ? `${event.location.substring(0, 18)}...` : event.location}
                         </span>
                       </div>
                     )}
