@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +12,8 @@ import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/useAuth";
 import { SPORTS } from "@shared/schema";
 import Navigation from "@/components/ui/nav";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import { 
   Search, 
   MapPin, 
@@ -23,12 +26,39 @@ import {
 
 export default function FlareSearch() {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useState({
     postcode: "",
     radius: "10",
     sport: "all"
   });
   const [hasSearched, setHasSearched] = useState(false);
+
+  // Mutation for adding events to "My Events"
+  const addToMyEventsMutation = useMutation({
+    mutationFn: async (eventId: string) => {
+      return apiRequest(`/api/user-events`, {
+        method: 'POST',
+        body: { eventId }
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Event added to your events",
+      });
+      // Invalidate events query to refresh the data
+      queryClient.invalidateQueries({ queryKey: ["/api/events"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add event to your events",
+        variant: "destructive",
+      });
+    },
+  });
 
   // Search for flare gun events
   const { data: flareEvents = [], isLoading, refetch } = useQuery<any[]>({
@@ -226,12 +256,19 @@ export default function FlareSearch() {
                       </div>
                       
                       <div className="flex gap-2 w-full sm:w-auto">
-                        <Button variant="outline" size="sm" className="flex-1 sm:flex-none">
-                          View Details
-                        </Button>
-                        <Button size="sm" className="flex-1 sm:flex-none">
+                        <Link href={`/events/${event.id}`}>
+                          <Button variant="outline" size="sm" className="flex-1 sm:flex-none">
+                            See Event
+                          </Button>
+                        </Link>
+                        <Button 
+                          size="sm" 
+                          className="flex-1 sm:flex-none"
+                          onClick={() => addToMyEventsMutation.mutate(event.id)}
+                          disabled={addToMyEventsMutation.isPending}
+                        >
                           <Users className="w-4 h-4 mr-1" />
-                          Join Event
+                          {addToMyEventsMutation.isPending ? "Adding..." : "Add to My Events"}
                         </Button>
                       </div>
                     </div>
