@@ -144,8 +144,14 @@ export default function Home() {
                       className="flex items-center space-x-4 p-4 border border-gray-100 rounded-lg hover:border-primary hover:shadow-md transition-all cursor-pointer"
                       onClick={() => handleEventClick(event.id)}
                     >
-                      <div className="bg-primary p-3 rounded-lg">
-                        <i className="fas fa-football-ball text-white"></i>
+                      <div 
+                        className="w-12 h-12 rounded-lg flex items-center justify-center"
+                        style={{ backgroundColor: event.primaryTeam?.color || '#3b82f6' }}
+                      >
+                        {(() => {
+                          const IconComponent = getSportIcon(event.primaryTeam?.sports?.[0] || '');
+                          return <IconComponent className="w-6 h-6 text-white" />;
+                        })()}
                       </div>
                       <div className="flex-1">
                         <h4 className="font-medium text-neutral-900">{event.name}</h4>
@@ -191,7 +197,10 @@ export default function Home() {
                             className="w-12 h-12 rounded-lg object-cover"
                           />
                         ) : (
-                          <div className="w-12 h-12 rounded-lg bg-primary flex items-center justify-center">
+                          <div 
+                            className="w-12 h-12 rounded-lg flex items-center justify-center"
+                            style={{ backgroundColor: team.color || '#3b82f6' }}
+                          >
                             {(() => {
                               const IconComponent = getSportIcon(team.sports?.[0] || '');
                               return <IconComponent className="w-6 h-6 text-white" />;

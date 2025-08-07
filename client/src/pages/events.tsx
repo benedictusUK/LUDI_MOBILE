@@ -17,6 +17,33 @@ import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { LudiInlineLoader } from "@/components/ui/ludi-loader";
+import { 
+  Users, Trophy, Target, Dumbbell, Zap, Mountain, 
+  Bike, Waves, Heart, Music 
+} from "lucide-react";
+
+// Function to get sport icon component based on sport name
+const getSportIcon = (sport: string) => {
+  const sportLower = sport?.toLowerCase() || '';
+  
+  if (sportLower.includes('football') || sportLower.includes('rugby')) return Trophy;
+  if (sportLower.includes('soccer')) return Target;
+  if (sportLower.includes('basketball') || sportLower.includes('volleyball')) return Trophy;
+  if (sportLower.includes('tennis') || sportLower.includes('badminton')) return Target;
+  if (sportLower.includes('baseball') || sportLower.includes('cricket')) return Target;
+  if (sportLower.includes('golf')) return Target;
+  if (sportLower.includes('swimming')) return Waves;
+  if (sportLower.includes('running') || sportLower.includes('marathon')) return Zap;
+  if (sportLower.includes('cycling') || sportLower.includes('biking')) return Bike;
+  if (sportLower.includes('boxing') || sportLower.includes('wrestling') || sportLower.includes('martial')) return Dumbbell;
+  if (sportLower.includes('skiing') || sportLower.includes('snowboard')) return Mountain;
+  if (sportLower.includes('climbing') || sportLower.includes('rock')) return Mountain;
+  if (sportLower.includes('yoga') || sportLower.includes('meditation')) return Heart;
+  if (sportLower.includes('dance') || sportLower.includes('social')) return Music;
+  
+  // Default fallback icon
+  return Users;
+};
 
 export default function Events() {
   useScrollToTop();
@@ -468,7 +495,10 @@ export default function Events() {
                         className="w-12 h-12 rounded-lg flex items-center justify-center"
                         style={{ backgroundColor: teamColor }}
                       >
-                        <i className="fas fa-football-ball text-white text-lg"></i>
+                        {(() => {
+                          const IconComponent = getSportIcon(event.primaryTeam?.sports?.[0] || '');
+                          return <IconComponent className="w-6 h-6 text-white" />;
+                        })()}
                       </div>
                       <div>
                         <h3 className="text-lg font-semibold text-neutral-900">

@@ -17,6 +17,10 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { ObjectUploader } from "@/components/ObjectUploader";
 import type { UploadResult } from '@uppy/core';
+import { 
+  Users, Trophy, Target, Dumbbell, Zap, Mountain, 
+  Bike, Waves, Heart, Music 
+} from "lucide-react";
 
 // Sports options
 const SPORTS_OPTIONS = [
@@ -25,6 +29,29 @@ const SPORTS_OPTIONS = [
   "Hockey", "Badminton", "Table Tennis", "Boxing", "Wrestling", "Skiing",
   "Snowboarding", "Surfing", "Rock Climbing", "Martial Arts", "Yoga", "Other"
 ];
+
+// Function to get sport icon component based on sport name
+const getSportIcon = (sport: string) => {
+  const sportLower = sport?.toLowerCase() || '';
+  
+  if (sportLower.includes('football') || sportLower.includes('rugby')) return Trophy;
+  if (sportLower.includes('soccer')) return Target;
+  if (sportLower.includes('basketball') || sportLower.includes('volleyball')) return Trophy;
+  if (sportLower.includes('tennis') || sportLower.includes('badminton')) return Target;
+  if (sportLower.includes('baseball') || sportLower.includes('cricket')) return Target;
+  if (sportLower.includes('golf')) return Target;
+  if (sportLower.includes('swimming')) return Waves;
+  if (sportLower.includes('running') || sportLower.includes('marathon')) return Zap;
+  if (sportLower.includes('cycling') || sportLower.includes('biking')) return Bike;
+  if (sportLower.includes('boxing') || sportLower.includes('wrestling') || sportLower.includes('martial')) return Dumbbell;
+  if (sportLower.includes('skiing') || sportLower.includes('snowboard')) return Mountain;
+  if (sportLower.includes('climbing') || sportLower.includes('rock')) return Mountain;
+  if (sportLower.includes('yoga') || sportLower.includes('meditation')) return Heart;
+  if (sportLower.includes('dance') || sportLower.includes('social')) return Music;
+  
+  // Default fallback icon
+  return Users;
+};
 
 // Multi-select component for sports
 function SportsMultiSelect({ 
@@ -505,7 +532,10 @@ export default function Teams() {
                         background: `linear-gradient(135deg, ${team.color || '#3b82f6'}, ${team.color || '#3b82f6'}dd)` 
                       }}
                     >
-                      <i className="fas fa-users text-white text-4xl opacity-50"></i>
+                      {(() => {
+                        const IconComponent = getSportIcon(team.sports?.[0] || '');
+                        return <IconComponent className="text-white text-4xl opacity-50" />;
+                      })()}
                     </div>
                   )}
                   
@@ -590,7 +620,10 @@ export default function Teams() {
                       className="w-12 h-12 rounded-lg flex items-center justify-center"
                       style={{ backgroundColor: team.color || '#3b82f6' }}
                     >
-                      <i className="fas fa-football-ball text-white text-lg"></i>
+                      {(() => {
+                        const IconComponent = getSportIcon(team.sports?.[0] || '');
+                        return <IconComponent className="w-6 h-6 text-white" />;
+                      })()}
                     </div>
                     <div>
                       <h3 className="text-lg font-semibold text-neutral-900">{team.name}</h3>
