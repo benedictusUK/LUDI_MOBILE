@@ -19,7 +19,7 @@ import { ObjectUploader } from "@/components/ObjectUploader";
 import type { UploadResult } from '@uppy/core';
 import { 
   Users, Trophy, Target, Dumbbell, Zap, Mountain, 
-  Bike, Waves, Heart, Music 
+  Bike, Waves, Heart, Music, Flag, Swords 
 } from "lucide-react";
 
 // Sports options
@@ -34,15 +34,18 @@ const SPORTS_OPTIONS = [
 const getSportIcon = (sport: string) => {
   const sportLower = sport?.toLowerCase() || '';
   
-  if (sportLower.includes('football') || sportLower.includes('rugby')) return Trophy;
-  if (sportLower.includes('soccer')) return Target;
-  if (sportLower.includes('basketball') || sportLower.includes('volleyball')) return Trophy;
-  if (sportLower.includes('tennis') || sportLower.includes('badminton')) return Target;
-  if (sportLower.includes('baseball') || sportLower.includes('cricket')) return Target;
-  if (sportLower.includes('golf')) return Target;
-  if (sportLower.includes('swimming')) return Waves;
-  if (sportLower.includes('running') || sportLower.includes('marathon')) return Zap;
-  if (sportLower.includes('cycling') || sportLower.includes('biking')) return Bike;
+  if (sportLower.includes('football')) return Target; // Football (soccer ball)
+  if (sportLower.includes('rugby')) return Trophy; // Rugby ball shape
+  if (sportLower.includes('soccer')) return Target; // Soccer ball
+  if (sportLower.includes('basketball')) return Trophy; // Basketball
+  if (sportLower.includes('volleyball')) return Trophy; // Volleyball
+  if (sportLower.includes('tennis')) return Swords; // Tennis racquet (crossed)
+  if (sportLower.includes('badminton')) return Swords; // Badminton racquet
+  if (sportLower.includes('baseball') || sportLower.includes('cricket')) return Target; // Ball sports
+  if (sportLower.includes('golf')) return Flag; // Golf flag in hole
+  if (sportLower.includes('swimming')) return Waves; // Keep as is
+  if (sportLower.includes('running') || sportLower.includes('marathon')) return Zap; // Keep as is
+  if (sportLower.includes('cycling') || sportLower.includes('biking')) return Bike; // Keep as is
   if (sportLower.includes('boxing') || sportLower.includes('wrestling') || sportLower.includes('martial')) return Dumbbell;
   if (sportLower.includes('skiing') || sportLower.includes('snowboard')) return Mountain;
   if (sportLower.includes('climbing') || sportLower.includes('rock')) return Mountain;
