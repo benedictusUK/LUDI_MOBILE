@@ -10,6 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
@@ -21,6 +23,8 @@ export default function Events() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingEvent, setEditingEvent] = useState<string | null>(null);
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+  const [votingStatusFilter, setVotingStatusFilter] = useState<string>("all");
+  const [showPastEvents, setShowPastEvents] = useState<boolean>(false);
   const [auditModal, setAuditModal] = useState<{ isOpen: boolean; eventId: string; eventName: string }>({
     isOpen: false,
     eventId: "",
@@ -79,6 +83,33 @@ export default function Events() {
     queryKey: ["/api/teams"],
   });
 
+  // Fetch attendance data for all events to determine voting status
+  const attendanceQueries = useQuery({
+    queryKey: ["/api/events/attendance-all"],
+    queryFn: async () => {
+      if (!events || events.length === 0) return {};
+      
+      const attendanceData: { [eventId: string]: any[] } = {};
+      await Promise.all(
+        (events as any[]).map(async (event) => {
+          try {
+            const response = await fetch(`/api/events/${event.id}/attendance`, {
+              credentials: "include",
+            });
+            if (response.ok) {
+              attendanceData[event.id] = await response.json();
+            }
+          } catch (error) {
+            console.error(`Failed to fetch attendance for event ${event.id}:`, error);
+          }
+        })
+      );
+      return attendanceData;
+    },
+    enabled: events && (events as any[]).length > 0,
+    staleTime: 30000, // Cache for 30 seconds
+  });
+
   const { user } = useAuth();
 
   // Helper function to check if user can edit an event
@@ -96,10 +127,62 @@ export default function Events() {
     return primaryTeam.role === "admin" || primaryTeam.role === "captain";
   };
 
-  // Filter events by selected team if specified
-  const filteredEvents = selectedTeamId 
-    ? (events as any[]).filter((event: any) => event.primaryTeamId === selectedTeamId)
-    : events;
+  // Helper function to get user's voting status for an event
+  const getUserVotingStatus = (eventId: string): 'attending' | 'not_attending' | 'not_voted' => {
+    const attendanceData = attendanceQueries.data?.[eventId] || [];
+    const userAttendance = attendanceData.find((a: any) => a.userId === (user as any)?.id);
+    
+    if (!userAttendance) return 'not_voted';
+    return userAttendance.status === 'attending' ? 'attending' : 'not_attending';
+  };
+
+  // Helper function to check if event is in the past
+  const isEventPast = (event: any): boolean => {
+    const eventDate = new Date(event.dateTime);
+    const now = new Date();
+    return eventDate < now;
+  };
+
+  // Apply all filters
+  const filteredEvents = (events as any[])
+    .filter((event: any) => {
+      // Team filter
+      if (selectedTeamId && event.primaryTeamId !== selectedTeamId) return false;
+      
+      // Past events filter
+      if (!showPastEvents && isEventPast(event)) return false;
+      
+      // Voting status filter
+      if (votingStatusFilter !== 'all') {
+        const votingStatus = getUserVotingStatus(event.id);
+        if (votingStatusFilter !== votingStatus) return false;
+      }
+      
+      return true;
+    });
+
+  // Calculate filter counts
+  const allEventsCount = events.length;
+  const futureEventsCount = (events as any[]).filter(event => !isEventPast(event)).length;
+  const pastEventsCount = allEventsCount - futureEventsCount;
+  
+  const attendingCount = (events as any[]).filter(event => 
+    (!showPastEvents ? !isEventPast(event) : true) &&
+    (!selectedTeamId || event.primaryTeamId === selectedTeamId) &&
+    getUserVotingStatus(event.id) === 'attending'
+  ).length;
+  
+  const notAttendingCount = (events as any[]).filter(event => 
+    (!showPastEvents ? !isEventPast(event) : true) &&
+    (!selectedTeamId || event.primaryTeamId === selectedTeamId) &&
+    getUserVotingStatus(event.id) === 'not_attending'
+  ).length;
+  
+  const notVotedCount = (events as any[]).filter(event => 
+    (!showPastEvents ? !isEventPast(event) : true) &&
+    (!selectedTeamId || event.primaryTeamId === selectedTeamId) &&
+    getUserVotingStatus(event.id) === 'not_voted'
+  ).length;
 
   const selectedTeam = selectedTeamId 
     ? (teams as any[]).find((team: any) => team.id === selectedTeamId)
@@ -196,46 +279,102 @@ export default function Events() {
             </Button>
           </div>
 
-          {/* Team Filter */}
-          <div className="mt-6 flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <label className="text-sm font-medium text-neutral-600">Filter by Team:</label>
-              <Select 
-                value={selectedTeamId || "all"} 
-                onValueChange={(value) => {
-                  if (value === "all") {
-                    setSelectedTeamId(null);
-                    window.history.pushState({}, '', '/events');
-                  } else {
-                    setSelectedTeamId(value);
-                    window.history.pushState({}, '', `/events?team=${value}`);
-                  }
-                }}
-              >
-                <SelectTrigger className="w-64">
-                  <SelectValue placeholder="All Teams" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Teams</SelectItem>
-                  {(teams as any[]).map((team: any) => (
-                    <SelectItem key={team.id} value={team.id}>
+          {/* Filters */}
+          <div className="mt-6 space-y-4">
+            {/* First row - Team and Voting Status filters */}
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center space-x-2">
+                <label className="text-sm font-medium text-neutral-600">Filter by Team:</label>
+                <Select 
+                  value={selectedTeamId || "all"} 
+                  onValueChange={(value) => {
+                    if (value === "all") {
+                      setSelectedTeamId(null);
+                      window.history.pushState({}, '', '/events');
+                    } else {
+                      setSelectedTeamId(value);
+                      window.history.pushState({}, '', `/events?team=${value}`);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-64">
+                    <SelectValue placeholder="All Teams" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Teams</SelectItem>
+                    {(teams as any[]).map((team: any) => (
+                      <SelectItem key={team.id} value={team.id}>
+                        <div className="flex items-center space-x-2">
+                          <div 
+                            className="w-3 h-3 rounded-full" 
+                            style={{ backgroundColor: team.color || '#3b82f6' }}
+                          />
+                          <span>{team.name}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <label className="text-sm font-medium text-neutral-600">Voting Status:</label>
+                <Select 
+                  value={votingStatusFilter} 
+                  onValueChange={setVotingStatusFilter}
+                >
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="All Statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses ({showPastEvents ? allEventsCount : futureEventsCount})</SelectItem>
+                    <SelectItem value="attending">
                       <div className="flex items-center space-x-2">
-                        <div 
-                          className="w-3 h-3 rounded-full" 
-                          style={{ backgroundColor: team.color || '#3b82f6' }}
-                        />
-                        <span>{team.name}</span>
+                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                        <span>Attending ({attendingCount})</span>
                       </div>
                     </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                    <SelectItem value="not_attending">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                        <span>Can't Attend ({notAttendingCount})</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="not_voted">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-2 h-2 rounded-full bg-neutral-400"></div>
+                        <span>Not Voted ({notVotedCount})</span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            {filteredEvents.length !== events.length && (
-              <Badge variant="secondary" className="text-xs">
-                Showing {filteredEvents.length} of {events.length} events
-              </Badge>
-            )}
+
+            {/* Second row - Past events toggle and event count */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="show-past-events"
+                    checked={showPastEvents}
+                    onCheckedChange={setShowPastEvents}
+                  />
+                  <Label 
+                    htmlFor="show-past-events" 
+                    className="text-sm font-medium text-neutral-600 cursor-pointer"
+                  >
+                    Show Past Events ({pastEventsCount})
+                  </Label>
+                </div>
+              </div>
+
+              {filteredEvents.length !== events.length && (
+                <Badge variant="secondary" className="text-xs">
+                  Showing {filteredEvents.length} of {showPastEvents ? allEventsCount : futureEventsCount} events
+                </Badge>
+              )}
+            </div>
           </div>
         </div>
 
@@ -260,14 +399,26 @@ export default function Events() {
           {(filteredEvents as any[]).length === 0 ? (
             <div className="col-span-full text-center py-12">
               <i className="fas fa-calendar text-neutral-300 text-6xl mb-4"></i>
-              <h3 className="text-lg font-semibold text-neutral-900 mb-2">No events yet</h3>
-              <p className="text-neutral-500 mb-4">Create your first sports event to get started</p>
-              <Button onClick={() => {
-                setShowCreateForm(true);
-                setEditingEvent(null);
-              }}>
-                Create Event
-              </Button>
+              <h3 className="text-lg font-semibold text-neutral-900 mb-2">
+                {events.length === 0 
+                  ? "No events yet" 
+                  : "No events match your filters"
+                }
+              </h3>
+              <p className="text-neutral-500 mb-4">
+                {events.length === 0 
+                  ? "Create your first sports event to get started"
+                  : "Try adjusting your filters to see more events"
+                }
+              </p>
+              {events.length === 0 && (
+                <Button onClick={() => {
+                  setShowCreateForm(true);
+                  setEditingEvent(null);
+                }}>
+                  Create Event
+                </Button>
+              )}
             </div>
           ) : (
             (filteredEvents as any[]).map((event: any) => {
