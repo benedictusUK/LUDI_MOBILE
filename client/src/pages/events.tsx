@@ -64,8 +64,9 @@ const BasketballIcon = ({ className }: { className?: string }) => (
 const getSportIcon = (sport: string) => {
   const sportLower = sport?.toLowerCase() || '';
   
-  if (sportLower.includes('football')) return FootballIcon; // Soccer ball with pentagon pattern
-  if (sportLower.includes('rugby')) return RugbyIcon; // Oval rugby ball
+  // Check rugby first with multiple variations
+  if (sportLower.includes('rugby') || sportLower === 'rugby') return RugbyIcon; // Oval rugby ball
+  if (sportLower.includes('football') && !sportLower.includes('american')) return FootballIcon; // Soccer ball with pentagon pattern
   if (sportLower.includes('soccer')) return FootballIcon; // Soccer ball
   if (sportLower.includes('basketball')) return BasketballIcon; // Basketball with lines
   if (sportLower.includes('volleyball')) return Circle; // Volleyball
