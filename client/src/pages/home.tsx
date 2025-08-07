@@ -58,6 +58,35 @@ export default function Home() {
     setLocation(`/events/${eventId}`);
   };
 
+  // Function to get sport icon based on sport name
+  const getSportIcon = (sport: string) => {
+    const sportLower = sport?.toLowerCase() || '';
+    
+    if (sportLower.includes('football')) return 'fas fa-football-ball';
+    if (sportLower.includes('soccer')) return 'fas fa-futbol';
+    if (sportLower.includes('basketball')) return 'fas fa-basketball-ball';
+    if (sportLower.includes('tennis')) return 'fas fa-table-tennis';
+    if (sportLower.includes('baseball')) return 'fas fa-baseball-ball';
+    if (sportLower.includes('volleyball')) return 'fas fa-volleyball-ball';
+    if (sportLower.includes('hockey')) return 'fas fa-hockey-puck';
+    if (sportLower.includes('golf')) return 'fas fa-golf-ball';
+    if (sportLower.includes('cricket')) return 'fas fa-cricket';
+    if (sportLower.includes('rugby')) return 'fas fa-football-ball';
+    if (sportLower.includes('swimming')) return 'fas fa-swimmer';
+    if (sportLower.includes('running')) return 'fas fa-running';
+    if (sportLower.includes('cycling')) return 'fas fa-biking';
+    if (sportLower.includes('boxing')) return 'fas fa-fist-raised';
+    if (sportLower.includes('wrestling')) return 'fas fa-fist-raised';
+    if (sportLower.includes('skiing')) return 'fas fa-skiing';
+    if (sportLower.includes('snowboard')) return 'fas fa-snowboarding';
+    if (sportLower.includes('climbing')) return 'fas fa-mountain';
+    if (sportLower.includes('martial')) return 'fas fa-fist-raised';
+    if (sportLower.includes('yoga')) return 'fas fa-peace';
+    
+    // Default fallback icon
+    return 'fas fa-users';
+  };
+
   // Function to get voting status badge
   const getVotingStatusBadge = (event: any) => {
     if (!event.userAttendance) {
@@ -157,11 +186,17 @@ export default function Home() {
                       className="flex items-center space-x-4 p-4 border border-gray-100 rounded-lg cursor-pointer hover:bg-gray-50 hover:border-gray-200 transition-colors"
                       onClick={() => setLocation(`/teams/${team.id}`)}
                     >
-                      <img 
-                        src="https://pixabay.com/get/g5202462873eca9619d3df5dc0f91959d63be50f907aa2c040457382b8a99e807adb0e5247e5c503dc64ac68ca06a66f75cf609b2aa65f8cd9dfcf027f2207bfc_1280.jpg" 
-                        alt={`${team.name} team`}
-                        className="w-12 h-12 rounded-lg object-cover"
-                      />
+                      {team.teamImagePath ? (
+                        <img 
+                          src={team.teamImagePath} 
+                          alt={`${team.name} team`}
+                          className="w-12 h-12 rounded-lg object-cover"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded-lg bg-primary flex items-center justify-center">
+                          <i className={`${getSportIcon(team.sports?.[0] || team.sport)} text-white text-lg`}></i>
+                        </div>
+                      )}
                       <div className="flex-1">
                         <h4 className="font-medium text-neutral-900">{team.name}</h4>
                         <p className="text-sm text-neutral-500">{team.sport}</p>
