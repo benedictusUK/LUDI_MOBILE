@@ -180,38 +180,42 @@ export default function Home() {
                 {userTeams.length === 0 ? (
                   <p className="text-neutral-500 text-center py-8">No teams found</p>
                 ) : (
-                  userTeams.map((team: any) => (
-                    <div 
-                      key={team.id} 
-                      className="flex items-center space-x-4 p-4 border border-gray-100 rounded-lg cursor-pointer hover:bg-gray-50 hover:border-gray-200 transition-colors"
-                      onClick={() => setLocation(`/teams/${team.id}`)}
-                    >
-                      {team.teamImagePath ? (
-                        <img 
-                          src={team.teamImagePath} 
-                          alt={`${team.name} team`}
-                          className="w-12 h-12 rounded-lg object-cover"
-                        />
-                      ) : (
-                        <div className="w-12 h-12 rounded-lg bg-primary flex items-center justify-center">
-                          <i className={`${getSportIcon(team.sports?.[0] || team.sport)} text-white text-lg`}></i>
+                  userTeams.map((team: any) => {
+                    // Debug: log team data to console
+                    console.log('Team data:', team);
+                    return (
+                      <div 
+                        key={team.id} 
+                        className="flex items-center space-x-4 p-4 border border-gray-100 rounded-lg cursor-pointer hover:bg-gray-50 hover:border-gray-200 transition-colors"
+                        onClick={() => setLocation(`/teams/${team.id}`)}
+                      >
+                        {team.teamImagePath ? (
+                          <img 
+                            src={team.teamImagePath} 
+                            alt={`${team.name} team`}
+                            className="w-12 h-12 rounded-lg object-cover"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 rounded-lg bg-primary flex items-center justify-center">
+                            <i className={`${getSportIcon(team.sports?.[0] || '')} text-white text-lg`}></i>
+                          </div>
+                        )}
+                        <div className="flex-1">
+                          <h4 className="font-medium text-neutral-900">{team.name}</h4>
+                          <p className="text-sm text-neutral-500">{team.sports?.join(', ') || 'No sports listed'}</p>
+                          <p className="text-sm text-neutral-500">{team.memberCount} members</p>
                         </div>
-                      )}
-                      <div className="flex-1">
-                        <h4 className="font-medium text-neutral-900">{team.name}</h4>
-                        <p className="text-sm text-neutral-500">{team.sport}</p>
-                        <p className="text-sm text-neutral-500">{team.memberCount} members</p>
+                        <Badge variant="outline" className={
+                          team.isOwner ? "text-blue-600 font-semibold" :
+                          team.role === "admin" ? "text-secondary" :
+                          team.role === "captain" ? "text-primary" :
+                          team.role === "coach" ? "text-purple-600" : "text-neutral-600"
+                        }>
+                          {team.isOwner ? "owner" : team.role}
+                        </Badge>
                       </div>
-                      <Badge variant="outline" className={
-                        team.isOwner ? "text-blue-600 font-semibold" :
-                        team.role === "admin" ? "text-secondary" :
-                        team.role === "captain" ? "text-primary" :
-                        team.role === "coach" ? "text-purple-600" : "text-neutral-600"
-                      }>
-                        {team.isOwner ? "owner" : team.role}
-                      </Badge>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </CardContent>
