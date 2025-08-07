@@ -70,7 +70,7 @@ const eventFormSchema = z.object({
   name: z.string().min(1, "Event name is required"),
   requirements: z.string().min(1, "Description is required"),
   sport: z.string().min(1, "Sport is required"),
-  location: z.string().min(1, "Location is required"),
+  location: z.string().min(1, "Location is required").max(30, "Location must be 30 characters or less"),
   address: z.string().optional().or(z.literal("")),
   postcode: z.string().optional().or(z.literal("")),
   gender: z.enum(["male", "female", "mixed"]).default("mixed"),
@@ -304,11 +304,12 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
               </div>
 
               <div>
-                <Label htmlFor="location">Location *</Label>
+                <Label htmlFor="location">Location * (max 30 characters)</Label>
                 <Input
                   id="location"
                   {...form.register("location")}
                   placeholder="Enter event location"
+                  maxLength={30}
                 />
                 {form.formState.errors.location && (
                   <p className="text-sm text-red-500 mt-1">

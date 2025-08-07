@@ -106,7 +106,7 @@ function SportsMultiSelect({
 }
 
 const teamFormSchema = z.object({
-  name: z.string().min(1, "Team name is required").max(255, "Team name must be less than 255 characters"),
+  name: z.string().min(1, "Team name is required").max(30, "Team name must be 30 characters or less"),
   description: z.string().optional(),
   sports: z.array(z.string()).min(1, "At least one sport must be selected"),
   color: z.string().default("#3b82f6"),
@@ -228,11 +228,12 @@ export default function TeamForm({ onCancel, onSuccess, teamId }: TeamFormProps)
             {/* Basic Information */}
             <div className="space-y-4">
               <div>
-                <Label htmlFor="name">Team Name *</Label>
+                <Label htmlFor="name">Team Name * (max 30 characters)</Label>
                 <Input
                   id="name"
                   {...form.register("name")}
                   placeholder="Enter team name"
+                  maxLength={30}
                 />
                 {form.formState.errors.name && (
                   <p className="text-sm text-red-500 mt-1">

@@ -260,9 +260,9 @@ export default function EventDetails() {
                   {eventData.startTime}
                 </span>
                 {eventData.location && (
-                  <span className="flex items-center">
-                    <MapPin className="w-4 h-4 mr-1" />
-                    {eventData.location}
+                  <span className="flex items-center max-w-60 truncate" title={eventData.location}>
+                    <MapPin className="w-4 h-4 mr-1 flex-shrink-0" />
+                    <span className="truncate">{eventData.location}</span>
                   </span>
                 )}
               </div>
@@ -276,7 +276,7 @@ export default function EventDetails() {
                 {eventData.isPublished ? "Published" : "Draft"}
               </Badge>
               {eventData.primaryTeam && (
-                <div className="text-white/90 text-sm">
+                <div className="text-white/90 text-sm max-w-48 truncate" title={`Primary Team: ${eventData.primaryTeam.name}`}>
                   Primary Team: {eventData.primaryTeam.name}
                 </div>
               )}
