@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/useAuth";
 import { SPORTS } from "@shared/schema";
+import Navigation from "@/components/ui/nav";
 import { 
   Search, 
   MapPin, 
@@ -31,7 +32,19 @@ export default function FlareSearch() {
 
   // Search for flare gun events
   const { data: flareEvents = [], isLoading, refetch } = useQuery<any[]>({
-    queryKey: ["/api/flare-events", searchParams.postcode, searchParams.radius, searchParams.sport],
+    queryKey: ["/api/flare-events", searchParams],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        postcode: searchParams.postcode,
+        radius: searchParams.radius,
+        ...(searchParams.sport !== "all" && { sport: searchParams.sport })
+      });
+      const response = await fetch(`/api/flare-events?${params}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch flare events');
+      }
+      return response.json();
+    },
     enabled: false, // Only search when user clicks search
   });
 
@@ -47,8 +60,10 @@ export default function FlareSearch() {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="text-center space-y-2">
+    <div className="min-h-screen bg-gray-50">
+      <Navigation />
+      <div className="container mx-auto p-6 space-y-6">
+        <div className="text-center space-y-2">
         <div className="flex items-center justify-center gap-2 mb-4">
           <Target className="h-8 w-8 text-blue-600" />
           <h1 className="text-3xl font-bold">Flare Gun Events</h1>
@@ -237,6 +252,7 @@ export default function FlareSearch() {
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }

@@ -152,6 +152,17 @@ function Router() {
             <Route path="/notifications" component={Notifications} />
             <Route path="/settings" component={Settings} />
           </>
+        ) : isAuthenticated && !isLoading ? (
+          <>
+            <Route path="/" component={Home} />
+            <Route path="/events" component={Events} />
+            <Route path="/events/:id" component={EventDetails} />
+            <Route path="/flare-search" component={FlareSearch} />
+            <Route path="/teams" component={Teams} />
+            <Route path="/teams/:id" component={Teams} />
+            <Route path="/notifications" component={Notifications} />
+            <Route path="/settings" component={Settings} />
+          </>
         ) : null}
         {isLoading || !isAuthenticated ? <Route component={NotFound} /> : null}
       </Switch>
