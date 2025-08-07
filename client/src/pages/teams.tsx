@@ -809,37 +809,37 @@ export default function Teams() {
                       <p className="text-neutral-500">Invite members to start building your team</p>
                     </div>
                   ) : (
-                    (teamMembers as any[]).map((member: any) => (
-                      <div key={member.id} className="flex items-center justify-between p-4 border border-gray-100 rounded-lg">
+                    (teamMembers as any[]).map((membership: any) => (
+                      <div key={membership.id} className="flex items-center justify-between p-4 border border-gray-100 rounded-lg">
                         <div className="flex items-center space-x-3">
                           <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
                             <span className="text-white font-medium">
-                              {member.firstName?.[0] || member.email?.[0]?.toUpperCase() || 'U'}
+                              {membership.user.firstName?.[0] || membership.user.username?.[0]?.toUpperCase() || membership.user.email?.[0]?.toUpperCase() || 'U'}
                             </span>
                           </div>
                           <div>
                             <h4 className="font-medium text-neutral-900">
-                              {member.firstName && member.lastName 
-                                ? `${member.firstName} ${member.lastName}` 
-                                : member.email
+                              {membership.user.firstName && membership.user.lastName 
+                                ? `${membership.user.firstName} ${membership.user.lastName}` 
+                                : membership.user.username || membership.user.email
                               }
                             </h4>
-                            <p className="text-sm text-neutral-500">{member.email}</p>
+                            {membership.user.username && (membership.user.firstName || membership.user.lastName) && (
+                              <p className="text-sm text-neutral-500">@{membership.user.username}</p>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-center space-x-2">
                           <Badge variant={
-                            member.role === "admin" ? "default" :
-                            member.role === "captain" ? "secondary" :
+                            (selectedTeam?.ownerId === membership.user.id) ? "default" :
+                            membership.role === "admin" ? "default" :
+                            membership.role === "captain" ? "secondary" :
                             "outline"
                           }>
-                            {member.role}
+                            {selectedTeam?.ownerId === membership.user.id ? "Owner" : 
+                             membership.role === "admin" ? "Admin" : 
+                             membership.role === "captain" ? "Captain" : "Member"}
                           </Badge>
-                          {selectedTeam.role === "admin" && member.role !== "admin" && (
-                            <Button variant="ghost" size="sm">
-                              <i className="fas fa-ellipsis-v"></i>
-                            </Button>
-                          )}
                         </div>
                       </div>
                     ))
