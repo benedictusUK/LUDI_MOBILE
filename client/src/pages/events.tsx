@@ -66,7 +66,7 @@ const getSportIcon = (sport: string) => {
   
   // Debug logging to see what sport values we're getting
   if (sport && (sportLower.includes('rugby') || sportLower.includes('football'))) {
-    console.log('getSportIcon debug:', { original: sport, lowercase: sportLower });
+    console.log('Event getSportIcon debug:', { original: sport, lowercase: sportLower });
   }
   
   // Check rugby first with multiple variations
@@ -519,7 +519,7 @@ export default function Events() {
                     }}
                   >
                     {(() => {
-                      const IconComponent = getSportIcon(event.primaryTeam?.sports?.[0] || event.sport || '');
+                      const IconComponent = getSportIcon(event.sport || '');
                       return <IconComponent className="text-white w-16 h-16 opacity-50" />;
                     })()}
                     
@@ -548,7 +548,7 @@ export default function Events() {
                         style={{ backgroundColor: teamColor }}
                       >
                         {(() => {
-                          const IconComponent = getSportIcon(event.primaryTeam?.sports?.[0] || event.sport || '');
+                          const IconComponent = getSportIcon(event.sport || '');
                           return <IconComponent className="w-6 h-6 text-white" />;
                         })()}
                       </div>
