@@ -9,6 +9,7 @@ import RecurringEventsManager from "@/components/ui/recurring-events-manager";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
@@ -193,6 +194,48 @@ export default function Events() {
               <i className="fas fa-plus"></i>
               <span>Create Event</span>
             </Button>
+          </div>
+
+          {/* Team Filter */}
+          <div className="mt-6 flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <label className="text-sm font-medium text-neutral-600">Filter by Team:</label>
+              <Select 
+                value={selectedTeamId || "all"} 
+                onValueChange={(value) => {
+                  if (value === "all") {
+                    setSelectedTeamId(null);
+                    window.history.pushState({}, '', '/events');
+                  } else {
+                    setSelectedTeamId(value);
+                    window.history.pushState({}, '', `/events?team=${value}`);
+                  }
+                }}
+              >
+                <SelectTrigger className="w-64">
+                  <SelectValue placeholder="All Teams" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Teams</SelectItem>
+                  {(teams as any[]).map((team: any) => (
+                    <SelectItem key={team.id} value={team.id}>
+                      <div className="flex items-center space-x-2">
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: team.color || '#3b82f6' }}
+                        />
+                        <span>{team.name}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {filteredEvents.length !== events.length && (
+              <Badge variant="secondary" className="text-xs">
+                Showing {filteredEvents.length} of {events.length} events
+              </Badge>
+            )}
           </div>
         </div>
 
