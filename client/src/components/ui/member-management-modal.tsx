@@ -205,7 +205,10 @@ export function MemberManagementModal({
                         <div className="flex-1">
                           <div className="flex items-center space-x-2">
                             <span className="font-medium">
-                              {membership.user.firstName} {membership.user.lastName}
+                              {membership.user.firstName && membership.user.lastName 
+                                ? `${membership.user.firstName} ${membership.user.lastName}`
+                                : membership.user.username || membership.user.email
+                              }
                             </span>
                             {getRoleBadge(membership.role, isTeamOwner)}
                           </div>
