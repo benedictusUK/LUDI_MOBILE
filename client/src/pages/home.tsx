@@ -8,6 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { LudiInlineLoader } from "@/components/ui/ludi-loader";
+import { 
+  Users, Trophy, Target, Dumbbell, Zap, Mountain, 
+  Bike, Waves, Heart, Music 
+} from "lucide-react";
 
 export default function Home() {
   useScrollToTop();
@@ -58,33 +62,27 @@ export default function Home() {
     setLocation(`/events/${eventId}`);
   };
 
-  // Function to get sport icon based on sport name
+  // Function to get sport icon component based on sport name
   const getSportIcon = (sport: string) => {
     const sportLower = sport?.toLowerCase() || '';
     
-    if (sportLower.includes('football')) return 'fas fa-football-ball';
-    if (sportLower.includes('soccer')) return 'fas fa-futbol';
-    if (sportLower.includes('basketball')) return 'fas fa-basketball-ball';
-    if (sportLower.includes('tennis')) return 'fas fa-table-tennis';
-    if (sportLower.includes('baseball')) return 'fas fa-baseball-ball';
-    if (sportLower.includes('volleyball')) return 'fas fa-volleyball-ball';
-    if (sportLower.includes('hockey')) return 'fas fa-hockey-puck';
-    if (sportLower.includes('golf')) return 'fas fa-golf-ball';
-    if (sportLower.includes('cricket')) return 'fas fa-cricket';
-    if (sportLower.includes('rugby')) return 'fas fa-football-ball';
-    if (sportLower.includes('swimming')) return 'fas fa-swimmer';
-    if (sportLower.includes('running')) return 'fas fa-running';
-    if (sportLower.includes('cycling')) return 'fas fa-biking';
-    if (sportLower.includes('boxing')) return 'fas fa-fist-raised';
-    if (sportLower.includes('wrestling')) return 'fas fa-fist-raised';
-    if (sportLower.includes('skiing')) return 'fas fa-skiing';
-    if (sportLower.includes('snowboard')) return 'fas fa-snowboarding';
-    if (sportLower.includes('climbing')) return 'fas fa-mountain';
-    if (sportLower.includes('martial')) return 'fas fa-fist-raised';
-    if (sportLower.includes('yoga')) return 'fas fa-peace';
+    if (sportLower.includes('football') || sportLower.includes('rugby')) return Trophy;
+    if (sportLower.includes('soccer')) return Target;
+    if (sportLower.includes('basketball') || sportLower.includes('volleyball')) return Trophy;
+    if (sportLower.includes('tennis') || sportLower.includes('badminton')) return Target;
+    if (sportLower.includes('baseball') || sportLower.includes('cricket')) return Target;
+    if (sportLower.includes('golf')) return Target;
+    if (sportLower.includes('swimming')) return Waves;
+    if (sportLower.includes('running') || sportLower.includes('marathon')) return Zap;
+    if (sportLower.includes('cycling') || sportLower.includes('biking')) return Bike;
+    if (sportLower.includes('boxing') || sportLower.includes('wrestling') || sportLower.includes('martial')) return Dumbbell;
+    if (sportLower.includes('skiing') || sportLower.includes('snowboard')) return Mountain;
+    if (sportLower.includes('climbing') || sportLower.includes('rock')) return Mountain;
+    if (sportLower.includes('yoga') || sportLower.includes('meditation')) return Heart;
+    if (sportLower.includes('dance') || sportLower.includes('social')) return Music;
     
     // Default fallback icon
-    return 'fas fa-users';
+    return Users;
   };
 
   // Function to get voting status badge
@@ -180,10 +178,7 @@ export default function Home() {
                 {userTeams.length === 0 ? (
                   <p className="text-neutral-500 text-center py-8">No teams found</p>
                 ) : (
-                  userTeams.map((team: any) => {
-                    // Debug: log team data to console
-                    console.log('Team data:', team);
-                    return (
+                  userTeams.map((team: any) => (
                       <div 
                         key={team.id} 
                         className="flex items-center space-x-4 p-4 border border-gray-100 rounded-lg cursor-pointer hover:bg-gray-50 hover:border-gray-200 transition-colors"
@@ -197,7 +192,10 @@ export default function Home() {
                           />
                         ) : (
                           <div className="w-12 h-12 rounded-lg bg-primary flex items-center justify-center">
-                            <i className={`${getSportIcon(team.sports?.[0] || '')} text-white text-lg`}></i>
+                            {(() => {
+                              const IconComponent = getSportIcon(team.sports?.[0] || '');
+                              return <IconComponent className="w-6 h-6 text-white" />;
+                            })()}
                           </div>
                         )}
                         <div className="flex-1">
@@ -214,8 +212,7 @@ export default function Home() {
                           {team.isOwner ? "owner" : team.role}
                         </Badge>
                       </div>
-                    );
-                  })
+                  ))
                 )}
               </div>
             </CardContent>
