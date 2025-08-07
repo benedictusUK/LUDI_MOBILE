@@ -446,8 +446,7 @@ export default function Teams() {
         <div className="mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-neutral-900 mb-2">Team Management</h1>
-              <p className="text-neutral-500">Create and manage your sports teams</p>
+              <h1 className="text-3xl font-bold text-neutral-900">Teams</h1>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <Button 
@@ -456,7 +455,7 @@ export default function Teams() {
                 className="flex items-center justify-center space-x-2"
               >
                 <i className="fas fa-search"></i>
-                <span>Search Teams</span>
+                <span>Find teams</span>
               </Button>
               <Button 
                 onClick={() => setShowCreateForm(true)}
