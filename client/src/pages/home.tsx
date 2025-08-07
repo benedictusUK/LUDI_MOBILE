@@ -168,11 +168,12 @@ export default function Home() {
                         <p className="text-sm text-neutral-500">{team.memberCount} members</p>
                       </div>
                       <Badge variant="outline" className={
+                        team.isOwner ? "text-blue-600 font-semibold" :
                         team.role === "admin" ? "text-secondary" :
                         team.role === "captain" ? "text-primary" :
                         team.role === "coach" ? "text-purple-600" : "text-neutral-600"
                       }>
-                        {team.role}
+                        {team.isOwner ? "owner" : team.role}
                       </Badge>
                     </div>
                   ))
