@@ -243,15 +243,9 @@ export default function Events() {
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-neutral-900 mb-2">
-                {selectedTeam ? `${selectedTeam.name} Events` : "Event Management"}
+              <h1 className="text-3xl font-bold text-neutral-900">
+                {selectedTeam ? `${selectedTeam.name} Events` : "Events"}
               </h1>
-              <p className="text-neutral-500">
-                {selectedTeam 
-                  ? `Manage events for ${selectedTeam.name}` 
-                  : "Create and manage your sports events"
-                }
-              </p>
               {selectedTeam && (
                 <Button 
                   variant="outline" 
