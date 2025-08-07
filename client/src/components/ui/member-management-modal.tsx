@@ -174,16 +174,20 @@ export function MemberManagementModal({
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
-            <Shield className="h-5 w-5" />
-            <span>Manage {teamName}</span>
+            {(isOwner || isAdmin) ? <Shield className="h-5 w-5" /> : <User className="h-5 w-5" />}
+            <span>{(isOwner || isAdmin) ? `Manage ${teamName}` : `View ${teamName} Members`}</span>
           </DialogTitle>
         </DialogHeader>
 
         <Tabs defaultValue="members" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className={`grid w-full ${(isOwner || isAdmin) ? 'grid-cols-3' : 'grid-cols-1'}`}>
             <TabsTrigger value="members">Members ({(members as any[]).length})</TabsTrigger>
-            <TabsTrigger value="invite">Invite Players</TabsTrigger>
-            <TabsTrigger value="blocked">Blocked ({(blockedMembers as any[]).length})</TabsTrigger>
+            {(isOwner || isAdmin) && (
+              <>
+                <TabsTrigger value="invite">Invite Players</TabsTrigger>
+                <TabsTrigger value="blocked">Blocked ({(blockedMembers as any[]).length})</TabsTrigger>
+              </>
+            )}
           </TabsList>
 
           <TabsContent value="members" className="space-y-4">
@@ -204,16 +208,20 @@ export function MemberManagementModal({
                         {getRoleIcon(membership.role, isTeamOwner)}
                         <div className="flex-1">
                           <div className="flex items-center space-x-2">
-                            <span className="font-medium">
-                              {membership.user.firstName && membership.user.lastName 
-                                ? `${membership.user.firstName} ${membership.user.lastName}`
-                                : membership.user.username || membership.user.email
-                              }
-                            </span>
+                            <div>
+                              <div className="font-medium">
+                                {membership.user.firstName && membership.user.lastName 
+                                  ? `${membership.user.firstName} ${membership.user.lastName}`
+                                  : membership.user.username || membership.user.email
+                                }
+                              </div>
+                              {membership.user.username && (membership.user.firstName || membership.user.lastName) && (
+                                <div className="text-sm text-muted-foreground">
+                                  @{membership.user.username}
+                                </div>
+                              )}
+                            </div>
                             {getRoleBadge(membership.role, isTeamOwner)}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            @{membership.user.username} • {membership.user.email}
                           </div>
                         </div>
                       </div>
