@@ -24,20 +24,8 @@ import {
 
 // Custom SVG sport icons
 const FootballIcon = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" className={className} fill="currentColor">
-    <circle cx="12" cy="12" r="10" fill="currentColor" />
-    {/* Central hexagon */}
-    <path d="M12 8l2.5 1.5L13 12l-2.5 1.5L9 12l1.5-2.5L12 8z" fill="white" stroke="currentColor" strokeWidth="0.3"/>
-    {/* Top hexagon */}
-    <path d="M12 3l2 1.2L12.5 7L10 6l-0.5-2.8L12 3z" fill="white" stroke="currentColor" strokeWidth="0.3"/>
-    {/* Bottom hexagon */}
-    <path d="M12 21l-2-1.2L11.5 17L14 18l0.5 2.8L12 21z" fill="white" stroke="currentColor" strokeWidth="0.3"/>
-    {/* Left hexagon */}
-    <path d="M3 12l1.2-2L7 11.5L6 14l-2.8 0.5L3 12z" fill="white" stroke="currentColor" strokeWidth="0.3"/>
-    {/* Right hexagon */}
-    <path d="M21 12l-1.2 2L17 12.5L18 10l2.8-0.5L21 12z" fill="white" stroke="currentColor" strokeWidth="0.3"/>
-    {/* Connecting lines between hexagons */}
-    <path d="M12 8L12 3M12 16L12 21M8.5 10.5L3 12M15.5 13.5L21 12" stroke="currentColor" strokeWidth="0.5"/>
+  <svg viewBox="0 0 48 48" className={className} fill="currentColor">
+    <path d="M24,2A22,22,0,1,0,46,24,21.9,21.9,0,0,0,24,2ZM18.6,6.9,20,6.4A18.1,18.1,0,0,1,24,6a19.1,19.1,0,0,1,5.4.8l1.1,3.3L24,14.7l-6.5-4.6ZM6,23.8A17.6,17.6,0,0,1,9.4,13.6h3.4l2.3,7.6L8.8,25.9ZM18.3,41.1a18.2,18.2,0,0,1-8.8-6.4l1.1-3.3h7.9l2.6,7.6ZM20,29l-2.5-7.4L24,17l6.5,4.6L28,29Zm9.7,12.1-2.8-2,2.6-7.6h7.9l1.1,3.3A18.4,18.4,0,0,1,29.7,41.1Zm9.5-15.2-6.3-4.8,2.3-7.6h3.5A18.7,18.7,0,0,1,41.6,20a25.8,25.8,0,0,1,.4,3.8Z"/>
   </svg>
 );
 
