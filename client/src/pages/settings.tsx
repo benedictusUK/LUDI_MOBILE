@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useScrollToTop } from "@/hooks/useScrollToTop";
 import Navigation from "@/components/ui/nav";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ import { ProfileForm } from "@/components/ui/profile-form";
 import type { NotificationPreferences } from "@shared/schema";
 
 export default function Settings() {
+  useScrollToTop();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 

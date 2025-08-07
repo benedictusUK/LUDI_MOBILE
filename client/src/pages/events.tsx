@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
+import { useScrollToTop, useScrollToElement } from "@/hooks/useScrollToTop";
 import Navigation from "@/components/ui/nav";
 import EventForm from "@/components/ui/event-form";
 import AuditModal from "@/components/ui/audit-modal";
@@ -18,6 +19,8 @@ import { isUnauthorizedError } from "@/lib/authUtils";
 import { LudiInlineLoader } from "@/components/ui/ludi-loader";
 
 export default function Events() {
+  useScrollToTop();
+  useScrollToElement(editingEvent ? `event-${editingEvent}` : undefined);
   const { toast } = useToast();
   const [location, setLocation] = useLocation();
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -430,6 +433,7 @@ export default function Events() {
 
               return (
                 <Card 
+                  id={`event-${event.id}`}
                   key={event.id} 
                   className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow"
                   onMouseEnter={handleHover}

@@ -1,5 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute } from "wouter";
+import { useScrollToTop } from "@/hooks/useScrollToTop";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +18,7 @@ import { FlareGunModal } from "@/components/ui/flare-gun-modal";
 import { ReservePlayersManager } from "@/components/ui/reserve-players-manager";
 
 export default function EventDetails() {
+  useScrollToTop();
   const [, params] = useRoute("/events/:id");
   const eventId = params?.id;
   const { user } = useAuth();

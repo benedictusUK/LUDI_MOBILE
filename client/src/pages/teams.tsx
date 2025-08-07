@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation, useRoute } from "wouter";
+import { useScrollToTop } from "@/hooks/useScrollToTop";
 import Navigation from "@/components/ui/nav";
 import TeamForm from "@/components/ui/team-form";
 import { MemberManagementModal } from "@/components/ui/member-management-modal";
@@ -260,6 +261,7 @@ function TeamSettingsModal({ team, onClose, onSave, isLoading }: {
 }
 
 export default function Teams() {
+  useScrollToTop();
   const { toast } = useToast();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<any>(null);

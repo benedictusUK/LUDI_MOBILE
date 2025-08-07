@@ -1,5 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
+import { useScrollToTop } from "@/hooks/useScrollToTop";
 import Navigation from "@/components/ui/nav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ import { Link } from "wouter";
 import { Calendar, MapPin, Clock, Users, Zap } from "lucide-react";
 
 export default function Notifications() {
+  useScrollToTop();
   const { toast } = useToast();
 
   const { data: notifications = [], isLoading } = useQuery({
