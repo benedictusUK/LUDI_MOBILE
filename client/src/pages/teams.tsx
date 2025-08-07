@@ -575,7 +575,7 @@ export default function Teams() {
                     >
                       {(() => {
                         const IconComponent = getSportIcon(team.sports?.[0] || '');
-                        return <IconComponent className="text-white text-4xl opacity-50" />;
+                        return <IconComponent className="text-white w-16 h-16 opacity-50" />;
                       })()}
                     </div>
                   )}

@@ -507,11 +507,16 @@ export default function Events() {
                   onMouseEnter={handleHover}
                 >
                   <div 
-                    className="h-32 relative"
+                    className="h-32 relative flex items-center justify-center"
                     style={{ 
                       background: `linear-gradient(135deg, ${teamColor} 0%, ${teamColor}dd 100%)` 
                     }}
                   >
+                    {(() => {
+                      const IconComponent = getSportIcon(event.primaryTeam?.sports?.[0] || event.sport || '');
+                      return <IconComponent className="text-white w-16 h-16 opacity-50" />;
+                    })()}
+                    
                     <div className="absolute top-4 right-4 flex gap-2">
                       {event.recurringSeriesId && (
                         <Badge 
