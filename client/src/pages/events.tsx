@@ -64,6 +64,11 @@ const BasketballIcon = ({ className }: { className?: string }) => (
 const getSportIcon = (sport: string) => {
   const sportLower = sport?.toLowerCase() || '';
   
+  // Debug logging to see what sport values we're getting
+  if (sport && (sportLower.includes('rugby') || sportLower.includes('football'))) {
+    console.log('getSportIcon debug:', { original: sport, lowercase: sportLower });
+  }
+  
   // Check rugby first with multiple variations
   if (sportLower.includes('rugby') || sportLower === 'rugby') return RugbyIcon; // Oval rugby ball
   if (sportLower.includes('football') && !sportLower.includes('american')) return FootballIcon; // Soccer ball with pentagon pattern
@@ -543,7 +548,7 @@ export default function Events() {
                         style={{ backgroundColor: teamColor }}
                       >
                         {(() => {
-                          const IconComponent = getSportIcon(event.primaryTeam?.sports?.[0] || '');
+                          const IconComponent = getSportIcon(event.primaryTeam?.sports?.[0] || event.sport || '');
                           return <IconComponent className="w-6 h-6 text-white" />;
                         })()}
                       </div>
