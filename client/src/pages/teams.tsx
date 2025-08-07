@@ -603,7 +603,7 @@ export default function Teams() {
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-neutral-500">Members:</span>
                       <span className="font-medium text-neutral-900">
-                        {team.memberCount}/{team.maxPlayers || 30}
+                        {team.maxPlayers ? `${team.memberCount}/${team.maxPlayers}` : team.memberCount}
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
