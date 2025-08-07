@@ -38,10 +38,8 @@ export default function FlareSearch() {
   // Mutation for adding events to "My Events"
   const addToMyEventsMutation = useMutation({
     mutationFn: async (eventId: string) => {
-      return apiRequest(`/api/user-events`, {
-        method: 'POST',
-        body: { eventId }
-      });
+      const response = await apiRequest('POST', '/api/user-events', { eventId });
+      return response.json();
     },
     onSuccess: () => {
       toast({
