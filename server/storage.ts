@@ -714,6 +714,18 @@ export class DatabaseStorage implements IStorage {
     const existingAttendance = await this.getUserAttendance(userId, eventId);
     const wasAttending = existingAttendance?.status === "attending";
 
+    // Get event details to check if it's within 48 hours
+    const event = await this.getEvent(eventId);
+    if (!event) {
+      throw new Error("Event not found");
+    }
+
+    // Check if the event is within 48 hours
+    const eventStartDateTime = new Date(`${event.startDate}T${event.startTime}`);
+    const now = new Date();
+    const hoursUntilEvent = (eventStartDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+    const isWithin48Hours = hoursUntilEvent <= 48 && hoursUntilEvent > 0;
+
     // Remove the vote directly - if it doesn't exist, this will just do nothing
     await db
       .delete(eventAttendance)
@@ -735,6 +747,81 @@ export class DatabaseStorage implements IStorage {
       this.autoPromoteFromReserve(eventId).catch(err => 
         console.error("Failed to auto-promote from reserve:", err)
       );
+    }
+
+    // If unvoting within 48 hours of the event, notify all attendees
+    if (wasAttending && isWithin48Hours) {
+      this.sendUnvoteNotifications(eventId, userId).catch(err =>
+        console.error("Failed to send unvote notifications:", err)
+      );
+    }
+  }
+
+  // Helper method to send unvote notifications to all attendees
+  async sendUnvoteNotifications(eventId: string, unvotedUserId: string): Promise<void> {
+    try {
+      // Get the user who unvoted and the event details
+      const [unvotedUser, event] = await Promise.all([
+        this.getUser(unvotedUserId),
+        this.getEvent(eventId)
+      ]);
+
+      if (!unvotedUser || !event) {
+        console.error("Failed to get user or event for unvote notification");
+        return;
+      }
+
+      // Get all attendees who are still attending (excluding the user who unvoted)
+      const attendees = await this.getEventAttendance(eventId);
+      const attendingUsers = attendees.filter(
+        attendee => attendee.status === "attending" && attendee.userId !== unvotedUserId
+      );
+
+      if (attendingUsers.length === 0) {
+        return; // No one to notify
+      }
+
+      // Format the event date nicely
+      const eventDate = new Date(`${event.startDate}T${event.startTime}`);
+      const formattedDate = eventDate.toLocaleDateString('en-GB', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      const userName = unvotedUser.firstName && unvotedUser.lastName 
+        ? `${unvotedUser.firstName} ${unvotedUser.lastName}`
+        : unvotedUser.username || 'A player';
+
+      const notificationTitle = "Player Unavailable - Need Replacement";
+      const notificationMessage = `${userName} has unvoted for the event on ${formattedDate}. Can you field another player? Reach out to the organiser.`;
+
+      // Create notifications for all attending users
+      const notificationPromises = attendingUsers.map(attendee => 
+        this.createNotification({
+          userId: attendee.userId,
+          title: notificationTitle,
+          message: notificationMessage,
+          type: "event",
+          relatedId: eventId,
+          metadata: JSON.stringify({
+            unvotedUserId,
+            eventName: event.name,
+            eventDate: event.startDate,
+            eventTime: event.startTime
+          })
+        })
+      );
+
+      await Promise.all(notificationPromises);
+
+      console.log(`Sent unvote notifications to ${attendingUsers.length} attendees for event ${eventId}`);
+    } catch (error) {
+      console.error("Error sending unvote notifications:", error);
+      throw error;
     }
   }
 

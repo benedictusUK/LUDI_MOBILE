@@ -173,6 +173,170 @@ describe('Event Management', () => {
       expect(capacityAfterPromotion.reserveCount).toBe(0);
     });
 
+    test('should send unvote notifications when player unvotes within 48 hours', async () => {
+      // Create an event that starts within 24 hours
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const startDate = tomorrow.toISOString().split('T')[0];
+
+      const event = await storage.createEvent({
+        name: 'Unvote Notification Test',
+        sport: 'Football',
+        startDate,
+        startTime: '18:00',
+        endDate: startDate,
+        endTime: '20:00',
+        location: 'Test Ground',
+        address: '123 Test Street',
+        postcode: 'SW1A 1AA',
+        requirements: 'Testing unvote notifications',
+        gender: 'mixed',
+        maxParticipants: 3,
+        reserveSpots: 2,
+        cost: '10.00',
+        primaryTeamId: testTeamId,
+        secondaryTeamIds: [],
+        createdById: testUserId,
+        recurrenceType: 'none',
+        recurrenceEndDate: null,
+        recurrenceDaysOfWeek: [],
+        isRecurringSuspended: false
+      });
+
+      // Create additional test users
+      const user2 = await storage.upsertUser({
+        email: 'attendee2@example.com',
+        firstName: 'Attendee',
+        lastName: 'Two',
+        username: 'attendee2',
+        phoneNumber: '+441234567894',
+        dateOfBirth: '1992-01-01',
+        postcode: 'SW1A 1BB',
+        gender: 'male',
+        sportsInterests: ['Football'],
+        travelRadius: 15
+      });
+
+      const user3 = await storage.upsertUser({
+        email: 'attendee3@example.com',
+        firstName: 'Attendee',
+        lastName: 'Three',
+        username: 'attendee3',
+        phoneNumber: '+441234567895',
+        dateOfBirth: '1993-01-01',
+        postcode: 'SW1A 1CC',
+        gender: 'female',
+        sportsInterests: ['Football'],
+        travelRadius: 20
+      });
+
+      // All three users vote to attend
+      await storage.voteOnEvent(event.id, testUserId, 'attending');
+      await storage.voteOnEvent(event.id, user2.id, 'attending');
+      await storage.voteOnEvent(event.id, user3.id, 'attending');
+
+      // Check initial attendance
+      const initialAttendance = await storage.getEventAttendance(event.id);
+      expect(initialAttendance.length).toBe(3);
+      expect(initialAttendance.every(a => a.status === 'attending')).toBe(true);
+
+      // Get initial notification count for user2 and user3
+      const initialNotificationsUser2 = await storage.getUserNotifications(user2.id);
+      const initialNotificationsUser3 = await storage.getUserNotifications(user3.id);
+
+      // First user unvotes (should trigger notifications to the other two)
+      await storage.removeVote(event.id, testUserId);
+
+      // Check that unvoter is no longer in attendance
+      const finalAttendance = await storage.getEventAttendance(event.id);
+      expect(finalAttendance.length).toBe(2);
+      expect(finalAttendance.find(a => a.userId === testUserId)).toBeUndefined();
+
+      // Check that notifications were sent to remaining attendees
+      const finalNotificationsUser2 = await storage.getUserNotifications(user2.id);
+      const finalNotificationsUser3 = await storage.getUserNotifications(user3.id);
+
+      expect(finalNotificationsUser2.length).toBe(initialNotificationsUser2.length + 1);
+      expect(finalNotificationsUser3.length).toBe(initialNotificationsUser3.length + 1);
+
+      // Check notification content for user2
+      const newNotificationUser2 = finalNotificationsUser2.find(n => 
+        n.type === 'event' && n.title === 'Player Unavailable - Need Replacement'
+      );
+      expect(newNotificationUser2).toBeDefined();
+      expect(newNotificationUser2!.message).toContain('has unvoted for the event');
+      expect(newNotificationUser2!.message).toContain('Can you field another player?');
+      expect(newNotificationUser2!.relatedId).toBe(event.id);
+
+      // Check notification content for user3
+      const newNotificationUser3 = finalNotificationsUser3.find(n => 
+        n.type === 'event' && n.title === 'Player Unavailable - Need Replacement'
+      );
+      expect(newNotificationUser3).toBeDefined();
+      expect(newNotificationUser3!.message).toContain('has unvoted for the event');
+      expect(newNotificationUser3!.message).toContain('Can you field another player?');
+      expect(newNotificationUser3!.relatedId).toBe(event.id);
+    });
+
+    test('should NOT send unvote notifications when event is more than 48 hours away', async () => {
+      // Create an event that starts in 3 days (more than 48 hours)
+      const threeDaysFromNow = new Date();
+      threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
+      const startDate = threeDaysFromNow.toISOString().split('T')[0];
+
+      const event = await storage.createEvent({
+        name: 'No Notification Test',
+        sport: 'Football',
+        startDate,
+        startTime: '18:00',
+        endDate: startDate,
+        endTime: '20:00',
+        location: 'Test Ground',
+        address: '456 Test Street',
+        postcode: 'SW1A 1DD',
+        requirements: 'Testing no notifications for early unvotes',
+        gender: 'mixed',
+        maxParticipants: 2,
+        reserveSpots: 1,
+        cost: '5.00',
+        primaryTeamId: testTeamId,
+        secondaryTeamIds: [],
+        createdById: testUserId,
+        recurrenceType: 'none',
+        recurrenceEndDate: null,
+        recurrenceDaysOfWeek: [],
+        isRecurringSuspended: false
+      });
+
+      // Create additional test user
+      const user4 = await storage.upsertUser({
+        email: 'early-attendee@example.com',
+        firstName: 'Early',
+        lastName: 'Attendee',
+        username: 'earlyattendee',
+        phoneNumber: '+441234567896',
+        dateOfBirth: '1994-01-01',
+        postcode: 'SW1A 1EE',
+        gender: 'male',
+        sportsInterests: ['Football'],
+        travelRadius: 5
+      });
+
+      // Both users vote to attend
+      await storage.voteOnEvent(event.id, testUserId, 'attending');
+      await storage.voteOnEvent(event.id, user4.id, 'attending');
+
+      // Get initial notification count
+      const initialNotifications = await storage.getUserNotifications(user4.id);
+
+      // First user unvotes (should NOT trigger notifications as event is >48h away)
+      await storage.removeVote(event.id, testUserId);
+
+      // Check that no new notifications were sent
+      const finalNotifications = await storage.getUserNotifications(user4.id);
+      expect(finalNotifications.length).toBe(initialNotifications.length);
+    });
+
     test('should handle recurring events', async () => {
       const recurringEventData = {
         name: 'Weekly Training',
