@@ -20,11 +20,11 @@ import { LudiInlineLoader } from "@/components/ui/ludi-loader";
 
 export default function Events() {
   useScrollToTop();
-  useScrollToElement(editingEvent ? `event-${editingEvent}` : undefined);
   const { toast } = useToast();
   const [location, setLocation] = useLocation();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingEvent, setEditingEvent] = useState<string | null>(null);
+  useScrollToElement(editingEvent ? `event-${editingEvent}` : undefined);
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [votingStatusFilter, setVotingStatusFilter] = useState<string>("all");
   const [showPastEvents, setShowPastEvents] = useState<boolean>(false);
