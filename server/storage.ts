@@ -216,9 +216,13 @@ export class DatabaseStorage implements IStorage {
   async upsertUser(userData: UpsertUser): Promise<User> {
     const [user] = await db
       .insert(users)
-      .values([userData])
+      .values([{
+        id: randomUUID(),
+        ...userData,
+        authProvider: userData.authProvider || "replit"
+      }])
       .onConflictDoUpdate({
-        target: users.id,
+        target: users.email,
         set: {
           ...userData,
           updatedAt: new Date(),
@@ -1184,10 +1188,11 @@ export class DatabaseStorage implements IStorage {
         firstName: member.firstName,
         lastName: member.lastName,
         profileImageUrl: member.profileImageUrl,
+        authProvider: null, // Not selected in query
         username: member.username,
         phoneNumber: member.phoneNumber,
-        dateOfBirth: '', // Not selected in query, using empty string as default
-        postcode: '', // Not selected in query, using empty string as default
+        dateOfBirth: null, // Not selected in query
+        postcode: null, // Not selected in query
         gender: member.gender,
         sportsInterests: [], // Not selected in query, using empty array as default
         travelRadius: 10, // Not selected in query, using default value
@@ -1400,6 +1405,7 @@ export class DatabaseStorage implements IStorage {
           firstName: sql<string>`blocker.first_name`,
           lastName: sql<string>`blocker.last_name`,
           profileImageUrl: sql<string>`blocker.profile_image_url`,
+          authProvider: sql<"replit" | "google" | "apple">`blocker.auth_provider`,
           username: sql<string>`blocker.username`,
           phoneNumber: sql<string>`blocker.phone_number`,
           dateOfBirth: sql<string>`blocker.date_of_birth`,
@@ -1688,7 +1694,7 @@ export class DatabaseStorage implements IStorage {
           description: teams.description,
           ownerId: teams.ownerId,
           gender: teams.gender,
-          postcode: teams.postcode,
+
           createdAt: teams.createdAt,
           updatedAt: teams.updatedAt,
         },
@@ -1898,10 +1904,30 @@ export class DatabaseStorage implements IStorage {
       )
       .limit(maxResults);
 
-    return nearbyUsers;
+    // Return with all required User fields
+    return nearbyUsers.map(user => ({
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      profileImageUrl: user.profileImageUrl,
+      authProvider: null, // Not selected in this query
+      username: user.username,
+      phoneNumber: null, // Not selected in this query
+      dateOfBirth: null, // Not selected in this query
+      postcode: user.postcode,
+      gender: null, // Not selected in this query
+      sportsInterests: user.sportsInterests || [],
+      travelRadius: null, // Not selected in this query
+      stripeCustomerId: null, // Not selected in this query
+      stripeSubscriptionId: null, // Not selected in this query
+      profileCompletedAt: user.profileCompletedAt,
+      createdAt: null, // Not selected in this query
+      updatedAt: null, // Not selected in this query
+    }));
   }
 
-  async sendFlareNotifications(eventId: string, userIds: string[]): Promise<number> {
+  async sendFlareNotifications(eventId: string, userIds: string[]): Promise<void> {
     // Get event details for notification
     const [eventResult] = await db
       .select({ 
@@ -1912,7 +1938,7 @@ export class DatabaseStorage implements IStorage {
       .innerJoin(teams, eq(events.primaryTeamId, teams.id))
       .where(eq(events.id, eventId));
 
-    if (!eventResult) return 0;
+    if (!eventResult) return;
 
     const { event, team } = eventResult;
 
@@ -1928,7 +1954,7 @@ export class DatabaseStorage implements IStorage {
     // If no eligible users after filtering, exit early
     if (eligibleUserIds.length === 0) {
       console.log(`No eligible users for flare notifications (all ${userIds.length} users are blocked from team ${team.id})`);
-      return 0;
+      return;
     }
 
     // Create notifications for each eligible user with event metadata
@@ -1938,7 +1964,7 @@ export class DatabaseStorage implements IStorage {
       startDate: event.startDate,
       startTime: event.startTime,
       location: event.location,
-      description: event.description || null,
+      description: (event as any).description || null,
       sport: event.sport,
       primaryTeamName: team.name
     };
@@ -1955,7 +1981,6 @@ export class DatabaseStorage implements IStorage {
     await db.insert(notifications).values(notificationData);
 
     console.log(`Sent flare notifications to ${eligibleUserIds.length}/${userIds.length} users (${userIds.length - eligibleUserIds.length} blocked users excluded)`);
-    return eligibleUserIds.length;
   }
 
   async respondToFlare(eventId: string, userId: string, status: "interested" | "not_interested" | "maybe"): Promise<FlareResponse> {

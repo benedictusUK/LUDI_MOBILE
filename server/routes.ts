@@ -57,7 +57,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(400).json({ error: "imageURL is required" });
     }
 
-    const userId = req.user.claims.sub;
+    const userId = (req.user as any).claims.sub;
     try {
       console.log("Received image URL:", req.body.imageURL);
       
@@ -79,7 +79,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any).claims.sub;
       const user = await storage.getUser(userId);
       res.json(user);
     } catch (error) {
@@ -91,7 +91,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Profile management routes
   app.put('/api/profile', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any).claims.sub;
       const { updateProfileSchema } = await import('@shared/schema');
       const profileData = updateProfileSchema.parse(req.body);
       
@@ -111,7 +111,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/profile/complete', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any).claims.sub;
       const { profileCompletionSchema } = await import('@shared/schema');
       const profileData = profileCompletionSchema.parse(req.body);
       
@@ -141,7 +141,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/profile/check-username/:username', isAuthenticated, async (req: any, res) => {
     try {
       const { username } = req.params;
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any).claims.sub;
       const isAvailable = await storage.checkUsernameAvailability(username, userId);
       res.json({ available: isAvailable });
     } catch (error) {
@@ -153,7 +153,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Dashboard routes
   app.get('/api/dashboard/stats', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any).claims.sub;
       const stats = await storage.getDashboardStats(userId);
       res.json(stats);
     } catch (error) {
@@ -165,7 +165,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Team routes
   app.post('/api/teams', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any).claims.sub;
       
       // Parse and validate the team data
       const teamData = insertTeamSchema.parse({
@@ -213,7 +213,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/teams/search', isAuthenticated, async (req: any, res) => {
     try {
       const { q: query } = req.query;
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any).claims.sub;
 
       if (!query || query.trim().length < 2) {
         return res.status(400).json({ message: "Search query must be at least 2 characters" });
@@ -229,7 +229,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/teams', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any).claims.sub;
       const teams = await storage.getUserTeams(userId);
       res.json(teams);
     } catch (error) {
@@ -277,7 +277,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id: teamId, userId } = req.params;
       const { role } = req.body;
-      const currentUserId = req.user.claims.sub;
+      const currentUserId = (req.user as any).claims.sub;
       
       const membership = await storage.updateMemberRole(teamId, userId, role, currentUserId);
       res.json(membership);
@@ -292,7 +292,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id: teamId, userId } = req.params;
       const { reason } = req.body;
-      const currentUserId = req.user.claims.sub;
+      const currentUserId = (req.user as any).claims.sub;
       
       const blockedMember = await storage.blockMember(teamId, userId, currentUserId, reason);
       res.json(blockedMember);
@@ -318,7 +318,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/teams/:id/members/:userId', isAuthenticated, async (req: any, res) => {
     try {
       const { id: teamId, userId } = req.params;
-      const currentUserId = req.user.claims.sub;
+      const currentUserId = (req.user as any).claims.sub;
 
       // Check if current user can remove members (team owner or admin)
       const membership = await storage.getUserTeam(currentUserId, teamId);
@@ -357,7 +357,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id: teamId } = req.params;
       const { userId } = req.body;
-      const currentUserId = req.user.claims.sub;
+      const currentUserId = (req.user as any).claims.sub;
 
       // Check if current user can send invitations (team owner or admin)
       const membership = await storage.getUserTeam(currentUserId, teamId);
@@ -380,7 +380,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/invitations/:invitationId/accept', isAuthenticated, async (req: any, res) => {
     try {
       const { invitationId } = req.params;
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any).claims.sub;
       
       const membership = await storage.acceptTeamInvitation(invitationId, userId);
       res.json({ message: "Invitation accepted successfully", membership });
@@ -394,7 +394,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/invitations/:invitationId/decline', isAuthenticated, async (req: any, res) => {
     try {
       const { invitationId } = req.params;
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any).claims.sub;
       
       await storage.declineTeamInvitation(invitationId, userId);
       res.json({ message: "Invitation declined successfully" });
@@ -407,7 +407,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get user's pending invitations
   app.get('/api/users/invitations', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any).claims.sub;
       const invitations = await storage.getUserInvitations(userId);
       res.json(invitations);
     } catch (error) {
@@ -420,7 +420,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/teams/:id/leave', isAuthenticated, async (req: any, res) => {
     try {
       const { id: teamId } = req.params;
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any).claims.sub;
       
       await storage.leaveTeam(teamId, userId);
       res.json({ message: "Successfully left the team" });
@@ -434,7 +434,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/teams/:id/approve-join/:userId', isAuthenticated, async (req: any, res) => {
     try {
       const { id: teamId, userId } = req.params;
-      const currentUserId = req.user.claims.sub;
+      const currentUserId = (req.user as any).claims.sub;
       
       const membership = await storage.approveJoinRequest(teamId, userId, currentUserId);
       res.json({ message: "Join request approved", membership });
@@ -448,7 +448,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/teams/:id/reject-join/:userId', isAuthenticated, async (req: any, res) => {
     try {
       const { id: teamId, userId } = req.params;
-      const currentUserId = req.user.claims.sub;
+      const currentUserId = (req.user as any).claims.sub;
       
       await storage.rejectJoinRequest(teamId, userId, currentUserId);
       res.json({ message: "Join request rejected" });
@@ -530,7 +530,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/teams/:id/request-join', isAuthenticated, async (req: any, res) => {
     try {
       const { id: teamId } = req.params;
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any).claims.sub;
 
       const team = await storage.getTeam(teamId);
       if (!team) {
@@ -639,7 +639,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Event routes
   app.post('/api/events', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any).claims.sub;
       
       // Parse and validate the event data
       const eventData = insertEventSchema.parse({
@@ -679,7 +679,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/events', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any).claims.sub;
       const events = await storage.getUserEvents(userId);
       res.json(events);
     } catch (error) {
@@ -703,7 +703,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/events/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any).claims.sub;
       const eventId = req.params.id;
       
       // Get the event to check authorization
@@ -834,7 +834,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Notification routes
   app.get('/api/notifications', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any).claims.sub;
       const notifications = await storage.getUserNotifications(userId);
       res.json(notifications);
     } catch (error) {
@@ -866,7 +866,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch('/api/notifications/read-all', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any).claims.sub;
       await storage.markAllNotificationsAsRead(userId);
       res.json({ message: "All notifications marked as read" });
     } catch (error) {
@@ -903,7 +903,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Notification preferences routes
   app.get('/api/notification-preferences', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any).claims.sub;
       const preferences = await storage.getUserNotificationPreferences(userId);
       res.json(preferences);
     } catch (error) {
@@ -914,7 +914,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/notification-preferences', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any).claims.sub;
       const preferencesData = insertNotificationPreferencesSchema.parse({
         ...req.body,
         userId,
@@ -930,7 +930,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Event attendance routes
   app.post('/api/events/:id/attendance', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any).claims.sub;
       const eventId = req.params.id;
       const { status } = req.body;
       
@@ -964,7 +964,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const eventId = req.params.id;
       const { userId } = req.body;
-      const promotedById = req.user.claims.sub;
+      const promotedById = (req.user as any).claims.sub;
 
       // Check if the promoter has admin rights for this event
       const event = await storage.getEvent(eventId);
@@ -996,7 +996,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const eventId = req.params.id;
       const { userId } = req.body;
-      const demotedById = req.user.claims.sub;
+      const demotedById = (req.user as any).claims.sub;
 
       // Check if the demoter has admin rights for this event
       const event = await storage.getEvent(eventId);
@@ -1049,7 +1049,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Recurring Events API endpoints
   app.post('/api/events/recurring', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any).claims.sub;
       const eventData = { ...req.body, createdById: userId };
       
       // Validate the event data
@@ -1079,7 +1079,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/events/series/:seriesId/suspend', isAuthenticated, async (req: any, res) => {
     try {
       const { seriesId } = req.params;
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any).claims.sub;
       
       // Check authorization - user must be event creator or team admin
       const seriesEvents = await storage.getRecurringEventsSeries(seriesId);
@@ -1109,7 +1109,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/events/series/:seriesId/resume', isAuthenticated, async (req: any, res) => {
     try {
       const { seriesId } = req.params;
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any).claims.sub;
       
       // Check authorization - user must be event creator or team admin
       const seriesEvents = await storage.getRecurringEventsSeries(seriesId);
@@ -1139,7 +1139,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/events/series/:seriesId/publish', isAuthenticated, async (req: any, res) => {
     try {
       const { seriesId } = req.params;
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any).claims.sub;
       
       // Check authorization - user must be event creator or team admin
       const seriesEvents = await storage.getRecurringEventsSeries(seriesId);
@@ -1170,7 +1170,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const eventId = req.params.id;
       const { deleteSeriesAfter } = req.query;
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any).claims.sub;
       
       // Check authorization
       const event = await storage.getEvent(eventId);
@@ -1200,7 +1200,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/create-payment-intent', isAuthenticated, async (req: any, res) => {
     try {
       const { amount, eventId, type = 'event_fee' } = req.body;
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any).claims.sub;
 
       // Create payment record
       const paymentData = insertPaymentSchema.parse({
@@ -1237,7 +1237,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/payments', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any).claims.sub;
       const payments = await storage.getUserPayments(userId);
       res.json(payments);
     } catch (error) {
@@ -1261,7 +1261,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/events/:id/flare', isAuthenticated, async (req: any, res) => {
     try {
       const eventId = req.params.id;
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any).claims.sub;
       const { sport } = req.body;
 
       // Verify user owns/manages this event
@@ -1287,10 +1287,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Activate flare status for this event
       await storage.activateFlareStatus(eventId, userId);
 
-      // Send notifications and get actual count sent (excluding blocked users)
+      // Send notifications and get actual count sent (excluding blocked users)  
       let actualRecipientCount = 0;
       if (userIds.length > 0) {
-        actualRecipientCount = await storage.sendFlareNotifications(eventId, userIds);
+        await storage.sendFlareNotifications(eventId, userIds);
+        actualRecipientCount = userIds.length;
       }
 
       res.json({ 
@@ -1312,7 +1313,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/events/:id/flare-response', isAuthenticated, async (req: any, res) => {
     try {
       const eventId = req.params.id;
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any).claims.sub;
       const responseData = insertFlareResponseSchema.parse({
         ...req.body,
         eventId,
@@ -1337,7 +1338,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/events/:id/flare-status', isAuthenticated, async (req: any, res) => {
     try {
       const eventId = req.params.id;
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any).claims.sub;
       const { status } = req.body; // 'active' or 'inactive'
 
       if (!['active', 'inactive'].includes(status)) {
@@ -1398,7 +1399,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Pass the authenticated user ID to exclude events from teams that have blocked them
-      const userId = req.user?.claims?.sub || req.user?.id;
+      const userId = (req.user as any)?.claims?.sub || (req.user as any)?.id;
       const events = await storage.searchFlareEvents(
         postcode as string, 
         parseInt(radius as string), 
@@ -1415,7 +1416,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User events management routes
   app.post('/api/user-events', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any).claims.sub;
       const { eventId } = req.body;
 
       if (!eventId) {
@@ -1432,7 +1433,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/user-events/:eventId', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any).claims.sub;
       const { eventId } = req.params;
 
       await storage.removeUserEvent(userId, eventId);
@@ -1445,7 +1446,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/user-events/:eventId/following', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any).claims.sub;
       const { eventId } = req.params;
 
       const isFollowing = await storage.isUserFollowingEvent(userId, eventId);
