@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,13 @@ export default function FlareSearch() {
     sport: "all"
   });
   const [hasSearched, setHasSearched] = useState(false);
+
+  // Initialize postcode from user's profile when user data loads
+  useEffect(() => {
+    if (user && user.postcode && !searchParams.postcode) {
+      setSearchParams(prev => ({ ...prev, postcode: user.postcode }));
+    }
+  }, [user]);
 
   // Mutation for adding events to "My Events"
   const addToMyEventsMutation = useMutation({
@@ -83,7 +90,7 @@ export default function FlareSearch() {
   };
 
   const resetSearch = () => {
-    setSearchParams({ postcode: "", radius: "10", sport: "all" });
+    setSearchParams({ postcode: user?.postcode || "", radius: "10", sport: "all" });
     setHasSearched(false);
   };
 
