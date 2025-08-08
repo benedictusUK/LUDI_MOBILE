@@ -332,7 +332,6 @@ export function MemberManagementModal({
             {(isOwner || isAdmin) && (
               <div className="text-center p-4 border rounded-lg bg-red-50">
                 <div className="flex flex-col items-center space-y-3">
-                  <Ban className="h-8 w-8 text-red-500 opacity-70" />
                   <div>
                     <h3 className="font-semibold text-red-700">Block Users</h3>
                     <p className="text-sm text-red-600 mt-1">
