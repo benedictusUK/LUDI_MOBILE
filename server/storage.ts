@@ -1901,7 +1901,7 @@ export class DatabaseStorage implements IStorage {
     return nearbyUsers;
   }
 
-  async sendFlareNotifications(eventId: string, userIds: string[]): Promise<void> {
+  async sendFlareNotifications(eventId: string, userIds: string[]): Promise<number> {
     // Get event details for notification
     const [eventResult] = await db
       .select({ 
@@ -1912,7 +1912,7 @@ export class DatabaseStorage implements IStorage {
       .innerJoin(teams, eq(events.primaryTeamId, teams.id))
       .where(eq(events.id, eventId));
 
-    if (!eventResult) return;
+    if (!eventResult) return 0;
 
     const { event, team } = eventResult;
 
@@ -1928,7 +1928,7 @@ export class DatabaseStorage implements IStorage {
     // If no eligible users after filtering, exit early
     if (eligibleUserIds.length === 0) {
       console.log(`No eligible users for flare notifications (all ${userIds.length} users are blocked from team ${team.id})`);
-      return;
+      return 0;
     }
 
     // Create notifications for each eligible user with event metadata
@@ -1955,6 +1955,7 @@ export class DatabaseStorage implements IStorage {
     await db.insert(notifications).values(notificationData);
 
     console.log(`Sent flare notifications to ${eligibleUserIds.length}/${userIds.length} users (${userIds.length - eligibleUserIds.length} blocked users excluded)`);
+    return eligibleUserIds.length;
   }
 
   async respondToFlare(eventId: string, userId: string, status: "interested" | "not_interested" | "maybe"): Promise<FlareResponse> {
@@ -2058,11 +2059,13 @@ export class DatabaseStorage implements IStorage {
       const eligibleEvents = [];
       for (const event of flareEvents) {
         const isBlocked = await this.isUserBlocked(event.team.id, userId);
+        console.log(`Flare search filtering: User ${userId} blocked from team ${event.team.id} (${event.team.name}): ${isBlocked}`);
         if (!isBlocked) {
           eligibleEvents.push(event);
         }
       }
       filteredEvents = eligibleEvents;
+      console.log(`Flare search filtered ${flareEvents.length} events to ${filteredEvents.length} for user ${userId}`);
     }
 
     // TODO: Add actual distance calculation based on postcode

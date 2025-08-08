@@ -1280,14 +1280,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Activate flare status for this event
       await storage.activateFlareStatus(eventId, userId);
 
-      // Send notifications
+      // Send notifications and get actual count sent (excluding blocked users)
+      let actualRecipientCount = 0;
       if (userIds.length > 0) {
-        await storage.sendFlareNotifications(eventId, userIds);
+        actualRecipientCount = await storage.sendFlareNotifications(eventId, userIds);
       }
 
       res.json({ 
         message: "Flare gun sent successfully", 
-        recipientCount: userIds.length,
+        recipientCount: actualRecipientCount,
+        potentialRecipients: userIds.length,
         recipients: nearbyUsers.map(u => ({ 
           id: u.id, 
           username: u.username, 
@@ -1389,11 +1391,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Pass the authenticated user ID to exclude events from teams that have blocked them
+      const userId = req.user?.claims?.sub || req.user?.id;
       const events = await storage.searchFlareEvents(
         postcode as string, 
         parseInt(radius as string), 
         sport as string,
-        req.user?.id // Pass user ID for blocking filter
+        userId // Pass user ID for blocking filter
       );
       res.json(events);
     } catch (error) {
