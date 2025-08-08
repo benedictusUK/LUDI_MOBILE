@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { AlertTriangle, Crown, Shield, User, Ban, CheckCircle, XCircle, UserPlus, LogOut } from "lucide-react";
 import { UserSearchModal } from "./user-search-modal";
+import { UserBlockSearchModal } from "./user-block-search-modal";
 import { useAuth } from "@/hooks/useAuth";
 
 interface MemberManagementModalProps {
@@ -36,6 +37,7 @@ export function MemberManagementModal({
   const { user: currentUser } = useAuth();
   const [blockReason, setBlockReason] = useState("");
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [showBlockSearchModal, setShowBlockSearchModal] = useState(false);
 
   // Fetch team details to get actual ownership info
   const { data: teamData, error: teamError } = useQuery({
@@ -326,6 +328,29 @@ export function MemberManagementModal({
           </TabsContent>
 
           <TabsContent value="blocked" className="space-y-4">
+            {/* Block User Search Section */}
+            {(isOwner || isAdmin) && (
+              <div className="text-center p-4 border rounded-lg bg-red-50">
+                <div className="flex flex-col items-center space-y-3">
+                  <Ban className="h-8 w-8 text-red-500 opacity-70" />
+                  <div>
+                    <h3 className="font-semibold text-red-700">Block Users</h3>
+                    <p className="text-sm text-red-600 mt-1">
+                      Search for any user to block them from your team and prevent flare notifications
+                    </p>
+                  </div>
+                  <Button
+                    onClick={() => setShowBlockSearchModal(true)}
+                    variant="outline"
+                    className="border-red-300 text-red-700 hover:bg-red-100"
+                  >
+                    <Ban className="h-4 w-4 mr-2" />
+                    Search & Block Users
+                  </Button>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-4">
               {blockedLoading ? (
                 <div className="text-center py-8">Loading blocked members...</div>
@@ -397,6 +422,20 @@ export function MemberManagementModal({
           onClose={() => setShowInviteModal(false)}
           teamId={teamId}
           teamName={teamName}
+        />
+
+        {/* User Block Search Modal */}
+        <UserBlockSearchModal
+          isOpen={showBlockSearchModal}
+          onClose={() => setShowBlockSearchModal(false)}
+          teamId={teamId}
+          teamName={teamName}
+          blockReason={blockReason}
+          onBlock={(userId: string, reason?: string) => {
+            blockMemberMutation.mutate({ userId, reason });
+            setShowBlockSearchModal(false);
+          }}
+          isBlocking={blockMemberMutation.isPending}
         />
       </DialogContent>
     </Dialog>

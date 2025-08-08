@@ -473,7 +473,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Search users for team invitations
   app.get('/api/users/search', isAuthenticated, async (req: any, res) => {
     try {
-      const { q: query, excludeTeam } = req.query;
+      const { q: query, excludeTeam, excludeBlocked } = req.query;
       
       if (!query || query.length < 2) {
         return res.json([]);
@@ -485,6 +485,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (excludeTeam) {
         const teamMembers = await storage.getTeamMembers(excludeTeam);
         excludeUserIds = teamMembers.map(member => member.userId);
+      }
+
+      // If excludeBlocked is provided, get blocked user IDs to exclude from search
+      if (excludeBlocked) {
+        const blockedMembers = await storage.getBlockedMembers(excludeBlocked);
+        const blockedUserIds = blockedMembers.map(blocked => blocked.userId);
+        excludeUserIds = [...excludeUserIds, ...blockedUserIds];
       }
 
       const users = await storage.searchUsers(query, excludeUserIds);

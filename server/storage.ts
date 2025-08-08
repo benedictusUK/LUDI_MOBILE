@@ -2059,13 +2059,11 @@ export class DatabaseStorage implements IStorage {
       const eligibleEvents = [];
       for (const event of flareEvents) {
         const isBlocked = await this.isUserBlocked(event.team.id, userId);
-        console.log(`Flare search filtering: User ${userId} blocked from team ${event.team.id} (${event.team.name}): ${isBlocked}`);
         if (!isBlocked) {
           eligibleEvents.push(event);
         }
       }
       filteredEvents = eligibleEvents;
-      console.log(`Flare search filtered ${flareEvents.length} events to ${filteredEvents.length} for user ${userId}`);
     }
 
     // TODO: Add actual distance calculation based on postcode
