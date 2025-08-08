@@ -35,7 +35,7 @@ export function MemberManagementModal({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user: currentUser } = useAuth();
-  const [blockReason, setBlockReason] = useState("");
+
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showBlockSearchModal, setShowBlockSearchModal] = useState(false);
 
@@ -87,7 +87,7 @@ export function MemberManagementModal({
       queryClient.invalidateQueries({ queryKey: ["/api/teams", teamId, "members"] });
       queryClient.invalidateQueries({ queryKey: ["/api/teams", teamId, "blocked"] });
       toast({ title: "Success", description: "Member blocked successfully" });
-      setBlockReason("");
+
     },
     onError: (error: any) => {
       toast({ title: "Error", description: error.message || "Failed to block member", variant: "destructive" });
@@ -254,7 +254,7 @@ export function MemberManagementModal({
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => blockMemberMutation.mutate({ userId: membership.user.id, reason: blockReason })}
+                              onClick={() => blockMemberMutation.mutate({ userId: membership.user.id })}
                               disabled={blockMemberMutation.isPending}
                               className="text-red-600 hover:text-red-700 flex-1"
                             >
@@ -358,28 +358,20 @@ export function MemberManagementModal({
                 <div className="text-center py-8 text-muted-foreground">No blocked members</div>
               ) : (
                 (blockedMembers as any[]).map((blocked: any) => (
-                  <div key={blocked.id} className="flex items-center justify-between p-4 border rounded-lg bg-red-50">
-                    <div className="flex items-center space-x-3">
-                      <AlertTriangle className="h-5 w-5 text-red-500" />
-                      <div>
-                        <div className="flex items-center space-x-2">
-                          <span className="font-medium">
-                            {blocked.user.firstName} {blocked.user.lastName}
-                          </span>
-                          <Badge variant="destructive">Blocked</Badge>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          @{blocked.user.username} • {blocked.user.email}
-                        </div>
-                        {blocked.reason && (
-                          <div className="text-sm text-red-600 mt-1">
-                            Reason: {blocked.reason}
-                          </div>
-                        )}
-                        <div className="text-xs text-muted-foreground mt-1">
-                          Blocked by {blocked.blockedBy.firstName} {blocked.blockedBy.lastName} on{" "}
-                          {new Date(blocked.blockedAt).toLocaleDateString()}
-                        </div>
+                  <div key={blocked.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg bg-red-50 gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center space-x-2 mb-1">
+                        <span className="font-medium truncate">
+                          {blocked.user.firstName} {blocked.user.lastName}
+                        </span>
+                        <Badge variant="destructive">Blocked</Badge>
+                      </div>
+                      <div className="text-sm text-muted-foreground truncate">
+                        @{blocked.user.username} • {blocked.user.email}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Blocked by {blocked.blockedBy.firstName} {blocked.blockedBy.lastName} on{" "}
+                        {new Date(blocked.blockedAt).toLocaleDateString()}
                       </div>
                     </div>
 
@@ -389,7 +381,7 @@ export function MemberManagementModal({
                         size="sm"
                         onClick={() => unblockMemberMutation.mutate(blocked.user.id)}
                         disabled={unblockMemberMutation.isPending}
-                        className="text-green-600 hover:text-green-700"
+                        className="text-green-600 hover:text-green-700 flex-shrink-0 w-full sm:w-auto"
                       >
                         <CheckCircle className="h-4 w-4 mr-1" />
                         Unblock
@@ -400,19 +392,7 @@ export function MemberManagementModal({
               )}
             </div>
 
-            {/* Block Reason Input */}
-            {(isOwner || isAdmin) && (
-              <div className="border-t pt-4">
-                <h4 className="font-medium mb-2">Block Reason (Optional)</h4>
-                <Textarea
-                  value={blockReason}
-                  onChange={(e) => setBlockReason(e.target.value)}
-                  placeholder="Enter reason for blocking member..."
-                  className="resize-none"
-                  rows={2}
-                />
-              </div>
-            )}
+
           </TabsContent>
         </Tabs>
 
@@ -430,7 +410,7 @@ export function MemberManagementModal({
           onClose={() => setShowBlockSearchModal(false)}
           teamId={teamId}
           teamName={teamName}
-          blockReason={blockReason}
+
           onBlock={(userId: string, reason?: string) => {
             blockMemberMutation.mutate({ userId, reason });
             setShowBlockSearchModal(false);

@@ -26,7 +26,6 @@ interface UserBlockSearchModalProps {
   onClose: () => void;
   teamId: string;
   teamName: string;
-  blockReason: string;
   onBlock: (userId: string, reason?: string) => void;
   isBlocking: boolean;
 }
@@ -36,7 +35,6 @@ export function UserBlockSearchModal({
   onClose,
   teamId,
   teamName,
-  blockReason,
   onBlock,
   isBlocking,
 }: UserBlockSearchModalProps) {
