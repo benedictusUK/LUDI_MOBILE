@@ -1235,14 +1235,18 @@ export class DatabaseStorage implements IStorage {
       .groupBy(teams.id)
       .orderBy(teams.name);
 
-    // Check membership for each team
+    // Filter out teams that have blocked the user and check membership
     const resultsWithMembership = [];
     for (const team of searchResults) {
-      const membership = await this.getUserTeam(userId, team.id);
-      resultsWithMembership.push({
-        ...team,
-        isMember: !!membership,
-      });
+      // Check if user is blocked by this team
+      const isBlocked = await this.isUserBlocked(team.id, userId);
+      if (!isBlocked) {
+        const membership = await this.getUserTeam(userId, team.id);
+        resultsWithMembership.push({
+          ...team,
+          isMember: !!membership,
+        });
+      }
     }
 
     return resultsWithMembership;
