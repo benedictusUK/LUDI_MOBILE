@@ -622,10 +622,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id: teamId } = req.params;
       const userId = req.user?.claims?.sub;
 
-      // Check if user is admin of the team
+      // Check if user is owner or admin of the team
       const userTeam = await storage.getUserTeam(userId, teamId);
-      if (!userTeam || userTeam.role !== "admin") {
-        return res.status(403).json({ message: "Not authorized to delete team" });
+      const team = await storage.getTeam(teamId);
+      
+      // Allow team owners and admins to delete the team
+      const canDelete = (team && team.ownerId === userId) || (userTeam && userTeam.role === "admin");
+      
+      if (!canDelete) {
+        return res.status(403).json({ message: "Not authorized to delete team. Only team owners and admins can delete teams." });
       }
 
       await storage.deleteTeam(teamId);
