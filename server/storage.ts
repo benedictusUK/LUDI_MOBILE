@@ -1116,10 +1116,10 @@ export class DatabaseStorage implements IStorage {
       .select({ count: count() })
       .from(teams);
 
-    // Get total players across all teams (platform-wide)
+    // Get total players (all users in the platform)
     const totalPlayers = await db
-      .selectDistinct({ userId: teamMemberships.userId })
-      .from(teamMemberships);
+      .select({ count: count() })
+      .from(users);
 
     // Get unread notifications
     const unreadNotifications = await db
@@ -1136,7 +1136,7 @@ export class DatabaseStorage implements IStorage {
       upcomingEvents: totalUpcomingEvents,
       activeTeams: activeTeams[0]?.count || 0,
       totalTeams: totalTeams[0]?.count || 0,
-      totalPlayers: totalPlayers.length,
+      totalPlayers: totalPlayers[0]?.count || 0,
       unreadNotifications: unreadNotifications[0]?.count || 0,
     };
   }
