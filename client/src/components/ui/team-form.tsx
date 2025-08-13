@@ -95,7 +95,6 @@ function SportsMultiSelect({
               >
                 <Checkbox
                   checked={selectedSports.includes(sport)}
-                  readOnly
                 />
                 <span className="flex-1">{sport}</span>
               </div>
