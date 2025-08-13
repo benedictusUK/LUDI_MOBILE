@@ -1116,12 +1116,10 @@ export class DatabaseStorage implements IStorage {
       .select({ count: count() })
       .from(teams);
 
-    // Get total players in user's teams
+    // Get total players across all teams (platform-wide)
     const totalPlayers = await db
       .selectDistinct({ userId: teamMemberships.userId })
-      .from(teamMemberships)
-      .innerJoin(teams, eq(teamMemberships.teamId, teams.id))
-      .where(eq(teams.ownerId, userId));
+      .from(teamMemberships);
 
     // Get unread notifications
     const unreadNotifications = await db
