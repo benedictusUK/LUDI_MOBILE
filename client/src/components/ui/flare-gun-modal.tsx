@@ -108,10 +108,7 @@ export function FlareGunModal({ event, isAuthorized }: FlareGunModalProps) {
             <FlareGunIcon className="h-5 w-5 text-red-500" />
             Flare Gun - Find Nearby Players
           </DialogTitle>
-          <DialogDescription>
-            Send alerts to nearby users who aren't on teams but are interested in specific sports.
-            Perfect for finding additional players when you need more people!
-          </DialogDescription>
+
         </DialogHeader>
 
         <div className="space-y-6">
