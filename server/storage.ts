@@ -450,13 +450,50 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteTeam(id: string): Promise<void> {
-    // Delete all team memberships first
+    // Get all events where this team is the primary team
+    const primaryEvents = await db
+      .select({ id: events.id })
+      .from(events)
+      .where(eq(events.primaryTeamId, id));
+
+    // Delete all events where this team is the primary team
+    // This will cascade delete: attendance, notifications, activity logs, payments
+    for (const event of primaryEvents) {
+      await this.deleteEvent(event.id);
+    }
+
+    // Update events that have this team in secondaryTeamIds array
+    const eventsWithSecondary = await db
+      .select({ id: events.id, secondaryTeamIds: events.secondaryTeamIds })
+      .from(events)
+      .where(sql`${id} = ANY(${events.secondaryTeamIds})`);
+
+    for (const event of eventsWithSecondary) {
+      const updatedSecondaryIds = event.secondaryTeamIds?.filter(teamId => teamId !== id) || [];
+      await db
+        .update(events)
+        .set({ secondaryTeamIds: updatedSecondaryIds })
+        .where(eq(events.id, event.id));
+    }
+
+    // Delete team-related notifications
+    await db
+      .delete(notifications)
+      .where(eq(notifications.relatedId, id));
+
+    // Delete blocked members (cascade should handle this, but being explicit)
+    await db.delete(blockedMembers).where(eq(blockedMembers.teamId, id));
+    
+    // Delete team memberships (cascade should handle this, but being explicit)
     await db.delete(teamMemberships).where(eq(teamMemberships.teamId, id));
     
     // Delete all event teams relationships
     await db.delete(eventTeams).where(eq(eventTeams.teamId, id));
     
-    // Finally delete the team
+    // Delete any payments associated with this team
+    await db.delete(payments).where(eq(payments.teamId, id));
+    
+    // Finally delete the team itself
     await db.delete(teams).where(eq(teams.id, id));
   }
 
