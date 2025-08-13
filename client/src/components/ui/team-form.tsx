@@ -71,15 +71,16 @@ function SportsMultiSelect({
                 e.preventDefault();
                 toggleSport(sport);
               }}
+              className="cursor-pointer hover:bg-accent"
             >
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 w-full">
                 <input
                   type="checkbox"
                   checked={selectedSports.includes(sport)}
-                  onChange={() => toggleSport(sport)}
-                  className="rounded"
+                  readOnly
+                  className="rounded pointer-events-none"
                 />
-                <span>{sport}</span>
+                <span className="flex-1">{sport}</span>
               </div>
             </SelectItem>
           ))}
@@ -310,7 +311,7 @@ export default function TeamForm({ onCancel, onSuccess, teamId }: TeamFormProps)
                 <Label htmlFor="gender">Team Gender Preference</Label>
                 <Select
                   value={form.watch("gender")}
-                  onValueChange={(value) => form.setValue("gender", value)}
+                  onValueChange={(value) => form.setValue("gender", value as "male" | "female" | "mixed")}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select gender preference" />
