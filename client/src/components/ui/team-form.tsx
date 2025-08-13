@@ -15,6 +15,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -56,36 +62,47 @@ function SportsMultiSelect({
 
   return (
     <div className="space-y-2">
-      <Select open={isOpen} onOpenChange={setIsOpen}>
-        <SelectTrigger>
-          <SelectValue placeholder={placeholder}>
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={isOpen}
+            className="w-full justify-between"
+          >
             {selectedSports.length === 0 ? placeholder : `${selectedSports.length} sport${selectedSports.length !== 1 ? 's' : ''} selected`}
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          {SPORTS_OPTIONS.map(sport => (
-            <SelectItem 
-              key={sport} 
-              value={sport}
-              onSelect={(e) => {
-                e.preventDefault();
-                toggleSport(sport);
-              }}
-              className="cursor-pointer hover:bg-accent"
+            <svg
+              className="ml-2 h-4 w-4 shrink-0 opacity-50"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
-              <div className="flex items-center space-x-2 w-full">
-                <input
-                  type="checkbox"
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-full p-0">
+          <div className="max-h-60 overflow-auto">
+            {SPORTS_OPTIONS.map(sport => (
+              <div
+                key={sport}
+                className="flex items-center space-x-2 p-2 hover:bg-accent cursor-pointer"
+                onClick={() => toggleSport(sport)}
+              >
+                <Checkbox
                   checked={selectedSports.includes(sport)}
                   readOnly
-                  className="rounded pointer-events-none"
                 />
                 <span className="flex-1">{sport}</span>
               </div>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
       
       {selectedSports.length > 0 && (
         <div className="flex flex-wrap gap-2">
