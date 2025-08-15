@@ -738,11 +738,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/events', isAuthenticated, async (req: any, res) => {
     try {
       const userId = (req.user as any).claims.sub;
+      const includePast = req.query.includePast === 'true';
       
       // Check for expired recurring events and trigger maintenance if needed
       await storage.checkExpiredRecurringEvents();
       
-      const events = await storage.getUserEvents(userId);
+      const events = await storage.getUserEvents(userId, includePast);
       res.json(events);
     } catch (error) {
       console.error("Error fetching events:", error);

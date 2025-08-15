@@ -186,7 +186,16 @@ export default function Events() {
   }, [location]);
 
   const { data: events = [], isLoading } = useQuery({
-    queryKey: ["/api/events"],
+    queryKey: ["/api/events", { includePast: showPastEvents }],
+    queryFn: async () => {
+      const response = await fetch(`/api/events?includePast=${showPastEvents}`, {
+        credentials: "include",
+      });
+      if (!response.ok) {
+        throw new Error("Failed to fetch events");
+      }
+      return response.json();
+    },
   });
 
   // Pre-fetch event details, attendance, and potential players for all events
@@ -279,14 +288,11 @@ export default function Events() {
     return eventDate < now;
   };
 
-  // Apply all filters
+  // Apply all filters (past events filter is now handled server-side)
   const filteredEvents = (events as any[])
     .filter((event: any) => {
       // Team filter
       if (selectedTeamId && event.primaryTeamId !== selectedTeamId) return false;
-      
-      // Past events filter
-      if (!showPastEvents && isEventPast(event)) return false;
       
       // Voting status filter
       if (votingStatusFilter !== 'all') {
@@ -297,25 +303,39 @@ export default function Events() {
       return true;
     });
 
-  // Calculate filter counts
+  // Calculate filter counts (events array already filtered by server for past/future)
   const allEventsCount = events.length;
-  const futureEventsCount = (events as any[]).filter(event => !isEventPast(event)).length;
-  const pastEventsCount = allEventsCount - futureEventsCount;
+  
+  // For past events count, we need to make a separate query
+  const { data: allEventsData = [] } = useQuery({
+    queryKey: ["/api/events", { includePast: true }],
+    queryFn: async () => {
+      const response = await fetch(`/api/events?includePast=true`, {
+        credentials: "include",
+      });
+      if (!response.ok) {
+        throw new Error("Failed to fetch all events");
+      }
+      return response.json();
+    },
+    enabled: showPastEvents, // Only fetch when we need the count
+  });
+  
+  const pastEventsCount = showPastEvents ? 
+    (allEventsData as any[]).filter(event => isEventPast(event)).length : 
+    0; // We don't show this when showPastEvents is false anyway
   
   const attendingCount = (events as any[]).filter(event => 
-    (!showPastEvents ? !isEventPast(event) : true) &&
     (!selectedTeamId || event.primaryTeamId === selectedTeamId) &&
     getUserVotingStatus(event.id) === 'attending'
   ).length;
   
   const notAttendingCount = (events as any[]).filter(event => 
-    (!showPastEvents ? !isEventPast(event) : true) &&
     (!selectedTeamId || event.primaryTeamId === selectedTeamId) &&
     getUserVotingStatus(event.id) === 'not_attending'
   ).length;
   
   const notVotedCount = (events as any[]).filter(event => 
-    (!showPastEvents ? !isEventPast(event) : true) &&
     (!selectedTeamId || event.primaryTeamId === selectedTeamId) &&
     getUserVotingStatus(event.id) === 'not_voted'
   ).length;
@@ -457,7 +477,7 @@ export default function Events() {
                     <SelectValue placeholder="All Statuses" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All ({showPastEvents ? allEventsCount : futureEventsCount})</SelectItem>
+                    <SelectItem value="all">All ({allEventsCount})</SelectItem>
                     <SelectItem value="attending">
                       <div className="flex items-center space-x-2">
                         <div className="w-2 h-2 rounded-full bg-green-500"></div>
@@ -501,7 +521,7 @@ export default function Events() {
 
               {filteredEvents.length !== events.length && (
                 <Badge variant="secondary" className="text-xs">
-                  Showing {filteredEvents.length} of {showPastEvents ? allEventsCount : futureEventsCount} events
+                  Showing {filteredEvents.length} of {allEventsCount} events
                 </Badge>
               )}
             </div>

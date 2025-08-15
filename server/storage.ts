@@ -42,7 +42,7 @@ import {
   userEvents,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, count, sql, or, notInArray, asc, inArray, ne, isNotNull } from "drizzle-orm";
+import { eq, and, desc, count, sql, or, notInArray, asc, inArray, ne, isNotNull, gte } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -589,7 +589,12 @@ export class DatabaseStorage implements IStorage {
     return { maintenanceTriggered };
   }
 
-  async getUserEvents(userId: string): Promise<any[]> {
+  async getUserEvents(userId: string, includePast: boolean = false): Promise<any[]> {
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Base condition for future events
+    const dateCondition = includePast ? undefined : gte(events.startDate, today);
+    
     // Get events where user's team is the primary team
     const primaryTeamEvents = await db
       .select({ 
@@ -604,7 +609,10 @@ export class DatabaseStorage implements IStorage {
         eq(eventAttendance.eventId, events.id),
         eq(eventAttendance.userId, userId)
       ))
-      .where(eq(teamMemberships.userId, userId));
+      .where(and(
+        eq(teamMemberships.userId, userId),
+        dateCondition
+      ));
 
     // Get events where user's team is a secondary team
     const secondaryTeamEvents = await db
@@ -621,7 +629,10 @@ export class DatabaseStorage implements IStorage {
         eq(eventAttendance.eventId, events.id),
         eq(eventAttendance.userId, userId)
       ))
-      .where(eq(teamMemberships.userId, userId));
+      .where(and(
+        eq(teamMemberships.userId, userId),
+        dateCondition
+      ));
 
     // Get events that user has individually followed
     const followedEvents = await db
@@ -637,7 +648,10 @@ export class DatabaseStorage implements IStorage {
         eq(eventAttendance.eventId, events.id),
         eq(eventAttendance.userId, userId)
       ))
-      .where(eq(userEvents.userId, userId));
+      .where(and(
+        eq(userEvents.userId, userId),
+        dateCondition
+      ));
 
     // Combine and deduplicate events
     const allEvents = [...primaryTeamEvents, ...secondaryTeamEvents, ...followedEvents];
@@ -2605,11 +2619,11 @@ export class DatabaseStorage implements IStorage {
     const lastEventDate = new Date(lastEvent.startDate);
     
     const today = new Date();
-    const fourWeeksFromNow = new Date();
-    fourWeeksFromNow.setDate(today.getDate() + (4 * 7));
+    const twoWeeksFromNow = new Date();
+    twoWeeksFromNow.setDate(today.getDate() + (2 * 7));
 
-    // Check if we need to create more events (if latest event is less than 4 weeks away)
-    if (lastEventDate < fourWeeksFromNow) {
+    // Check if we need to create more events (if latest event is less than 2 weeks away)
+    if (lastEventDate < twoWeeksFromNow) {
       // Create a template event from the series info
       const templateEvent: InsertEvent = {
         name: firstEvent.name,
@@ -2633,8 +2647,8 @@ export class DatabaseStorage implements IStorage {
         reserveSpots: firstEvent.reserveSpots || 0
       };
 
-      // Generate new events to maintain 4 weeks ahead
-      const newEvents = await this.createRecurringEvents(templateEvent, 4);
+      // Generate new events to maintain 2 weeks ahead (reduced from 4)
+      const newEvents = await this.createRecurringEvents(templateEvent, 2);
       totalCreatedEvents += newEvents.length;
 
       // Copy event teams associations from the first event in the series
@@ -2692,8 +2706,8 @@ export class DatabaseStorage implements IStorage {
       ));
 
     const today = new Date();
-    const fourWeeksFromNow = new Date();
-    fourWeeksFromNow.setDate(today.getDate() + (4 * 7));
+    const twoWeeksFromNow = new Date();
+    twoWeeksFromNow.setDate(today.getDate() + (2 * 7));
 
     for (const series of recurringSeriesQuery) {
       // Get the latest event in this series
@@ -2708,8 +2722,8 @@ export class DatabaseStorage implements IStorage {
 
       const lastEventDate = new Date(latestEvent[0].startDate);
       
-      // Check if we need to create more events (if latest event is less than 4 weeks away)
-      if (lastEventDate < fourWeeksFromNow) {
+      // Check if we need to create more events (if latest event is less than 2 weeks away)
+      if (lastEventDate < twoWeeksFromNow) {
         maintainedSeries++;
         
         // Create a template event from the series info
@@ -2735,8 +2749,8 @@ export class DatabaseStorage implements IStorage {
           reserveSpots: series.reserveSpots || 0
         };
 
-        // Generate new events to maintain 4 weeks ahead
-        const newEvents = await this.createRecurringEvents(templateEvent, 4);
+        // Generate new events to maintain 2 weeks ahead (reduced from 4)
+        const newEvents = await this.createRecurringEvents(templateEvent, 2);
         totalCreatedEvents += newEvents.length;
 
         // Copy event teams associations from the first event in the series
