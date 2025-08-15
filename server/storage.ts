@@ -1501,7 +1501,7 @@ export class DatabaseStorage implements IStorage {
     // Add user to team
     const membership = await this.addTeamMember(teamId, userId, "member");
 
-    // Mark the join request notification as read
+    // Mark the specific join request notification as read
     await db
       .update(notifications)
       .set({ 
@@ -1511,7 +1511,8 @@ export class DatabaseStorage implements IStorage {
       .where(and(
         eq(notifications.type, "team_join_request"),
         eq(notifications.relatedId, teamId),
-        eq(notifications.userId, approverId)
+        eq(notifications.userId, approverId),
+        sql`JSON_EXTRACT(metadata, '$.requestUserId') = ${userId}`
       ));
 
     // Notify the user that their request was approved
@@ -1540,7 +1541,7 @@ export class DatabaseStorage implements IStorage {
       throw new Error("Not authorized to reject join requests");
     }
 
-    // Mark the join request notification as read
+    // Mark the specific join request notification as read
     await db
       .update(notifications)
       .set({ 
@@ -1550,7 +1551,8 @@ export class DatabaseStorage implements IStorage {
       .where(and(
         eq(notifications.type, "team_join_request"),
         eq(notifications.relatedId, teamId),
-        eq(notifications.userId, rejectedById)
+        eq(notifications.userId, rejectedById),
+        sql`JSON_EXTRACT(metadata, '$.requestUserId') = ${userId}`
       ));
 
     // Notify the user that their request was rejected
