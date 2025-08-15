@@ -1539,6 +1539,19 @@ export class DatabaseStorage implements IStorage {
       throw new Error("User is already a member of this team");
     }
 
+    // Update the team invitation status to approved
+    await db
+      .update(teamInvitations)
+      .set({ 
+        status: "approved",
+        respondedAt: new Date()
+      })
+      .where(and(
+        eq(teamInvitations.teamId, teamId),
+        eq(teamInvitations.userId, userId),
+        eq(teamInvitations.status, "pending")
+      ));
+
     // Add user to team
     const membership = await this.addTeamMember(teamId, userId, "member");
 
@@ -1581,6 +1594,19 @@ export class DatabaseStorage implements IStorage {
         (rejectorMembership && !["admin"].includes(rejectorMembership.role) && team.ownerId !== rejectedById)) {
       throw new Error("Not authorized to reject join requests");
     }
+
+    // Update the team invitation status to rejected
+    await db
+      .update(teamInvitations)
+      .set({ 
+        status: "rejected",
+        respondedAt: new Date()
+      })
+      .where(and(
+        eq(teamInvitations.teamId, teamId),
+        eq(teamInvitations.userId, userId),
+        eq(teamInvitations.status, "pending")
+      ));
 
     // Mark the specific join request notification as read
     await db
