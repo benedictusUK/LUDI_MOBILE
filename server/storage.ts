@@ -591,6 +591,7 @@ export class DatabaseStorage implements IStorage {
 
   async getUserEvents(userId: string, includePast: boolean = false): Promise<any[]> {
     // Fetch all events first, then filter by end time in JavaScript
+    // includePast=true means ONLY past events, includePast=false means ONLY future events
     const dateCondition = undefined; // Remove SQL filtering for now
     
     // Get events where user's team is the primary team
@@ -661,18 +662,21 @@ export class DatabaseStorage implements IStorage {
         eventEndTime = new Date(`${event.startDate} ${event.endTime}`);
       } else {
         // Fallback to end of start date if no end time specified
-        eventEndTime = new Date(event.startDate);
+        eventEndTime = new Date(event.startDate || '');
         eventEndTime.setHours(23, 59, 59);
       }
       
-      // Include past events if requested, otherwise only future events
-      return includePast || eventEndTime > now;
+      const isPastEvent = eventEndTime <= now;
+      
+      // If includePast=true, show ONLY past events
+      // If includePast=false, show ONLY future events
+      return includePast ? isPastEvent : !isPastEvent;
     });
 
     // Sort events: if showing past events, show most recent first; otherwise show next events first
     filteredEvents.sort((a, b) => {
-      const aDateTime = new Date(`${a.event.startDate} ${a.event.startTime || '00:00'}`).getTime();
-      const bDateTime = new Date(`${b.event.startDate} ${b.event.startTime || '00:00'}`).getTime();
+      const aDateTime = new Date(`${a.event.startDate || ''} ${a.event.startTime || '00:00'}`).getTime();
+      const bDateTime = new Date(`${b.event.startDate || ''} ${b.event.startTime || '00:00'}`).getTime();
       
       return includePast ? bDateTime - aDateTime : aDateTime - bDateTime;
     });
@@ -2641,18 +2645,18 @@ export class DatabaseStorage implements IStorage {
     if (lastEventDate < twoWeeksFromNow) {
       // Create a template event from the series info
       const templateEvent: InsertEvent = {
-        name: firstEvent.name,
-        sport: firstEvent.sport,
-        location: firstEvent.location,
+        name: firstEvent.name || '',
+        sport: firstEvent.sport || '',
+        location: firstEvent.location || '',
         startDate: new Date(lastEventDate.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Start from day after last event
         endDate: null,
-        startTime: firstEvent.startTime,
-        endTime: firstEvent.endTime,
-        primaryTeamId: firstEvent.primaryTeamId,
+        startTime: firstEvent.startTime || '',
+        endTime: firstEvent.endTime || '',
+        primaryTeamId: firstEvent.primaryTeamId || '',
         recurrenceType: firstEvent.recurrenceType || "none",
         recurrenceDaysOfWeek: firstEvent.recurrenceDaysOfWeek || [],
         isPublished: firstEvent.isPublished,
-        createdById: firstEvent.createdById,
+        createdById: firstEvent.createdById || '',
         gender: firstEvent.gender || "mixed",
         cost: firstEvent.cost || 0,
         requirements: firstEvent.requirements || null,
@@ -2743,18 +2747,18 @@ export class DatabaseStorage implements IStorage {
         
         // Create a template event from the series info
         const templateEvent: InsertEvent = {
-          name: series.name!,
-          sport: series.sport!,
-          location: series.location,
+          name: series.name || '',
+          sport: series.sport || '',
+          location: series.location || '',
           startDate: new Date(lastEventDate.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Start from day after last event
           endDate: null,
-          startTime: series.startTime,
-          endTime: series.endTime,
-          primaryTeamId: series.primaryTeamId,
+          startTime: series.startTime || '',
+          endTime: series.endTime || '',
+          primaryTeamId: series.primaryTeamId || '',
           recurrenceType: series.recurrenceType || "none",
           recurrenceDaysOfWeek: series.recurrenceDaysOfWeek || [],
           isPublished: series.isPublished,
-          createdById: series.createdById,
+          createdById: series.createdById || '',
           gender: series.gender || "mixed",
           cost: series.cost || 0,
           requirements: series.requirements || null,
