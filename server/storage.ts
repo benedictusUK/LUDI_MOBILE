@@ -42,7 +42,7 @@ import {
   userEvents,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, count, sql, or, notInArray, asc, inArray, ne } from "drizzle-orm";
+import { eq, and, desc, count, sql, or, notInArray, asc, inArray, ne, isNotNull } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -2391,6 +2391,98 @@ export class DatabaseStorage implements IStorage {
     }
 
     return createdEvents;
+  }
+
+  // Maintenance function to ensure recurring events are always available 4 weeks ahead
+  async maintainRecurringEvents(): Promise<{ maintained: number; created: number }> {
+    let maintainedSeries = 0;
+    let totalCreatedEvents = 0;
+
+    // Find all unique recurring series
+    const recurringSeriesQuery = await db
+      .selectDistinct({ 
+        recurringSeriesId: events.recurringSeriesId,
+        recurrenceType: events.recurrenceType,
+        recurrenceDaysOfWeek: events.recurrenceDaysOfWeek,
+        primaryTeamId: events.primaryTeamId,
+        createdById: events.createdById,
+        name: events.name,
+        location: events.location,
+        startTime: events.startTime,
+        endTime: events.endTime,
+        isPublished: events.isPublished
+      })
+      .from(events)
+      .where(and(
+        isNotNull(events.recurringSeriesId),
+        ne(events.recurrenceType, "none")
+      ));
+
+    const today = new Date();
+    const fourWeeksFromNow = new Date();
+    fourWeeksFromNow.setDate(today.getDate() + (4 * 7));
+
+    for (const series of recurringSeriesQuery) {
+      // Get the latest event in this series
+      const latestEvent = await db
+        .select()
+        .from(events)
+        .where(eq(events.recurringSeriesId, series.recurringSeriesId!))
+        .orderBy(desc(events.startDate))
+        .limit(1);
+
+      if (latestEvent.length === 0) continue;
+
+      const lastEventDate = new Date(latestEvent[0].startDate);
+      
+      // Check if we need to create more events (if latest event is less than 4 weeks away)
+      if (lastEventDate < fourWeeksFromNow) {
+        maintainedSeries++;
+        
+        // Create a template event from the series info
+        const templateEvent: InsertEvent = {
+          name: series.name!,
+          location: series.location,
+          startDate: new Date(lastEventDate.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Start from day after last event
+          endDate: null,
+          startTime: series.startTime,
+          endTime: series.endTime,
+          primaryTeamId: series.primaryTeamId,
+          recurrenceType: series.recurrenceType || "none",
+          recurrenceDaysOfWeek: series.recurrenceDaysOfWeek || [],
+          isPublished: series.isPublished,
+          createdById: series.createdById
+        };
+
+        // Generate new events to maintain 4 weeks ahead
+        const newEvents = await this.createRecurringEvents(templateEvent, 4);
+        totalCreatedEvents += newEvents.length;
+
+        // Copy event teams associations from the first event in the series
+        const firstEvent = await db
+          .select()
+          .from(events)
+          .where(eq(events.recurringSeriesId, series.recurringSeriesId!))
+          .orderBy(asc(events.startDate))
+          .limit(1);
+
+        if (firstEvent.length > 0) {
+          const eventTeamsAssociations = await db
+            .select()
+            .from(eventTeams)
+            .where(eq(eventTeams.eventId, firstEvent[0].id));
+
+          // Add same team associations to all new events
+          for (const newEvent of newEvents) {
+            for (const teamAssoc of eventTeamsAssociations) {
+              await this.addEventTeam(newEvent.id, teamAssoc.teamId);
+            }
+          }
+        }
+      }
+    }
+
+    return { maintained: maintainedSeries, created: totalCreatedEvents };
   }
 
   async getRecurringEventsSeries(recurringSeriesId: string): Promise<Event[]> {

@@ -642,6 +642,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Event routes
+  // Maintenance endpoint for recurring events
+  app.post('/api/events/maintain-recurring', isAuthenticated, async (req: any, res) => {
+    try {
+      const result = await storage.maintainRecurringEvents();
+      res.json({ 
+        message: `Maintained ${result.maintained} recurring series, created ${result.created} new events`,
+        ...result 
+      });
+    } catch (error) {
+      console.error("Error maintaining recurring events:", error);
+      res.status(500).json({ message: "Failed to maintain recurring events" });
+    }
+  });
+
   app.post('/api/events', isAuthenticated, async (req: any, res) => {
     try {
       const userId = (req.user as any).claims.sub;

@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { storage } from "./storage";
 
 const app = express();
 app.use(express.json());
@@ -60,6 +61,24 @@ app.use((req, res, next) => {
   // Other ports are firewalled. Default to 5000 if not specified.
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
+  // Schedule recurring events maintenance to run every hour
+  const runRecurringEventsMaintenance = async () => {
+    try {
+      const result = await storage.maintainRecurringEvents();
+      if (result.created > 0) {
+        log(`Maintenance: Created ${result.created} events for ${result.maintained} recurring series`);
+      }
+    } catch (error) {
+      console.error("Error in scheduled recurring events maintenance:", error);
+    }
+  };
+
+  // Run maintenance every hour (3600000 ms)
+  setInterval(runRecurringEventsMaintenance, 3600000);
+  
+  // Run maintenance once on startup after a 10-second delay
+  setTimeout(runRecurringEventsMaintenance, 10000);
+
   const port = parseInt(process.env.PORT || '5000', 10);
   server.listen({
     port,
@@ -67,5 +86,6 @@ app.use((req, res, next) => {
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+    log("Scheduled recurring events maintenance every hour");
   });
 })();
