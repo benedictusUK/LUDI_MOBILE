@@ -1342,6 +1342,26 @@ export class DatabaseStorage implements IStorage {
       throw new Error("You are blocked from joining this team");
     }
 
+    // Check if user is already a member
+    const existingMembership = await this.getUserTeam(userId, teamId);
+    if (existingMembership) {
+      throw new Error("You are already a member of this team");
+    }
+
+    // Check if there's already a pending invitation
+    const [existingInvitation] = await db
+      .select()
+      .from(teamInvitations)
+      .where(and(
+        eq(teamInvitations.teamId, teamId),
+        eq(teamInvitations.userId, userId),
+        eq(teamInvitations.status, "pending")
+      ));
+
+    if (existingInvitation) {
+      throw new Error("You already have a pending request for this team");
+    }
+
     // Create a notification for the team owner and all admins
     const team = await this.getTeam(teamId);
     if (!team) {
@@ -1352,6 +1372,16 @@ export class DatabaseStorage implements IStorage {
     if (!user) {
       throw new Error("User not found");
     }
+
+    // Create the team invitation record
+    await db
+      .insert(teamInvitations)
+      .values({
+        teamId,
+        userId,
+        invitedById: userId, // User is requesting to join themselves
+        status: "pending"
+      });
 
     const admins = await this.getTeamAdmins(teamId);
     

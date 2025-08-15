@@ -156,7 +156,7 @@ export function MemberManagementModal({
   // Approve join request mutation
   const approveRequestMutation = useMutation({
     mutationFn: async (userId: string) => {
-      const response = await apiRequest("POST", `/api/teams/${teamId}/approve-join`, { userId });
+      const response = await apiRequest("POST", `/api/teams/${teamId}/approve-join/${userId}`);
       return response.json();
     },
     onSuccess: () => {
@@ -174,7 +174,7 @@ export function MemberManagementModal({
   // Reject join request mutation
   const rejectRequestMutation = useMutation({
     mutationFn: async (userId: string) => {
-      const response = await apiRequest("POST", `/api/teams/${teamId}/reject-join`, { userId });
+      const response = await apiRequest("POST", `/api/teams/${teamId}/reject-join/${userId}`);
       return response.json();
     },
     onSuccess: () => {
