@@ -1553,7 +1553,7 @@ export class DatabaseStorage implements IStorage {
         eq(notifications.type, "team_join_request"),
         eq(notifications.relatedId, teamId),
         eq(notifications.userId, approverId),
-        sql`JSON_EXTRACT(metadata, '$.requestUserId') = ${userId}`
+        sql`metadata::json->>'requestUserId' = ${userId}`
       ));
 
     // Notify the user that their request was approved
@@ -1593,7 +1593,7 @@ export class DatabaseStorage implements IStorage {
         eq(notifications.type, "team_join_request"),
         eq(notifications.relatedId, teamId),
         eq(notifications.userId, rejectedById),
-        sql`JSON_EXTRACT(metadata, '$.requestUserId') = ${userId}`
+        sql`metadata::json->>'requestUserId' = ${userId}`
       ));
 
     // Notify the user that their request was rejected
