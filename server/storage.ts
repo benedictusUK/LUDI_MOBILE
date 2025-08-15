@@ -127,6 +127,7 @@ export interface IStorage {
   // Event payment operations (Stripe holds/reserved payments)
   createEventPayment(eventPayment: InsertEventPayment): Promise<EventPayment>;
   getEventPayment(eventId: string, userId: string): Promise<EventPayment | undefined>;
+  getEventPaymentByUser(eventId: string, userId: string): Promise<EventPayment | undefined>;
   updateEventPaymentSetup(eventId: string, userId: string, updates: Partial<EventPayment>): Promise<EventPayment>;
   updateEventPaymentHold(eventId: string, userId: string, updates: Partial<EventPayment>): Promise<EventPayment>;
   updateEventPaymentCapture(eventId: string, userId: string, updates: Partial<EventPayment>): Promise<EventPayment>;
@@ -2762,7 +2763,11 @@ export class DatabaseStorage implements IStorage {
         postcode: templateEvent.postcode || null,
         maxParticipants: templateEvent.maxParticipants || null,
         reserveSpots: templateEvent.reserveSpots || 0,
-        recurringSeriesId: recurringSeriesId
+        recurringSeriesId: recurringSeriesId,
+        paymentRequired: templateEvent.paymentRequired || false,
+        maxPlayerPayment: templateEvent.maxPlayerPayment || null,
+        finalVenueCost: templateEvent.finalVenueCost || null,
+        paymentStatus: templateEvent.paymentStatus || "none"
       };
 
       const newEvent = await this.createEvent(newEventData);
@@ -2835,7 +2840,11 @@ export class DatabaseStorage implements IStorage {
         address: firstEvent.address || null,
         postcode: firstEvent.postcode || null,
         maxParticipants: firstEvent.maxParticipants || null,
-        reserveSpots: firstEvent.reserveSpots || 0
+        reserveSpots: firstEvent.reserveSpots || 0,
+        paymentRequired: firstEvent.paymentRequired || false,
+        maxPlayerPayment: firstEvent.maxPlayerPayment || null,
+        finalVenueCost: firstEvent.finalVenueCost || null,
+        paymentStatus: firstEvent.paymentStatus || "none"
       };
 
       // Generate new events to maintain 2 weeks ahead (reduced from 4)
@@ -2940,7 +2949,11 @@ export class DatabaseStorage implements IStorage {
           address: series.address || null,
           postcode: series.postcode || null,
           maxParticipants: series.maxParticipants || null,
-          reserveSpots: series.reserveSpots || 0
+          reserveSpots: series.reserveSpots || 0,
+          paymentRequired: series.paymentRequired || false,
+          maxPlayerPayment: series.maxPlayerPayment || null,
+          finalVenueCost: series.finalVenueCost || null,
+          paymentStatus: series.paymentStatus || "none"
         };
 
         // Generate new events to maintain 2 weeks ahead (reduced from 4)
@@ -3051,6 +3064,10 @@ export class DatabaseStorage implements IStorage {
     return eventPayment;
   }
 
+  async getEventPaymentByUser(eventId: string, userId: string): Promise<EventPayment | undefined> {
+    return this.getEventPayment(eventId, userId);
+  }
+
   async updateEventPaymentSetup(eventId: string, userId: string, updates: Partial<EventPayment>): Promise<EventPayment> {
     const [eventPayment] = await db
       .update(eventPayments)
@@ -3119,7 +3136,7 @@ export class DatabaseStorage implements IStorage {
     return eventPayment;
   }
 
-  async updateEventPaymentStatus(eventId: string, status: string): Promise<void> {
+  async updateEventPaymentStatus(eventId: string, status: "none" | "setup" | "holds_created" | "captured" | "refunded"): Promise<void> {
     await db
       .update(events)
       .set({

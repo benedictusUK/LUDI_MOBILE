@@ -1320,6 +1320,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get payment status for current user and event
+  app.get('/api/events/:id/payment-status', isAuthenticated, async (req: any, res) => {
+    try {
+      const eventId = req.params.id;
+      const userId = (req.user as any).claims.sub;
+      
+      const payment = await storage.getEventPaymentByUser(eventId, userId);
+      
+      if (!payment) {
+        return res.json({ 
+          hasPayment: false, 
+          status: null,
+          setupIntentId: null,
+          paymentMethodId: null
+        });
+      }
+
+      res.json({
+        hasPayment: true,
+        status: payment.status,
+        setupIntentId: payment.setupIntentId,
+        paymentMethodId: payment.paymentMethodId,
+        holdAmount: payment.holdAmount,
+        finalAmount: payment.finalAmount
+      });
+    } catch (error) {
+      console.error("Error fetching payment status:", error);
+      res.status(500).json({ message: "Failed to fetch payment status" });
+    }
+  });
+
   // Flare gun routes - for advertising events to nearby users
   app.post('/api/events/:id/flare', isAuthenticated, async (req: any, res) => {
     try {
@@ -1641,7 +1672,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         paymentIntentStatus: paymentIntent.status,
         holdAmount: event.maxPlayerPayment,
         status: 'hold_created',
-        holdCreatedAt: new Date().toISOString()
+        holdCreatedAt: new Date()
       });
 
       res.json({ success: true, paymentIntentId: paymentIntent.id });
@@ -1686,7 +1717,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               paymentIntentStatus: paymentIntent.status,
               finalAmount: finalAmount,
               status: 'captured',
-              capturedAt: new Date().toISOString()
+              capturedAt: new Date()
             });
 
             results.push({ userId: attendee.userId, success: true });
