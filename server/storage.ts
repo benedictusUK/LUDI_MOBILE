@@ -543,27 +543,38 @@ export class DatabaseStorage implements IStorage {
 
   // Check for expired recurring events and trigger maintenance
   async checkExpiredRecurringEvents(): Promise<{ maintenanceTriggered: string[] }> {
-    const today = new Date();
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    // Find events that expired yesterday and belong to recurring series
+    const now = new Date();
+    
+    // Find recurring events that have fully expired (end datetime has passed)
     const expiredRecurringEvents = await db
-      .selectDistinct({ recurringSeriesId: events.recurringSeriesId })
+      .selectDistinct({ 
+        recurringSeriesId: events.recurringSeriesId,
+        startDate: events.startDate,
+        endDate: events.endDate,
+        endTime: events.endTime
+      })
       .from(events)
       .where(and(
         isNotNull(events.recurringSeriesId),
-        ne(events.recurrenceType, "none"),
-        eq(events.startDate, yesterday.toISOString().split('T')[0])
+        ne(events.recurrenceType, "none")
       ));
 
     const maintenanceTriggered: string[] = [];
 
-    for (const expiredEvent of expiredRecurringEvents) {
-      if (expiredEvent.recurringSeriesId) {
-        const result = await this.checkAndMaintainRecurringEventSeries(expiredEvent.recurringSeriesId);
-        if (result.maintained) {
-          maintenanceTriggered.push(expiredEvent.recurringSeriesId);
+    for (const eventInfo of expiredRecurringEvents) {
+      if (eventInfo.recurringSeriesId) {
+        // Calculate the actual end datetime of the event
+        const eventEndDate = eventInfo.endDate || eventInfo.startDate;
+        const eventEndTime = eventInfo.endTime || "23:59"; // Default to end of day if no end time
+        
+        const eventEndDateTime = new Date(`${eventEndDate}T${eventEndTime}:00`);
+        
+        // Check if this event has expired (end datetime has passed)
+        if (eventEndDateTime <= now) {
+          const result = await this.checkAndMaintainRecurringEventSeries(eventInfo.recurringSeriesId);
+          if (result.maintained && !maintenanceTriggered.includes(eventInfo.recurringSeriesId)) {
+            maintenanceTriggered.push(eventInfo.recurringSeriesId);
+          }
         }
       }
     }
