@@ -642,7 +642,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Event routes
-  // Maintenance endpoint for recurring events
+  // Event-driven maintenance endpoint (checks expired events)
+  app.post('/api/events/check-expired', isAuthenticated, async (req: any, res) => {
+    try {
+      const result = await storage.checkExpiredRecurringEvents();
+      res.json({ 
+        message: `Checked expired events, triggered maintenance for ${result.maintenanceTriggered.length} series`,
+        maintenanceTriggered: result.maintenanceTriggered 
+      });
+    } catch (error) {
+      console.error("Error checking expired recurring events:", error);
+      res.status(500).json({ message: "Failed to check expired recurring events" });
+    }
+  });
+
+  // Manual maintenance endpoint for recurring events (fallback)
   app.post('/api/events/maintain-recurring', isAuthenticated, async (req: any, res) => {
     try {
       const result = await storage.maintainRecurringEvents();
@@ -699,6 +713,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/events', isAuthenticated, async (req: any, res) => {
     try {
       const userId = (req.user as any).claims.sub;
+      
+      // Check for expired recurring events and trigger maintenance if needed
+      await storage.checkExpiredRecurringEvents();
+      
       const events = await storage.getUserEvents(userId);
       res.json(events);
     } catch (error) {

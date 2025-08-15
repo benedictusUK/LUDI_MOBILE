@@ -541,6 +541,36 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
+  // Check for expired recurring events and trigger maintenance
+  async checkExpiredRecurringEvents(): Promise<{ maintenanceTriggered: string[] }> {
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    // Find events that expired yesterday and belong to recurring series
+    const expiredRecurringEvents = await db
+      .selectDistinct({ recurringSeriesId: events.recurringSeriesId })
+      .from(events)
+      .where(and(
+        isNotNull(events.recurringSeriesId),
+        ne(events.recurrenceType, "none"),
+        eq(events.startDate, yesterday.toISOString().split('T')[0])
+      ));
+
+    const maintenanceTriggered: string[] = [];
+
+    for (const expiredEvent of expiredRecurringEvents) {
+      if (expiredEvent.recurringSeriesId) {
+        const result = await this.checkAndMaintainRecurringEventSeries(expiredEvent.recurringSeriesId);
+        if (result.maintained) {
+          maintenanceTriggered.push(expiredEvent.recurringSeriesId);
+        }
+      }
+    }
+
+    return { maintenanceTriggered };
+  }
+
   async getUserEvents(userId: string): Promise<any[]> {
     // Get events where user's team is the primary team
     const primaryTeamEvents = await db
@@ -2393,6 +2423,71 @@ export class DatabaseStorage implements IStorage {
     return createdEvents;
   }
 
+  // Check if a recurring event series needs maintenance (triggered by event expiry)
+  async checkAndMaintainRecurringEventSeries(recurringSeriesId: string): Promise<{ maintained: boolean; created: number }> {
+    let totalCreatedEvents = 0;
+
+    // Get series information from the first event
+    const seriesEvents = await db
+      .select()
+      .from(events)
+      .where(eq(events.recurringSeriesId, recurringSeriesId))
+      .orderBy(asc(events.startDate));
+
+    if (seriesEvents.length === 0) {
+      return { maintained: false, created: 0 };
+    }
+
+    const firstEvent = seriesEvents[0];
+    const lastEvent = seriesEvents[seriesEvents.length - 1];
+    const lastEventDate = new Date(lastEvent.startDate);
+    
+    const today = new Date();
+    const fourWeeksFromNow = new Date();
+    fourWeeksFromNow.setDate(today.getDate() + (4 * 7));
+
+    // Check if we need to create more events (if latest event is less than 4 weeks away)
+    if (lastEventDate < fourWeeksFromNow) {
+      // Create a template event from the series info
+      const templateEvent: InsertEvent = {
+        name: firstEvent.name,
+        location: firstEvent.location,
+        startDate: new Date(lastEventDate.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Start from day after last event
+        endDate: null,
+        startTime: firstEvent.startTime,
+        endTime: firstEvent.endTime,
+        primaryTeamId: firstEvent.primaryTeamId,
+        recurrenceType: firstEvent.recurrenceType || "none",
+        recurrenceDaysOfWeek: firstEvent.recurrenceDaysOfWeek || [],
+        isPublished: firstEvent.isPublished,
+        createdById: firstEvent.createdById
+      };
+
+      // Generate new events to maintain 4 weeks ahead
+      const newEvents = await this.createRecurringEvents(templateEvent, 4);
+      totalCreatedEvents += newEvents.length;
+
+      // Copy event teams associations from the first event in the series
+      const eventTeamsAssociations = await db
+        .select()
+        .from(eventTeams)
+        .where(eq(eventTeams.eventId, firstEvent.id));
+
+      // Add same team associations to all new events
+      for (const newEvent of newEvents) {
+        for (const teamAssoc of eventTeamsAssociations) {
+          if (teamAssoc.teamId) {
+            await this.addEventTeam(newEvent.id, teamAssoc.teamId);
+          }
+        }
+      }
+
+      return { maintained: true, created: totalCreatedEvents };
+    }
+
+    return { maintained: false, created: 0 };
+  }
+
   // Maintenance function to ensure recurring events are always available 4 weeks ahead
   async maintainRecurringEvents(): Promise<{ maintained: number; created: number }> {
     let maintainedSeries = 0;
@@ -2475,7 +2570,9 @@ export class DatabaseStorage implements IStorage {
           // Add same team associations to all new events
           for (const newEvent of newEvents) {
             for (const teamAssoc of eventTeamsAssociations) {
-              await this.addEventTeam(newEvent.id, teamAssoc.teamId);
+              if (teamAssoc.teamId) {
+                await this.addEventTeam(newEvent.id, teamAssoc.teamId);
+              }
             }
           }
         }

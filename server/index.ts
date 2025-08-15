@@ -61,23 +61,23 @@ app.use((req, res, next) => {
   // Other ports are firewalled. Default to 5000 if not specified.
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
-  // Schedule recurring events maintenance to run every hour
-  const runRecurringEventsMaintenance = async () => {
+  // Event-driven maintenance check (runs daily instead of hourly to save compute)
+  const checkExpiredRecurringEvents = async () => {
     try {
-      const result = await storage.maintainRecurringEvents();
-      if (result.created > 0) {
-        log(`Maintenance: Created ${result.created} events for ${result.maintained} recurring series`);
+      const result = await storage.checkExpiredRecurringEvents();
+      if (result.maintenanceTriggered.length > 0) {
+        log(`Event-driven maintenance: Triggered for ${result.maintenanceTriggered.length} series`);
       }
     } catch (error) {
-      console.error("Error in scheduled recurring events maintenance:", error);
+      console.error("Error in event-driven recurring events check:", error);
     }
   };
 
-  // Run maintenance every hour (3600000 ms)
-  setInterval(runRecurringEventsMaintenance, 3600000);
+  // Run expired events check once daily (24 hours = 86400000 ms) - much more efficient
+  setInterval(checkExpiredRecurringEvents, 86400000);
   
-  // Run maintenance once on startup after a 10-second delay
-  setTimeout(runRecurringEventsMaintenance, 10000);
+  // Run initial check on startup after a 10-second delay
+  setTimeout(checkExpiredRecurringEvents, 10000);
 
   const port = parseInt(process.env.PORT || '5000', 10);
   server.listen({
