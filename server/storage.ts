@@ -2613,6 +2613,7 @@ export class DatabaseStorage implements IStorage {
       // Create a template event from the series info
       const templateEvent: InsertEvent = {
         name: firstEvent.name,
+        sport: firstEvent.sport,
         location: firstEvent.location,
         startDate: new Date(lastEventDate.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Start from day after last event
         endDate: null,
@@ -2622,7 +2623,14 @@ export class DatabaseStorage implements IStorage {
         recurrenceType: firstEvent.recurrenceType || "none",
         recurrenceDaysOfWeek: firstEvent.recurrenceDaysOfWeek || [],
         isPublished: firstEvent.isPublished,
-        createdById: firstEvent.createdById
+        createdById: firstEvent.createdById,
+        gender: firstEvent.gender || "mixed",
+        cost: firstEvent.cost || 0,
+        requirements: firstEvent.requirements || null,
+        address: firstEvent.address || null,
+        postcode: firstEvent.postcode || null,
+        maxParticipants: firstEvent.maxParticipants || null,
+        reserveSpots: firstEvent.reserveSpots || 0
       };
 
       // Generate new events to maintain 4 weeks ahead
@@ -2664,10 +2672,18 @@ export class DatabaseStorage implements IStorage {
         primaryTeamId: events.primaryTeamId,
         createdById: events.createdById,
         name: events.name,
+        sport: events.sport,
         location: events.location,
         startTime: events.startTime,
         endTime: events.endTime,
-        isPublished: events.isPublished
+        isPublished: events.isPublished,
+        gender: events.gender,
+        cost: events.cost,
+        requirements: events.requirements,
+        address: events.address,
+        postcode: events.postcode,
+        maxParticipants: events.maxParticipants,
+        reserveSpots: events.reserveSpots
       })
       .from(events)
       .where(and(
@@ -2699,6 +2715,7 @@ export class DatabaseStorage implements IStorage {
         // Create a template event from the series info
         const templateEvent: InsertEvent = {
           name: series.name!,
+          sport: series.sport!,
           location: series.location,
           startDate: new Date(lastEventDate.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Start from day after last event
           endDate: null,
@@ -2708,7 +2725,14 @@ export class DatabaseStorage implements IStorage {
           recurrenceType: series.recurrenceType || "none",
           recurrenceDaysOfWeek: series.recurrenceDaysOfWeek || [],
           isPublished: series.isPublished,
-          createdById: series.createdById
+          createdById: series.createdById,
+          gender: series.gender || "mixed",
+          cost: series.cost || 0,
+          requirements: series.requirements || null,
+          address: series.address || null,
+          postcode: series.postcode || null,
+          maxParticipants: series.maxParticipants || null,
+          reserveSpots: series.reserveSpots || 0
         };
 
         // Generate new events to maintain 4 weeks ahead
