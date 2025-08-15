@@ -16,6 +16,7 @@ import { Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { FlareGunModal } from "@/components/ui/flare-gun-modal";
 import { ReservePlayersManager } from "@/components/ui/reserve-players-manager";
+import { EventPayment } from "@/components/event-payment";
 
 export default function EventDetails() {
   useScrollToTop();
@@ -403,6 +404,21 @@ export default function EventDetails() {
                       </>
                     )}
                   </div>
+
+                  {/* Payment Section - Shows when user has voted to attend and event has cost */}
+                  {userAttendance?.status === "attending" && eventData.cost && parseFloat(eventData.cost) > 0 && (
+                    <EventPayment
+                      eventId={eventId!}
+                      eventName={eventData.name}
+                      eventCost={parseFloat(eventData.cost)}
+                      userId={(user as any)?.id}
+                      hasVotedAttending={true}
+                      onPaymentSuccess={() => {
+                        // Refresh event data after successful payment setup
+                        queryClient.invalidateQueries({ queryKey: ["/api/events", eventId] });
+                      }}
+                    />
+                  )}
 
                   {/* Voting Progress Bars */}
                   <div className="space-y-4">

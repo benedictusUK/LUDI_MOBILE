@@ -1520,6 +1520,252 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Payment endpoints for Stripe holds/reserved payments
+  
+  // Create SetupIntent when user votes to attend (payment setup)
+  app.post('/api/payments/setup-intent', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = (req.user as any).claims.sub;
+      const { eventId } = req.body;
+
+      if (!eventId) {
+        return res.status(400).json({ error: "Event ID is required" });
+      }
+
+      // Get or create Stripe customer
+      let user = await storage.getUserById(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      let customerId = user.stripeCustomerId;
+      if (!customerId) {
+        const customer = await stripe.customers.create({
+          email: user.email,
+          name: `${user.firstName} ${user.lastName}`,
+          metadata: { userId }
+        });
+        customerId = customer.id;
+        await storage.updateUserStripeCustomerId(userId, customerId);
+      }
+
+      // Create SetupIntent for future payments
+      const setupIntent = await stripe.setupIntents.create({
+        customer: customerId,
+        usage: 'off_session',
+        payment_method_types: ['card']
+      });
+
+      // Store in database
+      await storage.createEventPayment({
+        eventId,
+        userId,
+        stripeCustomerId: customerId,
+        setupIntentId: setupIntent.id,
+        setupIntentStatus: setupIntent.status,
+        status: 'setup_pending'
+      });
+
+      res.json({ clientSecret: setupIntent.client_secret });
+    } catch (error: any) {
+      console.error('Setup intent error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Confirm SetupIntent and store payment method
+  app.post('/api/payments/confirm-setup', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = (req.user as any).claims.sub;
+      const { eventId, setupIntentId } = req.body;
+
+      if (!eventId || !setupIntentId) {
+        return res.status(400).json({ error: "Event ID and Setup Intent ID are required" });
+      }
+
+      const setupIntent = await stripe.setupIntents.retrieve(setupIntentId);
+      
+      if (setupIntent.status === 'succeeded') {
+        await storage.updateEventPaymentSetup(eventId, userId, {
+          setupIntentStatus: 'succeeded',
+          paymentMethodId: setupIntent.payment_method as string,
+          status: 'setup_complete'
+        });
+        
+        res.json({ success: true });
+      } else {
+        res.json({ success: false, status: setupIntent.status });
+      }
+    } catch (error: any) {
+      console.error('Setup confirm error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Create PaymentIntent with hold (48h before event)
+  app.post('/api/payments/create-hold', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = (req.user as any).claims.sub;
+      const { eventId } = req.body;
+
+      // Get event payment setup
+      const eventPayment = await storage.getEventPayment(eventId, userId);
+      if (!eventPayment || eventPayment.status !== 'setup_complete') {
+        return res.status(400).json({ error: "Payment setup not complete" });
+      }
+
+      // Get event details for amount
+      const event = await storage.getEventById(eventId);
+      if (!event || !event.paymentRequired || !event.maxPlayerPayment) {
+        return res.status(400).json({ error: "Event payment not configured" });
+      }
+
+      const holdAmount = Math.round(parseFloat(event.maxPlayerPayment) * 100); // Convert to cents
+
+      // Create PaymentIntent with manual capture
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: holdAmount,
+        currency: 'gbp',
+        customer: eventPayment.stripeCustomerId!,
+        payment_method: eventPayment.paymentMethodId!,
+        off_session: true,
+        capture_method: 'manual',
+        confirmation_method: 'automatic',
+        confirm: true,
+        metadata: { eventId, userId }
+      });
+
+      // Update event payment record
+      await storage.updateEventPaymentHold(eventId, userId, {
+        paymentIntentId: paymentIntent.id,
+        paymentIntentStatus: paymentIntent.status,
+        holdAmount: event.maxPlayerPayment,
+        status: 'hold_created',
+        holdCreatedAt: new Date().toISOString()
+      });
+
+      res.json({ success: true, paymentIntentId: paymentIntent.id });
+    } catch (error: any) {
+      console.error('Create hold error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Capture payment post-event (partial or full)
+  app.post('/api/payments/capture', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = (req.user as any).claims.sub;
+      const { eventId, finalAmount } = req.body;
+
+      if (!eventId || !finalAmount) {
+        return res.status(400).json({ error: "Event ID and final amount are required" });
+      }
+
+      // Check user has admin permissions for this event
+      const userRole = await storage.getUserEventRole(userId, eventId);
+      if (!userRole || !['owner', 'admin', 'captain'].includes(userRole)) {
+        return res.status(403).json({ error: "Insufficient permissions" });
+      }
+
+      // Get all attendees with payment holds
+      const attendees = await storage.getEventAttendeesWithPayments(eventId);
+      const results = [];
+
+      for (const attendee of attendees) {
+        if (attendee.eventPayment && attendee.eventPayment.paymentIntentId && attendee.eventPayment.status === 'hold_created') {
+          try {
+            const captureAmount = Math.round(parseFloat(finalAmount) * 100); // Convert to cents
+            
+            const paymentIntent = await stripe.paymentIntents.capture(
+              attendee.eventPayment.paymentIntentId,
+              { amount_to_capture: captureAmount }
+            );
+
+            // Update payment record
+            await storage.updateEventPaymentCapture(eventId, attendee.userId, {
+              paymentIntentStatus: paymentIntent.status,
+              finalAmount: finalAmount,
+              status: 'captured',
+              capturedAt: new Date().toISOString()
+            });
+
+            results.push({ userId: attendee.userId, success: true });
+          } catch (error: any) {
+            console.error(`Capture failed for user ${attendee.userId}:`, error);
+            results.push({ userId: attendee.userId, success: false, error: error.message });
+          }
+        }
+      }
+
+      // Update event payment status
+      await storage.updateEventPaymentStatus(eventId, 'captured');
+
+      res.json({ results, totalProcessed: results.length });
+    } catch (error: any) {
+      console.error('Capture payments error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Cancel payment hold (when user unvotes)
+  app.post('/api/payments/cancel-hold', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = (req.user as any).claims.sub;
+      const { eventId } = req.body;
+
+      if (!eventId) {
+        return res.status(400).json({ error: "Event ID is required" });
+      }
+
+      const eventPayment = await storage.getEventPayment(eventId, userId);
+      if (!eventPayment || !eventPayment.paymentIntentId) {
+        return res.status(400).json({ error: "No payment hold found" });
+      }
+
+      // Cancel the PaymentIntent
+      await stripe.paymentIntents.cancel(eventPayment.paymentIntentId);
+
+      // Update payment record
+      await storage.updateEventPaymentCancel(eventId, userId, {
+        paymentIntentStatus: 'canceled',
+        status: 'cancelled'
+      });
+
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('Cancel hold error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get payment status for event
+  app.get('/api/payments/event/:eventId/status', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = (req.user as any).claims.sub;
+      const { eventId } = req.params;
+
+      const eventPayment = await storage.getEventPayment(eventId, userId);
+      const event = await storage.getEventById(eventId);
+
+      res.json({
+        event: {
+          paymentRequired: event?.paymentRequired || false,
+          maxPlayerPayment: event?.maxPlayerPayment || null,
+          paymentStatus: event?.paymentStatus || 'none'
+        },
+        userPayment: eventPayment ? {
+          status: eventPayment.status,
+          setupComplete: eventPayment.status === 'setup_complete' || eventPayment.status === 'hold_created' || eventPayment.status === 'captured',
+          holdCreated: eventPayment.status === 'hold_created' || eventPayment.status === 'captured',
+          captured: eventPayment.status === 'captured'
+        } : null
+      });
+    } catch (error: any) {
+      console.error('Get payment status error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Stripe webhook (for handling payment confirmations)
   app.post('/api/stripe/webhook', async (req, res) => {
     const sig = req.headers['stripe-signature'];

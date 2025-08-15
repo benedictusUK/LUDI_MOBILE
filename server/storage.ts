@@ -7,6 +7,7 @@ import {
   notifications,
   eventAttendance,
   payments,
+  eventPayments,
   notificationPreferences,
   activityLogs,
   blockedMembers,
@@ -26,6 +27,8 @@ import {
   type InsertEventAttendance,
   type Payment,
   type InsertPayment,
+  type EventPayment,
+  type InsertEventPayment,
   type NotificationPreferences,
   type InsertNotificationPreferences,
   type ActivityLog,
@@ -48,11 +51,13 @@ import { randomUUID } from "crypto";
 export interface IStorage {
   // User operations (required for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
+  getUserById(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   searchUsers(query: string, excludeUserIds?: string[]): Promise<User[]>;
   upsertUser(user: UpsertUser): Promise<User>;
   upsertAuthUser(user: AuthUser): Promise<User>;
   updateUserStripeInfo(userId: string, stripeCustomerId: string, stripeSubscriptionId?: string): Promise<User>;
+  updateUserStripeCustomerId(userId: string, customerId: string): Promise<User>;
   updateUserProfile(userId: string, profileData: UpdateProfile): Promise<User>;
   completeUserProfile(userId: string, profileData: ProfileCompletion): Promise<User>;
   checkUsernameAvailability(username: string, excludeUserId?: string): Promise<boolean>;
@@ -80,11 +85,13 @@ export interface IStorage {
   // Event operations
   createEvent(event: InsertEvent): Promise<Event>;
   getEvent(id: string): Promise<Event | undefined>;
+  getEventById(id: string): Promise<Event | undefined>;
   getUserEvents(userId: string): Promise<Event[]>;
   getTeamEvents(teamId: string): Promise<Event[]>;
   updateEvent(id: string, updates: Partial<InsertEvent>): Promise<Event>;
   deleteEvent(id: string): Promise<void>;
   addEventTeam(eventId: string, teamId: string): Promise<EventTeam>;
+  getUserEventRole(userId: string, eventId: string): Promise<string | null>;
 
   // Recurring event operations
   createRecurringEvents(parentEvent: InsertEvent, numberOfWeeks?: number): Promise<Event[]>;
@@ -116,6 +123,17 @@ export interface IStorage {
   getUserPayments(userId: string): Promise<Payment[]>;
   getEventPayments(eventId: string): Promise<(Payment & { user: User })[]>;
   updatePaymentStatus(paymentId: string, status: string, stripePaymentIntentId?: string): Promise<Payment>;
+  
+  // Event payment operations (Stripe holds/reserved payments)
+  createEventPayment(eventPayment: InsertEventPayment): Promise<EventPayment>;
+  getEventPayment(eventId: string, userId: string): Promise<EventPayment | undefined>;
+  updateEventPaymentSetup(eventId: string, userId: string, updates: Partial<EventPayment>): Promise<EventPayment>;
+  updateEventPaymentHold(eventId: string, userId: string, updates: Partial<EventPayment>): Promise<EventPayment>;
+  updateEventPaymentCapture(eventId: string, userId: string, updates: Partial<EventPayment>): Promise<EventPayment>;
+  updateEventPaymentCancel(eventId: string, userId: string, updates: Partial<EventPayment>): Promise<EventPayment>;
+  updateEventPaymentStatus(eventId: string, status: string): Promise<void>;
+  getEventAttendeesWithPayments(eventId: string): Promise<Array<{ userId: string; eventPayment?: EventPayment }>>;
+
 
   // Notification operations
   createNotification(notification: InsertNotification): Promise<Notification>;
@@ -259,6 +277,11 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  async getUserById(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
   async updateUserStripeInfo(userId: string, stripeCustomerId: string, stripeSubscriptionId?: string): Promise<User> {
     const updates: any = { stripeCustomerId, updatedAt: new Date() };
     if (stripeSubscriptionId) {
@@ -268,6 +291,18 @@ export class DatabaseStorage implements IStorage {
     const [user] = await db
       .update(users)
       .set(updates)
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  async updateUserStripeCustomerId(userId: string, customerId: string): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({
+        stripeCustomerId: customerId,
+        updatedAt: new Date(),
+      })
       .where(eq(users.id, userId))
       .returning();
     return user;
@@ -771,6 +806,33 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return eventTeam;
+  }
+
+  async getEventById(id: string): Promise<Event | undefined> {
+    const [event] = await db.select().from(events).where(eq(events.id, id));
+    return event;
+  }
+
+  async getUserEventRole(userId: string, eventId: string): Promise<string | null> {
+    // Get the event to find the primary team
+    const event = await this.getEvent(eventId);
+    if (!event) return null;
+
+    // Check if user is the event creator
+    if (event.createdById === userId) return 'owner';
+
+    // Get user's role in the primary team
+    const membership = await db
+      .select({ role: teamMemberships.role })
+      .from(teamMemberships)
+      .where(
+        and(
+          eq(teamMemberships.teamId, event.primaryTeamId),
+          eq(teamMemberships.userId, userId)
+        )
+      );
+
+    return membership[0]?.role || null;
   }
 
   // Notification operations
@@ -2962,6 +3024,142 @@ export class DatabaseStorage implements IStorage {
       // Delete only this single event
       await this.deleteEvent(eventId);
     }
+  }
+
+  // Event payment methods for Stripe holds/reserved payments
+  async createEventPayment(eventPaymentData: InsertEventPayment): Promise<EventPayment> {
+    const [eventPayment] = await db
+      .insert(eventPayments)
+      .values({
+        id: randomUUID(),
+        ...eventPaymentData,
+      })
+      .returning();
+    return eventPayment;
+  }
+
+  async getEventPayment(eventId: string, userId: string): Promise<EventPayment | undefined> {
+    const [eventPayment] = await db
+      .select()
+      .from(eventPayments)
+      .where(
+        and(
+          eq(eventPayments.eventId, eventId),
+          eq(eventPayments.userId, userId)
+        )
+      );
+    return eventPayment;
+  }
+
+  async updateEventPaymentSetup(eventId: string, userId: string, updates: Partial<EventPayment>): Promise<EventPayment> {
+    const [eventPayment] = await db
+      .update(eventPayments)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(eventPayments.eventId, eventId),
+          eq(eventPayments.userId, userId)
+        )
+      )
+      .returning();
+    return eventPayment;
+  }
+
+  async updateEventPaymentHold(eventId: string, userId: string, updates: Partial<EventPayment>): Promise<EventPayment> {
+    const [eventPayment] = await db
+      .update(eventPayments)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(eventPayments.eventId, eventId),
+          eq(eventPayments.userId, userId)
+        )
+      )
+      .returning();
+    return eventPayment;
+  }
+
+  async updateEventPaymentCapture(eventId: string, userId: string, updates: Partial<EventPayment>): Promise<EventPayment> {
+    const [eventPayment] = await db
+      .update(eventPayments)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(eventPayments.eventId, eventId),
+          eq(eventPayments.userId, userId)
+        )
+      )
+      .returning();
+    return eventPayment;
+  }
+
+  async updateEventPaymentCancel(eventId: string, userId: string, updates: Partial<EventPayment>): Promise<EventPayment> {
+    const [eventPayment] = await db
+      .update(eventPayments)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(eventPayments.eventId, eventId),
+          eq(eventPayments.userId, userId)
+        )
+      )
+      .returning();
+    return eventPayment;
+  }
+
+  async updateEventPaymentStatus(eventId: string, status: string): Promise<void> {
+    await db
+      .update(events)
+      .set({
+        paymentStatus: status,
+        updatedAt: new Date(),
+      })
+      .where(eq(events.id, eventId));
+  }
+
+  async getEventAttendeesWithPayments(eventId: string): Promise<Array<{ userId: string; eventPayment?: EventPayment }>> {
+    // Get all attendees for the event
+    const attendees = await db
+      .select({
+        userId: eventAttendance.userId,
+        status: eventAttendance.status,
+      })
+      .from(eventAttendance)
+      .where(
+        and(
+          eq(eventAttendance.eventId, eventId),
+          eq(eventAttendance.status, "attending")
+        )
+      );
+
+    // Get event payments for these users
+    const eventPaymentsData = await db
+      .select()
+      .from(eventPayments)
+      .where(eq(eventPayments.eventId, eventId));
+
+    // Combine the data
+    const result = attendees.map(attendee => {
+      const eventPayment = eventPaymentsData.find(ep => ep.userId === attendee.userId);
+      return {
+        userId: attendee.userId,
+        eventPayment: eventPayment || undefined
+      };
+    });
+
+    return result;
   }
 }
 

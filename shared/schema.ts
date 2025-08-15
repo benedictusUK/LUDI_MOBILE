@@ -171,6 +171,13 @@ export const events = pgTable("events", {
   recurringSeriesId: varchar("recurring_series_id"), // Groups all events in a recurring series
   isRecurringSuspended: boolean("is_recurring_suspended").default(false), // For pausing recurrence
   parentEventId: varchar("parent_event_id"), // Self-reference handled in relations
+  
+  // Payment fields for Stripe integration
+  paymentRequired: boolean("payment_required").default(false),
+  maxPlayerPayment: decimal("max_player_payment", { precision: 10, scale: 2 }), // buffer amount for holds
+  finalVenueCost: decimal("final_venue_cost", { precision: 10, scale: 2 }), // actual cost set post-event
+  paymentStatus: varchar("payment_status", { enum: ["none", "setup", "holds_created", "captured", "refunded"] }).default("none"),
+  
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -224,6 +231,30 @@ export const payments = pgTable("payments", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+// Event payments tracking for Stripe holds/reserved payments
+export const eventPayments = pgTable("event_payments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  eventId: varchar("event_id").notNull().references(() => events.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  stripeCustomerId: varchar("stripe_customer_id"),
+  setupIntentId: varchar("setup_intent_id"), // for storing payment method
+  setupIntentStatus: varchar("setup_intent_status", { enum: ["requires_payment_method", "requires_confirmation", "succeeded", "canceled"] }),
+  paymentMethodId: varchar("payment_method_id"), // stored payment method from setup intent
+  paymentIntentId: varchar("payment_intent_id"), // for the hold/reserved payment
+  paymentIntentStatus: varchar("payment_intent_status", { enum: ["requires_payment_method", "requires_confirmation", "requires_action", "processing", "requires_capture", "canceled", "succeeded"] }),
+  holdAmount: decimal("hold_amount", { precision: 10, scale: 2 }), // max amount held (with buffer)
+  finalAmount: decimal("final_amount", { precision: 10, scale: 2 }), // actual amount captured
+  refundAmount: decimal("refund_amount", { precision: 10, scale: 2 }), // amount refunded if any
+  status: varchar("status", { enum: ["setup_pending", "setup_complete", "hold_created", "captured", "refunded", "cancelled"] }).default("setup_pending"),
+  holdCreatedAt: timestamp("hold_created_at"), // when 48h payment intent was created
+  capturedAt: timestamp("captured_at"), // when payment was captured post-event
+  refundedAt: timestamp("refunded_at"), // when refund was processed
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  unique().on(table.eventId, table.userId) // one payment tracking record per user per event
+]);
 
 // Notifications table
 export const notifications = pgTable("notifications", {
@@ -286,6 +317,7 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   notifications: many(notifications),
   eventAttendance: many(eventAttendance),
   payments: many(payments),
+  eventPayments: many(eventPayments),
   notificationPreferences: one(notificationPreferences),
   flareResponses: many(flareResponses),
   userEvents: many(userEvents),
@@ -354,6 +386,7 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
   eventTeams: many(eventTeams),
   attendance: many(eventAttendance),
   payments: many(payments),
+  eventPayments: many(eventPayments),
   flareResponses: many(flareResponses),
   userEvents: many(userEvents),
 }));
@@ -376,6 +409,17 @@ export const eventAttendanceRelations = relations(eventAttendance, ({ one }) => 
   }),
   user: one(users, {
     fields: [eventAttendance.userId],
+    references: [users.id],
+  }),
+}));
+
+export const eventPaymentsRelations = relations(eventPayments, ({ one }) => ({
+  event: one(events, {
+    fields: [eventPayments.eventId],
+    references: [events.id],
+  }),
+  user: one(users, {
+    fields: [eventPayments.userId],
     references: [users.id],
   }),
 }));
@@ -566,6 +610,17 @@ export const insertEventSchema = createInsertSchema(events).omit({
   recurrenceDaysOfWeek: z.array(z.string()).default([]),
   recurringSeriesId: z.string().optional(),
   isRecurringSuspended: z.boolean().default(false),
+  // Payment fields
+  paymentRequired: z.boolean().default(false),
+  maxPlayerPayment: z.union([z.string(), z.number()]).optional().transform((val) => {
+    if (typeof val === 'number') return val.toString();
+    return val || null;
+  }),
+  finalVenueCost: z.union([z.string(), z.number()]).optional().transform((val) => {
+    if (typeof val === 'number') return val.toString();
+    return val || null;
+  }),
+  paymentStatus: z.enum(["none", "setup", "holds_created", "captured", "refunded"]).default("none"),
 });
 
 export const insertEventAttendanceSchema = createInsertSchema(eventAttendance).omit({
@@ -595,6 +650,12 @@ export const insertActivityLogSchema = createInsertSchema(activityLogs).omit({
   timestamp: true,
 });
 
+export const insertEventPaymentSchema = createInsertSchema(eventPayments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types
 export type UpsertUser = z.infer<typeof insertUserSchema>;
 export type AuthUser = z.infer<typeof authUserSchema>;
@@ -617,6 +678,8 @@ export type NotificationPreferences = typeof notificationPreferences.$inferSelec
 export type ActivityLog = typeof activityLogs.$inferSelect;
 export type InsertActivityLog = z.infer<typeof insertActivityLogSchema>;
 export type InsertNotificationPreferences = z.infer<typeof insertNotificationPreferencesSchema>;
+export type EventPayment = typeof eventPayments.$inferSelect;
+export type InsertEventPayment = z.infer<typeof insertEventPaymentSchema>;
 
 export const insertBlockedMemberSchema = createInsertSchema(blockedMembers).omit({
   id: true,
