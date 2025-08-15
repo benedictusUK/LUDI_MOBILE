@@ -1351,6 +1351,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Initialize payment setup for event (creates SetupIntent)
+  app.post('/api/events/:id/payment-setup', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = (req.user as any).claims.sub;
+      const eventId = req.params.id;
+
+      // Get or create Stripe customer
+      let user = await storage.getUserById(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      let customerId = user.stripeCustomerId;
+      if (!customerId) {
+        const customer = await stripe.customers.create({
+          email: user.email,
+          name: `${user.firstName} ${user.lastName}`,
+          metadata: { userId }
+        });
+        customerId = customer.id;
+        await storage.updateUserStripeCustomerId(userId, customerId);
+      }
+
+      // Check if payment record already exists
+      let eventPayment = await storage.getEventPaymentByUser(eventId, userId);
+      
+      if (eventPayment && eventPayment.status === 'setup_complete') {
+        return res.json({ status: 'already_complete' });
+      }
+
+      // Create SetupIntent for future payments
+      const setupIntent = await stripe.setupIntents.create({
+        customer: customerId,
+        usage: 'off_session',
+        payment_method_types: ['card']
+      });
+
+      // Store or update in database
+      if (eventPayment) {
+        await storage.updateEventPaymentSetup(eventId, userId, {
+          setupIntentId: setupIntent.id,
+          setupIntentStatus: setupIntent.status as "requires_payment_method" | "requires_confirmation" | "succeeded" | "canceled",
+          setupIntentClientSecret: setupIntent.client_secret,
+          status: 'setup_pending'
+        });
+      } else {
+        await storage.createEventPayment({
+          eventId,
+          userId,
+          stripeCustomerId: customerId,
+          setupIntentId: setupIntent.id,
+          setupIntentStatus: setupIntent.status as "requires_payment_method" | "requires_confirmation" | "succeeded" | "canceled",
+          setupIntentClientSecret: setupIntent.client_secret,
+          status: 'setup_pending'
+        });
+      }
+
+      res.json({ clientSecret: setupIntent.client_secret, status: 'setup_pending' });
+    } catch (error: any) {
+      console.error('Payment setup error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Flare gun routes - for advertising events to nearby users
   app.post('/api/events/:id/flare', isAuthenticated, async (req: any, res) => {
     try {
@@ -1593,7 +1657,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
         stripeCustomerId: customerId,
         setupIntentId: setupIntent.id,
-        setupIntentStatus: setupIntent.status,
+        setupIntentStatus: setupIntent.status as "requires_payment_method" | "requires_confirmation" | "succeeded" | "canceled",
         status: 'setup_pending'
       });
 
