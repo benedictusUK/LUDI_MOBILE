@@ -65,6 +65,13 @@ export interface IStorage {
   addTeamMember(teamId: string, userId: string, role?: string): Promise<TeamMembership>;
   removeTeamMember(teamId: string, userId: string): Promise<void>;
   getTeamMembers(teamId: string): Promise<(TeamMembership & { user: User })[]>;
+  getTeamStats(teamId: string, userId: string): Promise<{
+    eventsThisMonth: number;
+    pendingRequests: number;
+    totalMembers: number;
+    totalEvents: number;
+  }>;
+  getTeamPendingRequests(teamId: string): Promise<(TeamInvitation & { user: User })[]>;
   updateTeam(id: string, updates: Partial<InsertTeam>): Promise<Team>;
   updateTeamImage(teamId: string, userId: string, imagePath: string): Promise<void>;
   deleteTeam(id: string): Promise<void>;
@@ -1539,11 +1546,11 @@ export class DatabaseStorage implements IStorage {
       throw new Error("User is already a member of this team");
     }
 
-    // Update the team invitation status to approved
+    // Update the team invitation status to accepted
     await db
       .update(teamInvitations)
       .set({ 
-        status: "approved",
+        status: "accepted",
         respondedAt: new Date()
       })
       .where(and(
@@ -1595,11 +1602,11 @@ export class DatabaseStorage implements IStorage {
       throw new Error("Not authorized to reject join requests");
     }
 
-    // Update the team invitation status to rejected
+    // Update the team invitation status to declined
     await db
       .update(teamInvitations)
       .set({ 
-        status: "rejected",
+        status: "declined",
         respondedAt: new Date()
       })
       .where(and(
@@ -1656,6 +1663,94 @@ export class DatabaseStorage implements IStorage {
     }
 
     return admins;
+  }
+
+  // Get team-specific statistics
+  async getTeamStats(teamId: string, userId: string): Promise<{
+    eventsThisMonth: number;
+    pendingRequests: number;
+    totalMembers: number;
+    totalEvents: number;
+  }> {
+    const now = new Date();
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+    // Get events this month for the team
+    const eventsThisMonth = await db
+      .select({ count: count() })
+      .from(events)
+      .leftJoin(eventTeams, eq(events.id, eventTeams.eventId))
+      .where(
+        and(
+          or(
+            eq(events.primaryTeamId, teamId),
+            eq(eventTeams.teamId, teamId)
+          ),
+          eq(events.isPublished, true),
+          sql`${events.startDate} >= ${firstDayOfMonth.toISOString().split('T')[0]}`,
+          sql`${events.startDate} <= ${lastDayOfMonth.toISOString().split('T')[0]}`
+        )
+      );
+
+    // Get pending join requests for the team
+    const pendingRequests = await db
+      .select({ count: count() })
+      .from(teamInvitations)
+      .where(
+        and(
+          eq(teamInvitations.teamId, teamId),
+          eq(teamInvitations.status, "pending")
+        )
+      );
+
+    // Get total team members
+    const totalMembers = await db
+      .select({ count: count() })
+      .from(teamMemberships)
+      .where(eq(teamMemberships.teamId, teamId));
+
+    // Get total events for the team (all time)
+    const totalEvents = await db
+      .select({ count: count() })
+      .from(events)
+      .leftJoin(eventTeams, eq(events.id, eventTeams.eventId))
+      .where(
+        and(
+          or(
+            eq(events.primaryTeamId, teamId),
+            eq(eventTeams.teamId, teamId)
+          ),
+          eq(events.isPublished, true)
+        )
+      );
+
+    return {
+      eventsThisMonth: eventsThisMonth[0]?.count || 0,
+      pendingRequests: pendingRequests[0]?.count || 0,
+      totalMembers: totalMembers[0]?.count || 0,
+      totalEvents: totalEvents[0]?.count || 0,
+    };
+  }
+
+  // Get pending join requests for a team
+  async getTeamPendingRequests(teamId: string): Promise<(TeamInvitation & { user: User })[]> {
+    const result = await db
+      .select({
+        invitation: teamInvitations,
+        user: users
+      })
+      .from(teamInvitations)
+      .innerJoin(users, eq(teamInvitations.userId, users.id))
+      .where(
+        and(
+          eq(teamInvitations.teamId, teamId),
+          eq(teamInvitations.status, "pending")
+        )
+      )
+      .orderBy(desc(teamInvitations.invitedAt));
+
+    return result.map(r => ({ ...r.invitation, user: r.user }));
   }
 
   // Leave team functionality

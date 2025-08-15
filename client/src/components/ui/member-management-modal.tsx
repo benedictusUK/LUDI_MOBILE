@@ -22,6 +22,8 @@ interface MemberManagementModalProps {
   teamName: string;
   isOwner: boolean;
   isAdmin: boolean;
+  initialTab?: "members" | "pending";
+  pendingRequests?: any[];
 }
 
 export function MemberManagementModal({
@@ -31,11 +33,14 @@ export function MemberManagementModal({
   teamName,
   isOwner,
   isAdmin,
+  initialTab = "members",
+  pendingRequests = [],
 }: MemberManagementModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user: currentUser } = useAuth();
 
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showBlockSearchModal, setShowBlockSearchModal] = useState(false);
 
@@ -148,6 +153,41 @@ export function MemberManagementModal({
     },
   });
 
+  // Approve join request mutation
+  const approveRequestMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const response = await apiRequest("POST", `/api/teams/${teamId}/approve-join`, { userId });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/teams", teamId, "members"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/teams", teamId, "pending-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/teams", teamId, "stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+      toast({ title: "Success", description: "Join request approved successfully" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to approve request", variant: "destructive" });
+    },
+  });
+
+  // Reject join request mutation
+  const rejectRequestMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const response = await apiRequest("POST", `/api/teams/${teamId}/reject-join`, { userId });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/teams", teamId, "pending-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/teams", teamId, "stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+      toast({ title: "Success", description: "Join request rejected" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to reject request", variant: "destructive" });
+    },
+  });
+
   const getRoleIcon = (role: string, isTeamOwner: boolean) => {
     if (isTeamOwner) return <Crown className="h-4 w-4 text-yellow-500" />;
     if (role === "admin") return <Shield className="h-4 w-4 text-blue-500" />;
@@ -181,9 +221,12 @@ export function MemberManagementModal({
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue="members" className="w-full">
-          <TabsList className={`grid w-full ${(isOwner || isAdmin) ? 'grid-cols-3' : 'grid-cols-1'}`}>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className={`grid w-full ${(isOwner || isAdmin) ? (pendingRequests.length > 0 ? 'grid-cols-4' : 'grid-cols-3') : 'grid-cols-1'}`}>
             <TabsTrigger value="members">Members ({(members as any[]).length})</TabsTrigger>
+            {(isOwner || isAdmin) && pendingRequests.length > 0 && (
+              <TabsTrigger value="pending">Pending Requests ({pendingRequests.length})</TabsTrigger>
+            )}
             {(isOwner || isAdmin) && (
               <>
                 <TabsTrigger value="invite">Invite Players</TabsTrigger>
@@ -392,6 +435,69 @@ export function MemberManagementModal({
             </div>
 
 
+          </TabsContent>
+
+          <TabsContent value="pending" className="space-y-4">
+            <div className="space-y-4">
+              {pendingRequests.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">No pending join requests</div>
+              ) : (
+                pendingRequests.map((request: any) => (
+                  <div key={request.id} className="p-4 border rounded-lg bg-yellow-50 space-y-3">
+                    {/* Request Info */}
+                    <div className="flex items-center space-x-3">
+                      <User className="h-4 w-4 text-gray-500" />
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2">
+                          <div>
+                            <div className="font-medium">
+                              {request.user?.firstName && request.user?.lastName 
+                                ? `${request.user.firstName} ${request.user.lastName}`
+                                : request.user?.username || request.user?.email || "Unknown User"
+                              }
+                            </div>
+                            {request.user?.username && (request.user?.firstName || request.user?.lastName) && (
+                              <div className="text-sm text-muted-foreground">
+                                @{request.user.username}
+                              </div>
+                            )}
+                            <div className="text-xs text-muted-foreground">
+                              Requested on {new Date(request.createdAt).toLocaleDateString()}
+                            </div>
+                          </div>
+                          <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">Pending</Badge>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    {(isOwner || isAdmin) && (
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => approveRequestMutation.mutate(request.userId)}
+                          disabled={approveRequestMutation.isPending || rejectRequestMutation.isPending}
+                          className="text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 border-green-200"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          Approve
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => rejectRequestMutation.mutate(request.userId)}
+                          disabled={approveRequestMutation.isPending || rejectRequestMutation.isPending}
+                          className="text-red-600 hover:text-red-700 border-red-200 hover:bg-red-50"
+                        >
+                          <XCircle className="h-4 w-4 mr-1" />
+                          Reject
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
           </TabsContent>
         </Tabs>
 

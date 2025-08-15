@@ -261,6 +261,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get team statistics
+  app.get('/api/teams/:id/stats', isAuthenticated, async (req: any, res) => {
+    try {
+      const teamId = req.params.id;
+      const userId = (req.user as any).claims.sub;
+      const stats = await storage.getTeamStats(teamId, userId);
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching team stats:", error);
+      res.status(500).json({ message: "Failed to fetch team stats" });
+    }
+  });
+
+  // Get team pending join requests
+  app.get('/api/teams/:id/pending-requests', isAuthenticated, async (req: any, res) => {
+    try {
+      const teamId = req.params.id;
+      const pendingRequests = await storage.getTeamPendingRequests(teamId);
+      res.json(pendingRequests);
+    } catch (error) {
+      console.error("Error fetching pending requests:", error);
+      res.status(500).json({ message: "Failed to fetch pending requests" });
+    }
+  });
+
   app.post('/api/teams/:id/members', isAuthenticated, async (req: any, res) => {
     try {
       const { userId, role } = req.body;

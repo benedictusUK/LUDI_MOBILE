@@ -402,6 +402,7 @@ export default function Teams() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showMemberManagement, setShowMemberManagement] = useState(false);
+  const [pendingRequestsTab, setPendingRequestsTab] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -428,6 +429,18 @@ export default function Teams() {
   const { data: teamMembers = [] } = useQuery({
     queryKey: ["/api/teams", selectedTeam?.id, "members"],
     enabled: !!selectedTeam?.id && showMembersModal,
+  });
+
+  // Fetch team statistics
+  const { data: teamStats, isLoading: isStatsLoading } = useQuery({
+    queryKey: ["/api/teams", selectedTeam?.id, "stats"],
+    enabled: !!selectedTeam?.id && showManageModal,
+  });
+
+  // Fetch pending requests
+  const { data: pendingRequests = [], isLoading: isPendingLoading } = useQuery({
+    queryKey: ["/api/teams", selectedTeam?.id, "pending-requests"],
+    enabled: !!selectedTeam?.id && (showMemberManagement || pendingRequestsTab),
   });
 
   // Delete team mutation
@@ -881,12 +894,26 @@ export default function Teams() {
                   <h4 className="text-sm font-medium text-neutral-900 mb-3">Quick Stats</h4>
                   <div className="grid grid-cols-3 gap-4 text-center">
                     <div>
-                      <p className="text-2xl font-bold text-primary">0</p>
+                      <p className="text-2xl font-bold text-primary">
+                        {isStatsLoading ? "..." : teamStats?.eventsThisMonth || 0}
+                      </p>
                       <p className="text-xs text-neutral-500">Events This Month</p>
                     </div>
-                    <div>
-                      <p className="text-2xl font-bold text-secondary">0</p>
-                      <p className="text-xs text-neutral-500">Pending Invites</p>
+                    <div
+                      className="cursor-pointer hover:bg-neutral-100 rounded-lg p-2 transition-colors"
+                      onClick={() => {
+                        if (teamStats?.pendingRequests && teamStats.pendingRequests > 0) {
+                          setPendingRequestsTab(true);
+                          setShowMemberManagement(true);
+                        }
+                      }}
+                    >
+                      <p className="text-2xl font-bold text-secondary">
+                        {isStatsLoading ? "..." : teamStats?.pendingRequests || 0}
+                      </p>
+                      <p className="text-xs text-neutral-500">
+                        Pending Requests {teamStats?.pendingRequests && teamStats.pendingRequests > 0 ? "(Click to view)" : ""}
+                      </p>
                     </div>
                     <div>
                       <p className="text-2xl font-bold text-accent">Active</p>
@@ -1182,11 +1209,16 @@ export default function Teams() {
         {showMemberManagement && selectedTeam && (
           <MemberManagementModal
             isOpen={showMemberManagement}
-            onClose={() => setShowMemberManagement(false)}
+            onClose={() => {
+              setShowMemberManagement(false);
+              setPendingRequestsTab(false);
+            }}
             teamId={selectedTeam.id}
             teamName={selectedTeam.name}
             isOwner={selectedTeam.isOwner || false}
             isAdmin={selectedTeam.role === 'admin' || selectedTeam.isOwner}
+            initialTab={pendingRequestsTab ? "pending" : "members"}
+            pendingRequests={pendingRequests}
           />
         )}
       </main>
