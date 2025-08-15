@@ -649,7 +649,7 @@ export class DatabaseStorage implements IStorage {
       index === self.findIndex(e => e.event.id === eventData.event.id)
     );
 
-    // Filter by actual event end time
+    // Filter by actual event end time and trigger auto-generation
     const now = new Date();
     const filteredEvents = uniqueEvents.filter(eventData => {
       const event = eventData.event;
@@ -667,6 +667,12 @@ export class DatabaseStorage implements IStorage {
       }
       
       const isPastEvent = eventEndTime <= now;
+      
+      // If event just became past and has a recurring series, trigger auto-generation
+      if (isPastEvent && event.recurringSeriesId && event.recurrenceType !== 'none') {
+        // Run auto-generation in the background (don't await to avoid blocking)
+        this.autoGenerateNextRecurringEvent(event.recurringSeriesId).catch(console.error);
+      }
       
       // If includePast=true, show ONLY past events
       // If includePast=false, show ONLY future events
@@ -2618,6 +2624,107 @@ export class DatabaseStorage implements IStorage {
     return createdEvents;
   }
 
+  // Auto-generate the next recurring event when one becomes past (maintains max 5 future events)
+  async autoGenerateNextRecurringEvent(recurringSeriesId: string): Promise<{ created: boolean; eventId?: string }> {
+    try {
+      // Get all events in the series
+      const seriesEvents = await db
+        .select()
+        .from(events)
+        .where(eq(events.recurringSeriesId, recurringSeriesId))
+        .orderBy(asc(events.startDate));
+
+      if (seriesEvents.length === 0) {
+        return { created: false };
+      }
+
+      // Count future events using the same logic as event filtering
+      const now = new Date();
+      const futureEvents = seriesEvents.filter(event => {
+        let eventEndTime: Date;
+        if (event.endDate && event.endTime) {
+          eventEndTime = new Date(`${event.endDate} ${event.endTime}`);
+        } else if (event.startDate && event.endTime) {
+          eventEndTime = new Date(`${event.startDate} ${event.endTime}`);
+        } else {
+          eventEndTime = new Date(event.startDate || '');
+          eventEndTime.setHours(23, 59, 59);
+        }
+        return eventEndTime > now; // Future events
+      });
+
+      // Only create if we have less than 5 future events
+      if (futureEvents.length >= 5) {
+        return { created: false };
+      }
+
+      const templateEvent = seriesEvents[0];
+      const lastEvent = seriesEvents[seriesEvents.length - 1];
+      const lastEventDate = new Date(lastEvent.startDate);
+
+      // Calculate next event date based on recurrence pattern
+      let nextEventDate = new Date(lastEventDate);
+      if (templateEvent.recurrenceType === 'daily') {
+        nextEventDate.setDate(nextEventDate.getDate() + 1);
+      } else if (templateEvent.recurrenceType === 'weekly') {
+        nextEventDate.setDate(nextEventDate.getDate() + 7);
+      } else if (templateEvent.recurrenceType === 'monthly') {
+        nextEventDate.setMonth(nextEventDate.getMonth() + 1);
+      } else {
+        return { created: false };
+      }
+
+      // Create the new event
+      const newEventData: InsertEvent = {
+        name: templateEvent.name || '',
+        sport: templateEvent.sport || '',
+        location: templateEvent.location || '',
+        startDate: nextEventDate.toISOString().split('T')[0],
+        endDate: templateEvent.endDate ? 
+          new Date(new Date(templateEvent.endDate).getTime() + (nextEventDate.getTime() - new Date(templateEvent.startDate).getTime())).toISOString().split('T')[0] : 
+          null,
+        startTime: templateEvent.startTime || '',
+        endTime: templateEvent.endTime || '',
+        primaryTeamId: templateEvent.primaryTeamId || '',
+        secondaryTeamIds: [],
+        recurrenceType: templateEvent.recurrenceType || "none",
+        recurrenceDaysOfWeek: templateEvent.recurrenceDaysOfWeek || [],
+        recurrenceEndDate: null,
+        isRecurringSuspended: false,
+        isPublished: templateEvent.isPublished,
+        createdById: templateEvent.createdById || '',
+        gender: templateEvent.gender || "mixed",
+        cost: String(templateEvent.cost || 0),
+        requirements: templateEvent.requirements || '',
+        address: templateEvent.address || null,
+        postcode: templateEvent.postcode || null,
+        maxParticipants: templateEvent.maxParticipants || null,
+        reserveSpots: templateEvent.reserveSpots || 0,
+        recurringSeriesId: recurringSeriesId
+      };
+
+      const newEvent = await this.createEvent(newEventData);
+
+      // Copy event teams associations from the template event
+      const eventTeamsAssociations = await db
+        .select()
+        .from(eventTeams)
+        .where(eq(eventTeams.eventId, templateEvent.id));
+
+      for (const teamAssoc of eventTeamsAssociations) {
+        if (teamAssoc.teamId) {
+          await this.addEventTeam(newEvent.id, teamAssoc.teamId);
+        }
+      }
+
+      console.log(`Auto-generated new recurring event: ${newEvent.name} for ${newEvent.startDate}`);
+      return { created: true, eventId: newEvent.id };
+    } catch (error) {
+      console.error('Error auto-generating recurring event:', error);
+      return { created: false };
+    }
+  }
+
   // Check if a recurring event series needs maintenance (triggered by event expiry)
   async checkAndMaintainRecurringEventSeries(recurringSeriesId: string): Promise<{ maintained: boolean; created: number }> {
     let totalCreatedEvents = 0;
@@ -2653,13 +2760,16 @@ export class DatabaseStorage implements IStorage {
         startTime: firstEvent.startTime || '',
         endTime: firstEvent.endTime || '',
         primaryTeamId: firstEvent.primaryTeamId || '',
+        secondaryTeamIds: [],
         recurrenceType: firstEvent.recurrenceType || "none",
         recurrenceDaysOfWeek: firstEvent.recurrenceDaysOfWeek || [],
+        recurrenceEndDate: null,
+        isRecurringSuspended: false,
         isPublished: firstEvent.isPublished,
         createdById: firstEvent.createdById || '',
         gender: firstEvent.gender || "mixed",
-        cost: firstEvent.cost || 0,
-        requirements: firstEvent.requirements || null,
+        cost: String(firstEvent.cost || 0),
+        requirements: firstEvent.requirements || '',
         address: firstEvent.address || null,
         postcode: firstEvent.postcode || null,
         maxParticipants: firstEvent.maxParticipants || null,
@@ -2755,13 +2865,16 @@ export class DatabaseStorage implements IStorage {
           startTime: series.startTime || '',
           endTime: series.endTime || '',
           primaryTeamId: series.primaryTeamId || '',
+          secondaryTeamIds: [],
           recurrenceType: series.recurrenceType || "none",
           recurrenceDaysOfWeek: series.recurrenceDaysOfWeek || [],
+          recurrenceEndDate: null,
+          isRecurringSuspended: false,
           isPublished: series.isPublished,
           createdById: series.createdById || '',
           gender: series.gender || "mixed",
-          cost: series.cost || 0,
-          requirements: series.requirements || null,
+          cost: String(series.cost || 0),
+          requirements: series.requirements || '',
           address: series.address || null,
           postcode: series.postcode || null,
           maxParticipants: series.maxParticipants || null,
