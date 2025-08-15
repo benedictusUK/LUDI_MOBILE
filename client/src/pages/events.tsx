@@ -283,9 +283,21 @@ export default function Events() {
 
   // Helper function to check if event is in the past
   const isEventPast = (event: any): boolean => {
-    const eventDate = new Date(event.dateTime);
     const now = new Date();
-    return eventDate < now;
+    
+    // Calculate actual event end time
+    let eventEndTime: Date;
+    if (event.endDate && event.endTime) {
+      eventEndTime = new Date(`${event.endDate} ${event.endTime}`);
+    } else if (event.startDate && event.endTime) {
+      eventEndTime = new Date(`${event.startDate} ${event.endTime}`);
+    } else {
+      // Fallback to end of start date if no end time specified
+      eventEndTime = new Date(event.startDate);
+      eventEndTime.setHours(23, 59, 59);
+    }
+    
+    return eventEndTime < now;
   };
 
   // Apply all filters (past events filter is now handled server-side)

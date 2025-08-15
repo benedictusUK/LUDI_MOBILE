@@ -590,10 +590,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserEvents(userId: string, includePast: boolean = false): Promise<any[]> {
-    const today = new Date().toISOString().split('T')[0];
-    
-    // Base condition for future events
-    const dateCondition = includePast ? undefined : gte(events.startDate, today);
+    // Fetch all events first, then filter by end time in JavaScript
+    const dateCondition = undefined; // Remove SQL filtering for now
     
     // Get events where user's team is the primary team
     const primaryTeamEvents = await db
@@ -609,10 +607,7 @@ export class DatabaseStorage implements IStorage {
         eq(eventAttendance.eventId, events.id),
         eq(eventAttendance.userId, userId)
       ))
-      .where(and(
-        eq(teamMemberships.userId, userId),
-        dateCondition
-      ));
+      .where(eq(teamMemberships.userId, userId));
 
     // Get events where user's team is a secondary team
     const secondaryTeamEvents = await db
@@ -629,10 +624,7 @@ export class DatabaseStorage implements IStorage {
         eq(eventAttendance.eventId, events.id),
         eq(eventAttendance.userId, userId)
       ))
-      .where(and(
-        eq(teamMemberships.userId, userId),
-        dateCondition
-      ));
+      .where(eq(teamMemberships.userId, userId));
 
     // Get events that user has individually followed
     const followedEvents = await db
@@ -648,10 +640,7 @@ export class DatabaseStorage implements IStorage {
         eq(eventAttendance.eventId, events.id),
         eq(eventAttendance.userId, userId)
       ))
-      .where(and(
-        eq(userEvents.userId, userId),
-        dateCondition
-      ));
+      .where(eq(userEvents.userId, userId));
 
     // Combine and deduplicate events
     const allEvents = [...primaryTeamEvents, ...secondaryTeamEvents, ...followedEvents];
@@ -659,11 +648,37 @@ export class DatabaseStorage implements IStorage {
       index === self.findIndex(e => e.event.id === eventData.event.id)
     );
 
-    // Sort by start date ascending (next event first)
-    uniqueEvents.sort((a, b) => new Date(a.event.startDate).getTime() - new Date(b.event.startDate).getTime());
+    // Filter by actual event end time
+    const now = new Date();
+    const filteredEvents = uniqueEvents.filter(eventData => {
+      const event = eventData.event;
+      
+      // Calculate actual event end time
+      let eventEndTime: Date;
+      if (event.endDate && event.endTime) {
+        eventEndTime = new Date(`${event.endDate} ${event.endTime}`);
+      } else if (event.startDate && event.endTime) {
+        eventEndTime = new Date(`${event.startDate} ${event.endTime}`);
+      } else {
+        // Fallback to end of start date if no end time specified
+        eventEndTime = new Date(event.startDate);
+        eventEndTime.setHours(23, 59, 59);
+      }
+      
+      // Include past events if requested, otherwise only future events
+      return includePast || eventEndTime > now;
+    });
+
+    // Sort events: if showing past events, show most recent first; otherwise show next events first
+    filteredEvents.sort((a, b) => {
+      const aDateTime = new Date(`${a.event.startDate} ${a.event.startTime || '00:00'}`).getTime();
+      const bDateTime = new Date(`${b.event.startDate} ${b.event.startTime || '00:00'}`).getTime();
+      
+      return includePast ? bDateTime - aDateTime : aDateTime - bDateTime;
+    });
 
     // Return events with primary team data and user attendance
-    return uniqueEvents.map(result => ({
+    return filteredEvents.map(result => ({
       ...result.event,
       primaryTeam: result.primaryTeam,
       userAttendance: result.userAttendance
