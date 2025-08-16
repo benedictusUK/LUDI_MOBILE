@@ -240,6 +240,7 @@ export const eventPayments = pgTable("event_payments", {
   stripeCustomerId: varchar("stripe_customer_id"),
   setupIntentId: varchar("setup_intent_id"), // for storing payment method
   setupIntentStatus: varchar("setup_intent_status", { enum: ["requires_payment_method", "requires_confirmation", "succeeded", "canceled"] }),
+  setupIntentClientSecret: varchar("setup_intent_client_secret"), // client secret for Stripe setup intent
   paymentMethodId: varchar("payment_method_id"), // stored payment method from setup intent
   paymentIntentId: varchar("payment_intent_id"), // for the hold/reserved payment
   paymentIntentStatus: varchar("payment_intent_status", { enum: ["requires_payment_method", "requires_confirmation", "requires_action", "processing", "requires_capture", "canceled", "succeeded"] }),
