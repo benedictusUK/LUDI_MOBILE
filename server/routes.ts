@@ -932,6 +932,115 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Collect payment for past events
+  app.post("/api/events/:id/collect-payment", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const eventId = req.params.id;
+      
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Get event details
+      const event = await storage.getEvent(eventId);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+
+      // Check if user has permission to collect payments
+      const userTeam = await storage.getUserTeam(userId, event.primaryTeamId);
+      const team = await storage.getTeam(event.primaryTeamId);
+      const isEventCreator = event.createdById === userId;
+      
+      if (!isEventCreator && (!userTeam || (!["admin", "captain"].includes(userTeam.role) && team?.ownerId !== userId))) {
+        return res.status(403).json({ message: "Not authorized to collect payments" });
+      }
+
+      // Check if event is in the past
+      const now = new Date();
+      let eventEndTime: Date;
+      if (event.endDate && event.endTime) {
+        eventEndTime = new Date(`${event.endDate} ${event.endTime}`);
+      } else if (event.startDate && event.endTime) {
+        eventEndTime = new Date(`${event.startDate} ${event.endTime}`);
+      } else {
+        eventEndTime = new Date(event.startDate);
+        eventEndTime.setHours(23, 59, 59);
+      }
+      
+      if (eventEndTime >= now) {
+        return res.status(400).json({ message: "Can only collect payments for past events" });
+      }
+
+      // Check if event has a cost
+      const eventCost = parseFloat(event.cost || "0");
+      if (eventCost <= 0) {
+        return res.status(400).json({ message: "Event has no cost associated" });
+      }
+
+      // Get all authorized payments for this event
+      const payments = await storage.getEventPayments(eventId);
+      const authorizedPayments = payments.filter(p => p.status === 'authorized');
+      
+      if (authorizedPayments.length === 0) {
+        return res.status(400).json({ message: "No authorized payments found for this event" });
+      }
+
+      const captureResults = [];
+      let totalCaptured = 0;
+      let failedCaptures = 0;
+
+      // Capture all authorized payments
+      for (const payment of authorizedPayments) {
+        try {
+          if (payment.stripePaymentIntentId) {
+            // Capture the payment intent
+            const paymentIntent = await stripe.paymentIntents.capture(payment.stripePaymentIntentId);
+            
+            // Update payment status in our database
+            await storage.updatePaymentStatus(payment.id, 'captured');
+            
+            captureResults.push({
+              paymentId: payment.id,
+              userId: payment.userId,
+              amount: payment.amount,
+              status: 'captured'
+            });
+            totalCaptured += parseFloat(payment.amount);
+          }
+        } catch (captureError: any) {
+          console.error(`Failed to capture payment ${payment.id}:`, captureError);
+          
+          // Update payment status to failed
+          await storage.updatePaymentStatus(payment.id, 'failed');
+          
+          captureResults.push({
+            paymentId: payment.id,
+            userId: payment.userId,
+            amount: payment.amount,
+            status: 'failed',
+            error: captureError.message
+          });
+          failedCaptures++;
+        }
+      }
+
+      res.json({
+        message: `Payment collection completed`,
+        totalPayments: authorizedPayments.length,
+        successfulCaptures: authorizedPayments.length - failedCaptures,
+        failedCaptures,
+        totalAmount: totalCaptured.toFixed(2),
+        results: captureResults
+      });
+
+    } catch (error) {
+      console.error("Error collecting payments:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Remove vote from event
   app.delete("/api/events/:id/vote", isAuthenticated, async (req: any, res) => {
     try {

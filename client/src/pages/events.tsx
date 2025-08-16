@@ -392,6 +392,33 @@ export default function Events() {
     },
   });
 
+  const collectPaymentMutation = useMutation({
+    mutationFn: async (eventId: string) => {
+      const response = await fetch(`/api/events/${eventId}/collect-payment`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to collect payments");
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Payment Collection Complete",
+        description: `Successfully collected £${data.totalAmount} from ${data.successfulCaptures} payments${data.failedCaptures > 0 ? ` (${data.failedCaptures} failed)` : ''}`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Payment Collection Failed",
+        description: error.message || "Failed to collect payments",
+        variant: "destructive",
+      });
+    },
+  });
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-neutral-50">
@@ -713,10 +740,29 @@ export default function Events() {
                           setLocation(`/events/${event.id}`);
                         }}
                       >
-                        Vote
+                        {isEventPast(event) ? "View" : "Vote"}
                       </Button>
                     )}
-                    {canEditEvent(event) && (
+                    
+                    {/* Show Collect Payment button for past paid events (admins/captains only) */}
+                    {isEventPast(event) && 
+                     event.cost && parseFloat(event.cost) > 0 && 
+                     canEditEvent(event) && (
+                      <Button 
+                        size="sm" 
+                        style={{ 
+                          backgroundColor: "#10b981",
+                          borderColor: "#10b981"
+                        }}
+                        onClick={() => collectPaymentMutation.mutate(event.id)}
+                        disabled={collectPaymentMutation.isPending}
+                      >
+                        {collectPaymentMutation.isPending ? "Collecting..." : "Collect Payment"}
+                      </Button>
+                    )}
+                    
+                    {/* Hide Edit/Delete buttons for past events */}
+                    {!isEventPast(event) && canEditEvent(event) && (
                       <Button 
                         size="sm" 
                         variant="outline"
@@ -750,7 +796,7 @@ export default function Events() {
                         Audit
                       </Button>
                     )}
-                    {event.recurringSeriesId && canEditEvent(event) && (
+                    {event.recurringSeriesId && !isEventPast(event) && canEditEvent(event) && (
                       <Button 
                         size="sm" 
                         variant="outline"
@@ -767,7 +813,7 @@ export default function Events() {
                         Manage Series
                       </Button>
                     )}
-                    {canEditEvent(event) && (
+                    {!isEventPast(event) && canEditEvent(event) && (
                       <Button 
                         size="sm" 
                         variant="outline" 

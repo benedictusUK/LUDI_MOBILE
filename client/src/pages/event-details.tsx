@@ -201,9 +201,9 @@ export default function EventDetails() {
         queryClient.setQueryData(["/api/events", eventId, "attendance"], context.previousAttendance);
       }
     },
-    onSuccess: (data, variables) => {
-      // Show success message for paid events
-      if (variables === "attending" && eventData?.cost && parseFloat(eventData.cost) > 0) {
+    onSuccess: () => {
+      // Show success message for paid events if this was an attending vote
+      if (eventData?.cost && parseFloat(eventData.cost) > 0) {
         toast({
           title: "Payment Authorized",
           description: `Payment of £${parseFloat(eventData.cost).toFixed(2)} has been authorized. You'll only be charged after the event.`,
@@ -218,6 +218,52 @@ export default function EventDetails() {
       queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "capacity"] });
       queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "reserves"] });
       queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "payment-status"] });
+    },
+  });
+
+  // Helper function to check if event is in the past
+  const isEventPast = (event: any): boolean => {
+    const now = new Date();
+    
+    // Calculate actual event end time
+    let eventEndTime: Date;
+    if (event.endDate && event.endTime) {
+      eventEndTime = new Date(`${event.endDate} ${event.endTime}`);
+    } else if (event.startDate && event.endTime) {
+      eventEndTime = new Date(`${event.startDate} ${event.endTime}`);
+    } else {
+      // Fallback to end of start date if no end time specified
+      eventEndTime = new Date(event.startDate);
+      eventEndTime.setHours(23, 59, 59);
+    }
+    
+    return eventEndTime < now;
+  };
+
+  const collectPaymentMutation = useMutation({
+    mutationFn: async (eventId: string) => {
+      const response = await fetch(`/api/events/${eventId}/collect-payment`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to collect payments");
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Payment Collection Complete",
+        description: `Successfully collected £${data.totalAmount} from ${data.successfulCaptures} payments${data.failedCaptures > 0 ? ` (${data.failedCaptures} failed)` : ''}`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Payment Collection Failed",
+        description: error.message || "Failed to collect payments",
+        variant: "destructive",
+      });
     },
   });
 
@@ -403,15 +449,23 @@ export default function EventDetails() {
                   <div className="flex space-x-3">
                     {userAttendance ? (
                       <>
-                        <Button
-                          onClick={() => unvoteMutation.mutate()}
-                          disabled={unvoteMutation.isPending}
-                          variant="outline"
-                          className="flex-1"
-                        >
-                          <X className="w-4 h-4 mr-2" />
-                          Unvote
-                        </Button>
+                        {!isEventPast(eventData) ? (
+                          <Button
+                            onClick={() => unvoteMutation.mutate()}
+                            disabled={unvoteMutation.isPending}
+                            variant="outline"
+                            className="flex-1"
+                          >
+                            <X className="w-4 h-4 mr-2" />
+                            Unvote
+                          </Button>
+                        ) : (
+                          <div className="flex-1 text-sm text-neutral-600 p-2 text-center">
+                            <span className="font-medium text-neutral-800">Event Finished</span>
+                            <br />
+                            <span className="text-xs">Voting is no longer available</span>
+                          </div>
+                        )}
                         <div className="flex-1 text-sm text-neutral-600 p-2">
                           Your vote: <span className="font-medium capitalize">
                             {userAttendance.status === "reserve" ? "Reserve List" : userAttendance.status.replace('_', ' ')}
@@ -427,27 +481,36 @@ export default function EventDetails() {
                       </>
                     ) : (
                       <>
-                        {/* Check if payment is required and not set up */}
-                        <Button
-                          onClick={() => voteMutation.mutate("attending")}
-                          disabled={voteMutation.isPending}
-                          style={{ backgroundColor: teamColor, borderColor: teamColor }}
-                          className="flex-1 whitespace-normal"
-                        >
-                          <Users className="w-4 h-4 mr-2 flex-shrink-0" />
-                          <span className="text-center">
-                            {capacity && (capacity as any)?.maxParticipants && (capacity as any)?.availableSpots <= 0 ? "Become a reserve" : "I can attend"}
-                          </span>
-                        </Button>
-                        <Button
-                          onClick={() => voteMutation.mutate("not_attending")}
-                          disabled={voteMutation.isPending}
-                          variant="outline"
-                          className="flex-1 hover:bg-red-50 hover:border-red-300 hover:text-red-600 whitespace-normal"
-                        >
-                          <X className="w-4 h-4 mr-2 flex-shrink-0" />
-                          <span className="text-center">I can't attend</span>
-                        </Button>
+                        {!isEventPast(eventData) ? (
+                          <>
+                            <Button
+                              onClick={() => voteMutation.mutate("attending")}
+                              disabled={voteMutation.isPending}
+                              style={{ backgroundColor: teamColor, borderColor: teamColor }}
+                              className="flex-1 whitespace-normal"
+                            >
+                              <Users className="w-4 h-4 mr-2 flex-shrink-0" />
+                              <span className="text-center">
+                                {capacity && (capacity as any)?.maxParticipants && (capacity as any)?.availableSpots <= 0 ? "Become a reserve" : "I can attend"}
+                              </span>
+                            </Button>
+                            <Button
+                              onClick={() => voteMutation.mutate("not_attending")}
+                              disabled={voteMutation.isPending}
+                              variant="outline"
+                              className="flex-1 hover:bg-red-50 hover:border-red-300 hover:text-red-600 whitespace-normal"
+                            >
+                              <X className="w-4 h-4 mr-2 flex-shrink-0" />
+                              <span className="text-center">I can't attend</span>
+                            </Button>
+                          </>
+                        ) : (
+                          <div className="flex-1 text-sm text-neutral-600 p-4 text-center bg-neutral-50 rounded-lg border">
+                            <span className="font-medium text-neutral-800">Event Finished</span>
+                            <br />
+                            <span className="text-xs">Voting is no longer available for past events</span>
+                          </div>
+                        )}
                       </>
                     )}
                   </div>
@@ -481,6 +544,40 @@ export default function EventDetails() {
                         You'll need to set up a payment method before confirming your attendance for this event.
                       </p>
                     </div>
+                  )}
+
+                  {/* Collect Payment Button for Past Events (Admin Only) */}
+                  {eventData && isEventPast(eventData) && 
+                   eventData.cost && parseFloat(eventData.cost) > 0 && 
+                   user && eventData.primaryTeam && (
+                     eventData.primaryTeam.ownerId === (user as any).id || 
+                     eventData.primaryTeam.memberships?.some((m: any) => 
+                       m.userId === (user as any).id && ['admin', 'captain'].includes(m.role)
+                     )
+                   ) && (
+                    <Card className="mb-6">
+                      <CardContent className="pt-6">
+                        <div className="flex flex-col space-y-4">
+                          <div className="text-center">
+                            <h3 className="text-lg font-semibold text-neutral-900 mb-2">Event Payment Collection</h3>
+                            <p className="text-sm text-neutral-600 mb-4">
+                              This event has finished. You can now collect payments from attendees who have authorized payment holds.
+                            </p>
+                          </div>
+                          <Button 
+                            onClick={() => eventId && collectPaymentMutation.mutate(eventId)}
+                            disabled={collectPaymentMutation.isPending || !eventId}
+                            className="w-full"
+                            style={{ 
+                              backgroundColor: "#10b981",
+                              borderColor: "#10b981"
+                            }}
+                          >
+                            {collectPaymentMutation.isPending ? "Collecting Payments..." : "Collect Payments"}
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
                   )}
 
                   {/* Voting Progress Bars */}
