@@ -896,6 +896,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               confirmation_method: 'manual',
               confirm: true,
               capture_method: 'manual', // This creates an authorization hold
+              return_url: `${req.protocol}://${req.get('host')}/events/${eventId}`,
               metadata: {
                 eventId,
                 userId,
