@@ -80,8 +80,9 @@ export default function EventDetails() {
     mutationFn: async (status: "attending" | "not_attending") => {
       // Check payment requirement before voting to attend
       if (status === "attending" && eventData?.cost && parseFloat(eventData.cost) > 0) {
-        const paymentSetupRequired = !paymentStatus?.hasPayment || 
-          (paymentStatus?.status !== 'setup_complete' && paymentStatus?.status !== 'hold_created' && paymentStatus?.status !== 'captured');
+        const paymentData = paymentStatus as any;
+        const paymentSetupRequired = !paymentData?.hasPayment || 
+          (paymentData?.status !== 'setup_complete' && paymentData?.status !== 'hold_created' && paymentData?.status !== 'captured');
         
         if (paymentSetupRequired) {
           throw new Error("PAYMENT_REQUIRED");
@@ -418,8 +419,8 @@ export default function EventDetails() {
                       <>
                         {/* Check if payment is required and not set up */}
                         {eventData?.cost && parseFloat(eventData.cost) > 0 && 
-                         (!paymentStatus?.hasPayment || 
-                          (paymentStatus?.status !== 'setup_complete' && paymentStatus?.status !== 'hold_created' && paymentStatus?.status !== 'captured')) ? (
+                         (!(paymentStatus as any)?.hasPayment || 
+                          ((paymentStatus as any)?.status !== 'setup_complete' && (paymentStatus as any)?.status !== 'hold_created' && (paymentStatus as any)?.status !== 'captured')) ? (
                           <Button
                             onClick={() => {
                               toast({

@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Settings as SettingsIcon, Bell, CreditCard, User, Smartphone } from "lucide-react";
 import { ProfileForm } from "@/components/ui/profile-form";
+import PaymentMethodManager from "@/components/payment-method-manager";
 import type { NotificationPreferences } from "@shared/schema";
 
 export default function Settings() {
@@ -33,8 +34,7 @@ export default function Settings() {
 
   const updatePreferencesMutation = useMutation({
     mutationFn: async (newPreferences: Partial<NotificationPreferences>) => {
-      const response = await apiRequest("/api/notification-preferences", {
-        method: "PUT",
+      const response = await apiRequest("PUT", "/api/notification-preferences", {
         body: JSON.stringify(newPreferences),
       });
       return response;
@@ -57,7 +57,7 @@ export default function Settings() {
 
   const handlePreferenceChange = (key: keyof NotificationPreferences, value: boolean) => {
     updatePreferencesMutation.mutate({
-      ...preferences,
+      ...(preferences as NotificationPreferences || {}),
       [key]: value,
     });
   };
@@ -70,7 +70,7 @@ export default function Settings() {
     );
   }
 
-  const defaultPreferences = {
+  const currentPreferences: NotificationPreferences = {
     newEvents: true,
     paymentReminders: true,
     eventChanges: true,
@@ -79,12 +79,7 @@ export default function Settings() {
     teamInvites: true,
     pushNotificationsIOS: false,
     pushNotificationsAndroid: false,
-    ...preferences,
-  };
-
-  const currentPreferences = {
-    ...defaultPreferences,
-    ...preferences,
+    ...(preferences as NotificationPreferences || {}),
   };
 
   return (
@@ -186,61 +181,66 @@ export default function Settings() {
           </TabsContent>
 
           <TabsContent value="payments">
-            {payments.length > 0 ? (
-              <Card>
-                <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-                  <div className="flex items-center space-x-2">
-                    <CreditCard className="h-5 w-5" />
-                    <CardTitle className="text-lg">Payment History</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {payments.map((payment: any) => (
-                      <div
-                        key={payment.id}
-                        className="flex items-center justify-between p-4 border rounded-lg"
-                      >
-                        <div className="space-y-1">
-                          <p className="font-medium">{payment.eventName || payment.teamName}</p>
-                          <p className="text-sm text-neutral-500">
-                            {new Date(payment.createdAt).toLocaleDateString()}
-                          </p>
+            <div className="space-y-6">
+              <PaymentMethodManager />
+              
+              {/* Payment History */}
+              {(payments as any[]).length > 0 ? (
+                <Card>
+                  <CardHeader className="flex flex-row items-center space-y-0 pb-2">
+                    <div className="flex items-center space-x-2">
+                      <CreditCard className="h-5 w-5" />
+                      <CardTitle className="text-lg">Payment History</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {(payments as any[]).map((payment: any) => (
+                        <div
+                          key={payment.id}
+                          className="flex items-center justify-between p-4 border rounded-lg"
+                        >
+                          <div className="space-y-1">
+                            <p className="font-medium">{payment.eventName || payment.teamName}</p>
+                            <p className="text-sm text-neutral-500">
+                              {new Date(payment.createdAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-medium">£{parseFloat(payment.amount).toFixed(2)}</p>
+                            <p className={`text-sm capitalize ${
+                              payment.status === 'completed' 
+                                ? 'text-green-600' 
+                                : payment.status === 'failed' 
+                                ? 'text-red-600' 
+                                : 'text-yellow-600'
+                            }`}>
+                              {payment.status}
+                            </p>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="font-medium">£{parseFloat(payment.amount).toFixed(2)}</p>
-                          <p className={`text-sm capitalize ${
-                            payment.status === 'completed' 
-                              ? 'text-green-600' 
-                              : payment.status === 'failed' 
-                              ? 'text-red-600' 
-                              : 'text-yellow-600'
-                          }`}>
-                            {payment.status}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <CreditCard className="h-5 w-5" />
-                    <span>Payment History</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-8">
-                    <CreditCard className="h-12 w-12 text-neutral-300 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-neutral-900 mb-2">No payments yet</h3>
-                    <p className="text-neutral-500">Your payment history will appear here once you make payments for events.</p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <CreditCard className="h-5 w-5" />
+                      <span>Payment History</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-center py-8">
+                      <CreditCard className="h-12 w-12 text-neutral-300 mx-auto mb-4" />
+                      <h3 className="text-lg font-semibold text-neutral-900 mb-2">No payments yet</h3>
+                      <p className="text-neutral-500">Your payment history will appear here once you make payments for events.</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           </TabsContent>
         </Tabs>
       </main>

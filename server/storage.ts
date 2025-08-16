@@ -1144,15 +1144,7 @@ export class DatabaseStorage implements IStorage {
     return newPayment;
   }
 
-  async getUserPayments(userId: string): Promise<Payment[]> {
-    const userPayments = await db
-      .select()
-      .from(payments)
-      .where(eq(payments.userId, userId))
-      .orderBy(desc(payments.createdAt));
 
-    return userPayments;
-  }
 
   async getEventPayments(eventId: string): Promise<(Payment & { user: User })[]> {
     const result = await db
@@ -1194,6 +1186,8 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return payment;
   }
+
+
 
   // Notification preferences
   async getUserNotificationPreferences(userId: string): Promise<NotificationPreferences | undefined> {
