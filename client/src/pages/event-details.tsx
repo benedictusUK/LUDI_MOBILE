@@ -14,6 +14,7 @@ import { queryClient } from "@/lib/queryClient";
 import { ArrowLeft, Calendar, Clock, MapPin, Users, Vote, X, CheckCircle, XCircle, MinusCircle } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 import { FlareGunModal } from "@/components/ui/flare-gun-modal";
 import { ReservePlayersManager } from "@/components/ui/reserve-players-manager";
 import { EventPayment } from "@/components/event-payment";
@@ -23,6 +24,7 @@ export default function EventDetails() {
   const [, params] = useRoute("/events/:id");
   const eventId = params?.id;
   const { user } = useAuth();
+  const { toast } = useToast();
   const [voteDetailsModal, setVoteDetailsModal] = useState<{
     isOpen: boolean;
     type: "attending" | "not_attending" | "no_response";
@@ -66,9 +68,26 @@ export default function EventDetails() {
     staleTime: 30000, // Cache for 30 seconds
   });
 
+  // Fetch payment status for events that require payment
+  const { data: paymentStatus } = useQuery({
+    queryKey: ["/api/events", eventId, "payment-status"],
+    enabled: !!eventId && !!event && !!(event as any)?.cost && parseFloat((event as any).cost) > 0,
+    staleTime: 30000, // Cache for 30 seconds
+  });
+
   // Vote mutation with optimistic updates
   const voteMutation = useMutation({
     mutationFn: async (status: "attending" | "not_attending") => {
+      // Check payment requirement before voting to attend
+      if (status === "attending" && eventData?.cost && parseFloat(eventData.cost) > 0) {
+        const paymentSetupRequired = !paymentStatus?.hasPayment || 
+          (paymentStatus?.status !== 'setup_complete' && paymentStatus?.status !== 'hold_created' && paymentStatus?.status !== 'captured');
+        
+        if (paymentSetupRequired) {
+          throw new Error("PAYMENT_REQUIRED");
+        }
+      }
+
       const response = await fetch(`/api/events/${eventId}/vote`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -117,10 +136,26 @@ export default function EventDetails() {
       return { previousAttendance };
     },
     onError: (err, status, context) => {
+      // Handle payment required error specifically
+      if (err.message === "PAYMENT_REQUIRED") {
+        toast({
+          title: "Payment Method Required",
+          description: "You must set up a payment method before confirming your attendance for this paid event.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       // If the mutation fails, use the context returned from onMutate to roll back
       if (context?.previousAttendance) {
         queryClient.setQueryData(["/api/events", eventId, "attendance"], context.previousAttendance);
       }
+      
+      toast({
+        title: "Error",
+        description: "Failed to update your attendance. Please try again.",
+        variant: "destructive",
+      });
     },
     onSettled: () => {
       // Always refetch after error or success to ensure we have the latest data
@@ -381,17 +416,42 @@ export default function EventDetails() {
                       </>
                     ) : (
                       <>
-                        <Button
-                          onClick={() => voteMutation.mutate("attending")}
-                          disabled={voteMutation.isPending}
-                          style={{ backgroundColor: teamColor, borderColor: teamColor }}
-                          className="flex-1 whitespace-normal"
-                        >
-                          <Users className="w-4 h-4 mr-2 flex-shrink-0" />
-                          <span className="text-center">
-                            {capacity && (capacity as any)?.maxParticipants && (capacity as any)?.availableSpots <= 0 ? "Become a reserve" : "I can attend"}
-                          </span>
-                        </Button>
+                        {/* Check if payment is required and not set up */}
+                        {eventData?.cost && parseFloat(eventData.cost) > 0 && 
+                         (!paymentStatus?.hasPayment || 
+                          (paymentStatus?.status !== 'setup_complete' && paymentStatus?.status !== 'hold_created' && paymentStatus?.status !== 'captured')) ? (
+                          <Button
+                            onClick={() => {
+                              toast({
+                                title: "Payment Method Required",
+                                description: `This event costs £${parseFloat(eventData.cost).toFixed(2)}. You must set up a payment method before confirming your attendance.`,
+                                variant: "destructive",
+                              });
+                            }}
+                            disabled={voteMutation.isPending}
+                            variant="outline"
+                            className="flex-1 whitespace-normal border-amber-300 text-amber-700 hover:bg-amber-50"
+                          >
+                            <Users className="w-4 h-4 mr-2 flex-shrink-0" />
+                            <span className="text-center">
+                              {capacity && (capacity as any)?.maxParticipants && (capacity as any)?.availableSpots <= 0 ? "Become a reserve" : "I can attend"}
+                              <br />
+                              <span className="text-xs">Payment required</span>
+                            </span>
+                          </Button>
+                        ) : (
+                          <Button
+                            onClick={() => voteMutation.mutate("attending")}
+                            disabled={voteMutation.isPending}
+                            style={{ backgroundColor: teamColor, borderColor: teamColor }}
+                            className="flex-1 whitespace-normal"
+                          >
+                            <Users className="w-4 h-4 mr-2 flex-shrink-0" />
+                            <span className="text-center">
+                              {capacity && (capacity as any)?.maxParticipants && (capacity as any)?.availableSpots <= 0 ? "Become a reserve" : "I can attend"}
+                            </span>
+                          </Button>
+                        )}
                         <Button
                           onClick={() => voteMutation.mutate("not_attending")}
                           disabled={voteMutation.isPending}
@@ -414,10 +474,26 @@ export default function EventDetails() {
                       userId={(user as any)?.id}
                       hasVotedAttending={true}
                       onPaymentSuccess={() => {
-                        // Refresh event data after successful payment setup
+                        // Refresh event data and payment status after successful payment setup
                         queryClient.invalidateQueries({ queryKey: ["/api/events", eventId] });
+                        queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "payment-status"] });
                       }}
                     />
+                  )}
+
+                  {/* Payment Requirement Notice - Shows for paid events when user hasn't voted yet */}
+                  {!userAttendance && eventData.cost && parseFloat(eventData.cost) > 0 && (
+                    <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <div className="text-amber-600 font-medium">Payment Required</div>
+                        <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-300">
+                          £{parseFloat(eventData.cost).toFixed(2)}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-amber-700 mt-1">
+                        You'll need to set up a payment method before confirming your attendance for this event.
+                      </p>
+                    </div>
                   )}
 
                   {/* Voting Progress Bars */}
