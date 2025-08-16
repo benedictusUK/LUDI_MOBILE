@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { Loader2, CreditCard, CheckCircle, AlertCircle, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -322,17 +322,22 @@ export default function PaymentMethodManager() {
 
           {/* Payment Method Setup Dialog */}
           <Dialog open={isAddingMethod} onOpenChange={setIsAddingMethod}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Add Payment Method</DialogTitle>
+                <DialogDescription>
+                  Your payment details are securely processed and stored by Stripe. We never store your card information on our servers.
+                </DialogDescription>
               </DialogHeader>
               {clientSecret && (
-                <Elements stripe={stripePromise} options={{ clientSecret }}>
-                  <PaymentMethodSetupForm
-                    onSuccess={handlePaymentMethodSetupSuccess}
-                    onCancel={handleCancelSetup}
-                  />
-                </Elements>
+                <div className="max-h-[60vh] overflow-y-auto">
+                  <Elements stripe={stripePromise} options={{ clientSecret }}>
+                    <PaymentMethodSetupForm
+                      onSuccess={handlePaymentMethodSetupSuccess}
+                      onCancel={handleCancelSetup}
+                    />
+                  </Elements>
+                </div>
               )}
             </DialogContent>
           </Dialog>
@@ -351,9 +356,10 @@ export default function PaymentMethodManager() {
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
               <div className="space-y-2">
+                <p><strong>Secure Storage:</strong> All payment details are securely processed and stored by Stripe, a PCI DSS compliant payment processor. LUDI never stores your card numbers, CVV, or other sensitive payment information on our servers.</p>
                 <p><strong>Payment Authorization:</strong> When you sign up for paid events, we'll authorize (hold) the payment amount on your card but won't charge it immediately.</p>
                 <p><strong>Final Charges:</strong> Actual charges occur after events based on attendance and any additional costs incurred.</p>
-                <p><strong>Security:</strong> All payment information is securely handled by Stripe and never stored directly on our servers.</p>
+                <p><strong>Industry Standard Security:</strong> Stripe uses bank-level security and encryption to protect your payment information.</p>
               </div>
             </AlertDescription>
           </Alert>

@@ -1187,6 +1187,15 @@ export class DatabaseStorage implements IStorage {
     return payment;
   }
 
+  async getUserPayments(userId: string): Promise<Payment[]> {
+    const userPayments = await db
+      .select()
+      .from(payments)
+      .where(eq(payments.userId, userId))
+      .orderBy(desc(payments.createdAt));
+    return userPayments;
+  }
+
 
 
   // Notification preferences
@@ -2944,10 +2953,10 @@ export class DatabaseStorage implements IStorage {
           postcode: series.postcode || null,
           maxParticipants: series.maxParticipants || null,
           reserveSpots: series.reserveSpots || 0,
-          paymentRequired: series.paymentRequired || false,
-          maxPlayerPayment: series.maxPlayerPayment || null,
-          finalVenueCost: series.finalVenueCost || null,
-          paymentStatus: series.paymentStatus || "none"
+          paymentRequired: (series as any).paymentRequired || false,
+          maxPlayerPayment: (series as any).maxPlayerPayment || null,
+          finalVenueCost: (series as any).finalVenueCost || null,
+          paymentStatus: (series as any).paymentStatus || "none"
         };
 
         // Generate new events to maintain 2 weeks ahead (reduced from 4)
