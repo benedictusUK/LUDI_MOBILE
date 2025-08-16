@@ -141,11 +141,7 @@ export function EventPayment({
         const data = await response.json();
         
         setPaymentStatus(data.status || 'none');
-        
-        // If we need to set up payment method, automatically initialize
-        if (data.status === 'none' || data.status === null) {
-          initializePaymentSetup();
-        }
+        setIsLoading(false);
       } catch (error: any) {
         console.error('Failed to check payment status:', error);
         setError('Failed to load payment information');
@@ -271,7 +267,7 @@ export function EventPayment({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button onClick={initializePaymentSetup} className="w-full">
+          <Button onClick={initializePaymentSetup} className="w-full" data-testid="button-setup-payment">
             <CreditCard className="w-4 h-4 mr-2" />
             Set Up Payment Method
           </Button>
