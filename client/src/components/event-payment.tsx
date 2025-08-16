@@ -241,7 +241,7 @@ export function EventPayment({
             Save a payment method for {eventName}. You'll only be charged £{eventCost.toFixed(2)} after the event.
             <br />
             <span className="text-xs text-muted-foreground mt-1 block">
-              Supports card payments, Apple Pay, and Google Pay
+              Supports card payments (Apple Pay and Google Pay require additional setup in Stripe)
             </span>
           </CardDescription>
         </CardHeader>

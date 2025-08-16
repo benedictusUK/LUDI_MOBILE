@@ -1385,7 +1385,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const setupIntent = await stripe.setupIntents.create({
         customer: customerId,
         usage: 'off_session',
-        payment_method_types: ['card', 'apple_pay', 'google_pay']
+        payment_method_types: ['card']
       });
 
       // Store or update in database
@@ -1648,7 +1648,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const setupIntent = await stripe.setupIntents.create({
         customer: customerId,
         usage: 'off_session',
-        payment_method_types: ['card', 'apple_pay', 'google_pay']
+        payment_method_types: ['card']
       });
 
       // Store in database
