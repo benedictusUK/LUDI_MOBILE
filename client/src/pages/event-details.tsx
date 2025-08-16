@@ -78,24 +78,18 @@ export default function EventDetails() {
   // Vote mutation with optimistic updates
   const voteMutation = useMutation({
     mutationFn: async (status: "attending" | "not_attending") => {
-      // Check payment requirement before voting to attend
-      if (status === "attending" && eventData?.cost && parseFloat(eventData.cost) > 0) {
-        const paymentData = paymentStatus as any;
-        const paymentSetupRequired = !paymentData?.hasPayment || 
-          (paymentData?.status !== 'setup_complete' && paymentData?.status !== 'hold_created' && paymentData?.status !== 'captured');
-        
-        if (paymentSetupRequired) {
-          throw new Error("PAYMENT_REQUIRED");
-        }
-      }
-
       const response = await fetch(`/api/events/${eventId}/vote`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({ status }),
       });
-      if (!response.ok) throw new Error("Failed to vote");
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.details || errorData.message || "Failed to vote");
+      }
+      
       return response.json();
     },
     onMutate: async (status) => {
@@ -137,26 +131,32 @@ export default function EventDetails() {
       return { previousAttendance };
     },
     onError: (err, status, context) => {
-      // Handle payment required error specifically
-      if (err.message === "PAYMENT_REQUIRED") {
-        toast({
-          title: "Payment Method Required",
-          description: "You must set up a payment method before confirming your attendance for this paid event.",
-          variant: "destructive",
-        });
-        return;
-      }
-      
       // If the mutation fails, use the context returned from onMutate to roll back
       if (context?.previousAttendance) {
         queryClient.setQueryData(["/api/events", eventId, "attendance"], context.previousAttendance);
       }
       
-      toast({
-        title: "Error",
-        description: "Failed to update your attendance. Please try again.",
-        variant: "destructive",
-      });
+      // Handle different types of errors
+      const errorMessage = err.message;
+      if (errorMessage.includes("Payment method required")) {
+        toast({
+          title: "Payment Method Required",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      } else if (errorMessage.includes("Payment authorization failed")) {
+        toast({
+          title: "Payment Authorization Failed",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: errorMessage || "Failed to update your attendance. Please try again.",
+          variant: "destructive",
+        });
+      }
     },
     onSettled: () => {
       // Always refetch after error or success to ensure we have the latest data
@@ -201,6 +201,15 @@ export default function EventDetails() {
         queryClient.setQueryData(["/api/events", eventId, "attendance"], context.previousAttendance);
       }
     },
+    onSuccess: (data, variables) => {
+      // Show success message for paid events
+      if (variables === "attending" && eventData?.cost && parseFloat(eventData.cost) > 0) {
+        toast({
+          title: "Payment Authorized",
+          description: `Payment of £${parseFloat(eventData.cost).toFixed(2)} has been authorized. You'll only be charged after the event.`,
+        });
+      }
+    },
     onSettled: () => {
       // Always refetch to ensure we have the latest data
       queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "attendance"] });
@@ -208,6 +217,7 @@ export default function EventDetails() {
       queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "activity"] });
       queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "capacity"] });
       queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "reserves"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "payment-status"] });
     },
   });
 
@@ -418,41 +428,17 @@ export default function EventDetails() {
                     ) : (
                       <>
                         {/* Check if payment is required and not set up */}
-                        {eventData?.cost && parseFloat(eventData.cost) > 0 && 
-                         (!(paymentStatus as any)?.hasPayment || 
-                          ((paymentStatus as any)?.status !== 'setup_complete' && (paymentStatus as any)?.status !== 'hold_created' && (paymentStatus as any)?.status !== 'captured')) ? (
-                          <Button
-                            onClick={() => {
-                              toast({
-                                title: "Payment Method Required",
-                                description: `This event costs £${parseFloat(eventData.cost).toFixed(2)}. You must set up a payment method before confirming your attendance.`,
-                                variant: "destructive",
-                              });
-                            }}
-                            disabled={voteMutation.isPending}
-                            variant="outline"
-                            className="flex-1 whitespace-normal border-amber-300 text-amber-700 hover:bg-amber-50"
-                          >
-                            <Users className="w-4 h-4 mr-2 flex-shrink-0" />
-                            <span className="text-center">
-                              {capacity && (capacity as any)?.maxParticipants && (capacity as any)?.availableSpots <= 0 ? "Become a reserve" : "I can attend"}
-                              <br />
-                              <span className="text-xs">Payment required</span>
-                            </span>
-                          </Button>
-                        ) : (
-                          <Button
-                            onClick={() => voteMutation.mutate("attending")}
-                            disabled={voteMutation.isPending}
-                            style={{ backgroundColor: teamColor, borderColor: teamColor }}
-                            className="flex-1 whitespace-normal"
-                          >
-                            <Users className="w-4 h-4 mr-2 flex-shrink-0" />
-                            <span className="text-center">
-                              {capacity && (capacity as any)?.maxParticipants && (capacity as any)?.availableSpots <= 0 ? "Become a reserve" : "I can attend"}
-                            </span>
-                          </Button>
-                        )}
+                        <Button
+                          onClick={() => voteMutation.mutate("attending")}
+                          disabled={voteMutation.isPending}
+                          style={{ backgroundColor: teamColor, borderColor: teamColor }}
+                          className="flex-1 whitespace-normal"
+                        >
+                          <Users className="w-4 h-4 mr-2 flex-shrink-0" />
+                          <span className="text-center">
+                            {capacity && (capacity as any)?.maxParticipants && (capacity as any)?.availableSpots <= 0 ? "Become a reserve" : "I can attend"}
+                          </span>
+                        </Button>
                         <Button
                           onClick={() => voteMutation.mutate("not_attending")}
                           disabled={voteMutation.isPending}

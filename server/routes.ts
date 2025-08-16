@@ -848,7 +848,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid vote status" });
       }
 
-      const vote = await storage.voteOnEvent(req.params.id, userId, status);
+      const eventId = req.params.id;
+      
+      // If voting to attend, check if event requires payment
+      if (status === "attending") {
+        const event = await storage.getEvent(eventId);
+        if (!event) {
+          return res.status(404).json({ message: "Event not found" });
+        }
+
+        const eventCost = parseFloat(event.cost || "0");
+        
+        // If event has a cost, validate payment method and process payment
+        if (eventCost > 0) {
+          const user = await storage.getUserById(userId);
+          if (!user || !user.stripeCustomerId) {
+            return res.status(400).json({ 
+              message: "Payment method required",
+              details: `This event costs £${eventCost.toFixed(2)}. Please add a payment method in Settings before confirming your attendance.`
+            });
+          }
+
+          // Check if user has any payment methods
+          const paymentMethods = await stripe.paymentMethods.list({
+            customer: user.stripeCustomerId,
+            type: 'card',
+          });
+
+          if (paymentMethods.data.length === 0) {
+            return res.status(400).json({ 
+              message: "Payment method required",
+              details: `This event costs £${eventCost.toFixed(2)}. Please add a payment method in Settings before confirming your attendance.`
+            });
+          }
+
+          // Get user's default payment method
+          const customer = await stripe.customers.retrieve(user.stripeCustomerId);
+          const defaultPaymentMethodId = (customer as any).invoice_settings?.default_payment_method || paymentMethods.data[0].id;
+
+          try {
+            // Create a payment intent with authorization hold
+            const paymentIntent = await stripe.paymentIntents.create({
+              amount: Math.round(eventCost * 100), // Convert to cents
+              currency: 'gbp',
+              customer: user.stripeCustomerId,
+              payment_method: defaultPaymentMethodId,
+              confirmation_method: 'manual',
+              confirm: true,
+              capture_method: 'manual', // This creates an authorization hold
+              metadata: {
+                eventId,
+                userId,
+                eventName: event.name,
+              },
+            });
+
+            // Create payment record in our database
+            await storage.createPayment({
+              type: 'event_payment',
+              userId,
+              eventId,
+              amount: eventCost.toString(),
+              status: 'authorized',
+              stripePaymentIntentId: paymentIntent.id,
+            });
+
+          } catch (paymentError: any) {
+            console.error("Payment authorization failed:", paymentError);
+            return res.status(400).json({ 
+              message: "Payment authorization failed",
+              details: paymentError.message || "Unable to authorize payment. Please check your payment method."
+            });
+          }
+        }
+      }
+
+      const vote = await storage.voteOnEvent(eventId, userId, status);
       res.json(vote);
     } catch (error) {
       console.error("Error voting on event:", error);
