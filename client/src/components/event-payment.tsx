@@ -89,7 +89,11 @@ const PaymentSetupForm = ({
   return (
     <form onSubmit={handleSubmit}>
       <div className="space-y-4">
-        <PaymentElement />
+        <PaymentElement 
+          options={{
+            layout: 'tabs'
+          }}
+        />
         <Button type="submit" disabled={!stripe || isProcessing} className="w-full">
           {isProcessing ? (
             <>
@@ -117,10 +121,11 @@ export function EventPayment({
   hasVotedAttending,
   onPaymentSuccess 
 }: EventPaymentProps) {
-  const [paymentStatus, setPaymentStatus] = useState<'none' | 'setup_required' | 'setup_complete' | 'held' | 'captured' | 'cancelled'>('none');
+  const [paymentStatus, setPaymentStatus] = useState<'none' | 'setup_required' | 'setup_pending' | 'setup_complete' | 'held' | 'captured' | 'cancelled'>('none');
   const [clientSecret, setClientSecret] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
+  const [showSetupForm, setShowSetupForm] = useState(false);
   const { toast } = useToast();
 
   // Check payment status and initialize if needed
@@ -137,14 +142,13 @@ export function EventPayment({
         
         setPaymentStatus(data.status || 'none');
         
-        // If we need to set up payment method, get the client secret
-        if (data.status === 'setup_required' && data.clientSecret) {
-          setClientSecret(data.clientSecret);
+        // If we need to set up payment method, automatically initialize
+        if (data.status === 'none' || data.status === null) {
+          initializePaymentSetup();
         }
       } catch (error: any) {
         console.error('Failed to check payment status:', error);
         setError('Failed to load payment information');
-      } finally {
         setIsLoading(false);
       }
     };
@@ -154,16 +158,23 @@ export function EventPayment({
 
   // Initialize payment setup when user votes to attend
   const initializePaymentSetup = async () => {
-    if (!hasVotedAttending || paymentStatus !== 'none') return;
+    if (!hasVotedAttending) return;
 
     setIsLoading(true);
     try {
       const response = await apiRequest('POST', `/api/events/${eventId}/payment-setup`);
       const data = await response.json();
       
+      if (data.status === 'already_complete') {
+        setPaymentStatus('setup_complete');
+        setIsLoading(false);
+        return;
+      }
+      
       if (data.clientSecret) {
         setClientSecret(data.clientSecret);
-        setPaymentStatus('setup_required');
+        setPaymentStatus('setup_pending');
+        setShowSetupForm(true);
       }
     } catch (error: any) {
       toast({
@@ -180,7 +191,13 @@ export function EventPayment({
   const handlePaymentSetupSuccess = () => {
     setPaymentStatus('setup_complete');
     setClientSecret('');
+    setShowSetupForm(false);
     onPaymentSuccess?.();
+  };
+
+  const handleChangePaymentMethod = () => {
+    setShowSetupForm(true);
+    initializePaymentSetup();
   };
 
   if (isLoading) {
@@ -210,8 +227,9 @@ export function EventPayment({
     return null;
   }
 
-  // Payment setup required
-  if (paymentStatus === 'setup_required' && clientSecret) {
+  // Payment setup required or user wants to change method
+  if ((paymentStatus === 'setup_pending' && clientSecret && showSetupForm) || 
+      (paymentStatus === 'setup_required' && clientSecret)) {
     return (
       <Card>
         <CardHeader>
@@ -221,6 +239,10 @@ export function EventPayment({
           </CardTitle>
           <CardDescription>
             Save a payment method for {eventName}. You'll only be charged £{eventCost.toFixed(2)} after the event.
+            <br />
+            <span className="text-xs text-muted-foreground mt-1 block">
+              Supports card payments, Apple Pay, and Google Pay
+            </span>
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -272,9 +294,18 @@ export function EventPayment({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Badge variant="secondary" className="bg-green-100 text-green-800">
-            Ready for Event
-          </Badge>
+          <div className="flex items-center justify-between">
+            <Badge variant="secondary" className="bg-green-100 text-green-800">
+              Ready for Event
+            </Badge>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleChangePaymentMethod}
+            >
+              Change Method
+            </Button>
+          </div>
         </CardContent>
       </Card>
     );
