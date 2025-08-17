@@ -82,13 +82,13 @@ export function PaymentCollectionModal({
 
   // Initialize selected attendees with those who voted to attend
   useEffect(() => {
-    if (Array.isArray(attendance) && attendance.length > 0) {
+    if (Array.isArray(teamMembers) && Array.isArray(attendance) && attendance.length > 0) {
       const attendingIds = attendance
         .filter((vote: any) => vote.vote === "can_attend")
         .map((vote: any) => vote.userId);
       setSelectedAttendees(attendingIds);
     }
-  }, [attendance]);
+  }, [teamMembers, attendance]);
 
   const collectPaymentMutation = useMutation({
     mutationFn: async (data: { 
@@ -215,8 +215,23 @@ export function PaymentCollectionModal({
     }
   };
 
-  const attendingVotes = Array.isArray(attendance) ? attendance.filter((vote: any) => vote.vote === "can_attend") : [];
-  const allTeamMembers = Array.isArray(attendance) ? attendance.filter((vote: any) => vote.user) : [];
+  // Create a combined list of all team members with their attendance status
+  const allMembersWithVotes = Array.isArray(teamMembers) ? (teamMembers as any[]).map((member: any) => {
+    const attendanceVote = Array.isArray(attendance) ? 
+      attendance.find((vote: any) => vote.userId === member.userId) : null;
+    return {
+      ...member,
+      vote: attendanceVote?.vote || null,
+      isAttending: attendanceVote?.vote === "can_attend"
+    };
+  }).sort((a: any, b: any) => {
+    // Sort by: attending first, then alphabetical by name
+    if (a.isAttending && !b.isAttending) return -1;
+    if (!a.isAttending && b.isAttending) return 1;
+    const aName = `${a.user?.firstName || ''} ${a.user?.lastName || ''}`.trim();
+    const bName = `${b.user?.firstName || ''} ${b.user?.lastName || ''}`.trim();
+    return aName.localeCompare(bName);
+  }) : [];
 
   const selectedMember = (teamMembers as any[]).find((m: any) => m.userId === selectedOrganiserId);
 
@@ -289,61 +304,64 @@ export function PaymentCollectionModal({
                 </div>
 
                 <CollapsibleContent className="space-y-2">
-                  {loadingAttendance ? (
+                  {loadingAttendance || loadingMembers ? (
                     <div className="flex items-center justify-center p-4">
                       <Loader2 className="h-4 w-4 animate-spin" />
                     </div>
                   ) : (
                     <div className="space-y-2 max-h-48 overflow-y-auto">
-                      {attendingVotes.map((vote: any) => (
-                        <div key={vote.userId} className="flex items-center space-x-3 p-2 hover:bg-neutral-50 rounded">
-                          <Checkbox
-                            checked={selectedAttendees.includes(vote.userId)}
-                            onCheckedChange={(checked) => toggleAttendee(vote.userId, !!checked)}
-                          />
-                          <Avatar className="w-8 h-8">
-                            <AvatarFallback className="text-xs">
-                              {vote.user?.firstName?.[0] || vote.user?.email?.[0] || '?'}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1">
-                            <div className="text-sm font-medium">
-                              {vote.user?.firstName} {vote.user?.lastName}
-                            </div>
-                            <div className="text-xs text-neutral-500">
-                              Voted to attend
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                      
-                      {/* Add option to include non-attending team members */}
-                      <div className="border-t pt-2 mt-2">
-                        <div className="text-xs font-medium text-neutral-600 mb-2">Other Team Members:</div>
-                        {allTeamMembers
-                          .filter((vote: any) => vote.vote !== "can_attend" && vote.user)
-                          .map((vote: any) => (
-                            <div key={vote.userId} className="flex items-center space-x-3 p-2 hover:bg-neutral-50 rounded">
-                              <Checkbox
-                                checked={selectedAttendees.includes(vote.userId)}
-                                onCheckedChange={(checked) => toggleAttendee(vote.userId, !!checked)}
-                              />
-                              <Avatar className="w-8 h-8">
-                                <AvatarFallback className="text-xs">
-                                  {vote.user?.firstName?.[0] || vote.user?.email?.[0] || '?'}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="flex-1">
-                                <div className="text-sm font-medium">
-                                  {vote.user?.firstName} {vote.user?.lastName}
-                                </div>
-                                <div className="text-xs text-neutral-500">
-                                  {vote.vote === "cant_attend" ? "Can't attend" : "No response"}
-                                </div>
+                      {allMembersWithVotes.map((member: any) => {
+                        const getStatusText = () => {
+                          if (member.vote === "can_attend") return "Voted to attend";
+                          if (member.vote === "cant_attend") return "Can't attend";
+                          return "No response";
+                        };
+
+                        const getStatusColor = () => {
+                          if (member.vote === "can_attend") return "text-green-600";
+                          if (member.vote === "cant_attend") return "text-red-500";
+                          return "text-neutral-500";
+                        };
+
+                        return (
+                          <div 
+                            key={member.userId} 
+                            className={`flex items-center space-x-3 p-2 hover:bg-neutral-50 rounded ${
+                              member.isAttending ? 'bg-green-50 border border-green-200' : ''
+                            }`}
+                          >
+                            <Checkbox
+                              checked={selectedAttendees.includes(member.userId)}
+                              onCheckedChange={(checked) => toggleAttendee(member.userId, !!checked)}
+                              data-testid={`checkbox-attendee-${member.userId}`}
+                            />
+                            <Avatar className="w-8 h-8">
+                              <AvatarFallback className="text-xs">
+                                {member.user?.firstName?.[0] || member.user?.email?.[0] || '?'}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1">
+                              <div className="text-sm font-medium">
+                                {member.user?.firstName} {member.user?.lastName}
+                                {member.isAttending && (
+                                  <span className="ml-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                                    Attending
+                                  </span>
+                                )}
+                              </div>
+                              <div className={`text-xs ${getStatusColor()}`}>
+                                {getStatusText()}
                               </div>
                             </div>
-                          ))}
-                      </div>
+                          </div>
+                        );
+                      })}
+                      
+                      {allMembersWithVotes.length === 0 && (
+                        <div className="text-center py-4 text-neutral-500 text-sm">
+                          No team members found
+                        </div>
+                      )}
                     </div>
                   )}
                 </CollapsibleContent>
