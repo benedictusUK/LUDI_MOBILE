@@ -268,86 +268,86 @@ export function PaymentCollectionModal({
             </p>
             
             <div className="border rounded-lg p-3">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  <span className="text-sm font-medium">
-                    Selected: {selectedAttendees.length} attendees
-                  </span>
-                  {selectedAttendees.length > 0 && (
-                    <Badge variant="secondary">
-                      £{(parseFloat(venueCost || "0") / selectedAttendees.length).toFixed(2)} each
-                    </Badge>
-                  )}
-                </div>
-                <Collapsible open={attendeesExpanded} onOpenChange={setAttendeesExpanded}>
+              <Collapsible open={attendeesExpanded} onOpenChange={setAttendeesExpanded}>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    <span className="text-sm font-medium">
+                      Selected: {selectedAttendees.length} attendees
+                    </span>
+                    {selectedAttendees.length > 0 && (
+                      <Badge variant="secondary">
+                        £{(parseFloat(venueCost || "0") / selectedAttendees.length).toFixed(2)} each
+                      </Badge>
+                    )}
+                  </div>
                   <CollapsibleTrigger asChild>
                     <Button variant="ghost" size="sm">
                       {attendeesExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                     </Button>
                   </CollapsibleTrigger>
-                </Collapsible>
-              </div>
+                </div>
 
-              <CollapsibleContent className="space-y-2">
-                {loadingAttendance ? (
-                  <div className="flex items-center justify-center p-4">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  </div>
-                ) : (
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {attendingVotes.map((vote: any) => (
-                      <div key={vote.userId} className="flex items-center space-x-3 p-2 hover:bg-neutral-50 rounded">
-                        <Checkbox
-                          checked={selectedAttendees.includes(vote.userId)}
-                          onCheckedChange={(checked) => toggleAttendee(vote.userId, !!checked)}
-                        />
-                        <Avatar className="w-8 h-8">
-                          <AvatarFallback className="text-xs">
-                            {vote.user?.firstName?.[0] || vote.user?.email?.[0] || '?'}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1">
-                          <div className="text-sm font-medium">
-                            {vote.user?.firstName} {vote.user?.lastName}
-                          </div>
-                          <div className="text-xs text-neutral-500">
-                            Voted to attend
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    
-                    {/* Add option to include non-attending team members */}
-                    <div className="border-t pt-2 mt-2">
-                      <div className="text-xs font-medium text-neutral-600 mb-2">Other Team Members:</div>
-                      {allTeamMembers
-                        .filter((vote: any) => vote.vote !== "can_attend" && vote.user)
-                        .map((vote: any) => (
-                          <div key={vote.userId} className="flex items-center space-x-3 p-2 hover:bg-neutral-50 rounded">
-                            <Checkbox
-                              checked={selectedAttendees.includes(vote.userId)}
-                              onCheckedChange={(checked) => toggleAttendee(vote.userId, !!checked)}
-                            />
-                            <Avatar className="w-8 h-8">
-                              <AvatarFallback className="text-xs">
-                                {vote.user?.firstName?.[0] || vote.user?.email?.[0] || '?'}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1">
-                              <div className="text-sm font-medium">
-                                {vote.user?.firstName} {vote.user?.lastName}
-                              </div>
-                              <div className="text-xs text-neutral-500">
-                                {vote.vote === "cant_attend" ? "Can't attend" : "No response"}
-                              </div>
+                <CollapsibleContent className="space-y-2">
+                  {loadingAttendance ? (
+                    <div className="flex items-center justify-center p-4">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {attendingVotes.map((vote: any) => (
+                        <div key={vote.userId} className="flex items-center space-x-3 p-2 hover:bg-neutral-50 rounded">
+                          <Checkbox
+                            checked={selectedAttendees.includes(vote.userId)}
+                            onCheckedChange={(checked) => toggleAttendee(vote.userId, !!checked)}
+                          />
+                          <Avatar className="w-8 h-8">
+                            <AvatarFallback className="text-xs">
+                              {vote.user?.firstName?.[0] || vote.user?.email?.[0] || '?'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium">
+                              {vote.user?.firstName} {vote.user?.lastName}
+                            </div>
+                            <div className="text-xs text-neutral-500">
+                              Voted to attend
                             </div>
                           </div>
-                        ))}
+                        </div>
+                      ))}
+                      
+                      {/* Add option to include non-attending team members */}
+                      <div className="border-t pt-2 mt-2">
+                        <div className="text-xs font-medium text-neutral-600 mb-2">Other Team Members:</div>
+                        {allTeamMembers
+                          .filter((vote: any) => vote.vote !== "can_attend" && vote.user)
+                          .map((vote: any) => (
+                            <div key={vote.userId} className="flex items-center space-x-3 p-2 hover:bg-neutral-50 rounded">
+                              <Checkbox
+                                checked={selectedAttendees.includes(vote.userId)}
+                                onCheckedChange={(checked) => toggleAttendee(vote.userId, !!checked)}
+                              />
+                              <Avatar className="w-8 h-8">
+                                <AvatarFallback className="text-xs">
+                                  {vote.user?.firstName?.[0] || vote.user?.email?.[0] || '?'}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1">
+                                <div className="text-sm font-medium">
+                                  {vote.user?.firstName} {vote.user?.lastName}
+                                </div>
+                                <div className="text-xs text-neutral-500">
+                                  {vote.vote === "cant_attend" ? "Can't attend" : "No response"}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </CollapsibleContent>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
             </div>
           </div>
 
