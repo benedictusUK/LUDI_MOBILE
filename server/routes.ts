@@ -937,7 +937,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user?.claims?.sub;
       const eventId = req.params.id;
-      const { organiserId } = req.body;
+      const { organiserId, venueCost, attendeeIds } = req.body;
       
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -974,30 +974,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Can only collect payments for past events" });
       }
 
-      // Check if event has a cost
-      const eventCost = parseFloat(event.cost || "0");
-      if (eventCost <= 0) {
-        return res.status(400).json({ message: "Event has no cost associated" });
+      // Use venue cost from request if provided, otherwise fall back to event cost
+      const finalVenueCost = venueCost ? parseFloat(venueCost) : parseFloat(event.cost || "0");
+      if (finalVenueCost <= 0) {
+        return res.status(400).json({ message: "Venue cost must be greater than 0" });
       }
 
-      // Verify the organiser has Stripe Connect set up (if specified)
+      // Check organiser information (allow collection without Connect for now)
       let organiserAccount = null;
       if (organiserId) {
         const organiser = await storage.getUserById(organiserId);
-        if (!organiser || !organiser.stripeAccountId || !organiser.payoutsEnabled) {
-          return res.status(400).json({ 
-            message: "Selected organiser does not have payout account set up" 
-          });
+        if (!organiser) {
+          return res.status(400).json({ message: "Selected organiser not found" });
         }
-        organiserAccount = organiser.stripeAccountId;
+        // Set organiser account if available, but don't require it
+        if (organiser.stripeAccountId && organiser.payoutsEnabled) {
+          organiserAccount = organiser.stripeAccountId;
+        }
       }
 
       // Get all authorized payments for this event
-      const payments = await storage.getEventPayments(eventId);
-      const authorizedPayments = payments.filter(p => p.status === 'authorized');
+      let payments = await storage.getEventPayments(eventId);
+      let authorizedPayments = payments.filter(p => p.status === 'authorized');
+      
+      // If specific attendees are selected, filter payments to only those users
+      if (attendeeIds && attendeeIds.length > 0) {
+        authorizedPayments = authorizedPayments.filter(p => attendeeIds.includes(p.userId));
+      }
       
       if (authorizedPayments.length === 0) {
-        return res.status(400).json({ message: "No authorized payments found for this event" });
+        return res.status(400).json({ 
+          message: attendeeIds && attendeeIds.length > 0 
+            ? "No authorized payments found for selected attendees" 
+            : "No authorized payments found for this event" 
+        });
       }
 
       const captureResults = [];
@@ -1010,7 +1020,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (payment.stripePaymentIntentId) {
             let captureRequest: any = {};
             
-            // If organiser is specified and has Connect account, use destination charges
+            // If organiser has Connect account set up, use destination charges
             if (organiserAccount) {
               // Calculate application fee (2.9% + 30p for Stripe, 5% for our platform)
               const amountInPence = Math.round(parseFloat(payment.amount) * 100);
@@ -1063,6 +1073,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         successfulCaptures: authorizedPayments.length - failedCaptures,
         failedCaptures,
         totalAmount: totalCaptured.toFixed(2),
+        venueCost: finalVenueCost.toFixed(2),
+        organiserConnectEnabled: !!organiserAccount,
         results: captureResults
       });
 
