@@ -18,6 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { FlareGunModal } from "@/components/ui/flare-gun-modal";
 import { ReservePlayersManager } from "@/components/ui/reserve-players-manager";
 import { EventPayment } from "@/components/event-payment";
+import { PaymentCollectionModal } from "@/components/payment-collection-modal";
 
 export default function EventDetails() {
   useScrollToTop();
@@ -33,6 +34,20 @@ export default function EventDetails() {
     isOpen: false,
     type: "attending",
     voters: [],
+  });
+
+  const [paymentCollectionModal, setPaymentCollectionModal] = useState<{
+    isOpen: boolean;
+    eventId: string;
+    eventName: string;
+    eventCost: string;
+    eventCreatorId: string;
+  }>({
+    isOpen: false,
+    eventId: "",
+    eventName: "",
+    eventCost: "",
+    eventCreatorId: "",
   });
 
   // Fetch event details first (priority data)
@@ -240,32 +255,7 @@ export default function EventDetails() {
     return eventEndTime < now;
   };
 
-  const collectPaymentMutation = useMutation({
-    mutationFn: async (eventId: string) => {
-      const response = await fetch(`/api/events/${eventId}/collect-payment`, {
-        method: "POST",
-        credentials: "include",
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to collect payments");
-      }
-      return response.json();
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Payment Collection Complete",
-        description: `Successfully collected £${data.totalAmount} from ${data.successfulCaptures} payments${data.failedCaptures > 0 ? ` (${data.failedCaptures} failed)` : ''}`,
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Payment Collection Failed",
-        description: error.message || "Failed to collect payments",
-        variant: "destructive",
-      });
-    },
-  });
+
 
   if (eventLoading || attendanceLoading) {
     return (
@@ -565,15 +555,25 @@ export default function EventDetails() {
                             </p>
                           </div>
                           <Button 
-                            onClick={() => eventId && collectPaymentMutation.mutate(eventId)}
-                            disabled={collectPaymentMutation.isPending || !eventId}
+                            onClick={() => {
+                              if (eventData && eventId) {
+                                setPaymentCollectionModal({
+                                  isOpen: true,
+                                  eventId: eventId,
+                                  eventName: eventData.name,
+                                  eventCost: eventData.cost || "0",
+                                  eventCreatorId: eventData.createdById,
+                                });
+                              }
+                            }}
+                            disabled={!eventId || !eventData}
                             className="w-full"
                             style={{ 
                               backgroundColor: "#10b981",
                               borderColor: "#10b981"
                             }}
                           >
-                            {collectPaymentMutation.isPending ? "Collecting Payments..." : "Collect Payments"}
+                            Collect Payments
                           </Button>
                         </div>
                       </CardContent>
@@ -810,6 +810,21 @@ export default function EventDetails() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <PaymentCollectionModal
+        isOpen={paymentCollectionModal.isOpen}
+        onClose={() => setPaymentCollectionModal({
+          isOpen: false,
+          eventId: "",
+          eventName: "",
+          eventCost: "",
+          eventCreatorId: "",
+        })}
+        eventId={paymentCollectionModal.eventId}
+        eventName={paymentCollectionModal.eventName}
+        eventCost={paymentCollectionModal.eventCost}
+        eventCreatorId={paymentCollectionModal.eventCreatorId}
+      />
     </div>
   );
 }

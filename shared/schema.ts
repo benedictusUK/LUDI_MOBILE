@@ -75,6 +75,8 @@ export const users = pgTable("users", {
   travelRadius: integer("travel_radius").default(10), // km radius willing to travel
   stripeCustomerId: varchar("stripe_customer_id"),
   stripeSubscriptionId: varchar("stripe_subscription_id"),
+  stripeAccountId: varchar("stripe_account_id"), // Stripe Connect account for receiving payouts
+  payoutsEnabled: boolean("payouts_enabled").default(false), // tracks if Stripe Connect is fully set up
   profileCompletedAt: timestamp("profile_completed_at"), // tracks when mandatory fields completed
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

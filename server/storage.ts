@@ -58,6 +58,7 @@ export interface IStorage {
   upsertAuthUser(user: AuthUser): Promise<User>;
   updateUserStripeInfo(userId: string, stripeCustomerId: string, stripeSubscriptionId?: string): Promise<User>;
   updateUserStripeCustomerId(userId: string, customerId: string): Promise<User>;
+  updateUserStripeAccountInfo(userId: string, stripeAccountId: string, payoutsEnabled?: boolean): Promise<User>;
   updateUserProfile(userId: string, profileData: UpdateProfile): Promise<User>;
   completeUserProfile(userId: string, profileData: ProfileCompletion): Promise<User>;
   checkUsernameAvailability(username: string, excludeUserId?: string): Promise<boolean>;
@@ -304,6 +305,24 @@ export class DatabaseStorage implements IStorage {
         stripeCustomerId: customerId,
         updatedAt: new Date(),
       })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  async updateUserStripeAccountInfo(userId: string, stripeAccountId: string, payoutsEnabled?: boolean): Promise<User> {
+    const updateData: any = { 
+      stripeAccountId,
+      updatedAt: new Date()
+    };
+    
+    if (payoutsEnabled !== undefined) {
+      updateData.payoutsEnabled = payoutsEnabled;
+    }
+
+    const [user] = await db
+      .update(users)
+      .set(updateData)
       .where(eq(users.id, userId))
       .returning();
     return user;
@@ -1352,6 +1371,8 @@ export class DatabaseStorage implements IStorage {
         phoneNumber: users.phoneNumber,
         stripeCustomerId: users.stripeCustomerId,
         stripeSubscriptionId: users.stripeSubscriptionId,
+        stripeAccountId: users.stripeAccountId,
+        payoutsEnabled: users.payoutsEnabled,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt
       })
@@ -1386,6 +1407,8 @@ export class DatabaseStorage implements IStorage {
         travelRadius: 10, // Not selected in query, using default value
         stripeCustomerId: member.stripeCustomerId,
         stripeSubscriptionId: member.stripeSubscriptionId,
+        stripeAccountId: member.stripeAccountId,
+        payoutsEnabled: member.payoutsEnabled,
         profileCompletedAt: null, // Not selected in query
         createdAt: member.createdAt,
         updatedAt: member.updatedAt
@@ -1637,6 +1660,8 @@ export class DatabaseStorage implements IStorage {
           travelRadius: sql<number>`blocker.travel_radius`,
           stripeCustomerId: sql<string>`blocker.stripe_customer_id`,
           stripeSubscriptionId: sql<string>`blocker.stripe_subscription_id`,
+          stripeAccountId: sql<string>`blocker.stripe_account_id`,
+          payoutsEnabled: sql<boolean>`blocker.payouts_enabled`,
           profileCompletedAt: sql<Date>`blocker.profile_completed_at`,
           createdAt: sql<Date>`blocker.created_at`,
           updatedAt: sql<Date>`blocker.updated_at`,
@@ -2259,6 +2284,8 @@ export class DatabaseStorage implements IStorage {
       travelRadius: null, // Not selected in this query
       stripeCustomerId: null, // Not selected in this query
       stripeSubscriptionId: null, // Not selected in this query
+      stripeAccountId: null, // Not selected in this query
+      payoutsEnabled: false, // Not selected in this query
       profileCompletedAt: user.profileCompletedAt,
       createdAt: null, // Not selected in this query
       updatedAt: null, // Not selected in this query

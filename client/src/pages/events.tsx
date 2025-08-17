@@ -7,6 +7,7 @@ import Navigation from "@/components/ui/nav";
 import EventForm from "@/components/ui/event-form";
 import AuditModal from "@/components/ui/audit-modal";
 import RecurringEventsManager from "@/components/ui/recurring-events-manager";
+import { PaymentCollectionModal } from "@/components/payment-collection-modal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -174,6 +175,20 @@ export default function Events() {
     isOpen: false,
     eventId: "",
     recurringSeriesId: "",
+  });
+
+  const [paymentCollectionModal, setPaymentCollectionModal] = useState<{
+    isOpen: boolean;
+    eventId: string;
+    eventName: string;
+    eventCost: string;
+    eventCreatorId: string;
+  }>({
+    isOpen: false,
+    eventId: "",
+    eventName: "",
+    eventCost: "",
+    eventCreatorId: "",
   });
 
   // Extract team parameter from URL
@@ -392,32 +407,7 @@ export default function Events() {
     },
   });
 
-  const collectPaymentMutation = useMutation({
-    mutationFn: async (eventId: string) => {
-      const response = await fetch(`/api/events/${eventId}/collect-payment`, {
-        method: "POST",
-        credentials: "include",
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to collect payments");
-      }
-      return response.json();
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Payment Collection Complete",
-        description: `Successfully collected £${data.totalAmount} from ${data.successfulCaptures} payments${data.failedCaptures > 0 ? ` (${data.failedCaptures} failed)` : ''}`,
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Payment Collection Failed",
-        description: error.message || "Failed to collect payments",
-        variant: "destructive",
-      });
-    },
-  });
+
 
   if (isLoading) {
     return (
@@ -754,10 +744,15 @@ export default function Events() {
                           backgroundColor: "#10b981",
                           borderColor: "#10b981"
                         }}
-                        onClick={() => collectPaymentMutation.mutate(event.id)}
-                        disabled={collectPaymentMutation.isPending}
+                        onClick={() => setPaymentCollectionModal({
+                          isOpen: true,
+                          eventId: event.id,
+                          eventName: event.name,
+                          eventCost: event.cost,
+                          eventCreatorId: event.createdById,
+                        })}
                       >
-                        {collectPaymentMutation.isPending ? "Collecting..." : "Collect Payment"}
+                        Collect Payment
                       </Button>
                     )}
                     
@@ -851,6 +846,22 @@ export default function Events() {
           />
         </div>
       )}
+
+      {/* Payment Collection Modal */}
+      <PaymentCollectionModal
+        isOpen={paymentCollectionModal.isOpen}
+        onClose={() => setPaymentCollectionModal({
+          isOpen: false,
+          eventId: "",
+          eventName: "",
+          eventCost: "",
+          eventCreatorId: "",
+        })}
+        eventId={paymentCollectionModal.eventId}
+        eventName={paymentCollectionModal.eventName}
+        eventCost={paymentCollectionModal.eventCost}
+        eventCreatorId={paymentCollectionModal.eventCreatorId}
+      />
     </div>
   );
 }

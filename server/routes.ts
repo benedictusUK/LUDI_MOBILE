@@ -937,6 +937,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user?.claims?.sub;
       const eventId = req.params.id;
+      const { organiserId } = req.body;
       
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -979,6 +980,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Event has no cost associated" });
       }
 
+      // Verify the organiser has Stripe Connect set up (if specified)
+      let organiserAccount = null;
+      if (organiserId) {
+        const organiser = await storage.getUserById(organiserId);
+        if (!organiser || !organiser.stripeAccountId || !organiser.payoutsEnabled) {
+          return res.status(400).json({ 
+            message: "Selected organiser does not have payout account set up" 
+          });
+        }
+        organiserAccount = organiser.stripeAccountId;
+      }
+
       // Get all authorized payments for this event
       const payments = await storage.getEventPayments(eventId);
       const authorizedPayments = payments.filter(p => p.status === 'authorized');
@@ -995,8 +1008,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const payment of authorizedPayments) {
         try {
           if (payment.stripePaymentIntentId) {
+            let captureRequest: any = {};
+            
+            // If organiser is specified and has Connect account, use destination charges
+            if (organiserAccount) {
+              // Calculate application fee (2.9% + 30p for Stripe, 5% for our platform)
+              const amountInPence = Math.round(parseFloat(payment.amount) * 100);
+              const applicationFee = Math.round(amountInPence * 0.029) + 30 + Math.round(amountInPence * 0.05);
+              
+              captureRequest.application_fee_amount = applicationFee;
+              captureRequest.transfer_data = {
+                destination: organiserAccount
+              };
+            }
+            
             // Capture the payment intent
-            const paymentIntent = await stripe.paymentIntents.capture(payment.stripePaymentIntentId);
+            const paymentIntent = await stripe.paymentIntents.capture(
+              payment.stripePaymentIntentId,
+              captureRequest
+            );
             
             // Update payment status in our database
             await storage.updatePaymentStatus(payment.id, 'captured');
@@ -1005,7 +1035,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               paymentId: payment.id,
               userId: payment.userId,
               amount: payment.amount,
-              status: 'captured'
+              status: 'captured',
+              organiserId: organiserId || null
             });
             totalCaptured += parseFloat(payment.amount);
           }
@@ -1038,6 +1069,132 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error collecting payments:", error);
       res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Stripe Connect routes
+  app.post('/api/connect/create-account', isAuthenticated, async (req: any, res) => {
+    try {
+      const { userId } = req.body;
+      const currentUserId = req.user?.claims?.sub;
+      
+      if (!userId || !currentUserId) {
+        return res.status(400).json({ message: "User ID required" });
+      }
+
+      // Check if user already has a Connect account
+      const user = await storage.getUserById(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      if (user.stripeAccountId && user.payoutsEnabled) {
+        return res.status(400).json({ message: "User already has a Connect account set up" });
+      }
+
+      // Create Stripe Connect account
+      const account = await stripe.accounts.create({
+        type: 'express',
+        capabilities: {
+          transfers: { requested: true },
+        },
+        business_type: 'individual',
+      });
+
+      // Update user with Connect account ID
+      await storage.updateUserStripeAccountInfo(userId, account.id, false);
+
+      // Create account link for onboarding
+      const accountLink = await stripe.accountLinks.create({
+        account: account.id,
+        refresh_url: `${req.protocol}://${req.get('host')}/settings`,
+        return_url: `${req.protocol}://${req.get('host')}/settings?connect=success`,
+        type: 'account_onboarding',
+      });
+
+      res.json({ url: accountLink.url });
+    } catch (error: any) {
+      console.error("Error creating Connect account:", error);
+      res.status(500).json({ message: error.message || "Failed to create Connect account" });
+    }
+  });
+
+  app.get('/api/connect/status/:userId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      
+      const user = await storage.getUserById(userId);
+      if (!user || !user.stripeAccountId) {
+        return res.json({ 
+          hasAccount: false, 
+          payoutsEnabled: false,
+          requiresOnboarding: true 
+        });
+      }
+
+      // Check account status with Stripe
+      const account = await stripe.accounts.retrieve(user.stripeAccountId);
+      const payoutsEnabled = account.payouts_enabled && account.charges_enabled;
+
+      // Update our database if status has changed
+      if (payoutsEnabled !== user.payoutsEnabled) {
+        await storage.updateUserStripeAccountInfo(userId, user.stripeAccountId, payoutsEnabled);
+      }
+
+      res.json({
+        hasAccount: true,
+        payoutsEnabled,
+        requiresOnboarding: !payoutsEnabled,
+        accountId: user.stripeAccountId
+      });
+    } catch (error: any) {
+      console.error("Error checking Connect status:", error);
+      res.status(500).json({ message: "Failed to check Connect status" });
+    }
+  });
+
+  // Get team members for event organiser selection
+  app.get('/api/events/:id/team-members', isAuthenticated, async (req: any, res) => {
+    try {
+      const eventId = req.params.id;
+      const userId = req.user?.claims?.sub;
+      
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const event = await storage.getEvent(eventId);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+
+      // Check if user has permission to collect payments
+      const userTeam = await storage.getUserTeam(userId, event.primaryTeamId);
+      const team = await storage.getTeam(event.primaryTeamId);
+      const isEventCreator = event.createdById === userId;
+      
+      if (!isEventCreator && (!userTeam || (!["admin", "captain"].includes(userTeam.role) && team?.ownerId !== userId))) {
+        return res.status(403).json({ message: "Not authorized to view team members" });
+      }
+
+      // Get team members
+      const teamMembers = await storage.getTeamMembers(event.primaryTeamId);
+      
+      res.json(teamMembers.map(member => ({
+        userId: member.userId,
+        user: {
+          id: member.userId,
+          firstName: member.user?.firstName,
+          lastName: member.user?.lastName,
+          email: member.user?.email,
+          username: member.user?.username,
+          profileImageUrl: member.user?.profileImageUrl
+        },
+        role: member.role
+      })));
+    } catch (error: any) {
+      console.error("Error fetching team members:", error);
+      res.status(500).json({ message: "Failed to fetch team members" });
     }
   });
 

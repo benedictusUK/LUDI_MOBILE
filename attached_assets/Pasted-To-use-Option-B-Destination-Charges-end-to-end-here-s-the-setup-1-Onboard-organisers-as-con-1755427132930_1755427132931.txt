@@ -1,0 +1,359 @@
+To use Option B (Destination Charges) end‑to‑end, here’s the setup:
+
+⸻
+
+1. Onboard organisers as connected accounts
+
+Yes — you still need to onboard organisers as Stripe Connect accounts so Stripe can handle KYC, bank verification, and payouts. Without this step, funds cannot be routed directly to them.
+	•	Express accounts are most common: Stripe hosts the onboarding flow (bank details, ID verification) in a pre‑built UI. You only need to collect an email and create an account link.
+	•	Standard accounts redirect the organiser to create a full Stripe account they manage themselves.
+
+Server route example:
+
+// apps/api/src/routes/connect.ts
+import { Router } from "express";
+import { stripe } from "../stripe";
+
+export const connectRouter = Router();
+
+connectRouter.post("/create-account", async (req, res) => {
+  const { organiserEmail } = req.body;
+  const account = await stripe.accounts.create({
+    type: "express",
+    country: "GB",
+    email: organiserEmail,
+    capabilities: { card_payments: { requested: true }, transfers: { requested: true } },
+  });
+
+  const link = await stripe.accountLinks.create({
+    account: account.id,
+    refresh_url: `${process.env.APP_URL}/onboarding/refresh`,
+    return_url: `${process.env.APP_URL}/onboarding/return`,
+    type: "account_onboarding",
+  });
+
+  res.json({ url: link.url, accountId: account.id });
+});
+
+Store account.id (e.g. acct_123…) in your DB against the organiser.
+
+⸻
+
+2. Collect attendee votes and mandates
+
+The flow from before (SetupIntent at vote → PaymentIntent hold at T‑72h) remains the same. The difference: when you create the PaymentIntent, you add transfer_data.destination.
+
+// apps/api/src/services/createHold.ts
+const pi = await stripe.paymentIntents.create({
+  amount: amountPence,
+  currency: "gbp",
+  customer: customerId,
+  payment_method: savedPaymentMethodId,
+  capture_method: "manual",
+  confirm: true,
+  off_session: true,
+  transfer_data: {
+    destination: organiserStripeAccountId, // connected account ID
+  },
+  application_fee_amount: platformFeePence, // optional: you keep this
+  metadata: { eventId, organiserId, holdId: id },
+});
+
+	•	Funds flow: after capture, Stripe automatically splits the charge — the organiser’s share goes straight into their connected account balance, your fee stays in your platform account.
+	•	No extra transfer call needed after capture.
+
+⸻
+
+3. Capture after event
+
+Same as before:
+
+await stripe.paymentIntents.capture(pi.id, {
+  amount_to_capture: finalAmountPence,
+});
+
+Stripe routes the captured funds to the organiser’s connected account automatically.
+
+⸻
+
+4. Payouts to organiser’s bank
+	•	Stripe automatically pays out the connected account balance to the organiser’s bank account on their payout schedule (daily/weekly/monthly, depending on country & settings).
+	•	You don’t initiate payouts yourself unless you choose Custom accounts (more control, more compliance responsibility).
+
+⸻
+
+5. Compliance considerations
+	•	Organiser onboarding is mandatory — Stripe handles KYC/AML checks. Without this, organisers cannot receive funds.
+	•	Refunds and disputes are handled by your platform account (since you own the PaymentIntent). Plan your cashflow so you can cover disputes if needed.
+	•	Fees: Stripe deducts processing + Connect fees. Application fees are your revenue.
+
+⸻
+
+Final Flow
+	1.	Attendee votes → SetupIntent confirmed → card saved.
+	2.	T‑72h → PaymentIntent created with capture_method: 'manual' and transfer_data.destination.
+	3.	Post‑event → capture final amount.
+	4.	Stripe auto‑routes funds: organiser’s cut → their connected account → payout to bank.
+
+You only ever store Stripe IDs (customer, payment_method, account), never raw card data.
+
+⸻
+
+✅ So yes: organisers must be onboarded as connected accounts, and once that’s done, Option B lets you collect attendee funds, keep your fee, and pay the organiser seamlessly.
+
+⸻
+
+6. Database additions (organisers)
+
+Add fields to your organiser table to track Connect state.
+
+// packages/db/schema/organisers.ts
+import { pgTable, varchar, boolean, jsonb, timestamp } from "drizzle-orm/pg-core";
+
+export const organisers = pgTable("organisers", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  email: varchar("email", { length: 255 }).notNull(),
+  stripeAccountId: varchar("stripe_account_id", { length: 255 }),
+  payoutsEnabled: boolean("payouts_enabled").notNull().default(false),
+  requirementsDue: jsonb("requirements_due"), // mirror subset of Stripe requirements
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+
+⸻
+
+7. Backend – Connect routes (Express + TS)
+
+// apps/api/src/routes/connect.ts
+import { Router } from "express";
+import { stripe } from "../stripe";
+import { db } from "../db";
+import { organisers } from "@repo/db/schema/organisers";
+
+export const connectRouter = Router();
+
+// Create or fetch an Express connected account for an organiser
+connectRouter.post("/accounts/ensure", async (req, res) => {
+  const { organiserId } = req.body as { organiserId: string };
+  const [org] = await db.select().from(organisers).where(organisers.id.eq(organiserId));
+  if (!org) return res.status(404).json({ error: "Organiser not found" });
+
+  let accountId = org.stripeAccountId;
+  if (!accountId) {
+    const account = await stripe.accounts.create({
+      type: "express",
+      country: "GB",
+      email: org.email,
+      capabilities: { card_payments: { requested: true }, transfers: { requested: true } },
+    });
+    accountId = account.id;
+    await db.update(organisers).set({ stripeAccountId: accountId }).where(organisers.id.eq(organiserId));
+  }
+  return res.json({ accountId });
+});
+
+// Create an onboarding or update link
+connectRouter.post("/accounts/link", async (req, res) => {
+  const { organiserId, returnPath = "/connect/return", refreshPath = "/connect/refresh", type } = req.body as {
+    organiserId: string; returnPath?: string; refreshPath?: string; type?: "account_onboarding" | "account_update";
+  };
+  const [org] = await db.select().from(organisers).where(organisers.id.eq(organiserId));
+  if (!org?.stripeAccountId) return res.status(404).json({ error: "Missing connected account" });
+
+  const link = await stripe.accountLinks.create({
+    account: org.stripeAccountId,
+    type: type ?? "account_onboarding",
+    return_url: `${process.env.APP_URL}${returnPath}?organiserId=${organiserId}`,
+    refresh_url: `${process.env.APP_URL}${refreshPath}?organiserId=${organiserId}`,
+  });
+  return res.json({ url: link.url });
+});
+
+// Convenience: fetch account status for dashboard
+connectRouter.get("/accounts/:organiserId/status", async (req, res) => {
+  const organiserId = req.params.organiserId;
+  const [org] = await db.select().from(organisers).where(organisers.id.eq(organiserId));
+  if (!org?.stripeAccountId) return res.json({ hasAccount: false });
+
+  const acct = await stripe.accounts.retrieve(org.stripeAccountId);
+  const payoutsEnabled = !!acct.payouts_enabled;
+  const due = (acct.requirements?.currently_due ?? []).length ? acct.requirements?.currently_due : null;
+  // persist snapshot
+  await db.update(organisers)
+    .set({ payoutsEnabled, requirementsDue: due as any })
+    .where(organisers.id.eq(organiserId));
+
+  res.json({ hasAccount: true, payoutsEnabled, requirementsDue: due });
+});
+
+7.1 Webhook (account.updated + PI events)
+
+Ensure your webhook app uses express.raw({ type: "application/json" }) before any JSON parser.
+
+// apps/api/src/routes/webhooks-connect.ts
+import express, { Router } from "express";
+import { stripe } from "../stripe";
+import { db } from "../db";
+import { organisers } from "@repo/db/schema/organisers";
+
+export const webhooksConnect = Router();
+
+webhooksConnect.post("/stripe", express.raw({ type: "application/json" }), async (req, res) => {
+  const sig = req.headers["stripe-signature"] as string;
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET!);
+  } catch (err) {
+    return res.status(400).send(`Webhook Error: ${(err as Error).message}`);
+  }
+
+  switch (event.type) {
+    case "account.updated": {
+      const acct = event.data.object as Stripe.Account;
+      const payoutsEnabled = !!acct.payouts_enabled;
+      const requirementsDue = acct.requirements?.currently_due ?? [];
+      await db.update(organisers)
+        .set({ payoutsEnabled, requirementsDue: requirementsDue as any })
+        .where(organisers.stripeAccountId.eq(acct.id));
+      break;
+    }
+    // You likely already handle payment_intent.* in your main webhook
+    default:
+      break;
+  }
+
+  res.json({ received: true });
+});
+
+
+⸻
+
+8. Using destination charges in your existing hold flow
+
+Update your hold-creation service to include transfer_data.destination (and optional application_fee_amount). Optionally add on_behalf_of for cross-region clarity.
+
+// apps/api/src/services/createHold.ts (excerpt)
+const pi = await stripe.paymentIntents.create({
+  amount: amountPence,
+  currency: "gbp",
+  customer: customerId,
+  payment_method: savedPaymentMethodId,
+  capture_method: "manual",
+  confirm: true,
+  off_session: true,
+  transfer_data: { destination: organiserStripeAccountId },
+  application_fee_amount: platformFeePence ?? undefined,
+  on_behalf_of: organiserStripeAccountId, // optional but recommended if applicable
+  statement_descriptor_suffix: "Event Hold",
+  metadata: { eventId, organiserId, holdId: id },
+});
+
+
+⸻
+
+9. Frontend — “Connect account” button & status (React + shadcn + TanStack Query)
+
+// apps/web/src/features/organisers/ConnectAccount.tsx
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, Link as LinkIcon, ShieldCheck, AlertTriangle } from "lucide-react";
+
+export function ConnectAccount({ organiserId }: { organiserId: string }) {
+  const status = useQuery({
+    queryKey: ["connect-status", organiserId],
+    queryFn: async () => (await fetch(`/api/connect/accounts/${organiserId}/status`)).json() as Promise<{
+      hasAccount: boolean; payoutsEnabled?: boolean; requirementsDue?: string[] | null;
+    }>,
+  });
+
+  const ensure = useMutation({
+    mutationFn: async () => (await fetch(`/api/connect/accounts/ensure`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ organiserId })
+    })).json() as Promise<{ accountId: string }>
+  });
+
+  const openLink = useMutation({
+    mutationFn: async (type?: "account_onboarding" | "account_update") => (await fetch(`/api/connect/accounts/link`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ organiserId, type })
+    })).json() as Promise<{ url: string }>,
+    onSuccess: ({ url }) => { window.open(url, "_blank"); }
+  });
+
+  const startOnboarding = async () => {
+    await ensure.mutateAsync();
+    await openLink.mutateAsync("account_onboarding");
+  };
+
+  const resume = async () => {
+    await openLink.mutateAsync("account_update");
+  };
+
+  const loading = status.isLoading || ensure.isLoading || openLink.isPending;
+
+  return (
+    <div className="flex items-center gap-3">
+      {status.data?.payoutsEnabled ? (
+        <Badge className="gap-1"><ShieldCheck size={14}/> Payouts enabled</Badge>
+      ) : status.data?.requirementsDue ? (
+        <Badge variant="destructive" className="gap-1"><AlertTriangle size={14}/> Action required</Badge>
+      ) : (
+        <Badge variant="secondary">Not connected</Badge>
+      )}
+
+      <Button onClick={startOnboarding} disabled={loading}>
+        {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <LinkIcon className="mr-2 h-4 w-4"/>}
+        {status.data?.hasAccount ? "Continue setup" : "Connect payout account"}
+      </Button>
+
+      {status.data?.requirementsDue && (
+        <Button variant="outline" onClick={resume} disabled={loading}>Resume</Button>
+      )}
+    </div>
+  );
+}
+
+Add a simple return/refresh page (optional):
+
+// apps/web/src/routes/connect/Return.tsx
+export default function ConnectReturn() {
+  return (
+    <div className="p-6">
+      <h1 className="text-xl font-semibold mb-2">Thanks! 🎉</h1>
+      <p>We’ve updated your payout status. You can close this tab.</p>
+    </div>
+  );
+}
+
+
+⸻
+
+10. Env & boot wiring
+
+// apps/api/src/index.ts (excerpt)
+import express from "express";
+import { connectRouter } from "./routes/connect";
+import { webhooksConnect } from "./routes/webhooks-connect";
+
+const app = express();
+app.use(express.json());
+app.use("/api/connect", connectRouter);
+app.use("/webhooks", webhooksConnect);
+
+app.listen(3000, () => console.log("API on :3000"));
+
+// apps/api/src/env.d.ts (append)
+declare namespace NodeJS { interface ProcessEnv { APP_URL: string; STRIPE_WEBHOOK_SECRET: string; } }
+
+Remember: your webhook route that validates Stripe signatures must use express.raw({ type: 'application/json' }) and be mounted before any global JSON body parser, or on a separate Express app.
+
+⸻
+
+11. Operational notes
+	•	Refunds/Disputes: As the platform (destination charges), you own refunds/disputes. Keep buffers for chargebacks.
+	•	Holds: Keep auth at ~72h before event; most card holds expire 5–7 days if not captured.
+	•	Testing: Use test mode with acct_ test accounts; simulate requirements via Dashboard; use test cards that trigger requires_action/3DS to validate off‑session flows.
+	•	Fees: Set application_fee_amount to collect your fee; verify VAT handling for your fee revenue.
