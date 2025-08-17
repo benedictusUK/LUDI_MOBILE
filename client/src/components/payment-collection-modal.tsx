@@ -84,7 +84,7 @@ export function PaymentCollectionModal({
   useEffect(() => {
     if (Array.isArray(teamMembers) && Array.isArray(attendance) && attendance.length > 0) {
       const attendingIds = attendance
-        .filter((vote: any) => vote.vote === "can_attend")
+        .filter((vote: any) => vote.status === "can_attend")
         .map((vote: any) => vote.userId);
       setSelectedAttendees(attendingIds);
     }
@@ -221,8 +221,8 @@ export function PaymentCollectionModal({
       attendance.find((vote: any) => vote.userId === member.userId) : null;
     return {
       ...member,
-      vote: attendanceVote?.vote || null,
-      isAttending: attendanceVote?.vote === "can_attend"
+      vote: attendanceVote?.status || null,
+      isAttending: attendanceVote?.status === "can_attend"
     };
   }).sort((a: any, b: any) => {
     // Sort by: attending first, then alphabetical by name
