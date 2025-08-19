@@ -1359,17 +1359,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // If user was attending and event requires payment, release the payment authorization
       if (wasAttending && event?.paymentRequired) {
         try {
+          // First try to get payment intent ID from eventPayments table
           const eventPayment = await storage.getEventPayment(eventId, userId);
+          console.log(`Unvote: Found eventPayment:`, eventPayment);
           
-          if (eventPayment && eventPayment.paymentIntentId) {
-            // Cancel the payment intent to release the authorization hold
-            await stripe.paymentIntents.cancel(eventPayment.paymentIntentId);
+          let paymentIntentId = eventPayment?.paymentIntentId;
+          
+          // If not found in eventPayments, check the payments table
+          if (!paymentIntentId) {
+            const payments = await storage.getEventPayments(eventId);
+            const userPayment = payments.find(p => p.userId === userId && p.status === 'authorized');
+            paymentIntentId = userPayment?.stripePaymentIntentId;
+            console.log(`Unvote: Found userPayment with intent ID:`, paymentIntentId);
+          }
+          
+          if (paymentIntentId) {
+            console.log(`Unvote: Attempting to cancel payment intent: ${paymentIntentId}`);
             
-            // Update event payment status
-            await storage.updateEventPaymentSetup(eventId, userId, {
-              status: 'cancelled',
-              updatedAt: new Date()
-            });
+            // Cancel the payment intent to release the authorization hold
+            const cancelledIntent = await stripe.paymentIntents.cancel(paymentIntentId);
+            console.log(`Unvote: Payment intent cancelled:`, cancelledIntent.status);
+            
+            // Update event payment status if record exists
+            if (eventPayment) {
+              await storage.updateEventPaymentSetup(eventId, userId, {
+                status: 'cancelled',
+                updatedAt: new Date()
+              });
+            }
 
             // Also update the main payment record if it exists
             try {
@@ -1383,6 +1400,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
 
             console.log(`Payment authorization cancelled for user ${userId}, event ${eventId}`);
+          } else {
+            console.log(`Unvote: No payment intent ID found for user ${userId}, event ${eventId}`);
           }
         } catch (paymentError) {
           console.error("Error releasing payment authorization:", paymentError);
