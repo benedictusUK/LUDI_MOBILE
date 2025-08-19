@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useScrollToTop } from "@/hooks/useScrollToTop";
@@ -13,10 +14,19 @@ import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { Link } from "wouter";
 import { Calendar, MapPin, Clock, Users, Zap } from "lucide-react";
+import PaymentAuthorizationModal from "@/components/payment-authorization-modal";
 
 export default function Notifications() {
   useScrollToTop();
   const { toast } = useToast();
+  const [paymentModalData, setPaymentModalData] = useState<{
+    isOpen: boolean;
+    event?: any;
+    amount?: number;
+    notificationId?: string;
+  }>({
+    isOpen: false
+  });
 
   const { data: notifications = [], isLoading } = useQuery({
     queryKey: ["/api/notifications"],
@@ -223,41 +233,58 @@ export default function Notifications() {
     },
   });
 
-  // Authorize payment from notification mutation
-  const authorizePaymentMutation = useMutation({
-    mutationFn: async (notificationId: string) => {
-      const response = await apiRequest("POST", `/api/notifications/${notificationId}/authorize-payment`, {
-        paymentMethodId: 'new-card' // Default to new card for now
+  // Handle opening payment modal from notification
+  const handlePaymentAuthorization = async (notification: any) => {
+    try {
+      const metadata = JSON.parse(notification.metadata || '{}');
+      const eventId = metadata.eventId;
+      const amount = parseFloat(metadata.amount);
+      
+      // Fetch event details
+      const response = await fetch(`/api/events/${eventId}`, {
+        credentials: "include"
       });
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-      toast({
-        title: "Success",
-        description: "Payment authorized and attendance confirmed!",
-      });
-    },
-    onError: (error) => {
-      if (isUnauthorizedError(error)) {
+      
+      if (response.ok) {
+        const event = await response.json();
+        setPaymentModalData({
+          isOpen: true,
+          event,
+          amount,
+          notificationId: notification.id
+        });
+      } else {
         toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
+          title: "Error",
+          description: "Failed to load event details",
           variant: "destructive",
         });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
-        return;
       }
+    } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to authorize payment",
+        description: "Failed to open payment authorization",
         variant: "destructive",
       });
-    },
-  });
+    }
+  };
+
+  // Handle successful payment authorization
+  const handlePaymentSuccess = () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+    
+    // Mark notification as read if we have the ID
+    if (paymentModalData.notificationId) {
+      markAsReadMutation.mutate(paymentModalData.notificationId);
+    }
+    
+    setPaymentModalData({ isOpen: false });
+    toast({
+      title: "Success",
+      description: "Payment authorized and attendance confirmed!",
+    });
+  };
 
   const addToMyEventsMutation = useMutation({
     mutationFn: async (eventId: string) => {
@@ -517,12 +544,11 @@ export default function Notifications() {
                               <Button
                                 size="sm"
                                 variant="default"
-                                onClick={() => authorizePaymentMutation.mutate(notification.id)}
-                                disabled={authorizePaymentMutation.isPending}
+                                onClick={() => handlePaymentAuthorization(notification)}
                                 className="bg-green-600 hover:bg-green-700"
                                 data-testid={`button-authorize-payment-${notification.id}`}
                               >
-                                {authorizePaymentMutation.isPending ? "Processing..." : `Authorize £${metadata.amount}`}
+                                Authorize £{metadata.amount}
                               </Button>
                               <Link href={`/events/${metadata.eventId}`}>
                                 <Button
@@ -620,6 +646,17 @@ export default function Notifications() {
           </CardContent>
         </Card>
       </main>
+
+      {/* Payment Authorization Modal */}
+      {paymentModalData.isOpen && paymentModalData.event && (
+        <PaymentAuthorizationModal
+          isOpen={paymentModalData.isOpen}
+          onClose={() => setPaymentModalData({ isOpen: false })}
+          onSuccess={handlePaymentSuccess}
+          event={paymentModalData.event}
+          maxPlayerPayment={paymentModalData.amount || 0}
+        />
+      )}
     </div>
   );
 }
