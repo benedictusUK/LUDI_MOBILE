@@ -134,31 +134,35 @@ export default function PaymentAuthorizationModal({
             <CreditCard className="w-5 h-5 text-blue-600" />
             Authorize Payment
           </DialogTitle>
-          <DialogDescription className="space-y-3 pt-2">
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Event:</span>
-                <span className="text-sm">{event.name}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Authorization Amount:</span>
-                <Badge variant="secondary" className="font-semibold">
-                  £{maxPlayerPayment.toFixed(2)}
-                </Badge>
-              </div>
-            </div>
-
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <div className="flex items-start gap-2">
-                <Check className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                <div className="text-sm text-blue-800">
-                  <p className="font-medium">Authorization hold - not a charge</p>
-                  <p>We'll authorize this amount. Final charges occur after the event.</p>
-                </div>
-              </div>
-            </div>
+          <DialogDescription>
+            We'll authorize a payment for this event. This is not a charge - final payment occurs after the event.
           </DialogDescription>
         </DialogHeader>
+
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium">Event:</span>
+              <span className="text-sm">{event.name}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium">Authorization Amount:</span>
+              <Badge variant="secondary" className="font-semibold">
+                £{maxPlayerPayment.toFixed(2)}
+              </Badge>
+            </div>
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <div className="flex items-start gap-2">
+              <Check className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+              <div className="text-sm text-blue-800">
+                <div className="font-medium">Authorization hold - not a charge</div>
+                <div>We'll authorize this amount. Final charges occur after the event.</div>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <div className="py-4">
           <Label className="text-sm font-medium mb-3 block">Choose payment method:</Label>
@@ -186,9 +190,9 @@ export default function PaymentAuthorizationModal({
                           <Badge variant="secondary" className="text-xs">Default</Badge>
                         )}
                       </div>
-                      <p className="text-sm text-gray-500">
+                      <div className="text-sm text-gray-500">
                         Expires {String(method.card?.exp_month).padStart(2, '0')}/{method.card?.exp_year}
-                      </p>
+                      </div>
                     </div>
                   </div>
                 </Label>
@@ -250,6 +254,7 @@ export default function PaymentAuthorizationModal({
             </div>
           </RadioGroup>
         </div>
+
 
         <DialogFooter className="gap-2">
           <Button
