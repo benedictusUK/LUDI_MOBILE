@@ -881,7 +881,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
             
             // Check if existing payment is in a valid state for voting
-            if (existingPayment.status === 'setup_pending' || existingPayment.status === 'requires_payment_method' || existingPayment.status === 'requires_confirmation') {
+            if (existingPayment.status === 'setup_pending' || existingPayment.status === 'setup_complete') {
               return res.status(400).json({ 
                 message: "Payment authorization required",
                 requiresPaymentAuth: true,
@@ -890,7 +890,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               });
             }
             
-            // Payment is authorized, allow voting to proceed
+            // Payment is authorized (hold_created), allow voting to proceed
             console.log(`Payment check passed: existing payment status = ${existingPayment.status}`);
           } catch (error) {
             console.error("Error checking existing payment:", error);
@@ -1006,8 +1006,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (existingEventPayment) {
           // Update existing record
           await storage.updateEventPaymentSetup(eventId, userId, {
-            status: 'authorized',
-            stripePaymentIntentId: paymentIntent.id,
+            status: 'hold_created',
+            paymentIntentId: paymentIntent.id,
             updatedAt: new Date()
           });
         } else {
@@ -1016,8 +1016,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             eventId,
             userId,
             stripeCustomerId: user.stripeCustomerId,
-            stripePaymentIntentId: paymentIntent.id,
-            status: 'authorized'
+            paymentIntentId: paymentIntent.id,
+            status: 'hold_created'
           });
         }
       } catch (eventPaymentError) {
@@ -1361,9 +1361,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           const eventPayment = await storage.getEventPayment(eventId, userId);
           
-          if (eventPayment && eventPayment.stripePaymentIntentId) {
+          if (eventPayment && eventPayment.paymentIntentId) {
             // Cancel the payment intent to release the authorization hold
-            await stripe.paymentIntents.cancel(eventPayment.stripePaymentIntentId);
+            await stripe.paymentIntents.cancel(eventPayment.paymentIntentId);
             
             // Update event payment status
             await storage.updateEventPaymentSetup(eventId, userId, {

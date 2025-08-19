@@ -229,12 +229,17 @@ export default function EventDetails() {
         queryClient.setQueryData(["/api/events", eventId, "attendance"], context.previousAttendance);
       }
     },
-    onSuccess: () => {
-      // Show success message for paid events if this was an attending vote
-      if (eventData?.cost && parseFloat(eventData.cost) > 0) {
+    onSuccess: (data) => {
+      // Show success message for unvoting from paid events
+      if (eventData?.paymentRequired && data?.paymentReleased) {
         toast({
-          title: "Payment Authorized",
-          description: `Payment of £${parseFloat(eventData.cost).toFixed(2)} has been authorized. You'll only be charged after the event.`,
+          title: "Payment Authorization Released",
+          description: `Your payment hold of up to £${parseFloat(eventData.maxPlayerPayment || '0').toFixed(2)} has been cancelled. You will not be charged.`,
+        });
+      } else {
+        toast({
+          title: "Unvoted Successfully",
+          description: "You have been removed from this event.",
         });
       }
     },
