@@ -862,69 +862,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         console.log(`Voting check: event.paymentRequired=${event.paymentRequired}, maxPlayerPayment=${maxPlayerPayment}`);
         
-        // If event requires payment authorization, validate and create authorization hold
+        // If event requires payment authorization, check if user needs to authorize payment
         if (event.paymentRequired && maxPlayerPayment > 0) {
-          console.log("Payment authorization required - checking user payment setup");
-          const user = await storage.getUserById(userId);
-          if (!user || !user.stripeCustomerId) {
-            return res.status(400).json({ 
-              message: "Payment authorization required",
-              details: `This event requires payment authorization up to £${maxPlayerPayment.toFixed(2)}. Please add a payment method in Settings before confirming your attendance.`
-            });
-          }
-
-          // Check if user has any payment methods
-          const paymentMethods = await stripe.paymentMethods.list({
-            customer: user.stripeCustomerId,
-            type: 'card',
-          });
-
-          if (paymentMethods.data.length === 0) {
-            return res.status(400).json({ 
-              message: "Payment authorization required",
-              details: `This event requires payment authorization up to £${maxPlayerPayment.toFixed(2)}. Please add a payment method in Settings before confirming your attendance.`
-            });
-          }
-
-          // Get user's default payment method
-          const customer = await stripe.customers.retrieve(user.stripeCustomerId);
-          const defaultPaymentMethodId = (customer as any).invoice_settings?.default_payment_method || paymentMethods.data[0].id;
-
+          console.log("Payment authorization required - checking existing authorization");
+          
+          // Check if user already has a payment authorization for this event
           try {
-            // Create a payment intent with authorization hold
-            const paymentIntent = await stripe.paymentIntents.create({
-              amount: Math.round(maxPlayerPayment * 100), // Convert to cents
-              currency: 'gbp',
-              customer: user.stripeCustomerId,
-              payment_method: defaultPaymentMethodId,
-              confirmation_method: 'manual',
-              confirm: true,
-              capture_method: 'manual', // This creates an authorization hold
-              return_url: `${req.protocol}://${req.get('host')}/events/${eventId}`,
-              metadata: {
-                eventId,
-                userId,
-                eventName: event.name,
-              },
-            });
-
-            // Create event payment record in our database
-            await storage.createEventPayment({
-              eventId,
-              userId,
-              stripeCustomerId: user.stripeCustomerId,
-              paymentIntentId: paymentIntent.id,
-              paymentIntentStatus: paymentIntent.status as any,
-              holdAmount: maxPlayerPayment.toString(),
-              status: 'hold_created',
-              holdCreatedAt: new Date(),
-            });
-
-          } catch (paymentError: any) {
-            console.error("Payment authorization failed:", paymentError);
+            const existingPayment = await storage.getEventPaymentByUser(eventId, userId);
+            
+            if (!existingPayment) {
+              // No existing payment authorization - user needs to authorize payment first
+              return res.status(400).json({ 
+                message: "Payment authorization required",
+                requiresPaymentAuth: true,
+                maxPlayerPayment,
+                details: `This event requires payment authorization up to £${maxPlayerPayment.toFixed(2)}. Please authorize payment to confirm your attendance.`
+              });
+            }
+            
+            // Check if existing payment is in a valid state
+            if (existingPayment.status === 'setup_pending') {
+              return res.status(400).json({ 
+                message: "Payment authorization required",
+                requiresPaymentAuth: true,
+                maxPlayerPayment,
+                details: `Please complete your payment authorization to confirm attendance.`
+              });
+            }
+          } catch (error) {
+            console.error("Error checking existing payment:", error);
+            // If we can't check existing payment, require authorization
             return res.status(400).json({ 
-              message: "Payment authorization failed",
-              details: paymentError.message || "Unable to authorize payment. Please check your payment method."
+              message: "Payment authorization required",
+              requiresPaymentAuth: true,
+              maxPlayerPayment,
+              details: `This event requires payment authorization up to £${maxPlayerPayment.toFixed(2)}. Please authorize payment to confirm your attendance.`
             });
           }
         }

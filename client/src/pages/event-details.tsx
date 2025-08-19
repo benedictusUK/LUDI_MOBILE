@@ -107,7 +107,7 @@ export default function EventDetails() {
         const errorData = await response.json();
         
         // If payment authorization is required, show the modal
-        if (response.status === 400 && errorData.message === "Payment authorization required") {
+        if (response.status === 400 && errorData.requiresPaymentAuth) {
           setPaymentAuthModal(true);
           throw new Error("PAYMENT_AUTHORIZATION_REQUIRED");
         }
