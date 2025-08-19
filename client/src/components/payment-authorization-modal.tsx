@@ -24,6 +24,7 @@ interface PaymentAuthorizationModalProps {
   event: any;
   maxPlayerPayment: number;
   isFromNotification?: boolean; // New prop to differentiate notification-triggered modals
+  notificationId?: string; // Pass notification ID for proper API calls
 }
 
 export default function PaymentAuthorizationModal({
@@ -33,6 +34,7 @@ export default function PaymentAuthorizationModal({
   event,
   maxPlayerPayment,
   isFromNotification = false,
+  notificationId,
 }: PaymentAuthorizationModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -60,18 +62,26 @@ export default function PaymentAuthorizationModal({
 
   const authorizePaymentMutation = useMutation({
     mutationFn: async () => {
-      // First create payment authorization hold
-      const response = await apiRequest("POST", `/api/events/${event.id}/authorize-payment`, {
-        paymentMethodId: selectedPaymentMethod,
-        amount: maxPlayerPayment,
-      });
-      
-      // Then update attendance status
-      await apiRequest("POST", `/api/events/${event.id}/vote`, {
-        status: "attending"
-      });
-      
-      return response;
+      if (isFromNotification && notificationId) {
+        // For notification-based payments, use direct notification authorization endpoint
+        // This will capture payment immediately and handle voting automatically
+        return await apiRequest("POST", `/api/notifications/${notificationId}/authorize-payment`, {
+          paymentMethodId: selectedPaymentMethod,
+        });
+      } else {
+        // Regular voting flow - create authorization hold first, then vote
+        const response = await apiRequest("POST", `/api/events/${event.id}/authorize-payment`, {
+          paymentMethodId: selectedPaymentMethod,
+          amount: maxPlayerPayment,
+        });
+        
+        // Then update attendance status
+        await apiRequest("POST", `/api/events/${event.id}/vote`, {
+          status: "attending"
+        });
+        
+        return response;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });

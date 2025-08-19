@@ -656,6 +656,7 @@ export default function Notifications() {
           event={paymentModalData.event}
           maxPlayerPayment={paymentModalData.amount || 0}
           isFromNotification={true}
+          notificationId={paymentModalData.notificationId}
         />
       )}
     </div>
