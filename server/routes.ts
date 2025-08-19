@@ -880,8 +880,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               });
             }
             
-            // Check if existing payment is in a valid state
-            if (existingPayment.status === 'setup_pending') {
+            // Check if existing payment is in a valid state for voting
+            if (existingPayment.status === 'setup_pending' || existingPayment.status === 'requires_payment_method' || existingPayment.status === 'requires_confirmation') {
               return res.status(400).json({ 
                 message: "Payment authorization required",
                 requiresPaymentAuth: true,
@@ -889,6 +889,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 details: `Please complete your payment authorization to confirm attendance.`
               });
             }
+            
+            // Payment is authorized, allow voting to proceed
+            console.log(`Payment check passed: existing payment status = ${existingPayment.status}`);
           } catch (error) {
             console.error("Error checking existing payment:", error);
             // If we can't check existing payment, require authorization
@@ -994,6 +997,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const payment = await storage.createPayment(paymentData);
       await storage.updatePaymentStatus(payment.id, 'authorized', paymentIntent.id);
+
+      // Also create/update the event payment record for voting logic
+      try {
+        // Check if event payment record already exists
+        const existingEventPayment = await storage.getEventPayment(eventId, userId);
+        
+        if (existingEventPayment) {
+          // Update existing record
+          await storage.updateEventPaymentSetup(eventId, userId, {
+            status: 'authorized',
+            stripePaymentIntentId: paymentIntent.id,
+            updatedAt: new Date()
+          });
+        } else {
+          // Create new event payment record
+          await storage.createEventPayment({
+            eventId,
+            userId,
+            stripeCustomerId: user.stripeCustomerId,
+            stripePaymentIntentId: paymentIntent.id,
+            status: 'authorized'
+          });
+        }
+      } catch (eventPaymentError) {
+        console.error("Error creating/updating event payment record:", eventPaymentError);
+        // Continue execution since the main payment was successful
+      }
 
       res.json({ 
         success: true, 
