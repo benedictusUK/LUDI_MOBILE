@@ -947,6 +947,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         currency: "gbp",
         customer: user.stripeCustomerId,
         capture_method: 'manual', // This creates an authorization hold
+        return_url: `${req.protocol}://${req.get('host')}/events/${eventId}`,
         metadata: {
           eventId,
           userId,
@@ -957,14 +958,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Handle specific payment methods
       if (paymentMethodId === 'apple-pay' || paymentMethodId === 'google-pay') {
         paymentIntentData.payment_method_types = [paymentMethodId === 'apple-pay' ? 'apple_pay' : 'google_pay'];
+        paymentIntentData.automatic_payment_methods = {
+          enabled: true,
+          allow_redirects: 'never'
+        };
       } else if (paymentMethodId === 'paypal') {
         paymentIntentData.payment_method_types = ['paypal'];
       } else if (paymentMethodId === 'new-card') {
         paymentIntentData.payment_method_types = ['card'];
+        paymentIntentData.automatic_payment_methods = {
+          enabled: true,
+          allow_redirects: 'never'
+        };
       } else {
         // Use existing saved payment method
         paymentIntentData.payment_method = paymentMethodId;
         paymentIntentData.confirm = true;
+        paymentIntentData.automatic_payment_methods = {
+          enabled: true,
+          allow_redirects: 'never'
+        };
       }
 
       // Create payment intent with authorization hold
