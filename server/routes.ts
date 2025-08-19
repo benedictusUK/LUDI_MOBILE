@@ -890,6 +890,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
               });
             }
             
+            // If payment was cancelled, user needs to re-authorize
+            if (existingPayment.status === 'cancelled') {
+              return res.status(400).json({ 
+                message: "Payment authorization required",
+                requiresPaymentAuth: true,
+                maxPlayerPayment,
+                details: `Your previous payment authorization was cancelled. Please authorize a new payment to confirm attendance.`
+              });
+            }
+            
             // Payment is authorized (hold_created), allow voting to proceed
             console.log(`Payment check passed: existing payment status = ${existingPayment.status}`);
           } catch (error) {
@@ -986,7 +996,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create payment intent with authorization hold
       const paymentIntent = await stripe.paymentIntents.create(paymentIntentData);
 
-      // Store payment record
+      // Store payment record (create new one for each authorization attempt)
       const paymentData = insertPaymentSchema.parse({
         userId,
         eventId,
@@ -997,14 +1007,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const payment = await storage.createPayment(paymentData);
       await storage.updatePaymentStatus(payment.id, 'authorized', paymentIntent.id);
+      console.log(`Authorize Payment: Created new payment record ${payment.id} with intent ${paymentIntent.id}`);
 
       // Also create/update the event payment record for voting logic
       try {
-        // Check if event payment record already exists
+        // Check if event payment record already exists (including cancelled ones)
         const existingEventPayment = await storage.getEventPayment(eventId, userId);
         
         if (existingEventPayment) {
-          // Update existing record
+          // Update existing record (whether it was cancelled or not)
+          console.log(`Authorize Payment: Updating existing eventPayment from status '${existingEventPayment.status}' to 'hold_created'`);
           await storage.updateEventPaymentSetup(eventId, userId, {
             status: 'hold_created',
             paymentIntentId: paymentIntent.id,
@@ -1012,6 +1024,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         } else {
           // Create new event payment record
+          console.log(`Authorize Payment: Creating new eventPayment with status 'hold_created'`);
           await storage.createEventPayment({
             eventId,
             userId,
