@@ -978,12 +978,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "User has no payment methods set up" });
       }
 
-      // Create payment intent - capture immediately for past events, hold for future events
+      // Use manual capture for all cases to support Apple Pay/Google Pay, then capture immediately for past events
       let paymentIntentData: any = {
         amount: Math.round(parseFloat(amount) * 100), // Convert to cents
         currency: "gbp",
         customer: user.stripeCustomerId,
-        capture_method: isEventInPast ? 'automatic' : 'manual', // Immediate capture for past events
+        capture_method: 'manual', // Always use manual capture for flexibility
+        automatic_payment_methods: {
+          enabled: true,
+          allow_redirects: 'never'
+        },
+        confirm: true,
         return_url: `${req.protocol}://${req.get('host')}/events/${eventId}`,
         metadata: {
           eventId,
@@ -993,21 +998,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
       };
 
-      // Handle payment method - use automatic_payment_methods for flexibility
-      if (paymentMethodId === 'new-card' || !paymentMethodId) {
-        paymentIntentData.automatic_payment_methods = {
-          enabled: true,
-          allow_redirects: 'never'
-        };
-        paymentIntentData.confirm = true;
-      } else {
-        // Use existing saved payment method
-        paymentIntentData.payment_method = paymentMethodId;
-        paymentIntentData.confirm = true;
-      }
-
       // Create payment intent
-      const paymentIntent = await stripe.paymentIntents.create(paymentIntentData);
+      let paymentIntent = await stripe.paymentIntents.create(paymentIntentData);
+
+      // If event is in the past, immediately capture the payment
+      if (isEventInPast && paymentIntent.status === 'requires_capture') {
+        console.log(`Immediately capturing payment for past event ${eventId}`);
+        paymentIntent = await stripe.paymentIntents.capture(paymentIntent.id);
+      }
 
       // Store payment record with appropriate status
       const paymentStatus = isEventInPast ? 'captured' : 'authorized';
