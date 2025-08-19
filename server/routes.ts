@@ -1343,8 +1343,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Unauthorized" });
       }
 
-      await storage.removeVote(req.params.id, userId);
-      res.json({ message: "Vote removed successfully" });
+      const eventId = req.params.id;
+
+      // Check if user was attending and if event requires payment
+      const [event, existingAttendance] = await Promise.all([
+        storage.getEvent(eventId),
+        storage.getUserAttendance(eventId, userId)
+      ]);
+
+      const wasAttending = existingAttendance?.status === "attending";
+
+      // Remove the vote first
+      await storage.removeVote(eventId, userId);
+
+      // If user was attending and event requires payment, release the payment authorization
+      if (wasAttending && event?.paymentRequired) {
+        try {
+          const eventPayment = await storage.getEventPayment(eventId, userId);
+          
+          if (eventPayment && eventPayment.stripePaymentIntentId) {
+            // Cancel the payment intent to release the authorization hold
+            await stripe.paymentIntents.cancel(eventPayment.stripePaymentIntentId);
+            
+            // Update event payment status
+            await storage.updateEventPaymentSetup(eventId, userId, {
+              status: 'cancelled',
+              updatedAt: new Date()
+            });
+
+            // Also update the main payment record if it exists
+            try {
+              const payments = await storage.getEventPayments(eventId);
+              const userPayment = payments.find(p => p.userId === userId && p.status === 'authorized');
+              if (userPayment) {
+                await storage.updatePaymentStatus(userPayment.id, 'cancelled');
+              }
+            } catch (paymentUpdateError) {
+              console.error("Error updating payment record:", paymentUpdateError);
+            }
+
+            console.log(`Payment authorization cancelled for user ${userId}, event ${eventId}`);
+          }
+        } catch (paymentError) {
+          console.error("Error releasing payment authorization:", paymentError);
+          // Don't fail the unvote if payment release fails
+          // The vote removal was successful, which is the primary action
+        }
+      }
+
+      res.json({ 
+        message: "Vote removed successfully",
+        paymentReleased: wasAttending && event?.paymentRequired
+      });
     } catch (error) {
       console.error("Error removing vote:", error);
       res.status(500).json({ message: "Internal server error" });
