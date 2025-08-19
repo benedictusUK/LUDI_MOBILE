@@ -199,22 +199,43 @@ export default function Settings() {
                         <div
                           key={payment.id}
                           className="flex items-center justify-between p-4 border rounded-lg"
+                          data-testid={`payment-history-item-${payment.id}`}
                         >
-                          <div className="space-y-1">
-                            <p className="font-medium">{payment.eventName || payment.teamName}</p>
-                            <p className="text-sm text-neutral-500">
-                              {new Date(payment.createdAt).toLocaleDateString()}
-                            </p>
+                          <div className="space-y-1 flex-1">
+                            {payment.event ? (
+                              <>
+                                <p className="font-medium" data-testid={`payment-event-name-${payment.id}`}>
+                                  {payment.event.name}
+                                </p>
+                                <p className="text-sm text-neutral-600" data-testid={`payment-event-date-${payment.id}`}>
+                                  Event: {new Date(payment.event.startDate).toLocaleDateString()} at {payment.event.startTime}
+                                </p>
+                                <p className="text-sm text-neutral-500" data-testid={`payment-created-date-${payment.id}`}>
+                                  Payment: {new Date(payment.createdAt).toLocaleDateString()}
+                                </p>
+                              </>
+                            ) : (
+                              <>
+                                <p className="font-medium" data-testid={`payment-general-name-${payment.id}`}>
+                                  {payment.type === 'event_fee' ? 'Event Payment' : 'Payment'}
+                                </p>
+                                <p className="text-sm text-neutral-500" data-testid={`payment-created-date-${payment.id}`}>
+                                  {new Date(payment.createdAt).toLocaleDateString()}
+                                </p>
+                              </>
+                            )}
                           </div>
                           <div className="text-right">
-                            <p className="font-medium">£{parseFloat(payment.amount).toFixed(2)}</p>
+                            <p className="font-medium" data-testid={`payment-amount-${payment.id}`}>
+                              £{parseFloat(payment.amount).toFixed(2)}
+                            </p>
                             <p className={`text-sm capitalize ${
-                              payment.status === 'completed' 
+                              payment.status === 'completed' || payment.status === 'captured' || payment.status === 'paid'
                                 ? 'text-green-600' 
-                                : payment.status === 'failed' 
+                                : payment.status === 'failed' || payment.status === 'cancelled'
                                 ? 'text-red-600' 
                                 : 'text-yellow-600'
-                            }`}>
+                            }`} data-testid={`payment-status-${payment.id}`}>
                               {payment.status}
                             </p>
                           </div>
