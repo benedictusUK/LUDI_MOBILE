@@ -979,14 +979,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Handle different payment methods
       if (paymentMethodId === 'apple-pay' || paymentMethodId === 'google-pay') {
         paymentIntentData.payment_method_types = [paymentMethodId === 'apple-pay' ? 'apple_pay' : 'google_pay'];
-        paymentIntentData.automatic_payment_methods = {
-          enabled: true,
-          allow_redirects: 'never'
-        };
       } else if (paymentMethodId === 'paypal') {
         paymentIntentData.payment_method_types = ['paypal'];
       } else if (paymentMethodId === 'new-card') {
-        paymentIntentData.payment_method_types = ['card'];
         paymentIntentData.automatic_payment_methods = {
           enabled: true,
           allow_redirects: 'never'
@@ -995,10 +990,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Use existing saved payment method
         paymentIntentData.payment_method = paymentMethodId;
         paymentIntentData.confirm = true;
-        paymentIntentData.automatic_payment_methods = {
-          enabled: true,
-          allow_redirects: 'never'
-        };
       }
 
       // Create payment intent
