@@ -223,6 +223,42 @@ export default function Notifications() {
     },
   });
 
+  // Authorize payment from notification mutation
+  const authorizePaymentMutation = useMutation({
+    mutationFn: async (notificationId: string) => {
+      const response = await apiRequest("POST", `/api/notifications/${notificationId}/authorize-payment`, {
+        paymentMethodId: 'new-card' // Default to new card for now
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      toast({
+        title: "Success",
+        description: "Payment authorized and attendance confirmed!",
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to authorize payment",
+        variant: "destructive",
+      });
+    },
+  });
+
   const addToMyEventsMutation = useMutation({
     mutationFn: async (eventId: string) => {
       const response = await apiRequest('POST', '/api/user-events', { eventId });
@@ -255,11 +291,24 @@ export default function Notifications() {
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case "event":
+      case "event_reminder":
+      case "event_update":
+      case "event_cancelled":
         return "fas fa-calendar";
       case "team":
+      case "team_invitation":
+      case "team_join_request":
+      case "team_join_approved":
+      case "team_join_rejected":
         return "fas fa-users";
       case "payment":
+      case "payment_required":
+      case "payment_confirmed":
+      case "payment_authorization_required":
         return "fas fa-credit-card";
+      case "flare_gun":
+      case "flare_sent":
+        return "fas fa-fire";
       default:
         return "fas fa-bell";
     }
@@ -268,11 +317,25 @@ export default function Notifications() {
   const getNotificationColor = (type: string) => {
     switch (type) {
       case "event":
+      case "event_reminder":
+      case "event_update":
+      case "event_cancelled":
         return "bg-primary";
       case "team":
+      case "team_invitation":
+      case "team_join_request":
+      case "team_join_approved":
+      case "team_join_rejected":
         return "bg-secondary";
       case "payment":
+      case "payment_required":
+      case "payment_confirmed":
         return "bg-yellow-500";
+      case "payment_authorization_required":
+        return "bg-green-600";
+      case "flare_gun":
+      case "flare_sent":
+        return "bg-red-500";
       default:
         return "bg-neutral-500";
     }
@@ -442,6 +505,40 @@ export default function Notifications() {
                           </Button>
                         </div>
                       )}
+
+                      {/* Payment authorization action buttons */}
+                      {notification.type === "payment_authorization_required" && !notification.isRead && (() => {
+                        try {
+                          const metadata = JSON.parse(notification.metadata || '{}');
+                          const isCompleted = metadata.authorizationCompleted;
+                          
+                          return !isCompleted && (
+                            <div className="flex gap-2 mt-3" onClick={(e) => e.stopPropagation()}>
+                              <Button
+                                size="sm"
+                                variant="default"
+                                onClick={() => authorizePaymentMutation.mutate(notification.id)}
+                                disabled={authorizePaymentMutation.isPending}
+                                className="bg-green-600 hover:bg-green-700"
+                                data-testid={`button-authorize-payment-${notification.id}`}
+                              >
+                                {authorizePaymentMutation.isPending ? "Processing..." : `Authorize £${metadata.amount}`}
+                              </Button>
+                              <Link href={`/events/${metadata.eventId}`}>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  data-testid={`button-view-event-${notification.id}`}
+                                >
+                                  View Event
+                                </Button>
+                              </Link>
+                            </div>
+                          );
+                        } catch (error) {
+                          return null;
+                        }
+                      })()}
 
                       {/* Event details and actions */}
                       {notification.metadata && (() => {

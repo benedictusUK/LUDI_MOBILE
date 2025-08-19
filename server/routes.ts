@@ -923,6 +923,149 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Authorize payment from notification
+  app.post("/api/notifications/:notificationId/authorize-payment", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const notificationId = req.params.notificationId;
+      const { paymentMethodId } = req.body;
+      
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Get notification and verify it's for payment authorization
+      const notification = await storage.getNotificationById(notificationId);
+      if (!notification || notification.userId !== userId || notification.type !== "payment_authorization_required") {
+        return res.status(404).json({ message: "Invalid notification" });
+      }
+
+      // Parse metadata to get event and payment details
+      const metadata = JSON.parse(notification.metadata || '{}');
+      const eventId = metadata.eventId;
+      const amount = metadata.amount;
+
+      if (!eventId || !amount) {
+        return res.status(400).json({ message: "Invalid notification data" });
+      }
+
+      // Get event details
+      const event = await storage.getEvent(eventId);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+
+      // Get user and verify they have a Stripe customer ID
+      const user = await storage.getUserById(userId);
+      if (!user?.stripeCustomerId) {
+        return res.status(400).json({ message: "User has no payment methods set up" });
+      }
+
+      // Create payment intent for authorization
+      let paymentIntentData: any = {
+        amount: Math.round(parseFloat(amount) * 100), // Convert to cents
+        currency: "gbp",
+        customer: user.stripeCustomerId,
+        capture_method: 'manual', // This creates an authorization hold
+        return_url: `${req.protocol}://${req.get('host')}/events/${eventId}`,
+        metadata: {
+          eventId,
+          userId,
+          type: 'event_authorization',
+          notificationId
+        },
+      };
+
+      // Handle different payment methods
+      if (paymentMethodId === 'apple-pay' || paymentMethodId === 'google-pay') {
+        paymentIntentData.payment_method_types = [paymentMethodId === 'apple-pay' ? 'apple_pay' : 'google_pay'];
+        paymentIntentData.automatic_payment_methods = {
+          enabled: true,
+          allow_redirects: 'never'
+        };
+      } else if (paymentMethodId === 'paypal') {
+        paymentIntentData.payment_method_types = ['paypal'];
+      } else if (paymentMethodId === 'new-card') {
+        paymentIntentData.payment_method_types = ['card'];
+        paymentIntentData.automatic_payment_methods = {
+          enabled: true,
+          allow_redirects: 'never'
+        };
+      } else {
+        // Use existing saved payment method
+        paymentIntentData.payment_method = paymentMethodId;
+        paymentIntentData.confirm = true;
+        paymentIntentData.automatic_payment_methods = {
+          enabled: true,
+          allow_redirects: 'never'
+        };
+      }
+
+      // Create payment intent
+      const paymentIntent = await stripe.paymentIntents.create(paymentIntentData);
+
+      // Store payment record
+      const paymentData = insertPaymentSchema.parse({
+        userId,
+        eventId,
+        amount: amount.toString(),
+        type: 'event_fee',
+        status: 'authorized',
+      });
+      
+      const payment = await storage.createPayment(paymentData);
+      await storage.updatePaymentStatus(payment.id, 'authorized', paymentIntent.id);
+
+      // Create/update event payment record
+      try {
+        const existingEventPayment = await storage.getEventPayment(eventId, userId);
+        
+        if (existingEventPayment) {
+          await storage.updateEventPaymentSetup(eventId, userId, {
+            status: 'hold_created',
+            paymentIntentId: paymentIntent.id,
+            updatedAt: new Date()
+          });
+        } else {
+          await storage.createEventPayment({
+            eventId,
+            userId,
+            stripeCustomerId: user.stripeCustomerId,
+            paymentIntentId: paymentIntent.id,
+            status: 'hold_created'
+          });
+        }
+      } catch (eventPaymentError) {
+        console.error("Error creating/updating event payment record:", eventPaymentError);
+      }
+
+      // Mark notification as read and update metadata to indicate authorization completed
+      await storage.markNotificationAsRead(notificationId);
+      await storage.updateNotificationMetadata(notificationId, JSON.stringify({
+        ...metadata,
+        authorizationCompleted: true,
+        paymentIntentId: paymentIntent.id
+      }));
+
+      // Auto-vote the user as attending
+      await storage.voteOnEvent(eventId, userId, "attending");
+
+      res.json({
+        success: true,
+        message: "Payment authorized and attendance confirmed",
+        paymentIntentId: paymentIntent.id,
+        clientSecret: paymentIntent.client_secret
+      });
+
+    } catch (error: any) {
+      console.error("Payment authorization from notification failed:", error);
+      res.status(500).json({ 
+        message: "Failed to authorize payment", 
+        details: error.message 
+      });
+    }
+  });
+
   // Authorize payment hold for event attendance
   app.post("/api/events/:id/authorize-payment", isAuthenticated, async (req: any, res) => {
     try {
@@ -1116,18 +1259,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get all authorized payments for this event
       let payments = await storage.getEventPayments(eventId);
-      let authorizedPayments = payments.filter(p => p.status === 'authorized');
+      let authorizedPayments = payments.filter(p => p.status === 'hold_created');
       
-      // If specific attendees are selected, filter payments to only those users
+      // If specific attendees are selected, check who needs payment authorization notifications
       if (attendeeIds && attendeeIds.length > 0) {
+        const attendeesNeedingAuth = [];
+        const authorizedAttendeeIds = authorizedPayments.map(p => p.userId);
+        
+        // Find attendees who don't have payment authorization
+        for (const attendeeId of attendeeIds) {
+          if (!authorizedAttendeeIds.includes(attendeeId)) {
+            attendeesNeedingAuth.push(attendeeId);
+          }
+        }
+        
+        // Send payment authorization notifications to users who need them
+        if (attendeesNeedingAuth.length > 0) {
+          const user = await storage.getUserById(userId);
+          const amountPerPerson = (finalVenueCost / attendeeIds.length).toFixed(2);
+          
+          for (const attendeeId of attendeesNeedingAuth) {
+            try {
+              await storage.createNotification({
+                userId: attendeeId,
+                title: "Payment Authorization Required",
+                message: `${user?.firstName || 'Event organizer'} has added you to "${event.name}" payment collection. Please authorize £${amountPerPerson} to confirm your attendance.`,
+                type: "payment_authorization_required",
+                relatedId: eventId,
+                metadata: JSON.stringify({
+                  eventId,
+                  organizerId: userId,
+                  amount: amountPerPerson,
+                  eventName: event.name,
+                  requiresAuth: true
+                })
+              });
+              console.log(`Payment authorization notification sent to user ${attendeeId}`);
+            } catch (error) {
+              console.error(`Failed to send notification to user ${attendeeId}:`, error);
+            }
+          }
+        }
+        
+        // Filter to only process attendees with authorization
         authorizedPayments = authorizedPayments.filter(p => attendeeIds.includes(p.userId));
       }
       
       if (authorizedPayments.length === 0) {
-        return res.status(400).json({ 
-          message: attendeeIds && attendeeIds.length > 0 
-            ? "No authorized payments found for selected attendees" 
-            : "No authorized payments found for this event" 
+        const message = attendeeIds && attendeeIds.length > 0 
+          ? `Payment authorization notifications sent to ${attendeeIds.filter(id => !authorizedPayments.map(p => p.userId).includes(id)).length} attendees. No payments to capture at this time.`
+          : "No authorized payments found for this event";
+        
+        return res.status(200).json({ 
+          message,
+          notificationsSent: attendeeIds ? attendeeIds.filter(id => !authorizedPayments.map(p => p.userId).includes(id)).length : 0,
+          totalAmount: 0,
+          successfulCaptures: 0,
+          failedCaptures: 0
         });
       }
 

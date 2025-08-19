@@ -885,6 +885,22 @@ export class DatabaseStorage implements IStorage {
       .where(eq(notifications.userId, userId));
   }
 
+  async getNotificationById(id: string): Promise<Notification | undefined> {
+    const [notification] = await db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.id, id))
+      .limit(1);
+    return notification;
+  }
+
+  async updateNotificationMetadata(id: string, metadata: string): Promise<void> {
+    await db
+      .update(notifications)
+      .set({ metadata, updatedAt: new Date() })
+      .where(eq(notifications.id, id));
+  }
+
   // Event attendance operations
   async getEventAttendance(eventId: string): Promise<any[]> {
     const attendanceRecords = await db
