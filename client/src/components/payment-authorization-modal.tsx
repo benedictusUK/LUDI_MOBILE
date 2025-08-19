@@ -23,6 +23,7 @@ interface PaymentAuthorizationModalProps {
   onSuccess: () => void;
   event: any;
   maxPlayerPayment: number;
+  isFromNotification?: boolean; // New prop to differentiate notification-triggered modals
 }
 
 export default function PaymentAuthorizationModal({
@@ -31,6 +32,7 @@ export default function PaymentAuthorizationModal({
   onSuccess,
   event,
   maxPlayerPayment,
+  isFromNotification = false,
 }: PaymentAuthorizationModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -132,10 +134,13 @@ export default function PaymentAuthorizationModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CreditCard className="w-5 h-5 text-blue-600" />
-            Authorize Payment
+            {isFromNotification ? "Event Payment Required" : "Authorize Payment"}
           </DialogTitle>
           <DialogDescription>
-            We'll authorize a payment for this event. This is not a charge - final payment occurs after the event.
+            {isFromNotification 
+              ? `Complete your payment of £${maxPlayerPayment.toFixed(2)} to confirm your attendance for this event.`
+              : "We'll authorize a payment for this event. This is not a charge - final payment occurs after the event."
+            }
           </DialogDescription>
         </DialogHeader>
 
@@ -146,7 +151,7 @@ export default function PaymentAuthorizationModal({
               <span className="text-sm">{event.name}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm font-medium">Authorization Amount:</span>
+              <span className="text-sm font-medium">{isFromNotification ? "Payment Amount:" : "Authorization Amount:"}</span>
               <Badge variant="secondary" className="font-semibold">
                 £{maxPlayerPayment.toFixed(2)}
               </Badge>
@@ -157,8 +162,17 @@ export default function PaymentAuthorizationModal({
             <div className="flex items-start gap-2">
               <Check className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
               <div className="text-sm text-blue-800">
-                <div className="font-medium">Authorization hold - not a charge</div>
-                <div>We'll authorize this amount. Final charges occur after the event.</div>
+                {isFromNotification ? (
+                  <>
+                    <div className="font-medium">Payment will be processed immediately</div>
+                    <div>This payment confirms your attendance for the event.</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="font-medium">Authorization hold - not a charge</div>
+                    <div>We'll authorize this amount. Final charges occur after the event.</div>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -279,7 +293,7 @@ export default function PaymentAuthorizationModal({
             ) : (
               <>
                 <CreditCard className="w-4 h-4 mr-2" />
-                Authorize Payment
+                {isFromNotification ? "Pay now" : "Authorize Payment"}
               </>
             )}
           </Button>
