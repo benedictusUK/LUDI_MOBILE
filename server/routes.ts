@@ -978,7 +978,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "User has no payment methods set up" });
       }
 
-      // Use manual capture for all cases to support Apple Pay/Google Pay, then capture immediately for past events
+      // Determine if this should be immediate payment or authorization hold
+      const shouldCaptureImmediately = isEventInPast || notificationId; // Capture for past events OR notification-based payments
+      
       let paymentIntentData: any = {
         amount: Math.round(parseFloat(amount) * 100), // Convert to cents
         currency: "gbp",
@@ -993,22 +995,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata: {
           eventId,
           userId,
-          type: isEventInPast ? 'event_payment' : 'event_authorization',
-          notificationId
+          type: shouldCaptureImmediately ? 'event_payment' : 'event_authorization',
+          notificationId: notificationId || '',
+          isNotificationPayment: notificationId ? 'true' : 'false'
         },
       };
 
       // Create payment intent
       let paymentIntent = await stripe.paymentIntents.create(paymentIntentData);
 
-      // If event is in the past, immediately capture the payment
-      if (isEventInPast && paymentIntent.status === 'requires_capture') {
-        console.log(`Immediately capturing payment for past event ${eventId}`);
+      // Immediately capture for notification-based payments or past events
+      if (shouldCaptureImmediately && paymentIntent.status === 'requires_capture') {
+        console.log(`Immediately capturing payment: ${notificationId ? 'notification-based' : 'past event'} payment for event ${eventId}`);
         paymentIntent = await stripe.paymentIntents.capture(paymentIntent.id);
       }
 
       // Store payment record with appropriate status
-      const paymentStatus = isEventInPast ? 'captured' : 'authorized';
+      const paymentStatus = shouldCaptureImmediately ? 'captured' : 'authorized';
       const paymentData = insertPaymentSchema.parse({
         userId,
         eventId,
@@ -1021,7 +1024,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updatePaymentStatus(payment.id, paymentStatus, paymentIntent.id);
 
       // Create/update event payment record with appropriate status
-      const eventPaymentStatus = isEventInPast ? 'captured' : 'hold_created';
+      const eventPaymentStatus = shouldCaptureImmediately ? 'captured' : 'hold_created';
       try {
         const existingEventPayment = await storage.getEventPayment(eventId, userId);
         
@@ -1057,12 +1060,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({
         success: true,
-        message: isEventInPast 
+        message: shouldCaptureImmediately 
           ? "Payment captured successfully and attendance confirmed" 
           : "Payment authorized and attendance confirmed",
         paymentIntentId: paymentIntent.id,
         clientSecret: paymentIntent.client_secret,
-        paymentStatus: isEventInPast ? 'captured' : 'authorized'
+        paymentStatus: shouldCaptureImmediately ? 'captured' : 'authorized'
       });
 
     } catch (error: any) {
