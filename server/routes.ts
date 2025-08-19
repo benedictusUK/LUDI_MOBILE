@@ -1346,12 +1346,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const eventId = req.params.id;
 
       // Check if user was attending and if event requires payment
+      // IMPORTANT: Check attendance BEFORE removing the vote to detect if they were attending
       const [event, existingAttendance] = await Promise.all([
         storage.getEvent(eventId),
-        storage.getUserAttendance(eventId, userId)
+        storage.getUserAttendance(userId, eventId) // Note: correct parameter order
       ]);
 
       const wasAttending = existingAttendance?.status === "attending";
+      console.log(`Unvote: User attendance status before removal: ${existingAttendance?.status}, wasAttending: ${wasAttending}`);
 
       // Remove the vote first
       await storage.removeVote(eventId, userId);
