@@ -87,7 +87,7 @@ export function PaymentCollectionModal({
       console.log("Attendance data:", attendance);
       
       const attendingIds = attendance
-        .filter((vote: any) => vote.status === "can_attend")
+        .filter((vote: any) => vote.status === "can_attend" || vote.status === "attending")
         .map((vote: any) => vote.userId);
       
       console.log("Attending user IDs:", attendingIds);
@@ -227,7 +227,7 @@ export function PaymentCollectionModal({
     return {
       ...member,
       vote: attendanceVote?.status || null,
-      isAttending: attendanceVote?.status === "can_attend"
+      isAttending: attendanceVote?.status === "can_attend" || attendanceVote?.status === "attending"
     };
   }).sort((a: any, b: any) => {
     // Sort by: attending first, then alphabetical by name
@@ -317,13 +317,13 @@ export function PaymentCollectionModal({
                     <div className="space-y-2 max-h-48 overflow-y-auto">
                       {allMembersWithVotes.map((member: any) => {
                         const getStatusText = () => {
-                          if (member.vote === "can_attend") return "Voted to attend";
+                          if (member.vote === "can_attend" || member.vote === "attending") return "Voted to attend";
                           if (member.vote === "cant_attend") return "Can't attend";
                           return "No response";
                         };
 
                         const getStatusColor = () => {
-                          if (member.vote === "can_attend") return "text-green-600";
+                          if (member.vote === "can_attend" || member.vote === "attending") return "text-green-600";
                           if (member.vote === "cant_attend") return "text-red-500";
                           return "text-neutral-500";
                         };
