@@ -83,9 +83,14 @@ export function PaymentCollectionModal({
   // Initialize selected attendees with those who voted to attend
   useEffect(() => {
     if (Array.isArray(teamMembers) && Array.isArray(attendance) && attendance.length > 0) {
+      console.log("Pre-selecting attendees - Team members:", teamMembers.length, "Attendance records:", attendance.length);
+      console.log("Attendance data:", attendance);
+      
       const attendingIds = attendance
         .filter((vote: any) => vote.status === "can_attend")
         .map((vote: any) => vote.userId);
+      
+      console.log("Attending user IDs:", attendingIds);
       setSelectedAttendees(attendingIds);
     }
   }, [teamMembers, attendance]);
