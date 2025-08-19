@@ -168,7 +168,8 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
           reserveSpots: event.reserveSpots?.toString() || "",
           cost: event.cost || "",
           isPublished: event.isPublished || false,
-          requiresPayment: event.requiresPayment || false,
+          requiresPayment: event.paymentRequired || false,
+          maxPlayerPayment: event.maxPlayerPayment || "",
           recurrenceType: event.recurrenceType || "none",
           recurrenceDaysOfWeek: event.recurrenceDaysOfWeek || [],
           recurrenceEndDate: event.recurrenceEndDate || "",
@@ -188,6 +189,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
       const processedData = {
         ...data,
         cost: data.cost || "0.00",
+        paymentRequired: data.requiresPayment || false,
         maxPlayerPayment: data.maxPlayerPayment || null,
         participants: data.maxParticipants ? parseInt(data.maxParticipants) : null,
         reserveSpots: data.reserveSpots ? parseInt(data.reserveSpots) : 0,
