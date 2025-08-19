@@ -955,37 +955,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Event not found" });
       }
 
+      // Check if event is in the past to determine capture method
+      const now = new Date();
+      let eventEndTime: Date;
+      
+      if (event.endDate && event.endTime) {
+        eventEndTime = new Date(`${event.endDate}T${event.endTime}`);
+      } else if (event.startDate && event.endTime) {
+        eventEndTime = new Date(`${event.startDate}T${event.endTime}`);
+      } else {
+        // Assume event ended if no end time provided and start date is today or earlier
+        eventEndTime = new Date(event.startDate);
+        eventEndTime.setHours(23, 59, 59);
+      }
+      
+      const isEventInPast = eventEndTime < now;
+      console.log(`Event ${eventId} is ${isEventInPast ? 'in the past' : 'in the future'}, using ${isEventInPast ? 'immediate capture' : 'authorization hold'}`);
+
       // Get user and verify they have a Stripe customer ID
       const user = await storage.getUserById(userId);
       if (!user?.stripeCustomerId) {
         return res.status(400).json({ message: "User has no payment methods set up" });
       }
 
-      // Create payment intent for authorization
+      // Create payment intent - capture immediately for past events, hold for future events
       let paymentIntentData: any = {
         amount: Math.round(parseFloat(amount) * 100), // Convert to cents
         currency: "gbp",
         customer: user.stripeCustomerId,
-        capture_method: 'manual', // This creates an authorization hold
+        capture_method: isEventInPast ? 'automatic' : 'manual', // Immediate capture for past events
         return_url: `${req.protocol}://${req.get('host')}/events/${eventId}`,
         metadata: {
           eventId,
           userId,
-          type: 'event_authorization',
+          type: isEventInPast ? 'event_payment' : 'event_authorization',
           notificationId
         },
       };
 
-      // Handle different payment methods
-      if (paymentMethodId === 'apple-pay' || paymentMethodId === 'google-pay') {
-        paymentIntentData.payment_method_types = [paymentMethodId === 'apple-pay' ? 'apple_pay' : 'google_pay'];
-      } else if (paymentMethodId === 'paypal') {
-        paymentIntentData.payment_method_types = ['paypal'];
-      } else if (paymentMethodId === 'new-card') {
+      // Handle payment method - use automatic_payment_methods for flexibility
+      if (paymentMethodId === 'new-card' || !paymentMethodId) {
         paymentIntentData.automatic_payment_methods = {
           enabled: true,
           allow_redirects: 'never'
         };
+        paymentIntentData.confirm = true;
       } else {
         // Use existing saved payment method
         paymentIntentData.payment_method = paymentMethodId;
@@ -995,25 +1009,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create payment intent
       const paymentIntent = await stripe.paymentIntents.create(paymentIntentData);
 
-      // Store payment record
+      // Store payment record with appropriate status
+      const paymentStatus = isEventInPast ? 'captured' : 'authorized';
       const paymentData = insertPaymentSchema.parse({
         userId,
         eventId,
         amount: amount.toString(),
         type: 'event_fee',
-        status: 'authorized',
+        status: paymentStatus,
       });
       
       const payment = await storage.createPayment(paymentData);
-      await storage.updatePaymentStatus(payment.id, 'authorized', paymentIntent.id);
+      await storage.updatePaymentStatus(payment.id, paymentStatus, paymentIntent.id);
 
-      // Create/update event payment record
+      // Create/update event payment record with appropriate status
+      const eventPaymentStatus = isEventInPast ? 'captured' : 'hold_created';
       try {
         const existingEventPayment = await storage.getEventPayment(eventId, userId);
         
         if (existingEventPayment) {
           await storage.updateEventPaymentSetup(eventId, userId, {
-            status: 'hold_created',
+            status: eventPaymentStatus,
             paymentIntentId: paymentIntent.id,
             updatedAt: new Date()
           });
@@ -1023,7 +1039,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             userId,
             stripeCustomerId: user.stripeCustomerId,
             paymentIntentId: paymentIntent.id,
-            status: 'hold_created'
+            status: eventPaymentStatus
           });
         }
       } catch (eventPaymentError) {
@@ -1043,9 +1059,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({
         success: true,
-        message: "Payment authorized and attendance confirmed",
+        message: isEventInPast 
+          ? "Payment captured successfully and attendance confirmed" 
+          : "Payment authorized and attendance confirmed",
         paymentIntentId: paymentIntent.id,
-        clientSecret: paymentIntent.client_secret
+        clientSecret: paymentIntent.client_secret,
+        paymentStatus: isEventInPast ? 'captured' : 'authorized'
       });
 
     } catch (error: any) {
