@@ -1020,23 +1020,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (payment.stripePaymentIntentId) {
             let captureRequest: any = {};
             
-            // If organiser has Connect account set up, use destination charges
-            if (organiserAccount) {
-              // Calculate application fee (2.9% + 30p for Stripe, 5% for our platform)
-              const amountInPence = Math.round(parseFloat(payment.amount) * 100);
-              const applicationFee = Math.round(amountInPence * 0.029) + 30 + Math.round(amountInPence * 0.05);
-              
-              captureRequest.application_fee_amount = applicationFee;
-              captureRequest.transfer_data = {
-                destination: organiserAccount
-              };
-            }
+            // Note: For now we'll capture payments normally without destination charges
+            // To use destination charges, payments need to be created with on_behalf_of parameter
+            // This will be implemented when full Stripe Connect flow is set up
             
             // Capture the payment intent
             const paymentIntent = await stripe.paymentIntents.capture(
               payment.stripePaymentIntentId,
               captureRequest
             );
+            
+            // If organiser has Connect account, create a transfer after capture
+            if (organiserAccount && paymentIntent.status === 'succeeded') {
+              try {
+                const amountInPence = Math.round(parseFloat(payment.amount) * 100);
+                // Keep 5% platform fee, transfer 95% to organiser
+                const transferAmount = Math.round(amountInPence * 0.95);
+                
+                await stripe.transfers.create({
+                  amount: transferAmount,
+                  currency: 'gbp',
+                  destination: organiserAccount,
+                  transfer_group: `event_${eventId}`,
+                  metadata: {
+                    eventId: eventId,
+                    paymentId: payment.id,
+                    userId: payment.userId
+                  }
+                });
+              } catch (transferError) {
+                console.error(`Transfer failed for payment ${payment.id}:`, transferError);
+                // Payment was captured successfully, but transfer failed
+                // This will be handled in the results
+              }
+            }
             
             // Update payment status in our database
             await storage.updatePaymentStatus(payment.id, 'captured');
