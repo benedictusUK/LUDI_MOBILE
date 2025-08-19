@@ -535,12 +535,12 @@ export default function EventDetails() {
                   )}
 
                   {/* Payment Requirement Notice - Shows for paid events when user hasn't voted yet */}
-                  {!userAttendance && eventData.cost && parseFloat(eventData.cost) > 0 && (
+                  {!userAttendance && eventData.paymentRequired && eventData.maxPlayerPayment && parseFloat(eventData.maxPlayerPayment) > 0 && (
                     <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
                       <div className="flex items-center gap-2">
-                        <div className="text-amber-600 font-medium">Payment Required</div>
+                        <div className="text-amber-600 font-medium">Payment Authorization Required</div>
                         <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-300">
-                          £{parseFloat(eventData.cost).toFixed(2)}
+                          Up to £{parseFloat(eventData.maxPlayerPayment).toFixed(2)}
                         </Badge>
                       </div>
                       <p className="text-sm text-amber-700 mt-1">

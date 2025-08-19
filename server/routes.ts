@@ -860,8 +860,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Check if event requires payment authorization (maxPlayerPayment field)
         const maxPlayerPayment = parseFloat(event.maxPlayerPayment || "0");
         
+        console.log(`Voting check: event.paymentRequired=${event.paymentRequired}, maxPlayerPayment=${maxPlayerPayment}`);
+        
         // If event requires payment authorization, validate and create authorization hold
         if (event.paymentRequired && maxPlayerPayment > 0) {
+          console.log("Payment authorization required - checking user payment setup");
           const user = await storage.getUserById(userId);
           if (!user || !user.stripeCustomerId) {
             return res.status(400).json({ 
