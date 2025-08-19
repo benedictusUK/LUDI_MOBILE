@@ -938,6 +938,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Authorize payment hold for event attendance
+  app.post("/api/events/:id/authorize-payment", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const eventId = req.params.id;
+      const { paymentMethodId, amount } = req.body;
+      
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      if (!paymentMethodId || !amount) {
+        return res.status(400).json({ message: "Payment method ID and amount are required" });
+      }
+
+      // Get user and verify they have a Stripe customer ID
+      const user = await storage.getUserById(userId);
+      if (!user?.stripeCustomerId) {
+        return res.status(400).json({ message: "User has no payment methods set up" });
+      }
+
+      // Get event to verify it requires payment
+      const event = await storage.getEvent(eventId);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+
+      if (!event.paymentRequired) {
+        return res.status(400).json({ message: "Event does not require payment" });
+      }
+
+      // Handle different payment method types
+      let paymentIntentData: any = {
+        amount: Math.round(parseFloat(amount) * 100), // Convert to cents
+        currency: "gbp",
+        customer: user.stripeCustomerId,
+        capture_method: 'manual', // This creates an authorization hold
+        metadata: {
+          eventId,
+          userId,
+          type: 'event_authorization'
+        },
+      };
+
+      // Handle specific payment methods
+      if (paymentMethodId === 'apple-pay' || paymentMethodId === 'google-pay') {
+        paymentIntentData.payment_method_types = [paymentMethodId === 'apple-pay' ? 'apple_pay' : 'google_pay'];
+      } else if (paymentMethodId === 'paypal') {
+        paymentIntentData.payment_method_types = ['paypal'];
+      } else if (paymentMethodId === 'new-card') {
+        paymentIntentData.payment_method_types = ['card'];
+      } else {
+        // Use existing saved payment method
+        paymentIntentData.payment_method = paymentMethodId;
+        paymentIntentData.confirm = true;
+      }
+
+      // Create payment intent with authorization hold
+      const paymentIntent = await stripe.paymentIntents.create(paymentIntentData);
+
+      // Store payment record
+      const paymentData = insertPaymentSchema.parse({
+        userId,
+        eventId,
+        amount: amount.toString(),
+        type: 'event_fee',
+        status: 'authorized',
+      });
+      
+      const payment = await storage.createPayment(paymentData);
+      await storage.updatePaymentStatus(payment.id, 'authorized', paymentIntent.id);
+
+      res.json({ 
+        success: true, 
+        paymentIntentId: paymentIntent.id,
+        status: paymentIntent.status,
+        clientSecret: paymentIntent.client_secret 
+      });
+    } catch (error: any) {
+      console.error("Payment authorization failed:", error);
+      res.status(500).json({ 
+        message: "Failed to authorize payment", 
+        details: error.message 
+      });
+    }
+  });
+
   // Collect payment for past events
   app.post("/api/events/:id/collect-payment", isAuthenticated, async (req: any, res) => {
     try {
