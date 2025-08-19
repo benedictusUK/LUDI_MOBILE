@@ -850,22 +850,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const eventId = req.params.id;
       
-      // If voting to attend, check if event requires payment
+      // If voting to attend, check if event requires payment authorization
       if (status === "attending") {
         const event = await storage.getEvent(eventId);
         if (!event) {
           return res.status(404).json({ message: "Event not found" });
         }
 
-        const eventCost = parseFloat(event.cost || "0");
+        // Check if event requires payment authorization (maxPlayerPayment field)
+        const maxPlayerPayment = parseFloat(event.maxPlayerPayment || "0");
         
-        // If event has a cost, validate payment method and process payment
-        if (eventCost > 0) {
+        // If event requires payment authorization, validate and create authorization hold
+        if (event.paymentRequired && maxPlayerPayment > 0) {
           const user = await storage.getUserById(userId);
           if (!user || !user.stripeCustomerId) {
             return res.status(400).json({ 
-              message: "Payment method required",
-              details: `This event costs £${eventCost.toFixed(2)}. Please add a payment method in Settings before confirming your attendance.`
+              message: "Payment authorization required",
+              details: `This event requires payment authorization up to £${maxPlayerPayment.toFixed(2)}. Please add a payment method in Settings before confirming your attendance.`
             });
           }
 
@@ -877,8 +878,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           if (paymentMethods.data.length === 0) {
             return res.status(400).json({ 
-              message: "Payment method required",
-              details: `This event costs £${eventCost.toFixed(2)}. Please add a payment method in Settings before confirming your attendance.`
+              message: "Payment authorization required",
+              details: `This event requires payment authorization up to £${maxPlayerPayment.toFixed(2)}. Please add a payment method in Settings before confirming your attendance.`
             });
           }
 
@@ -889,7 +890,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           try {
             // Create a payment intent with authorization hold
             const paymentIntent = await stripe.paymentIntents.create({
-              amount: Math.round(eventCost * 100), // Convert to cents
+              amount: Math.round(maxPlayerPayment * 100), // Convert to cents
               currency: 'gbp',
               customer: user.stripeCustomerId,
               payment_method: defaultPaymentMethodId,
@@ -904,14 +905,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
               },
             });
 
-            // Create payment record in our database
-            await storage.createPayment({
-              type: 'event_payment',
-              userId,
+            // Create event payment record in our database
+            await storage.createEventPayment({
               eventId,
-              amount: eventCost.toString(),
-              status: 'authorized',
-              stripePaymentIntentId: paymentIntent.id,
+              userId,
+              stripeCustomerId: user.stripeCustomerId,
+              paymentIntentId: paymentIntent.id,
+              paymentIntentStatus: paymentIntent.status as any,
+              holdAmount: maxPlayerPayment.toString(),
+              status: 'hold_created',
+              holdCreatedAt: new Date(),
             });
 
           } catch (paymentError: any) {

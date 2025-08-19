@@ -19,6 +19,7 @@ import { FlareGunModal } from "@/components/ui/flare-gun-modal";
 import { ReservePlayersManager } from "@/components/ui/reserve-players-manager";
 import { EventPayment } from "@/components/event-payment";
 import { PaymentCollectionModal } from "@/components/payment-collection-modal";
+import PaymentAuthorizationModal from "@/components/payment-authorization-modal";
 
 export default function EventDetails() {
   useScrollToTop();
@@ -49,6 +50,8 @@ export default function EventDetails() {
     eventCost: "",
     eventCreatorId: "",
   });
+
+  const [paymentAuthModal, setPaymentAuthModal] = useState(false);
 
   // Fetch event details first (priority data)
   const { data: event, isLoading: eventLoading } = useQuery({
@@ -90,7 +93,7 @@ export default function EventDetails() {
     staleTime: 30000, // Cache for 30 seconds
   });
 
-  // Vote mutation with optimistic updates
+  // Vote mutation with payment authorization handling
   const voteMutation = useMutation({
     mutationFn: async (status: "attending" | "not_attending") => {
       const response = await fetch(`/api/events/${eventId}/vote`, {
@@ -102,6 +105,13 @@ export default function EventDetails() {
       
       if (!response.ok) {
         const errorData = await response.json();
+        
+        // If payment authorization is required, show the modal
+        if (response.status === 400 && errorData.message === "Payment authorization required") {
+          setPaymentAuthModal(true);
+          throw new Error("PAYMENT_AUTHORIZATION_REQUIRED");
+        }
+        
         throw new Error(errorData.details || errorData.message || "Failed to vote");
       }
       
@@ -153,7 +163,10 @@ export default function EventDetails() {
       
       // Handle different types of errors
       const errorMessage = err.message;
-      if (errorMessage.includes("Payment method required")) {
+      if (errorMessage === "PAYMENT_AUTHORIZATION_REQUIRED") {
+        // Don't show error toast for payment authorization since the modal will handle it
+        return;
+      } else if (errorMessage.includes("Payment method required")) {
         toast({
           title: "Payment Method Required",
           description: errorMessage,
@@ -824,6 +837,18 @@ export default function EventDetails() {
         eventName={paymentCollectionModal.eventName}
         eventCost={paymentCollectionModal.eventCost}
         eventCreatorId={paymentCollectionModal.eventCreatorId}
+      />
+
+      <PaymentAuthorizationModal
+        isOpen={paymentAuthModal}
+        onClose={() => setPaymentAuthModal(false)}
+        onSuccess={() => {
+          // Refresh the attendance data after successful authorization
+          queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "attendance"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/events", eventId] });
+        }}
+        event={eventData}
+        maxPlayerPayment={eventData?.maxPlayerPayment ? parseFloat(eventData.maxPlayerPayment) : 0}
       />
     </div>
   );

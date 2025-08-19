@@ -85,6 +85,7 @@ const eventFormSchema = z.object({
   cost: z.string().optional(),
   isPublished: z.boolean().default(false),
   requiresPayment: z.boolean().default(false),
+  maxPlayerPayment: z.string().optional(),
   // Recurring events fields
   recurrenceType: z.enum(["none", "daily", "weekly", "monthly"]).default("none"),
   recurrenceDaysOfWeek: z.array(z.string()).optional().default([]),
@@ -135,6 +136,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
       cost: "",
       isPublished: false,
       requiresPayment: false,
+      maxPlayerPayment: "",
       recurrenceType: "none",
       recurrenceDaysOfWeek: [],
       recurrenceEndDate: "",
@@ -186,6 +188,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
       const processedData = {
         ...data,
         cost: data.cost || "0.00",
+        maxPlayerPayment: data.maxPlayerPayment || null,
         participants: data.maxParticipants ? parseInt(data.maxParticipants) : null,
         reserveSpots: data.reserveSpots ? parseInt(data.reserveSpots) : 0,
         // Convert empty strings to null for optional fields
@@ -350,7 +353,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                 <Label htmlFor="gender">Event Gender *</Label>
                 <Select
                   value={form.watch("gender")}
-                  onValueChange={(value) => form.setValue("gender", value)}
+                  onValueChange={(value: "male" | "female" | "mixed") => form.setValue("gender", value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select gender requirement" />
@@ -615,23 +618,54 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                 )}
               </div>
 
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="requiresPayment"
-                    checked={form.watch("requiresPayment")}
-                    onCheckedChange={(checked) => form.setValue("requiresPayment", checked)}
-                  />
-                  <Label htmlFor="requiresPayment">Requires Payment</Label>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="requiresPayment"
+                      checked={form.watch("requiresPayment")}
+                      onCheckedChange={(checked) => form.setValue("requiresPayment", checked)}
+                    />
+                    <Label htmlFor="requiresPayment">Requires Payment</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="isPublished"
+                      checked={form.watch("isPublished")}
+                      onCheckedChange={(checked) => form.setValue("isPublished", checked)}
+                    />
+                    <Label htmlFor="isPublished">Publish Event</Label>
+                  </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="isPublished"
-                    checked={form.watch("isPublished")}
-                    onCheckedChange={(checked) => form.setValue("isPublished", checked)}
-                  />
-                  <Label htmlFor="isPublished">Publish Event</Label>
-                </div>
+
+                {/* Max Player Payment field - only show when payment is required */}
+                {form.watch("requiresPayment") && (
+                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <div className="space-y-3">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <Label className="text-sm font-medium text-blue-800">Payment Authorization Setup</Label>
+                      </div>
+                      <div className="grid grid-cols-1 gap-4">
+                        <div>
+                          <Label htmlFor="maxPlayerPayment" className="text-sm">Max Player Cost (£)</Label>
+                          <Input
+                            id="maxPlayerPayment"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            {...form.register("maxPlayerPayment")}
+                            placeholder="25.00"
+                            className="bg-white"
+                          />
+                          <p className="text-xs text-blue-600 mt-1">
+                            Players will authorize this amount when voting to attend. The actual charge will be collected after the event.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
