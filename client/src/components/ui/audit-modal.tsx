@@ -17,11 +17,29 @@ interface AuditModalProps {
   onClose: () => void;
 }
 
+interface AuditData {
+  event: {
+    id: string;
+    name: string;
+    paymentCollectionInitiated: boolean;
+    paymentCollectionInitiatedAt: string | null;
+    paymentCollectionInitiatedBy: string | null;
+    paymentStatus: string;
+  };
+  votingAudit: Array<ActivityLog & { user: User }>;
+  paymentsAudit: {
+    eventPayments: any[];
+    transactions: any[];
+  };
+}
+
 export default function AuditModal({ eventId, eventName, isOpen, onClose }: AuditModalProps) {
-  const { data: auditLogs = [], isLoading } = useQuery({
+  const { data: auditData, isLoading } = useQuery<AuditData>({
     queryKey: ['/api/events', eventId, 'audit'],
     enabled: isOpen,
   });
+
+  const auditLogs = auditData?.votingAudit || [];
 
   const formatAction = (action: string) => {
     switch (action) {
@@ -38,7 +56,8 @@ export default function AuditModal({ eventId, eventName, isOpen, onClose }: Audi
     }
   };
 
-  const formatDateTime = (timestamp: string) => {
+  const formatDateTime = (timestamp: string | Date | null) => {
+    if (!timestamp) return { date: 'Unknown', time: 'Unknown' };
     const date = new Date(timestamp);
     return {
       date: date.toLocaleDateString(),

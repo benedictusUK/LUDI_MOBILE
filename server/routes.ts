@@ -1444,13 +1444,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user?.claims?.sub;
       const eventId = req.params.id;
       
+      console.log(`[AUDIT] Request for event ${eventId} by user ${userId}`);
+      
       if (!userId) {
+        console.log(`[AUDIT] No userId found`);
         return res.status(401).json({ message: "Unauthorized" });
       }
 
       // Get event and check admin access
       const event = await storage.getEvent(eventId);
       if (!event) {
+        console.log(`[AUDIT] Event ${eventId} not found`);
         return res.status(404).json({ message: "Event not found" });
       }
 
@@ -1459,14 +1463,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const team = await storage.getTeam(event.primaryTeamId);
       const isEventCreator = event.createdById === userId;
       
+      console.log(`[AUDIT] User permissions - isEventCreator: ${isEventCreator}, userTeam: ${JSON.stringify(userTeam)}, teamOwner: ${team?.ownerId}`);
+      
       if (!isEventCreator && (!userTeam || (!["admin", "captain"].includes(userTeam.role) && team?.ownerId !== userId))) {
+        console.log(`[AUDIT] Access denied for user ${userId} on event ${eventId}`);
         return res.status(403).json({ message: "Not authorized to view audit data" });
       }
 
       // Get voting audit data (activity logs)
+      console.log(`[AUDIT] Fetching voting audit data`);
       const votingAudit = await storage.getEventActivityLogs(eventId);
       
       // Get payments audit data
+      console.log(`[AUDIT] Fetching payments audit data`);
       const paymentsAudit = await storage.getEventPayments(eventId);
       const eventPaymentRecords = await storage.getEventPaymentRecords(eventId);
 
@@ -1481,12 +1490,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         votingAudit: votingAudit.map(log => ({
           id: log.id,
+          eventId: log.eventId,
           userId: log.userId,
           action: log.action,
           previousStatus: log.previousStatus,
           newStatus: log.newStatus,
           timestamp: log.timestamp,
-          ipAddress: log.ipAddress
+          ipAddress: log.ipAddress,
+          userAgent: log.userAgent,
+          user: log.user
         })),
         paymentsAudit: {
           eventPayments: eventPaymentRecords.map(payment => ({
@@ -1512,10 +1524,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }))
         }
       });
-
+      
+      console.log(`[AUDIT] Successfully returned audit data for event ${eventId}`);
     } catch (error) {
       console.error("Error fetching audit data:", error);
-      res.status(500).json({ message: "Failed to fetch audit data" });
+      res.status(500).json({ message: "Failed to fetch audit data", error: error.message });
     }
   });
 
