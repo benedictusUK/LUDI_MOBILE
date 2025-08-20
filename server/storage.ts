@@ -45,7 +45,7 @@ import {
   userEvents,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, count, sql, or, notInArray, asc, inArray, ne, isNotNull, gte } from "drizzle-orm";
+import { eq, and, desc, count, sql, or, notInArray, asc, inArray, ne, isNotNull, gte, lte, ilike, not, gt, isNull } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -897,7 +897,7 @@ export class DatabaseStorage implements IStorage {
   async updateNotificationMetadata(id: string, metadata: string): Promise<void> {
     await db
       .update(notifications)
-      .set({ metadata, updatedAt: new Date() })
+      .set({ metadata })
       .where(eq(notifications.id, id));
   }
 
@@ -1353,27 +1353,7 @@ export class DatabaseStorage implements IStorage {
     return log;
   }
 
-  async getEventActivityLogs(eventId: string): Promise<(ActivityLog & { user: User })[]> {
-    const result = await db
-      .select({
-        id: activityLogs.id,
-        eventId: activityLogs.eventId,
-        userId: activityLogs.userId,
-        action: activityLogs.action,
-        previousStatus: activityLogs.previousStatus,
-        newStatus: activityLogs.newStatus,
-        timestamp: activityLogs.timestamp,
-        ipAddress: activityLogs.ipAddress,
-        userAgent: activityLogs.userAgent,
-        user: users
-      })
-      .from(activityLogs)
-      .innerJoin(users, eq(activityLogs.userId, users.id))
-      .where(eq(activityLogs.eventId, eventId))
-      .orderBy(desc(activityLogs.timestamp));
-
-    return result;
-  }
+  // Duplicate function removed - using the one at the bottom
 
   async getEventPotentialPlayers(eventId: string): Promise<User[]> {
     // Get the event to find associated team - use primaryTeamId instead of teamId
@@ -2825,7 +2805,10 @@ export class DatabaseStorage implements IStorage {
         paymentRequired: templateEvent.paymentRequired || false,
         maxPlayerPayment: templateEvent.maxPlayerPayment || null,
         finalVenueCost: templateEvent.finalVenueCost || null,
-        paymentStatus: templateEvent.paymentStatus || "none"
+        paymentStatus: templateEvent.paymentStatus || "none",
+        paymentCollectionInitiated: false,
+        paymentCollectionInitiatedAt: null,
+        paymentCollectionInitiatedBy: null
       };
 
       const newEvent = await this.createEvent(newEventData);
@@ -2902,7 +2885,10 @@ export class DatabaseStorage implements IStorage {
         paymentRequired: firstEvent.paymentRequired || false,
         maxPlayerPayment: firstEvent.maxPlayerPayment || null,
         finalVenueCost: firstEvent.finalVenueCost || null,
-        paymentStatus: firstEvent.paymentStatus || "none"
+        paymentStatus: firstEvent.paymentStatus || "none",
+        paymentCollectionInitiated: false,
+        paymentCollectionInitiatedAt: null,
+        paymentCollectionInitiatedBy: null
       };
 
       // Generate new events to maintain 2 weeks ahead (reduced from 4)
@@ -3011,7 +2997,10 @@ export class DatabaseStorage implements IStorage {
           paymentRequired: (series as any).paymentRequired || false,
           maxPlayerPayment: (series as any).maxPlayerPayment || null,
           finalVenueCost: (series as any).finalVenueCost || null,
-          paymentStatus: (series as any).paymentStatus || "none"
+          paymentStatus: (series as any).paymentStatus || "none",
+          paymentCollectionInitiated: false,
+          paymentCollectionInitiatedAt: null,
+          paymentCollectionInitiatedBy: null
         };
 
         // Generate new events to maintain 2 weeks ahead (reduced from 4)
@@ -3235,6 +3224,62 @@ export class DatabaseStorage implements IStorage {
     });
 
     return result;
+  }
+
+  // Get activity logs for a specific event
+  async getEventActivityLogs(eventId: string) {
+    const logs = await db
+      .select({
+        id: activityLogs.id,
+        userId: activityLogs.userId,
+        action: activityLogs.action,
+        previousStatus: activityLogs.previousStatus,
+        newStatus: activityLogs.newStatus,
+        timestamp: activityLogs.timestamp,
+        ipAddress: activityLogs.ipAddress,
+        userAgent: activityLogs.userAgent,
+        user: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          username: users.username
+        }
+      })
+      .from(activityLogs)
+      .leftJoin(users, eq(activityLogs.userId, users.id))
+      .where(eq(activityLogs.eventId, eventId))
+      .orderBy(desc(activityLogs.timestamp));
+    
+    return logs;
+  }
+
+  // Get event payment records for audit
+  async getEventPaymentRecords(eventId: string) {
+    const records = await db
+      .select({
+        id: eventPayments.id,
+        eventId: eventPayments.eventId,
+        userId: eventPayments.userId,
+        status: eventPayments.status,
+        holdAmount: eventPayments.holdAmount,
+        finalAmount: eventPayments.finalAmount,
+        paymentIntentId: eventPayments.paymentIntentId,
+        holdCreatedAt: eventPayments.holdCreatedAt,
+        capturedAt: eventPayments.capturedAt,
+        createdAt: eventPayments.createdAt,
+        user: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          username: users.username
+        }
+      })
+      .from(eventPayments)
+      .leftJoin(users, eq(eventPayments.userId, users.id))
+      .where(eq(eventPayments.eventId, eventId))
+      .orderBy(desc(eventPayments.createdAt));
+    
+    return records;
   }
 }
 

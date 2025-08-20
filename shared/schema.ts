@@ -178,7 +178,10 @@ export const events = pgTable("events", {
   paymentRequired: boolean("payment_required").default(false),
   maxPlayerPayment: decimal("max_player_payment", { precision: 10, scale: 2 }), // buffer amount for holds
   finalVenueCost: decimal("final_venue_cost", { precision: 10, scale: 2 }), // actual cost set post-event
-  paymentStatus: varchar("payment_status", { enum: ["none", "setup", "holds_created", "captured", "refunded"] }).default("none"),
+  paymentStatus: varchar("payment_status", { enum: ["none", "setup", "holds_created", "captured", "refunded", "partial_captured"] }).default("none"),
+  paymentCollectionInitiated: boolean("payment_collection_initiated").default(false),
+  paymentCollectionInitiatedAt: timestamp("payment_collection_initiated_at"),
+  paymentCollectionInitiatedBy: varchar("payment_collection_initiated_by").references(() => users.id),
   
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -623,7 +626,10 @@ export const insertEventSchema = createInsertSchema(events).omit({
     if (typeof val === 'number') return val.toString();
     return val || null;
   }),
-  paymentStatus: z.enum(["none", "setup", "holds_created", "captured", "refunded"]).default("none"),
+  paymentStatus: z.enum(["none", "setup", "holds_created", "captured", "refunded", "partial_captured"]).default("none"),
+  paymentCollectionInitiated: z.boolean().default(false),
+  paymentCollectionInitiatedAt: z.date().optional(),
+  paymentCollectionInitiatedBy: z.string().optional(),
 });
 
 export const insertEventAttendanceSchema = createInsertSchema(eventAttendance).omit({

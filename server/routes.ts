@@ -1234,6 +1234,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Not authorized to collect payments" });
       }
 
+      // Check if payment collection has already been initiated
+      if (event.paymentCollectionInitiated) {
+        return res.status(400).json({ 
+          message: "Payment collection has already been initiated for this event",
+          details: `Payment collection was initiated on ${event.paymentCollectionInitiatedAt?.toLocaleDateString()}`
+        });
+      }
+
       // Check if event is in the past
       const now = new Date();
       let eventEndTime: Date;
@@ -1405,6 +1413,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // Mark payment collection as initiated for this event
+      await storage.updateEvent(eventId, {
+        paymentCollectionInitiated: true,
+        paymentCollectionInitiatedAt: now,
+        paymentCollectionInitiatedBy: userId,
+        paymentStatus: failedCaptures === 0 ? 'captured' : 'partial_captured'
+      });
+
       res.json({
         message: `Payment collection completed`,
         totalPayments: authorizedPayments.length,
@@ -1419,6 +1435,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error collecting payments:", error);
       res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Get event audit data (voting and payments) - Admin/Owner access only
+  app.get("/api/events/:id/audit", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const eventId = req.params.id;
+      
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Get event and check admin access
+      const event = await storage.getEvent(eventId);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+
+      // Check if user has admin access to the primary team
+      const userTeam = await storage.getUserTeam(userId, event.primaryTeamId);
+      const team = await storage.getTeam(event.primaryTeamId);
+      const isEventCreator = event.createdById === userId;
+      
+      if (!isEventCreator && (!userTeam || (!["admin", "captain"].includes(userTeam.role) && team?.ownerId !== userId))) {
+        return res.status(403).json({ message: "Not authorized to view audit data" });
+      }
+
+      // Get voting audit data (activity logs)
+      const votingAudit = await storage.getEventActivityLogs(eventId);
+      
+      // Get payments audit data
+      const paymentsAudit = await storage.getEventPayments(eventId);
+      const eventPaymentRecords = await storage.getEventPaymentRecords(eventId);
+
+      res.json({
+        event: {
+          id: event.id,
+          name: event.name,
+          paymentCollectionInitiated: event.paymentCollectionInitiated,
+          paymentCollectionInitiatedAt: event.paymentCollectionInitiatedAt,
+          paymentCollectionInitiatedBy: event.paymentCollectionInitiatedBy,
+          paymentStatus: event.paymentStatus
+        },
+        votingAudit: votingAudit.map(log => ({
+          id: log.id,
+          userId: log.userId,
+          action: log.action,
+          previousStatus: log.previousStatus,
+          newStatus: log.newStatus,
+          timestamp: log.timestamp,
+          ipAddress: log.ipAddress
+        })),
+        paymentsAudit: {
+          eventPayments: eventPaymentRecords.map(payment => ({
+            id: payment.id,
+            userId: payment.userId,
+            status: payment.status,
+            holdAmount: payment.holdAmount,
+            finalAmount: payment.finalAmount,
+            paymentIntentId: payment.paymentIntentId,
+            holdCreatedAt: payment.holdCreatedAt,
+            capturedAt: payment.capturedAt,
+            createdAt: payment.createdAt
+          })),
+          transactions: paymentsAudit.map(payment => ({
+            id: payment.id,
+            userId: payment.userId,
+            amount: payment.amount,
+            status: payment.status,
+            type: payment.type,
+            paidAt: payment.paidAt,
+            stripePaymentIntentId: payment.stripePaymentIntentId,
+            createdAt: payment.createdAt
+          }))
+        }
+      });
+
+    } catch (error) {
+      console.error("Error fetching audit data:", error);
+      res.status(500).json({ message: "Failed to fetch audit data" });
     }
   });
 
@@ -1659,7 +1756,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get event activity logs
   app.get("/api/events/:id/activity", isAuthenticated, async (req, res) => {
     try {
-      const logs = await storage.getEventActivityLogs(req.params.id);
+      const { id } = req.params as { id: string };
+      const logs = await storage.getEventActivityLogs(id);
       res.json(logs);
     } catch (error) {
       console.error("Error fetching activity logs:", error);
@@ -1670,7 +1768,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get potential players for event (team members who haven't voted)
   app.get("/api/events/:id/potential-players", isAuthenticated, async (req, res) => {
     try {
-      const potentialPlayers = await storage.getEventPotentialPlayers(req.params.id);
+      const { id } = req.params as { id: string };
+      const potentialPlayers = await storage.getEventPotentialPlayers(id);
       res.json(potentialPlayers);
     } catch (error) {
       console.error("Error fetching potential players:", error);
