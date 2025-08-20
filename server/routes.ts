@@ -1510,7 +1510,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             paymentIntentId: payment.paymentIntentId,
             holdCreatedAt: payment.holdCreatedAt,
             capturedAt: payment.capturedAt,
-            createdAt: payment.createdAt
+            createdAt: payment.createdAt,
+            user: payment.user
           })),
           transactions: paymentsAudit.map(payment => ({
             id: payment.id,
@@ -1520,7 +1521,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             type: payment.type,
             paidAt: payment.paidAt,
             stripePaymentIntentId: payment.stripePaymentIntentId,
-            createdAt: payment.createdAt
+            createdAt: payment.createdAt,
+            user: payment.user
           }))
         }
       });

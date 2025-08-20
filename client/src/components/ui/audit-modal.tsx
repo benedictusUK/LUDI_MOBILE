@@ -207,10 +207,7 @@ export default function AuditModal({ eventId, eventName, isOpen, onClose }: Audi
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-3">
                             <span className="font-bold text-neutral-900 text-xl">
-                              {userGroup.user?.firstName && userGroup.user?.lastName 
-                                ? `${userGroup.user.firstName} ${userGroup.user.lastName}`
-                                : 'Unknown Player'
-                              }
+                              {userGroup.user?.firstName} {userGroup.user?.lastName}
                             </span>
                             <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
                               {userGroup.payments.length} transaction{userGroup.payments.length !== 1 ? 's' : ''}
