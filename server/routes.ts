@@ -1286,14 +1286,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const attendeesNeedingAuth = [];
         const authorizedAttendeeIds = authorizedPayments.map(p => p.userId);
         
-        // Find attendees who don't have payment authorization
+        // Find attendees who don't have payment authorization, excluding the organizer
         for (const attendeeId of attendeeIds) {
-          if (!authorizedAttendeeIds.includes(attendeeId)) {
+          if (!authorizedAttendeeIds.includes(attendeeId) && attendeeId !== organiserId) {
             attendeesNeedingAuth.push(attendeeId);
           }
         }
         
-        // Send payment authorization notifications to users who need them
+        // Send payment authorization notifications to users who need them (excluding organizer)
         if (attendeesNeedingAuth.length > 0) {
           const user = await storage.getUserById(userId);
           const amountPerPerson = (finalVenueCost / attendeeIds.length).toFixed(2);
@@ -1321,21 +1321,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         
-        // Filter to only process attendees with authorization
-        authorizedPayments = authorizedPayments.filter(p => attendeeIds.includes(p.userId));
+        // Filter to only process attendees with authorization, excluding the organizer
+        authorizedPayments = authorizedPayments.filter(p => 
+          attendeeIds.includes(p.userId) && p.userId !== organiserId
+        );
       }
       
       if (authorizedPayments.length === 0) {
+        // Count attendees needing auth, excluding organizer
+        const attendeesNeedingAuthCount = attendeeIds 
+          ? attendeeIds.filter((id: string) => 
+              !authorizedPayments.map(p => p.userId).includes(id) && id !== organiserId
+            ).length 
+          : 0;
+        
+        const organizerIncluded = attendeeIds && attendeeIds.includes(organiserId);
         const message = attendeeIds && attendeeIds.length > 0 
-          ? `Payment authorization notifications sent to ${attendeeIds.filter((id: string) => !authorizedPayments.map(p => p.userId).includes(id)).length} attendees. No payments to capture at this time.`
+          ? `Payment authorization notifications sent to ${attendeesNeedingAuthCount} attendees${organizerIncluded ? ' (venue organizer excluded from payments)' : ''}. No payments to capture at this time.`
           : "No authorized payments found for this event";
         
         return res.status(200).json({ 
           message,
-          notificationsSent: attendeeIds ? attendeeIds.filter((id: string) => !authorizedPayments.map(p => p.userId).includes(id)).length : 0,
+          notificationsSent: attendeesNeedingAuthCount,
           totalAmount: 0,
           successfulCaptures: 0,
-          failedCaptures: 0
+          failedCaptures: 0,
+          organizerExcluded: organizerIncluded
         });
       }
 
@@ -1421,18 +1432,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         paymentStatus: failedCaptures === 0 ? 'captured' : 'partial_captured'
       });
 
+      const organizerIncluded = attendeeIds && attendeeIds.includes(organiserId);
+      const totalSelectedAttendees = attendeeIds ? attendeeIds.length : 0;
+      
       res.json({
-        message: `Payment collection completed`,
+        message: `Payment collection completed${organizerIncluded ? ' (venue organizer excluded from charges)' : ''}`,
         totalPayments: authorizedPayments.length,
+        totalSelectedAttendees,
         successfulCaptures: authorizedPayments.length - failedCaptures,
         failedCaptures,
         totalAmount: totalCaptured.toFixed(2),
         venueCost: finalVenueCost.toFixed(2),
         organiserConnectEnabled: !!organiserAccount,
+        organizerExcluded: organizerIncluded,
         results: captureResults
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error collecting payments:", error);
       res.status(500).json({ message: "Internal server error" });
     }
@@ -1528,7 +1544,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       console.log(`[AUDIT] Successfully returned audit data for event ${eventId}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching audit data:", error);
       res.status(500).json({ message: "Failed to fetch audit data", error: error.message });
     }

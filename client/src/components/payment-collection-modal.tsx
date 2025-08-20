@@ -114,9 +114,10 @@ export function PaymentCollectionModal({
       return response.json();
     },
     onSuccess: (data) => {
+      const organizerNote = data.organizerExcluded ? " (venue organizer excluded from charges)" : "";
       toast({
         title: "Payment Collection Complete",
-        description: `Successfully collected £${data.totalAmount} from ${data.successfulCaptures} payments${data.failedCaptures > 0 ? ` (${data.failedCaptures} failed)` : ''}`,
+        description: `Successfully collected £${data.totalAmount} from ${data.successfulCaptures} payments${data.failedCaptures > 0 ? ` (${data.failedCaptures} failed)` : ''}${organizerNote}`,
       });
       onClose();
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
@@ -187,10 +188,22 @@ export function PaymentCollectionModal({
       return;
     }
 
+    // Count attendees excluding the organizer for validation
+    const chargeableAttendees = selectedAttendees.filter(id => id !== selectedOrganiserId);
+    
     if (selectedAttendees.length === 0) {
       toast({
         title: "No Attendees Selected",
-        description: "Please select at least one attendee to charge",
+        description: "Please select at least one attendee",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (chargeableAttendees.length === 0 && selectedAttendees.includes(selectedOrganiserId)) {
+      toast({
+        title: "Payment Collection Not Needed",
+        description: "Only the venue organizer is selected. Since they pay themselves, no payment collection is required.",
         variant: "destructive",
       });
       return;
@@ -295,6 +308,11 @@ export function PaymentCollectionModal({
                         £{(parseFloat(venueCost || "0") / selectedAttendees.length).toFixed(2)} each
                       </Badge>
                     )}
+                    {selectedAttendees.includes(selectedOrganiserId) && (
+                      <Badge variant="outline" className="text-amber-600 border-amber-600">
+                        Organizer: N/A charge
+                      </Badge>
+                    )}
                   </div>
                   <CollapsibleTrigger asChild>
                     <Button variant="ghost" size="sm">
@@ -348,11 +366,30 @@ export function PaymentCollectionModal({
                                     Attending
                                   </span>
                                 )}
+                                {member.userId === selectedOrganiserId && (
+                                  <span className="ml-2 text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                                    Venue Organizer
+                                  </span>
+                                )}
                               </div>
                               <div className={`text-xs ${getStatusColor()}`}>
                                 {getStatusText()}
                               </div>
                             </div>
+                            {selectedAttendees.includes(member.userId) && (
+                              <div className="text-right">
+                                <div className="text-sm font-medium">
+                                  {member.userId === selectedOrganiserId ? (
+                                    <span className="text-amber-600">N/A</span>
+                                  ) : (
+                                    `£${(parseFloat(venueCost || "0") / selectedAttendees.length).toFixed(2)}`
+                                  )}
+                                </div>
+                                <div className="text-xs text-neutral-500">
+                                  {member.userId === selectedOrganiserId ? "Organizer pays self" : "Charge amount"}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         );
                       })}
