@@ -1327,12 +1327,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (authorizedPayments.length === 0) {
         const message = attendeeIds && attendeeIds.length > 0 
-          ? `Payment authorization notifications sent to ${attendeeIds.filter(id => !authorizedPayments.map(p => p.userId).includes(id)).length} attendees. No payments to capture at this time.`
+          ? `Payment authorization notifications sent to ${attendeeIds.filter((id: string) => !authorizedPayments.map(p => p.userId).includes(id)).length} attendees. No payments to capture at this time.`
           : "No authorized payments found for this event";
         
         return res.status(200).json({ 
           message,
-          notificationsSent: attendeeIds ? attendeeIds.filter(id => !authorizedPayments.map(p => p.userId).includes(id)).length : 0,
+          notificationsSent: attendeeIds ? attendeeIds.filter((id: string) => !authorizedPayments.map(p => p.userId).includes(id)).length : 0,
           totalAmount: 0,
           successfulCaptures: 0,
           failedCaptures: 0
@@ -1821,30 +1821,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get event activity audit logs (for team admins)
-  app.get("/api/events/:eventId/audit", isAuthenticated, async (req: any, res) => {
-    try {
-      const { eventId } = req.params;
-      const userId = req.user?.claims?.sub;
-
-      // Check if user is admin/captain of the primary team for this event
-      const event = await storage.getEvent(eventId);
-      if (!event) {
-        return res.status(404).json({ message: "Event not found" });
-      }
-
-      const userTeam = await storage.getUserTeam(userId, event.primaryTeamId);
-      if (!userTeam || !["admin", "captain"].includes(userTeam.role)) {
-        return res.status(403).json({ message: "Not authorized to view audit logs" });
-      }
-
-      const auditLogs = await storage.getEventActivityLogs(eventId);
-      res.json(auditLogs);
-    } catch (error) {
-      console.error("Error fetching audit logs:", error);
-      res.status(500).json({ message: "Failed to fetch audit logs" });
-    }
-  });
+  // Duplicate audit route removed - using the comprehensive one above
 
   // Notification preferences routes
   app.get('/api/notification-preferences', isAuthenticated, async (req: any, res) => {

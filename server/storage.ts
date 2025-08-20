@@ -2807,8 +2807,8 @@ export class DatabaseStorage implements IStorage {
         finalVenueCost: templateEvent.finalVenueCost || null,
         paymentStatus: templateEvent.paymentStatus || "none",
         paymentCollectionInitiated: false,
-        paymentCollectionInitiatedAt: null,
-        paymentCollectionInitiatedBy: null
+        paymentCollectionInitiatedAt: undefined,
+        paymentCollectionInitiatedBy: undefined
       };
 
       const newEvent = await this.createEvent(newEventData);
@@ -2887,8 +2887,8 @@ export class DatabaseStorage implements IStorage {
         finalVenueCost: firstEvent.finalVenueCost || null,
         paymentStatus: firstEvent.paymentStatus || "none",
         paymentCollectionInitiated: false,
-        paymentCollectionInitiatedAt: null,
-        paymentCollectionInitiatedBy: null
+        paymentCollectionInitiatedAt: undefined,
+        paymentCollectionInitiatedBy: undefined
       };
 
       // Generate new events to maintain 2 weeks ahead (reduced from 4)
@@ -2999,8 +2999,8 @@ export class DatabaseStorage implements IStorage {
           finalVenueCost: (series as any).finalVenueCost || null,
           paymentStatus: (series as any).paymentStatus || "none",
           paymentCollectionInitiated: false,
-          paymentCollectionInitiatedAt: null,
-          paymentCollectionInitiatedBy: null
+          paymentCollectionInitiatedAt: undefined,
+          paymentCollectionInitiatedBy: undefined
         };
 
         // Generate new events to maintain 2 weeks ahead (reduced from 4)
@@ -3227,10 +3227,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Get activity logs for a specific event
-  async getEventActivityLogs(eventId: string) {
+  async getEventActivityLogs(eventId: string): Promise<(ActivityLog & { user: User })[]> {
     const logs = await db
       .select({
         id: activityLogs.id,
+        eventId: activityLogs.eventId,
         userId: activityLogs.userId,
         action: activityLogs.action,
         previousStatus: activityLogs.previousStatus,
@@ -3238,19 +3239,17 @@ export class DatabaseStorage implements IStorage {
         timestamp: activityLogs.timestamp,
         ipAddress: activityLogs.ipAddress,
         userAgent: activityLogs.userAgent,
-        user: {
-          id: users.id,
-          firstName: users.firstName,
-          lastName: users.lastName,
-          username: users.username
-        }
+        user: users
       })
       .from(activityLogs)
-      .leftJoin(users, eq(activityLogs.userId, users.id))
+      .innerJoin(users, eq(activityLogs.userId, users.id))
       .where(eq(activityLogs.eventId, eventId))
       .orderBy(desc(activityLogs.timestamp));
     
-    return logs;
+    return logs.map(log => ({
+      ...log,
+      user: log.user!
+    }));
   }
 
   // Get event payment records for audit
