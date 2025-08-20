@@ -128,7 +128,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
     let totalCharges = 0;
     const breakdown = [{ name: "Base Amount", amount: base, type: "base" }];
 
-    platformCharges.forEach((charge: any) => {
+    (platformCharges as any[]).forEach((charge: any) => {
       let chargeAmount = 0;
       if (charge.type === "percentage") {
         chargeAmount = base * parseFloat(charge.value);
@@ -140,8 +140,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
         breakdown.push({
           name: charge.description || charge.name,
           amount: chargeAmount,
-          type: charge.type,
-          value: charge.value
+          type: charge.type
         });
         totalCharges += chargeAmount;
       }
@@ -153,9 +152,6 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
       totalCharges
     };
   };
-
-  const maxPlayerPayment = form.watch("maxPlayerPayment");
-  const paymentCalculation = calculateTotalAmount(maxPlayerPayment || "0");
 
   const form = useForm<EventFormData>({
     resolver: zodResolver(eventFormSchema),
@@ -184,6 +180,9 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
       recurrenceEndDate: "",
     },
   });
+
+  const maxPlayerPayment = form.watch("maxPlayerPayment");
+  const paymentCalculation = calculateTotalAmount(maxPlayerPayment || "0");
 
   // Update form values when existing event data loads
   useEffect(() => {
