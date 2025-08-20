@@ -934,6 +934,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Unauthorized" });
       }
 
+      if (!paymentMethodId) {
+        return res.status(400).json({ message: "Payment method is required" });
+      }
+
       // Get notification and verify it's for payment authorization
       const notification = await storage.getNotificationById(notificationId);
       if (!notification || notification.userId !== userId || notification.type !== "payment_authorization_required") {
@@ -985,11 +989,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         amount: Math.round(parseFloat(amount) * 100), // Convert to cents
         currency: "gbp",
         customer: user.stripeCustomerId,
+        payment_method: paymentMethodId,
         capture_method: 'manual', // Always use manual capture for flexibility
-        automatic_payment_methods: {
-          enabled: true,
-          allow_redirects: 'never'
-        },
         confirm: true,
         return_url: `${req.protocol}://${req.get('host')}/events/${eventId}`,
         metadata: {
