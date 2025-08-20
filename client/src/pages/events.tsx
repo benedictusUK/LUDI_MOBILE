@@ -776,7 +776,7 @@ export default function Events() {
                         Edit
                       </Button>
                     )}
-                    {(event.enableVoting && canEditEvent(event)) && (
+                    {isEventPast(event) && canEditEvent(event) && (
                       <Button 
                         size="sm" 
                         variant="outline"

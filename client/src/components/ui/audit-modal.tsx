@@ -194,7 +194,7 @@ export default function AuditModal({ eventId, eventName, isOpen, onClose }: Audi
                               
                               <div className="flex items-center gap-1">
                                 <DollarSignIcon className="h-3 w-3" />
-                                Amount: £{(payment.finalAmount || payment.holdAmount || 0).toFixed(2)}
+                                Amount: £{Number(payment.finalAmount || payment.holdAmount || 0).toFixed(2)}
                               </div>
                               
                               {payment.paymentIntentId && (
@@ -243,7 +243,7 @@ export default function AuditModal({ eventId, eventName, isOpen, onClose }: Audi
                               
                               <div className="flex items-center gap-1">
                                 <DollarSignIcon className="h-3 w-3" />
-                                Amount: £{(transaction.amount || 0).toFixed(2)}
+                                Amount: £{Number(transaction.amount || 0).toFixed(2)}
                               </div>
                               
                               <div className="text-xs text-neutral-500">
