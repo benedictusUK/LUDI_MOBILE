@@ -557,6 +557,7 @@ export default function EventDetails() {
                   {/* Collect Payment Button for Past Events (Admin Only) */}
                   {eventData && isEventPast(eventData) && 
                    eventData.cost && parseFloat(eventData.cost) > 0 && 
+                   !eventData.paymentCollectionInitiated &&
                    user && eventData.primaryTeam && (
                      eventData.primaryTeam.ownerId === (user as any).id || 
                      eventData.primaryTeam.memberships?.some((m: any) => 
@@ -593,6 +594,38 @@ export default function EventDetails() {
                           >
                             Collect Payments
                           </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Payment Collection Completed Message for Past Events */}
+                  {eventData && isEventPast(eventData) && 
+                   eventData.cost && parseFloat(eventData.cost) > 0 && 
+                   eventData.paymentCollectionInitiated &&
+                   user && eventData.primaryTeam && (
+                     eventData.primaryTeam.ownerId === (user as any).id || 
+                     eventData.primaryTeam.memberships?.some((m: any) => 
+                       m.userId === (user as any).id && ['admin', 'captain'].includes(m.role)
+                     )
+                   ) && (
+                    <Card className="mb-6">
+                      <CardContent className="pt-6">
+                        <div className="flex flex-col space-y-4">
+                          <div className="text-center">
+                            <div className="flex items-center justify-center mb-3">
+                              <CheckCircle className="h-6 w-6 text-green-600 mr-2" />
+                              <h3 className="text-lg font-semibold text-green-800">Payment Collection Completed</h3>
+                            </div>
+                            <p className="text-sm text-neutral-600 mb-2">
+                              Payment collection has already been initiated for this event.
+                            </p>
+                            {eventData.paymentCollectionInitiatedAt && (
+                              <p className="text-xs text-neutral-500">
+                                Collection initiated on {new Date(eventData.paymentCollectionInitiatedAt).toLocaleDateString()}
+                              </p>
+                            )}
+                          </div>
                         </div>
                       </CardContent>
                     </Card>

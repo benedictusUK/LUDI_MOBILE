@@ -740,6 +740,7 @@ export default function Events() {
                     {/* Show Collect Payment button for past paid events (admins/captains only) */}
                     {isEventPast(event) && 
                      event.cost && parseFloat(event.cost) > 0 && 
+                     !event.paymentCollectionInitiated &&
                      canEditEvent(event) && (
                       <Button 
                         size="sm" 
