@@ -710,3 +710,25 @@ export const insertFlareResponseSchema = createInsertSchema(flareResponses).omit
   respondedAt: true,
 });
 export type InsertFlareResponse = z.infer<typeof insertFlareResponseSchema>;
+
+// Platform charges configuration table
+export const platformCharges = pgTable("platform_charges", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(), // e.g., "stripe_fee", "ludi_platform_fee"
+  type: varchar("type", { enum: ["percentage", "fixed"] }).notNull(),
+  value: decimal("value", { precision: 10, scale: 4 }).notNull(), // percentage (0.029 for 2.9%) or fixed amount
+  description: text("description"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export type PlatformCharge = typeof platformCharges.$inferSelect;
+export type InsertPlatformCharge = typeof platformCharges.$inferInsert;
+
+export const insertPlatformChargeSchema = createInsertSchema(platformCharges);
+export const platformChargeSchema = insertPlatformChargeSchema.omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});

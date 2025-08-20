@@ -12,6 +12,7 @@ import {
   activityLogs,
   blockedMembers,
   teamInvitations,
+  platformCharges,
   type User,
   type UpsertUser,
   type AuthUser,
@@ -39,6 +40,8 @@ import {
   type InsertTeamInvitation,
   type ProfileCompletion,
   type UpdateProfile,
+  type PlatformCharge,
+  type InsertPlatformCharge,
   flareResponses,
   type FlareResponse,
   type InsertFlareResponse,
@@ -198,6 +201,11 @@ export interface IStorage {
   activateFlareStatus(eventId: string, userId: string): Promise<void>;
   deactivateFlareStatus(eventId: string): Promise<void>;
   searchFlareEvents(postcode: string, radius: number, sport?: string): Promise<Event[]>;
+
+  // Platform charges operations
+  getPlatformCharges(): Promise<PlatformCharge[]>;
+  updatePlatformCharge(id: string, charge: Partial<InsertPlatformCharge>): Promise<PlatformCharge>;
+  createPlatformCharge(charge: InsertPlatformCharge): Promise<PlatformCharge>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3279,6 +3287,41 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(eventPayments.createdAt));
     
     return records;
+  }
+
+  // Platform charges operations
+  async getPlatformCharges(): Promise<PlatformCharge[]> {
+    return await db
+      .select()
+      .from(platformCharges)
+      .where(eq(platformCharges.isActive, true))
+      .orderBy(asc(platformCharges.name));
+  }
+
+  async updatePlatformCharge(id: string, charge: Partial<InsertPlatformCharge>): Promise<PlatformCharge> {
+    const [updated] = await db
+      .update(platformCharges)
+      .set({
+        ...charge,
+        updatedAt: new Date(),
+      })
+      .where(eq(platformCharges.id, id))
+      .returning();
+
+    if (!updated) {
+      throw new Error("Platform charge not found");
+    }
+
+    return updated;
+  }
+
+  async createPlatformCharge(charge: InsertPlatformCharge): Promise<PlatformCharge> {
+    const [created] = await db
+      .insert(platformCharges)
+      .values(charge)
+      .returning();
+
+    return created;
   }
 }
 

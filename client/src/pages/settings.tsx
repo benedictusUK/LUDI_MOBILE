@@ -32,6 +32,14 @@ export default function Settings() {
     queryKey: ['/api/payments'],
   });
 
+  const { data: paymentMethods = [] } = useQuery({
+    queryKey: ['/api/payment-methods'],
+  });
+
+  const { data: platformCharges = [] } = useQuery({
+    queryKey: ['/api/platform-charges'],
+  });
+
   const updatePreferencesMutation = useMutation({
     mutationFn: async (newPreferences: Partial<NotificationPreferences>) => {
       const response = await apiRequest("PUT", "/api/notification-preferences", {
@@ -71,15 +79,16 @@ export default function Settings() {
   }
 
   const currentPreferences: NotificationPreferences = {
-    newEvents: true,
-    paymentReminders: true,
-    eventChanges: true,
-    votingOpportunities: false,
-    flareGunReminders: false,
-    teamInvites: true,
-    pushNotificationsIOS: false,
-    pushNotificationsAndroid: false,
-    ...(preferences as NotificationPreferences || {}),
+    ...(preferences as NotificationPreferences || {
+      newEvents: true,
+      paymentReminders: true,
+      eventChanges: true,
+      votingOpportunities: false,
+      flareGunReminders: false,
+      teamInvites: true,
+      pushNotificationsIOS: false,
+      pushNotificationsAndroid: false,
+    }),
   };
 
   return (
@@ -93,7 +102,7 @@ export default function Settings() {
         </div>
 
         <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="profile" className="flex items-center space-x-2">
               <User className="h-4 w-4" />
               <span>Profile</span>
@@ -105,6 +114,10 @@ export default function Settings() {
             <TabsTrigger value="payments" className="flex items-center space-x-2">
               <CreditCard className="h-4 w-4" />
               <span>Payments</span>
+            </TabsTrigger>
+            <TabsTrigger value="platform" className="flex items-center space-x-2">
+              <SettingsIcon className="h-4 w-4" />
+              <span>Platform</span>
             </TabsTrigger>
           </TabsList>
 
@@ -129,7 +142,7 @@ export default function Settings() {
                     </div>
                     <Switch
                       id="new-events"
-                      checked={currentPreferences.newEvents}
+                      checked={currentPreferences.newEvents ?? true}
                       onCheckedChange={(checked) => handlePreferenceChange('newEvents', checked)}
                     />
                   </div>
@@ -143,7 +156,7 @@ export default function Settings() {
                     </div>
                     <Switch
                       id="payment-reminders"
-                      checked={currentPreferences.paymentReminders}
+                      checked={currentPreferences.paymentReminders ?? true}
                       onCheckedChange={(checked) => handlePreferenceChange('paymentReminders', checked)}
                     />
                   </div>
@@ -157,7 +170,7 @@ export default function Settings() {
                     </div>
                     <Switch
                       id="event-changes"
-                      checked={currentPreferences.eventChanges}
+                      checked={currentPreferences.eventChanges ?? true}
                       onCheckedChange={(checked) => handlePreferenceChange('eventChanges', checked)}
                     />
                   </div>
@@ -171,7 +184,7 @@ export default function Settings() {
                     </div>
                     <Switch
                       id="team-invites"
-                      checked={currentPreferences.teamInvites}
+                      checked={currentPreferences.teamInvites ?? true}
                       onCheckedChange={(checked) => handlePreferenceChange('teamInvites', checked)}
                     />
                   </div>
@@ -262,6 +275,104 @@ export default function Settings() {
                 </Card>
               )}
             </div>
+          </TabsContent>
+
+          <TabsContent value="platform">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <SettingsIcon className="h-5 w-5" />
+                  <span>Platform Charges</span>
+                </CardTitle>
+                <CardDescription>
+                  Configure platform charges for event payments
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  {platformCharges.map((charge: any) => (
+                    <div
+                      key={charge.id}
+                      className="p-4 border rounded-lg bg-gray-50"
+                      data-testid={`platform-charge-${charge.name}`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="font-medium text-gray-900">{charge.name}</h3>
+                        <div className="text-sm text-gray-500 capitalize">
+                          {charge.type} charge
+                        </div>
+                      </div>
+                      
+                      <p className="text-sm text-gray-600 mb-4">
+                        {charge.description}
+                      </p>
+                      
+                      <div className="flex items-center space-x-4">
+                        <div className="flex-1">
+                          <Label htmlFor={`charge-${charge.id}`} className="text-sm font-medium">
+                            {charge.type === 'percentage' ? 'Percentage (0.029 = 2.9%)' : 'Fixed Amount (£)'}
+                          </Label>
+                          <Input
+                            id={`charge-${charge.id}`}
+                            type="number"
+                            step={charge.type === 'percentage' ? '0.001' : '0.01'}
+                            min="0"
+                            defaultValue={charge.value}
+                            onBlur={(e) => {
+                              const newValue = e.target.value;
+                              if (newValue && parseFloat(newValue) >= 0) {
+                                fetch(`/api/platform-charges/${charge.id}`, {
+                                  method: 'PUT',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ 
+                                    name: charge.name,
+                                    type: charge.type,
+                                    value: newValue,
+                                    description: charge.description,
+                                    isActive: charge.isActive
+                                  })
+                                }).then(() => {
+                                  queryClient.invalidateQueries({ queryKey: ['/api/platform-charges'] });
+                                  toast({
+                                    title: "Charge Updated",
+                                    description: `${charge.name} has been updated successfully.`,
+                                  });
+                                }).catch(() => {
+                                  toast({
+                                    title: "Update Failed",
+                                    description: "Failed to update platform charge.",
+                                    variant: "destructive",
+                                  });
+                                });
+                              }
+                            }}
+                            className="bg-white"
+                            data-testid={`input-charge-${charge.name}`}
+                          />
+                        </div>
+                        
+                        <div className="text-sm text-gray-600">
+                          {charge.type === 'percentage' 
+                            ? `${(parseFloat(charge.value) * 100).toFixed(1)}%`
+                            : `£${parseFloat(charge.value).toFixed(2)}`
+                          }
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <h4 className="font-medium text-blue-900 mb-2">How Platform Charges Work</h4>
+                    <div className="text-sm text-blue-800 space-y-2">
+                      <p>• <strong>Stripe fees</strong> cover payment processing costs</p>
+                      <p>• <strong>LUDI platform fee</strong> supports platform maintenance</p>
+                      <p>• These charges are automatically added to the base event cost</p>
+                      <p>• Players see the total amount when authorizing payment</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </main>

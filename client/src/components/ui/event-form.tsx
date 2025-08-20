@@ -115,6 +115,48 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
     enabled: !!eventId,
   });
 
+  // Fetch platform charges for payment calculation
+  const { data: platformCharges = [] } = useQuery({
+    queryKey: ["/api/platform-charges"],
+  });
+
+  // Calculate total amount with platform charges
+  const calculateTotalAmount = (baseAmount: string) => {
+    const base = parseFloat(baseAmount) || 0;
+    if (base <= 0) return { breakdown: [], total: 0 };
+
+    let totalCharges = 0;
+    const breakdown = [{ name: "Base Amount", amount: base, type: "base" }];
+
+    platformCharges.forEach((charge: any) => {
+      let chargeAmount = 0;
+      if (charge.type === "percentage") {
+        chargeAmount = base * parseFloat(charge.value);
+      } else if (charge.type === "fixed") {
+        chargeAmount = parseFloat(charge.value);
+      }
+      
+      if (chargeAmount > 0) {
+        breakdown.push({
+          name: charge.description || charge.name,
+          amount: chargeAmount,
+          type: charge.type,
+          value: charge.value
+        });
+        totalCharges += chargeAmount;
+      }
+    });
+
+    return {
+      breakdown,
+      total: base + totalCharges,
+      totalCharges
+    };
+  };
+
+  const maxPlayerPayment = form.watch("maxPlayerPayment");
+  const paymentCalculation = calculateTotalAmount(maxPlayerPayment || "0");
+
   const form = useForm<EventFormData>({
     resolver: zodResolver(eventFormSchema),
     defaultValues: {
@@ -643,14 +685,15 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                 {/* Max Player Payment field - only show when payment is required */}
                 {form.watch("requiresPayment") && (
                   <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       <div className="flex items-center space-x-2">
                         <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                         <Label className="text-sm font-medium text-blue-800">Payment Authorization Setup</Label>
                       </div>
-                      <div className="grid grid-cols-1 gap-4">
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <Label htmlFor="maxPlayerPayment" className="text-sm">Max Player Cost (£)</Label>
+                          <Label htmlFor="maxPlayerPayment" className="text-sm">Max Player Payment (£)</Label>
                           <Input
                             id="maxPlayerPayment"
                             type="number"
@@ -659,12 +702,41 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                             {...form.register("maxPlayerPayment")}
                             placeholder="25.00"
                             className="bg-white"
+                            data-testid="input-max-player-payment"
                           />
                           <p className="text-xs text-blue-600 mt-1">
-                            Players will authorize this amount when voting to attend. The actual charge will be collected after the event.
+                            Base amount to charge each player
                           </p>
                         </div>
+
+                        {/* Total Amount Calculation Display */}
+                        {maxPlayerPayment && parseFloat(maxPlayerPayment) > 0 && (
+                          <div className="bg-white p-3 rounded border">
+                            <Label className="text-sm font-medium text-gray-700 mb-2 block">Total Amount Breakdown</Label>
+                            <div className="space-y-1 text-xs">
+                              {paymentCalculation.breakdown.map((item, index) => (
+                                <div key={index} className={`flex justify-between ${
+                                  item.type === 'base' ? 'font-medium' : 'text-gray-600'
+                                }`}>
+                                  <span>{item.name}</span>
+                                  <span>£{item.amount.toFixed(2)}</span>
+                                </div>
+                              ))}
+                              <div className="border-t pt-1 mt-2 flex justify-between font-medium text-blue-700">
+                                <span>Total per Player:</span>
+                                <span data-testid="text-total-amount">£{paymentCalculation.total.toFixed(2)}</span>
+                              </div>
+                            </div>
+                            <p className="text-xs text-blue-600 mt-2">
+                              This total includes all platform charges and will be authorized when players vote to attend.
+                            </p>
+                          </div>
+                        )}
                       </div>
+
+                      <p className="text-xs text-blue-600">
+                        Players will authorize the total amount when voting to attend. The actual charge will be collected after the event.
+                      </p>
                     </div>
                   </div>
                 )}

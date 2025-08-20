@@ -2935,6 +2935,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ received: true });
   });
 
+  // Platform charges management routes
+  app.get('/api/platform-charges', isAuthenticated, async (req: any, res) => {
+    try {
+      const charges = await storage.getPlatformCharges();
+      res.json(charges);
+    } catch (error) {
+      console.error("Error fetching platform charges:", error);
+      res.status(500).json({ message: "Failed to fetch platform charges" });
+    }
+  });
+
+  app.put('/api/platform-charges/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { platformChargeSchema } = await import('@shared/schema');
+      const chargeData = platformChargeSchema.parse(req.body);
+      
+      const updatedCharge = await storage.updatePlatformCharge(id, chargeData);
+      res.json(updatedCharge);
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({
+          message: "Validation failed",
+          errors: error.errors
+        });
+      }
+      console.error("Error updating platform charge:", error);
+      res.status(500).json({ message: "Failed to update platform charge" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
