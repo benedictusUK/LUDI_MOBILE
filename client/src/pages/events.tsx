@@ -276,6 +276,9 @@ export default function Events() {
   const canEditEvent = (event: any) => {
     if (!user || !event?.primaryTeamId) return false;
     
+    // User can edit if they created the event directly
+    if (event.createdById === (user as any).id) return true;
+    
     const primaryTeam = (teams as any[]).find((team: any) => team.id === event.primaryTeamId);
     if (!primaryTeam) return false;
     
