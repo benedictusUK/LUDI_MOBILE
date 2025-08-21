@@ -303,8 +303,8 @@ export function PaymentCollectionModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl max-h-[95vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
             Collect Event Payments
@@ -314,7 +314,8 @@ export function PaymentCollectionModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="flex-1 overflow-y-auto">
+          <div className="space-y-6 py-4">
           {/* Venue Cost Section */}
           <div>
             <Label htmlFor="venue-cost" className="text-sm font-medium text-red-600">
@@ -567,28 +568,30 @@ export function PaymentCollectionModal({
             </div>
           )}
 
-          <div className="flex gap-3 pt-2">
-            <Button variant="outline" onClick={onClose} className="flex-1">
-              Cancel
-            </Button>
-            <Button
-              onClick={handleCollectPayment}
-              disabled={
-                collectPaymentMutation.isPending ||
-                !selectedOrganiserId ||
-                !venueCost ||
-                parseFloat(venueCost) <= 0 ||
-                selectedAttendees.length === 0
-              }
-              className="flex-1"
-              style={{ backgroundColor: "#10b981", borderColor: "#10b981" }}
-            >
-              {collectPaymentMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : null}
-              Collect Payments
-            </Button>
           </div>
+        </div>
+
+        <div className="flex gap-3 pt-4 border-t flex-shrink-0">
+          <Button variant="outline" onClick={onClose} className="flex-1">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleCollectPayment}
+            disabled={
+              collectPaymentMutation.isPending ||
+              !selectedOrganiserId ||
+              !venueCost ||
+              parseFloat(venueCost) <= 0 ||
+              selectedAttendees.length === 0
+            }
+            className="flex-1"
+            style={{ backgroundColor: "#10b981", borderColor: "#10b981" }}
+          >
+            {collectPaymentMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : null}
+            Collect Payments
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

@@ -140,8 +140,8 @@ export default function PaymentAuthorizationModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
+      <DialogContent className="max-w-md max-h-[95vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <CreditCard className="w-5 h-5 text-blue-600" />
             {isFromNotification ? "Event Payment Required" : "Authorize Payment"}
@@ -154,47 +154,47 @@ export default function PaymentAuthorizationModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium">Event:</span>
-              <span className="text-sm">{event.name}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium">{isFromNotification ? "Payment Amount:" : "Authorization Amount:"}</span>
-              <Badge variant="secondary" className="font-semibold">
-                £{maxPlayerPayment.toFixed(2)}
-              </Badge>
-            </div>
-          </div>
-
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <div className="flex items-start gap-2">
-              <Check className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-              <div className="text-sm text-blue-800">
-                {isFromNotification ? (
-                  <>
-                    <div className="font-medium">Payment will be processed immediately</div>
-                    <div>This payment confirms your attendance for the event.</div>
-                  </>
-                ) : (
-                  <>
-                    <div className="font-medium">Authorization hold - not a charge</div>
-                    <div>We'll authorize this amount. Final charges occur after the event.</div>
-                  </>
-                )}
+        <div className="flex-1 overflow-y-auto">
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">Event:</span>
+                <span className="text-sm">{event.name}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">{isFromNotification ? "Payment Amount:" : "Authorization Amount:"}</span>
+                <Badge variant="secondary" className="font-semibold">
+                  £{maxPlayerPayment.toFixed(2)}
+                </Badge>
               </div>
             </div>
-          </div>
-        </div>
 
-        <div className="py-4">
-          <Label className="text-sm font-medium mb-3 block">Choose payment method:</Label>
-          <RadioGroup 
-            value={selectedPaymentMethod} 
-            onValueChange={setSelectedPaymentMethod}
-            className="space-y-3"
-          >
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="flex items-start gap-2">
+                <Check className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div className="text-sm text-blue-800">
+                  {isFromNotification ? (
+                    <>
+                      <div className="font-medium">Payment will be processed immediately</div>
+                      <div>This payment confirms your attendance for the event.</div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="font-medium">Authorization hold - not a charge</div>
+                      <div>We'll authorize this amount. Final charges occur after the event.</div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-sm font-medium mb-3 block">Choose payment method:</Label>
+              <RadioGroup 
+                value={selectedPaymentMethod} 
+                onValueChange={setSelectedPaymentMethod}
+                className="space-y-3"
+              >
             {/* Saved Payment Methods */}
             {(paymentMethods as PaymentMethod[]).map((method) => (
               <div key={method.id}>
@@ -276,11 +276,12 @@ export default function PaymentAuthorizationModal({
                 </div>
               </Label>
             </div>
-          </RadioGroup>
+              </RadioGroup>
+            </div>
+          </div>
         </div>
 
-
-        <DialogFooter className="gap-2">
+        <DialogFooter className="gap-2 flex-shrink-0">
           <Button
             variant="outline"
             onClick={onClose}
