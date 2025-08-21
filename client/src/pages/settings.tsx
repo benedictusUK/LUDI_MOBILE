@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Settings as SettingsIcon, Bell, CreditCard, User, Smartphone, AlertTriangle } from "lucide-react";
+import { Settings as SettingsIcon, Bell, CreditCard, User, Smartphone } from "lucide-react";
 import { ProfileForm } from "@/components/ui/profile-form";
 import PaymentMethodManager from "@/components/payment-method-manager";
 import type { NotificationPreferences } from "@shared/schema";
@@ -333,16 +333,6 @@ export default function Settings() {
                       </div>
                     </div>
                   ))}
-                  
-                  <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
-                    <div className="flex items-start gap-2">
-                      <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                      <div className="text-sm text-amber-800">
-                        <div className="font-medium">Database Updates Required</div>
-                        <div>Platform charges are read-only in this interface. To modify fees, update the values directly in the database's <code>platform_charges</code> table.</div>
-                      </div>
-                    </div>
-                  </div>
                   
                   <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                     <h4 className="font-medium text-blue-900 mb-2">How Platform Charges Work</h4>
