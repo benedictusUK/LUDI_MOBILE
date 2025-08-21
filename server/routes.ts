@@ -989,10 +989,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         amount: Math.round(parseFloat(amount) * 100), // Convert to cents
         currency: "gbp",
         customer: user.stripeCustomerId,
-        payment_method: paymentMethodId,
         capture_method: 'manual', // Always use manual capture for flexibility
-        confirm: true,
-        return_url: `${req.protocol}://${req.get('host')}/events/${eventId}`,
         metadata: {
           eventId,
           userId,
@@ -1001,6 +998,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
           isNotificationPayment: notificationId ? 'true' : 'false'
         },
       };
+
+      // Handle specific payment methods
+      if (paymentMethodId === 'apple-pay' || paymentMethodId === 'google-pay') {
+        // For Apple Pay and Google Pay, don't set automatic_payment_methods
+        paymentIntentData.payment_method_types = [paymentMethodId === 'apple-pay' ? 'apple_pay' : 'google_pay'];
+        paymentIntentData.confirm = true;
+        paymentIntentData.return_url = `${req.protocol}://${req.get('host')}/events/${eventId}`;
+      } else if (paymentMethodId === 'paypal') {
+        paymentIntentData.payment_method_types = ['paypal'];
+        paymentIntentData.confirm = true;
+        paymentIntentData.return_url = `${req.protocol}://${req.get('host')}/events/${eventId}`;
+      } else if (paymentMethodId === 'new-card') {
+        paymentIntentData.payment_method_types = ['card'];
+        paymentIntentData.automatic_payment_methods = {
+          enabled: true,
+          allow_redirects: 'never'
+        };
+        paymentIntentData.confirm = true;
+        paymentIntentData.return_url = `${req.protocol}://${req.get('host')}/events/${eventId}`;
+      } else {
+        // Use existing saved payment method
+        paymentIntentData.payment_method = paymentMethodId;
+        paymentIntentData.confirm = true;
+        paymentIntentData.return_url = `${req.protocol}://${req.get('host')}/events/${eventId}`;
+      }
 
       // Create payment intent
       let paymentIntent = await stripe.paymentIntents.create(paymentIntentData);
@@ -1115,7 +1137,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         currency: "gbp",
         customer: user.stripeCustomerId,
         capture_method: 'manual', // This creates an authorization hold
-        return_url: `${req.protocol}://${req.get('host')}/events/${eventId}`,
         metadata: {
           eventId,
           userId,
@@ -1125,13 +1146,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Handle specific payment methods
       if (paymentMethodId === 'apple-pay' || paymentMethodId === 'google-pay') {
+        // For Apple Pay and Google Pay, don't set automatic_payment_methods
         paymentIntentData.payment_method_types = [paymentMethodId === 'apple-pay' ? 'apple_pay' : 'google_pay'];
-        paymentIntentData.automatic_payment_methods = {
-          enabled: true,
-          allow_redirects: 'never'
-        };
+        paymentIntentData.confirm = true;
+        paymentIntentData.return_url = `${req.protocol}://${req.get('host')}/events/${eventId}`;
       } else if (paymentMethodId === 'paypal') {
         paymentIntentData.payment_method_types = ['paypal'];
+        paymentIntentData.confirm = true;
+        paymentIntentData.return_url = `${req.protocol}://${req.get('host')}/events/${eventId}`;
       } else if (paymentMethodId === 'new-card') {
         paymentIntentData.payment_method_types = ['card'];
         paymentIntentData.automatic_payment_methods = {
@@ -1142,10 +1164,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Use existing saved payment method
         paymentIntentData.payment_method = paymentMethodId;
         paymentIntentData.confirm = true;
-        paymentIntentData.automatic_payment_methods = {
-          enabled: true,
-          allow_redirects: 'never'
-        };
+        paymentIntentData.return_url = `${req.protocol}://${req.get('host')}/events/${eventId}`;
       }
 
       // Create payment intent with authorization hold
