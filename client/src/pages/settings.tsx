@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Settings as SettingsIcon, Bell, CreditCard, User, Smartphone } from "lucide-react";
+import { Settings as SettingsIcon, Bell, CreditCard, User, Smartphone, AlertTriangle } from "lucide-react";
 import { ProfileForm } from "@/components/ui/profile-form";
 import PaymentMethodManager from "@/components/payment-method-manager";
 import type { NotificationPreferences } from "@shared/schema";
@@ -286,7 +286,7 @@ export default function Settings() {
                   <span>Platform Charges</span>
                 </CardTitle>
                 <CardDescription>
-                  Configure platform charges for event payments
+                  View current platform charges for event payments (read-only)
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -308,59 +308,41 @@ export default function Settings() {
                         {charge.description}
                       </p>
                       
-                      <div className="flex items-center space-x-4">
+                      <div className="flex items-center justify-between">
                         <div className="flex-1">
-                          <Label htmlFor={`charge-${charge.id}`} className="text-sm font-medium">
-                            {charge.type === 'percentage' ? 'Percentage (0.029 = 2.9%)' : 'Fixed Amount (£)'}
+                          <Label className="text-sm font-medium text-gray-700">
+                            Current Value
                           </Label>
-                          <Input
-                            id={`charge-${charge.id}`}
-                            type="number"
-                            step={charge.type === 'percentage' ? '0.001' : '0.01'}
-                            min="0"
-                            defaultValue={charge.value}
-                            onBlur={(e: React.FocusEvent<HTMLInputElement>) => {
-                              const newValue = e.target.value;
-                              if (newValue && parseFloat(newValue) >= 0) {
-                                fetch(`/api/platform-charges/${charge.id}`, {
-                                  method: 'PUT',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ 
-                                    name: charge.name,
-                                    type: charge.type,
-                                    value: newValue,
-                                    description: charge.description,
-                                    isActive: charge.isActive
-                                  })
-                                }).then(() => {
-                                  queryClient.invalidateQueries({ queryKey: ['/api/platform-charges'] });
-                                  toast({
-                                    title: "Charge Updated",
-                                    description: `${charge.name} has been updated successfully.`,
-                                  });
-                                }).catch(() => {
-                                  toast({
-                                    title: "Update Failed",
-                                    description: "Failed to update platform charge.",
-                                    variant: "destructive",
-                                  });
-                                });
-                              }
-                            }}
-                            className="bg-white"
-                            data-testid={`input-charge-${charge.name}`}
-                          />
+                          <div className="mt-1 text-lg font-semibold text-gray-900">
+                            {charge.type === 'percentage' 
+                              ? `${(parseFloat(charge.value) * 100).toFixed(1)}%`
+                              : `£${parseFloat(charge.value).toFixed(2)}`
+                            }
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {charge.type === 'percentage' ? `Raw value: ${charge.value}` : `Raw value: £${charge.value}`}
+                          </div>
                         </div>
                         
-                        <div className="text-sm text-gray-600">
-                          {charge.type === 'percentage' 
-                            ? `${(parseFloat(charge.value) * 100).toFixed(1)}%`
-                            : `£${parseFloat(charge.value).toFixed(2)}`
-                          }
+                        <div className="text-right">
+                          <div className="text-sm font-medium text-gray-700">Type</div>
+                          <div className="text-sm text-gray-600 capitalize mt-1">
+                            {charge.type === 'percentage' ? 'Percentage' : 'Fixed Amount'}
+                          </div>
                         </div>
                       </div>
                     </div>
                   ))}
+                  
+                  <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                      <div className="text-sm text-amber-800">
+                        <div className="font-medium">Database Updates Required</div>
+                        <div>Platform charges are read-only in this interface. To modify fees, update the values directly in the database's <code>platform_charges</code> table.</div>
+                      </div>
+                    </div>
+                  </div>
                   
                   <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                     <h4 className="font-medium text-blue-900 mb-2">How Platform Charges Work</h4>
