@@ -157,8 +157,8 @@ export function EventAttendance({ eventId, eventName, startDate, cost }: EventAt
                       : (attendee.user.email || 'Unknown User')}
                   </span>
                 </div>
-                <Badge variant={getStatusBadgeVariant(attendee.status)} className="text-xs">
-                  {getStatusIcon(attendee.status)}
+                <Badge variant={getStatusBadgeVariant(attendee.status || 'pending')} className="text-xs">
+                  {getStatusIcon(attendee.status || 'pending')}
                   <span className="ml-1">
                     {attendee.status === 'attending' ? 'Going' : 
                      attendee.status === 'not_attending' ? 'Not Going' : 'Pending'}

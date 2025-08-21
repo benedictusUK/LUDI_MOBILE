@@ -53,7 +53,7 @@ export function MemberManagementModal({
 
 
   // Determine if current user is owner of this specific team
-  const isCurrentUserOwner = (teamData as any)?.ownerId === currentUser?.id;
+  const isCurrentUserOwner = (teamData as any)?.ownerId === (currentUser as any)?.id;
 
   // Fetch team members
   const { data: members = [], isLoading: membersLoading } = useQuery({
@@ -221,7 +221,7 @@ export function MemberManagementModal({
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "pending" | "members")} className="w-full">
           <TabsList className={`grid w-full ${(isOwner || isAdmin) ? (pendingRequests.length > 0 ? 'grid-cols-4' : 'grid-cols-3') : 'grid-cols-1'}`}>
             <TabsTrigger value="members">Members ({(members as any[]).length})</TabsTrigger>
             {(isOwner || isAdmin) && pendingRequests.length > 0 && (
@@ -320,7 +320,7 @@ export function MemberManagementModal({
                       )}
 
                       {/* Leave Team Button - for current user only, not team owners */}
-                      {membership.user.id === currentUser?.id && !isCurrentUserOwner && (
+                      {membership.user.id === (currentUser as any)?.id && !isCurrentUserOwner && (
                         <div className="pt-2 border-t">
                           <Button
                             variant="outline"

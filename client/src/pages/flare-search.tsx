@@ -37,8 +37,8 @@ export default function FlareSearch() {
 
   // Initialize postcode from user's profile when user data loads
   useEffect(() => {
-    if (user && user.postcode && !searchParams.postcode) {
-      setSearchParams(prev => ({ ...prev, postcode: user.postcode }));
+    if (user && (user as any).postcode && !searchParams.postcode) {
+      setSearchParams(prev => ({ ...prev, postcode: (user as any).postcode }));
     }
   }, [user]);
 
@@ -90,7 +90,7 @@ export default function FlareSearch() {
   };
 
   const resetSearch = () => {
-    setSearchParams({ postcode: user?.postcode || "", radius: "10", sport: "all" });
+    setSearchParams({ postcode: (user as any)?.postcode || "", radius: "10", sport: "all" });
     setHasSearched(false);
   };
 

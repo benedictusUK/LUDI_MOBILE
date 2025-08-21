@@ -417,8 +417,8 @@ export default function Teams() {
 
   // Handle team detail route - automatically open manage modal for specific team
   useEffect(() => {
-    if (teamId && teams.length > 0) {
-      const team = teams.find((t: any) => t.id === teamId);
+    if (teamId && (teams as any[]).length > 0) {
+      const team = (teams as any[]).find((t: any) => t.id === teamId);
       if (team) {
         setSelectedTeam(team);
         setShowManageModal(true);
@@ -895,24 +895,24 @@ export default function Teams() {
                   <div className="grid grid-cols-3 gap-4 text-center">
                     <div>
                       <p className="text-2xl font-bold text-primary">
-                        {isStatsLoading ? "..." : teamStats?.eventsThisMonth || 0}
+                        {isStatsLoading ? "..." : (teamStats as any)?.eventsThisMonth || 0}
                       </p>
                       <p className="text-xs text-neutral-500">Events This Month</p>
                     </div>
                     <div
                       className="cursor-pointer hover:bg-neutral-100 rounded-lg p-2 transition-colors"
                       onClick={() => {
-                        if (teamStats?.pendingRequests && teamStats.pendingRequests > 0) {
+                        if ((teamStats as any)?.pendingRequests && (teamStats as any).pendingRequests > 0) {
                           setPendingRequestsTab(true);
                           setShowMemberManagement(true);
                         }
                       }}
                     >
                       <p className="text-2xl font-bold text-secondary">
-                        {isStatsLoading ? "..." : teamStats?.pendingRequests || 0}
+                        {isStatsLoading ? "..." : (teamStats as any)?.pendingRequests || 0}
                       </p>
                       <p className="text-xs text-neutral-500">
-                        Pending Requests {teamStats?.pendingRequests && teamStats.pendingRequests > 0 ? "(Click to view)" : ""}
+                        Pending Requests {(teamStats as any)?.pendingRequests && (teamStats as any).pendingRequests > 0 ? "(Click to view)" : ""}
                       </p>
                     </div>
                     <div>
@@ -1218,7 +1218,7 @@ export default function Teams() {
             isOwner={selectedTeam.isOwner || false}
             isAdmin={selectedTeam.role === 'admin' || selectedTeam.isOwner}
             initialTab={pendingRequestsTab ? "pending" : "members"}
-            pendingRequests={pendingRequests}
+            pendingRequests={pendingRequests as any[]}
           />
         )}
       </main>
