@@ -716,6 +716,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await storage.addEventTeam(event.id, teamId);
         }
       }
+
+      // Send notifications to team members about new event
+      try {
+        const teamMembers = await storage.getTeamMembers(eventData.primaryTeamId);
+        const eventCreator = await storage.getUserById(userId);
+        
+        for (const member of teamMembers) {
+          // Don't notify the event creator
+          if (member.userId !== userId) {
+            await storage.createNotificationIfAllowed({
+              userId: member.userId,
+              title: "New Event Created",
+              message: `${eventCreator?.firstName || 'Team member'} created a new event: "${event.name}" on ${event.startDate} at ${event.startTime}`,
+              type: "new_event",
+              relatedId: event.id
+            });
+          }
+        }
+        
+        // Also notify additional team members
+        if (req.body.additionalTeamIds && Array.isArray(req.body.additionalTeamIds)) {
+          for (const teamId of req.body.additionalTeamIds) {
+            const additionalMembers = await storage.getTeamMembers(teamId);
+            for (const member of additionalMembers) {
+              if (member.userId !== userId) {
+                await storage.createNotificationIfAllowed({
+                  userId: member.userId,
+                  title: "New Event Created",
+                  message: `${eventCreator?.firstName || 'Team member'} created a new event: "${event.name}" on ${event.startDate} at ${event.startTime}`,
+                  type: "new_event",
+                  relatedId: event.id
+                });
+              }
+            }
+          }
+        }
+      } catch (notificationError) {
+        console.error("Error sending new event notifications:", notificationError);
+        // Don't fail event creation if notifications fail
+      }
       
       res.json(event);
     } catch (error: any) {
@@ -796,6 +836,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       const event = await storage.updateEvent(eventId, eventData);
+      
+      // Send notifications to team members about event changes
+      try {
+        const teamMembers = await storage.getTeamMembers(existingEvent.primaryTeamId);
+        const eventUpdater = await storage.getUserById(userId);
+        
+        for (const member of teamMembers) {
+          // Don't notify the person who made the change
+          if (member.userId !== userId) {
+            await storage.createNotificationIfAllowed({
+              userId: member.userId,
+              title: "Event Updated",
+              message: `${eventUpdater?.firstName || 'Team member'} updated the event: "${event.name}"`,
+              type: "event_changed",
+              relatedId: event.id
+            });
+          }
+        }
+      } catch (notificationError) {
+        console.error("Error sending event update notifications:", notificationError);
+        // Don't fail event update if notifications fail
+      }
+      
       res.json(event);
     } catch (error: any) {
       console.error("Error updating event:", error);
@@ -1319,6 +1382,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           for (const attendeeId of attendeesNeedingAuth) {
             try {
+              // Payment notifications are always sent regardless of preferences
               await storage.createNotification({
                 userId: attendeeId,
                 title: "Payment Authorization Required",
@@ -1842,7 +1906,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/notifications', isAuthenticated, async (req: any, res) => {
     try {
       const notificationData = insertNotificationSchema.parse(req.body);
-      const notification = await storage.createNotification(notificationData);
+      const notification = await storage.createNotificationIfAllowed(notificationData);
       res.json(notification);
     } catch (error) {
       console.error("Error creating notification:", error);

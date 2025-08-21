@@ -153,12 +153,13 @@ export default function Settings() {
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
                       <Label htmlFor="payment-reminders" className="text-base">Payment Reminders</Label>
-                      <p className="text-sm text-neutral-500">Receive reminders for upcoming payment deadlines</p>
+                      <p className="text-sm text-neutral-500">Payment notifications are always enabled for security</p>
                     </div>
                     <Switch
                       id="payment-reminders"
-                      checked={currentPreferences.paymentReminders ?? true}
-                      onCheckedChange={(checked) => handlePreferenceChange('paymentReminders', checked)}
+                      checked={true}
+                      disabled={true}
+                      className="opacity-50"
                     />
                   </div>
 

@@ -869,6 +869,55 @@ export class DatabaseStorage implements IStorage {
     return newNotification;
   }
 
+  // Helper function to check if user wants to receive a specific notification type
+  async shouldSendNotification(userId: string, notificationType: string): Promise<boolean> {
+    // Payment notifications are always sent for security reasons
+    if (notificationType.includes('payment') || notificationType.includes('authorization')) {
+      return true;
+    }
+
+    const preferences = await this.getUserNotificationPreferences(userId);
+    if (!preferences) return true; // Default to sending if no preferences set
+
+    // Map notification types to preference fields
+    switch (notificationType) {
+      case 'event_reminder':
+      case 'event_created':
+      case 'new_event':
+        return preferences.newEvents ?? true;
+      
+      case 'event_update':
+      case 'event_cancelled':
+      case 'event_changed':
+        return preferences.eventChanges ?? true;
+      
+      case 'team_invitation':
+      case 'team_join_approved':
+      case 'team_join_rejected':
+        return preferences.teamInvites ?? true;
+      
+      case 'payment_reminder':
+      case 'payment_required':
+      case 'payment_authorization_required':
+      case 'payment_captured':
+      case 'payment_failed':
+        return true; // Always send payment notifications
+      
+      default:
+        return true; // Send unknown types by default
+    }
+  }
+
+  // Enhanced notification creation that respects preferences
+  async createNotificationIfAllowed(notification: InsertNotification): Promise<Notification | null> {
+    const shouldSend = await this.shouldSendNotification(notification.userId, notification.type);
+    if (!shouldSend) {
+      console.log(`Skipping notification ${notification.type} for user ${notification.userId} due to preferences`);
+      return null;
+    }
+    return this.createNotification(notification);
+  }
+
   async getUserNotifications(userId: string): Promise<Notification[]> {
     const userNotifications = await db
       .select()
@@ -1096,7 +1145,7 @@ export class DatabaseStorage implements IStorage {
       
       // Create notification for the auto-promoted user
       if (event) {
-        await this.createNotification({
+        await this.createNotificationIfAllowed({
           userId: firstReserve.userId,
           type: "event_update",
           title: "Automatically Promoted!",
@@ -1531,7 +1580,7 @@ export class DatabaseStorage implements IStorage {
     
     // Send notification to team owner and all admins
     for (const admin of admins) {
-      await this.createNotification({
+      await this.createNotificationIfAllowed({
         userId: admin.id,
         type: "team_join_request",
         title: "New Team Join Request",
@@ -1755,7 +1804,7 @@ export class DatabaseStorage implements IStorage {
     // Notify the user that their request was approved
     const user = await this.getUser(userId);
     if (user) {
-      await this.createNotification({
+      await this.createNotificationIfAllowed({
         userId,
         type: "team_join_approved",
         title: "Join Request Approved",
@@ -1808,7 +1857,7 @@ export class DatabaseStorage implements IStorage {
     // Notify the user that their request was rejected
     const user = await this.getUser(userId);
     if (user) {
-      await this.createNotification({
+      await this.createNotificationIfAllowed({
         userId,
         type: "team_join_rejected",
         title: "Join Request Declined",
@@ -2014,7 +2063,7 @@ export class DatabaseStorage implements IStorage {
     const inviter = await this.getUser(invitedById);
     
     if (team && inviter) {
-      await this.createNotification({
+      await this.createNotificationIfAllowed({
         userId,
         title: "Team Invitation",
         message: `${inviter.username || inviter.firstName} invited you to join "${team.name}"`,
@@ -2151,7 +2200,7 @@ export class DatabaseStorage implements IStorage {
     const user = await this.getUser(userId);
     
     if (team && user) {
-      await this.createNotification({
+      await this.createNotificationIfAllowed({
         userId: invitation.invitedById,
         title: "Invitation Accepted",
         message: `${user.username || user.firstName} accepted your invitation to join "${team.name}"`,
@@ -2202,7 +2251,7 @@ export class DatabaseStorage implements IStorage {
     const user = await this.getUser(userId);
     
     if (team && user) {
-      await this.createNotification({
+      await this.createNotificationIfAllowed({
         userId: invitation.invitedById,
         title: "Invitation Declined",
         message: `${user.username || user.firstName} declined your invitation to join "${team.name}"`,
@@ -2543,7 +2592,7 @@ export class DatabaseStorage implements IStorage {
     
     // Create notification for the promoted user
     if (event && user) {
-      await this.createNotification({
+      await this.createNotificationIfAllowed({
         userId,
         type: "event_update",
         title: "Promoted to Main Event!",
