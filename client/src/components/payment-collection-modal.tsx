@@ -74,6 +74,45 @@ export function PaymentCollectionModal({
     enabled: isOpen,
   });
 
+  // Fetch platform charges for payment calculation
+  const { data: platformCharges = [] } = useQuery({
+    queryKey: ["/api/platform-charges"],
+    enabled: isOpen,
+  });
+
+  // Calculate total amount with platform charges
+  const calculateTotalAmount = (baseAmount: string) => {
+    const base = parseFloat(baseAmount) || 0;
+    if (base <= 0) return { breakdown: [], total: 0, totalCharges: 0 };
+
+    let totalCharges = 0;
+    const breakdown = [{ name: "Base Amount", amount: base, type: "base" }];
+
+    (platformCharges as any[]).forEach((charge: any) => {
+      let chargeAmount = 0;
+      if (charge.type === "percentage") {
+        chargeAmount = base * parseFloat(charge.value);
+      } else if (charge.type === "fixed") {
+        chargeAmount = parseFloat(charge.value);
+      }
+      
+      if (chargeAmount > 0) {
+        breakdown.push({
+          name: charge.description || charge.name,
+          amount: chargeAmount,
+          type: charge.type
+        });
+        totalCharges += chargeAmount;
+      }
+    });
+
+    return {
+      breakdown,
+      total: base + totalCharges,
+      totalCharges
+    };
+  };
+
   // Fetch organiser Connect status
   const { data: organiserStatus = {}, isLoading: loadingStatus } = useQuery({
     queryKey: ["/api/connect/status", selectedOrganiserId],
@@ -168,6 +207,20 @@ export function PaymentCollectionModal({
       });
     },
   });
+
+  // Calculate per-person cost including platform charges
+  const calculatePerPersonCost = () => {
+    const totalVenueCost = parseFloat(venueCost || "0");
+    if (totalVenueCost <= 0 || selectedAttendees.length === 0) return 0;
+    
+    const baseCostPerPerson = totalVenueCost / selectedAttendees.length;
+    const costCalculation = calculateTotalAmount(baseCostPerPerson.toString());
+    return costCalculation.total;
+  };
+
+  const perPersonCost = calculatePerPersonCost();
+  const baseCostPerPerson = parseFloat(venueCost || "0") / (selectedAttendees.length || 1);
+  const costBreakdown = calculateTotalAmount(baseCostPerPerson.toString());
 
   const handleCollectPayment = () => {
     if (!selectedOrganiserId) {
@@ -284,6 +337,30 @@ export function PaymentCollectionModal({
                 required
               />
             </div>
+            
+            {/* Cost Breakdown Display */}
+            {venueCost && parseFloat(venueCost) > 0 && selectedAttendees.length > 0 && (
+              <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <h4 className="font-medium text-blue-900 mb-2 text-sm">Cost Breakdown Per Person</h4>
+                <div className="space-y-1 text-xs">
+                  {costBreakdown.breakdown.map((item, index) => (
+                    <div key={index} className={`flex justify-between ${
+                      item.type === 'base' ? 'font-medium' : 'text-blue-700'
+                    }`}>
+                      <span>{item.name}</span>
+                      <span>£{item.amount.toFixed(2)}</span>
+                    </div>
+                  ))}
+                  <div className="border-t pt-1 mt-2 flex justify-between font-medium text-blue-800">
+                    <span>Total per Person:</span>
+                    <span data-testid="text-total-per-person">£{perPersonCost.toFixed(2)}</span>
+                  </div>
+                  <div className="text-xs text-blue-600 mt-1">
+                    Total to collect: £{(perPersonCost * selectedAttendees.length).toFixed(2)} from {selectedAttendees.length} attendees
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Attendees Section */}
@@ -305,7 +382,7 @@ export function PaymentCollectionModal({
                     </span>
                     {selectedAttendees.length > 0 && (
                       <Badge variant="secondary">
-                        £{(parseFloat(venueCost || "0") / selectedAttendees.length).toFixed(2)} each
+                        £{perPersonCost.toFixed(2)} each (inc. fees)
                       </Badge>
                     )}
                     {selectedAttendees.includes(selectedOrganiserId) && (
@@ -382,7 +459,7 @@ export function PaymentCollectionModal({
                                   {member.userId === selectedOrganiserId ? (
                                     <span className="text-amber-600">N/A</span>
                                   ) : (
-                                    `£${(parseFloat(venueCost || "0") / selectedAttendees.length).toFixed(2)}`
+                                    `£${perPersonCost.toFixed(2)}`
                                   )}
                                 </div>
                                 <div className="text-xs text-neutral-500">
