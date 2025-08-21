@@ -322,15 +322,15 @@ export default function PaymentMethodManager() {
 
           {/* Payment Method Setup Dialog */}
           <Dialog open={isAddingMethod} onOpenChange={setIsAddingMethod}>
-            <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
+            <DialogContent className="sm:max-w-md max-h-[95vh] flex flex-col">
+              <DialogHeader className="flex-shrink-0">
                 <DialogTitle>Add Payment Method</DialogTitle>
                 <DialogDescription>
                   Your payment details are securely processed and stored by Stripe. We never store your card information on our servers.
                 </DialogDescription>
               </DialogHeader>
               {clientSecret && (
-                <div className="max-h-[60vh] overflow-y-auto">
+                <div className="flex-1 overflow-y-auto py-4">
                   <Elements stripe={stripePromise} options={{ clientSecret }}>
                     <PaymentMethodSetupForm
                       onSuccess={handlePaymentMethodSetupSuccess}

@@ -5,6 +5,7 @@ import Navigation from "@/components/ui/nav";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
@@ -290,7 +291,7 @@ export default function Settings() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
-                  {platformCharges.map((charge: any) => (
+                  {(platformCharges as any[]).map((charge: any) => (
                     <div
                       key={charge.id}
                       className="p-4 border rounded-lg bg-gray-50"
@@ -318,7 +319,7 @@ export default function Settings() {
                             step={charge.type === 'percentage' ? '0.001' : '0.01'}
                             min="0"
                             defaultValue={charge.value}
-                            onBlur={(e) => {
+                            onBlur={(e: React.FocusEvent<HTMLInputElement>) => {
                               const newValue = e.target.value;
                               if (newValue && parseFloat(newValue) >= 0) {
                                 fetch(`/api/platform-charges/${charge.id}`, {
