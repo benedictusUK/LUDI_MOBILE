@@ -639,11 +639,10 @@ export default function Teams() {
               </Button>
             </div>
           ) : (
-            <Carousel className="w-full mb-12">
-              <CarouselContent className="snap-x snap-mandatory">
-                {(teams as any[]).map((team: any) => (
-                  <CarouselItem key={team.id}>
-                    <Card className="overflow-hidden">
+
+            (teams as any[]).map((team: any) => (
+              <Card key={team.id} className="overflow-hidden hover:shadow-md transition-shadow">
+
                 <div className="h-32 relative">
                   {team.teamImagePath ? (
                     <img 
@@ -772,9 +771,9 @@ export default function Teams() {
                     </div>
                   </div>
 
-                  <div className="flex space-x-2">
-                    <Button 
-                      size="sm" 
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
                       className="flex-1"
                       onClick={() => {
                         setSelectedTeam(team);

@@ -8,7 +8,7 @@ import EventForm from "@/components/ui/event-form";
 import AuditModal from "@/components/ui/audit-modal";
 import RecurringEventsManager from "@/components/ui/recurring-events-manager";
 import { PaymentCollectionModal } from "@/components/payment-collection-modal";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -596,75 +596,99 @@ export default function Events() {
           </div>
         )}
 
-        {/* Events Carousel */}
-        {(filteredEvents as any[]).length === 0 ? (
-          <div className="text-center py-12">
-            <i className="fas fa-calendar text-neutral-300 text-6xl mb-4"></i>
-            <h3 className="text-lg font-semibold text-neutral-900 mb-2">
-              {events.length === 0
-                ? "No events yet"
-                : "No events match your filters"}
-            </h3>
-            <p className="text-neutral-500 mb-4">
-              {events.length === 0
-                ? "Create your first sports event to get started"
-                : "Try adjusting your filters to see more events"}
-            </p>
-            {events.length === 0 && (
-              <Button
-                onClick={() => {
+        {/* Events List */}
+        <div className="flex flex-col gap-6">
+          {(filteredEvents as any[]).length === 0 ? (
+            <div className="col-span-full text-center py-12">
+              <i className="fas fa-calendar text-neutral-300 text-6xl mb-4"></i>
+              <h3 className="text-lg font-semibold text-neutral-900 mb-2">
+                {events.length === 0 
+                  ? "No events yet" 
+                  : "No events match your filters"
+                }
+              </h3>
+              <p className="text-neutral-500 mb-4">
+                {events.length === 0 
+                  ? "Create your first sports event to get started"
+                  : "Try adjusting your filters to see more events"
+                }
+              </p>
+              {events.length === 0 && (
+                <Button onClick={() => {
                   setShowCreateForm(true);
                   setEditingEvent(null);
-                }}
-              >
-                Create Event
-              </Button>
-            )}
-          </div>
-        ) : (
-          <Carousel className="w-full">
-            <CarouselContent className="snap-x snap-mandatory">
-              {(filteredEvents as any[]).map((event: any) => {
-                // Use primary team color or fallback to default
-                const teamColor = event.primaryTeam?.color || "#3b82f6";
+                }}>
+                  Create Event
+                </Button>
+              )}
+            </div>
+          ) : (
+            (filteredEvents as any[]).map((event: any) => {
+              // Use primary team color or fallback to default
+              const teamColor = event.primaryTeam?.color || "#3b82f6";
 
-                // Handle hover prefetching for instant loading
-                const handleHover = () => {
-                  // Pre-fetch activity logs on hover for instant loading
-                  queryClient.prefetchQuery({
-                    queryKey: ["/api/events", event.id, "activity"],
-                    staleTime: 30000,
-                  });
-                };
+              // Handle hover prefetching for instant loading
+              const handleHover = () => {
+                queryClient.prefetchQuery({
+                  queryKey: ["/api/events", event.id, "activity"],
+                  staleTime: 30000,
+                });
+              };
 
-                return (
-                  <CarouselItem key={event.id}>
-                    <Card
-                      id={`event-${event.id}`}
-                      className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow"
-                      onMouseEnter={handleHover}
-                    >
+              return (
+                <Card
+                  id={`event-${event.id}`}
+                  key={event.id}
+                  className="hover:shadow-md transition-shadow"
+                  onMouseEnter={handleHover}
+                >
+                  <CardContent className="p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+                    <div className="flex items-start gap-4 flex-1">
                       <div
-                        className="h-32 relative flex items-center justify-center"
-                        style={{
-                          background: `linear-gradient(135deg, ${teamColor} 0%, ${teamColor}dd 100%)`,
-                        }}
+                        className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0"
+                        style={{ backgroundColor: teamColor }}
                       >
                         {(() => {
                           const IconComponent = getSportIcon(event.sport || "");
-                          return (
-                            <IconComponent className="text-white w-16 h-16 opacity-50" />
-                          );
+                          return <IconComponent className="w-6 h-6 text-white" />;
                         })()}
-
-                        <div className="absolute top-4 right-4 flex gap-2">
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-lg font-semibold text-neutral-900">
+                            {event.name}
+                          </h3>
                           {event.recurringSeriesId && (
-                            <Badge
-                              variant="secondary"
-                              className="bg-white/20 text-white border-white/30"
-                            >
-                              Recurring
-                            </Badge>
+                            <Badge variant="secondary">Recurring</Badge>
+                          )}
+                          <Badge variant={event.isPublished ? "default" : "secondary"}>
+                            {event.isPublished ? "Published" : "Draft"}
+                          </Badge>
+                        </div>
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-neutral-500">
+                          <div>
+                            {event.sport}
+                            {event.primaryTeam ? ` • ${event.primaryTeam.name}` : ""}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <i className="far fa-calendar"></i>
+                            <span>{new Date(event.startDate).toLocaleDateString()}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <i className="far fa-clock"></i>
+                            <span>{event.startTime}</span>
+                          </div>
+                          {event.location && (
+                            <div className="flex items-center gap-1">
+                              <i className="fas fa-map-marker-alt"></i>
+                              <span>{event.location}</span>
+                            </div>
+                          )}
+                          {event.cost && parseFloat(event.cost) > 0 && (
+                            <div className="flex items-center gap-1">
+                              <i className="fas fa-pound-sign"></i>
+                              <span>£{parseFloat(event.cost).toFixed(2)}</span>
+                            </div>
                           )}
                           <Badge
                             variant={event.isPublished ? "default" : "secondary"}
@@ -679,213 +703,137 @@ export default function Events() {
                         </div>
                       </div>
 
-                      <CardContent className="p-6">
-                        <div className="flex items-center space-x-3 mb-4">
-                          <div
-                            className="w-12 h-12 rounded-lg flex items-center justify-center"
-                            style={{ backgroundColor: teamColor }}
+                    </div>
+                    <div className="flex flex-wrap gap-2 justify-end">
+                      {event.isPublished && (
+                        <Button
+                          size="sm"
+                          className="flex-1 sm:flex-none"
+                          style={{
+                            backgroundColor: teamColor,
+                            borderColor: teamColor,
+                          }}
+                          onClick={async () => {
+                            await Promise.all([
+                              queryClient.prefetchQuery({
+                                queryKey: ["/api/events", event.id],
+                              }),
+                              queryClient.prefetchQuery({
+                                queryKey: ["/api/events", event.id, "attendance"],
+                              }),
+                              queryClient.prefetchQuery({
+                                queryKey: ["/api/events", event.id, "activity"],
+                              }),
+                            ]);
+                            setLocation(`/events/${event.id}`);
+                          }}
+                        >
+                          {isEventPast(event) ? "View" : "Vote"}
+                        </Button>
+                      )}
+                      {isEventPast(event) &&
+                        event.cost &&
+                        parseFloat(event.cost) > 0 &&
+                        !event.paymentCollectionInitiated &&
+                        canEditEvent(event) && (
+                          <Button
+                            size="sm"
+                            className="flex-1 sm:flex-none"
+                            style={{
+                              backgroundColor: "#10b981",
+                              borderColor: "#10b981",
+                            }}
+                            onClick={() =>
+                              setPaymentCollectionModal({
+                                isOpen: true,
+                                eventId: event.id,
+                                eventName: event.name,
+                                eventCost: event.cost,
+                                eventCreatorId: event.createdById,
+                              })
+                            }
                           >
-                            {(() => {
-                              const IconComponent = getSportIcon(event.sport || "");
-                              return (
-                                <IconComponent className="w-6 h-6 text-white" />
-                              );
-                            })()}
-                          </div>
-                          <div>
-                            <h3 className="text-lg font-semibold text-neutral-900">
-                              {event.name}
-                            </h3>
-                            <div className="flex items-center space-x-2">
-                              <p className="text-sm text-neutral-500">
-                                {event.sport}
-                              </p>
-                              {event.primaryTeam && (
-                                <span
-                                  className="text-xs px-2 py-1 rounded-full text-white font-medium max-w-32 truncate"
-                                  style={{ backgroundColor: teamColor }}
-                                  title={event.primaryTeam.name}
-                                >
-                                  {event.primaryTeam.name.length > 15
-                                    ? `${event.primaryTeam.name.substring(0, 15)}...`
-                                    : event.primaryTeam.name}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
+                            Collect Payment
+                          </Button>
+                        )}
+                      {!isEventPast(event) && canEditEvent(event) && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1 sm:flex-none"
+                          style={{
+                            borderColor: teamColor,
+                            color: teamColor,
+                          }}
+                          onClick={() => {
+                            setEditingEvent(event.id);
+                            setShowCreateForm(false);
+                          }}
+                        >
+                          Edit
+                        </Button>
+                      )}
+                      {isEventPast(event) && canEditEvent(event) && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1 sm:flex-none hover:bg-opacity-10"
+                          style={{
+                            borderColor: teamColor,
+                            color: teamColor,
+                          }}
+                          onClick={() =>
+                            setAuditModal({
+                              isOpen: true,
+                              eventId: event.id,
+                              eventName: event.name,
+                            })
+                          }
+                        >
+                          Audit
+                        </Button>
+                      )}
+                      {event.recurringSeriesId &&
+                        !isEventPast(event) &&
+                        canEditEvent(event) && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 sm:flex-none"
+                            style={{
+                              borderColor: teamColor,
+                              color: teamColor,
+                            }}
+                            onClick={() =>
+                              setRecurringManager({
+                                isOpen: true,
+                                eventId: event.id,
+                                recurringSeriesId: event.recurringSeriesId,
+                              })
+                            }
+                          >
+                            Manage Series
+                          </Button>
+                        )}
+                      {!isEventPast(event) && canEditEvent(event) && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1 sm:flex-none hover:bg-red-50 hover:border-red-300 hover:text-red-600"
+                          onClick={() => deleteEventMutation.mutate(event.id)}
+                          disabled={deleteEventMutation.isPending}
+                        >
+                          Delete
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })
+          )}
+        </div>
 
-                        <div className="space-y-3 mb-6">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-neutral-500">Date:</span>
-                            <span className="font-medium text-neutral-900">
-                              {new Date(event.startDate).toLocaleDateString()}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-neutral-500">Time:</span>
-                            <span className="font-medium text-neutral-900">
-                              {event.startTime}
-                            </span>
-                          </div>
-                          {event.location && (
-                            <div className="flex items-start justify-between text-sm">
-                              <span className="text-neutral-500 flex-shrink-0">
-                                Location:
-                              </span>
-                              <span className="font-medium text-neutral-900 text-right ml-2 break-words">
-                                {event.location.length > 30
-                                  ? `${event.location.substring(0, 30)}...`
-                                  : event.location}
-                              </span>
-                            </div>
-                          )}
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-neutral-500">Cost:</span>
-                            <span className="font-medium text-neutral-900">
-                              {(!event.cost || parseFloat(event.cost) === 0)
-                                ? "Unknown"
-                                : `£${parseFloat(event.cost).toFixed(2)}`}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex space-x-2">
-                          {event.isPublished && (
-                            <Button
-                              size="sm"
-                              style={{
-                                backgroundColor: teamColor,
-                                borderColor: teamColor,
-                              }}
-                              onClick={async () => {
-                                // Pre-load event data before navigation
-                                await Promise.all([
-                                  queryClient.prefetchQuery({
-                                    queryKey: ["/api/events", event.id],
-                                  }),
-                                  queryClient.prefetchQuery({
-                                    queryKey: ["/api/events", event.id, "attendance"],
-                                  }),
-                                  queryClient.prefetchQuery({
-                                    queryKey: ["/api/events", event.id, "activity"],
-                                  }),
-                                ]);
-                                setLocation(`/events/${event.id}`);
-                              }}
-                            >
-                              {isEventPast(event) ? "View" : "Vote"}
-                            </Button>
-                          )}
-
-                          {/* Show Collect Payment button for past paid events (admins/captains only) */}
-                          {isEventPast(event) &&
-                            event.cost &&
-                            parseFloat(event.cost) > 0 &&
-                            !event.paymentCollectionInitiated &&
-                            canEditEvent(event) && (
-                              <Button
-                                size="sm"
-                                style={{
-                                  backgroundColor: "#10b981",
-                                  borderColor: "#10b981",
-                                }}
-                                onClick={() =>
-                                  setPaymentCollectionModal({
-                                    isOpen: true,
-                                    eventId: event.id,
-                                    eventName: event.name,
-                                    eventCost: event.cost,
-                                    eventCreatorId: event.createdById,
-                                  })
-                                }
-                              >
-                                Collect Payment
-                              </Button>
-                            )}
-
-                          {/* Hide Edit/Delete buttons for past events */}
-                          {!isEventPast(event) && canEditEvent(event) && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              style={{
-                                borderColor: teamColor,
-                                color: teamColor,
-                              }}
-                              onClick={() => {
-                                setEditingEvent(event.id);
-                                setShowCreateForm(false);
-                              }}
-                            >
-                              Edit
-                            </Button>
-                          )}
-                          {isEventPast(event) && canEditEvent(event) && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              style={{
-                                borderColor: teamColor,
-                                color: teamColor,
-                              }}
-                              className="hover:bg-opacity-10"
-                              onClick={() =>
-                                setAuditModal({
-                                  isOpen: true,
-                                  eventId: event.id,
-                                  eventName: event.name,
-                                })
-                              }
-                            >
-                              Audit
-                            </Button>
-                          )}
-                          {event.recurringSeriesId &&
-                            !isEventPast(event) &&
-                            canEditEvent(event) && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                style={{
-                                  borderColor: teamColor,
-                                  color: teamColor,
-                                }}
-                                onClick={() =>
-                                  setRecurringManager({
-                                    isOpen: true,
-                                    eventId: event.id,
-                                    recurringSeriesId: event.recurringSeriesId,
-                                  })
-                                }
-                              >
-                                Manage Series
-                              </Button>
-                            )}
-                          {!isEventPast(event) && canEditEvent(event) && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() =>
-                                deleteEventMutation.mutate(event.id)
-                              }
-                              disabled={deleteEventMutation.isPending}
-                              className="hover:bg-red-50 hover:border-red-300 hover:text-red-600"
-                            >
-                              Delete
-                            </Button>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </CarouselItem>
-                );
-              })}
-            </CarouselContent>
-            <CarouselPrevious className="hidden md:flex" />
-            <CarouselNext className="hidden md:flex" />
-          </Carousel>
-        )}
       </main>
 
       <Button
