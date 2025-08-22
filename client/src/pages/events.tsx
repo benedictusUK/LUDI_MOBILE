@@ -22,13 +22,6 @@ import {
   Users, Trophy, Target, Dumbbell, Zap, Mountain,
   Bike, Waves, Heart, Music, Flag, Swords, Circle, Plus
 } from "lucide-react";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselPrevious,
-  CarouselNext,
-} from "@/components/ui/carousel";
 
 // Custom SVG sport icons
 const FootballIcon = ({ className }: { className?: string }) => (
