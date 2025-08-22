@@ -6,6 +6,7 @@ import Navigation from "@/components/ui/nav";
 import DashboardStats from "@/components/ui/dashboard-stats";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { List, ListItem } from "@/components/ui/list";
 import { Badge } from "@/components/ui/badge";
 import { LudiInlineLoader } from "@/components/ui/ludi-loader";
 import { 
@@ -228,44 +229,47 @@ c2.717-4.894,0.954-11.065-3.94-13.782L155.15,153.433z"/>
               </Link>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {upcomingEvents.length === 0 ? (
-                  <div className="text-center py-12">
-                    <i className="fas fa-calendar text-neutral-300 text-6xl mb-4"></i>
-                    <h3 className="text-lg font-semibold text-neutral-900 mb-2">No upcoming events</h3>
-                    <p className="text-neutral-500">Create an event to get started!</p>
-                  </div>
-                ) : (
-                  upcomingEvents.map((event: any) => (
-                    <div 
-                      key={event.id} 
-                      className="flex items-center space-x-4 p-4 border border-gray-100 rounded-lg hover:border-primary hover:shadow-md transition-all cursor-pointer"
-                      onClick={() => handleEventClick(event.id)}
-                    >
-                      <div 
-                        className="w-12 h-12 rounded-lg flex items-center justify-center"
-                        style={{ backgroundColor: event.primaryTeam?.color || '#3b82f6' }}
-                      >
-                        {(() => {
-                          const IconComponent = getSportIcon(event.sport || '');
-                          return <IconComponent className="w-6 h-6 text-white" />;
-                        })()}
+              {upcomingEvents.length === 0 ? (
+                <div className="text-center py-12">
+                  <i className="fas fa-calendar text-neutral-300 text-6xl mb-4"></i>
+                  <h3 className="text-lg font-semibold text-neutral-900 mb-2">No upcoming events</h3>
+                  <p className="text-neutral-500">Create an event to get started!</p>
+                </div>
+              ) : (
+                <List>
+                  {upcomingEvents.map((event: any) => (
+                    <ListItem key={event.id}>
+                      <div className="flex items-center gap-4 flex-1">
+                        <div
+                          className="w-12 h-12 rounded-lg flex items-center justify-center"
+                          style={{ backgroundColor: event.primaryTeam?.color || '#3b82f6' }}
+                        >
+                          {(() => {
+                            const IconComponent = getSportIcon(event.sport || "");
+                            return <IconComponent className="w-6 h-6 text-white" />;
+                          })()}
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-medium text-neutral-900">{event.name}</h4>
+                          <p className="text-sm text-neutral-500">
+                            {new Date(event.startDate).toLocaleDateString()} • {event.startTime}
+                          </p>
+                          <p className="text-sm text-neutral-500">{event.location || "TBD"}</p>
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <h4 className="font-medium text-neutral-900">{event.name}</h4>
-                        <p className="text-sm text-neutral-500">
-                          {new Date(event.startDate).toLocaleDateString()} • {event.startTime}
-                        </p>
-                        <p className="text-sm text-neutral-500">{event.location || "TBD"}</p>
-                      </div>
-                      <div className="flex flex-col items-end space-y-2">
+                      <div className="flex flex-col items-end gap-2">
                         {getVotingStatusBadge(event)}
-                        <span className="text-xs text-neutral-400">Click to vote</span>
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={() => handleEventClick(event.id)}>Vote</Button>
+                          <Link href={`/events/${event.id}`}>
+                            <Button size="sm" variant="outline">View</Button>
+                          </Link>
+                        </div>
                       </div>
-                    </div>
-                  ))
-                )}
-              </div>
+                    </ListItem>
+                  ))}
+                </List>
+              )}
             </CardContent>
           </Card>
 
