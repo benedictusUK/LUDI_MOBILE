@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Settings as SettingsIcon, Bell, CreditCard, User } from "lucide-react";
 import { ProfileForm } from "@/components/ui/profile-form";
 import PaymentMethodManager from "@/components/payment-method-manager";
-import type { NotificationPreferences } from "@shared/schema";
+import type { NotificationPreferences, PlatformCharge, EventPayment, Event } from "@shared/schema";
 
 export default function Settings() {
   useScrollToTop();
@@ -28,7 +28,7 @@ export default function Settings() {
     queryKey: ['/api/auth/user'],
   });
 
-  const { data: payments = [] } = useQuery({
+  const { data: payments = [] } = useQuery<(EventPayment & { event?: Event })[]>({
     queryKey: ['/api/payments'],
   });
 
@@ -36,7 +36,7 @@ export default function Settings() {
     queryKey: ['/api/payment-methods'],
   });
 
-  const { data: platformCharges = [] } = useQuery({
+  const { data: platformCharges = [] } = useQuery<PlatformCharge[]>({
     queryKey: ['/api/platform-charges'],
   });
 
@@ -54,10 +54,11 @@ export default function Settings() {
         description: "Your notification preferences have been saved.",
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      const message = error instanceof Error ? error.message : "Failed to update preferences";
       toast({
         title: "Error",
-        description: error.message || "Failed to update preferences",
+        description: message,
         variant: "destructive",
       });
     },
@@ -199,7 +200,7 @@ export default function Settings() {
               <PaymentMethodManager />
               
               {/* Payment History */}
-              {(payments as any[]).length > 0 ? (
+              {payments.length > 0 ? (
                 <Card>
                   <CardHeader className="flex flex-row items-center space-y-0 pb-2">
                     <div className="flex items-center space-x-2">
@@ -209,7 +210,7 @@ export default function Settings() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {(payments as any[]).map((payment: any) => (
+                      {payments.map((payment) => (
                         <div
                           key={payment.id}
                           className="flex items-center justify-between p-4 border rounded-lg"
@@ -291,7 +292,7 @@ export default function Settings() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
-                  {(platformCharges as any[]).map((charge: any) => (
+                  {platformCharges.map((charge) => (
                     <div
                       key={charge.id}
                       className="p-4 border rounded-lg bg-gray-50"
