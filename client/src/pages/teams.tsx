@@ -17,10 +17,17 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { ObjectUploader } from "@/components/ObjectUploader";
 import type { UploadResult } from '@uppy/core';
-import { 
-  Users, Trophy, Target, Dumbbell, Zap, Mountain, 
+import {
+  Users, Trophy, Target, Dumbbell, Zap, Mountain,
   Bike, Waves, Heart, Music, Flag, Swords, Circle
 } from "lucide-react";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselPrevious,
+  CarouselNext,
+} from "@/components/ui/carousel";
 
 // Sports options
 const SPORTS_OPTIONS = [
@@ -622,9 +629,8 @@ export default function Teams() {
         )}
 
         {/* Team Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-          {(teams as any[]).length === 0 ? (
-            <div className="col-span-full text-center py-12">
+        {(teams as any[]).length === 0 ? (
+          <div className="text-center py-12">
               <i className="fas fa-users text-neutral-300 text-6xl mb-4"></i>
               <h3 className="text-lg font-semibold text-neutral-900 mb-2">No teams yet</h3>
               <p className="text-neutral-500 mb-4">Create your first team to get started</p>
@@ -633,8 +639,10 @@ export default function Teams() {
               </Button>
             </div>
           ) : (
+
             (teams as any[]).map((team: any) => (
               <Card key={team.id} className="overflow-hidden hover:shadow-md transition-shadow">
+
                 <div className="h-32 relative">
                   {team.teamImagePath ? (
                     <img 
@@ -782,9 +790,13 @@ export default function Teams() {
                   </div>
                 </CardContent>
               </Card>
-            ))
-          )}
-        </div>
+            </CarouselItem>
+          ))}
+        </CarouselContent>
+        <CarouselPrevious className="hidden md:flex" />
+        <CarouselNext className="hidden md:flex" />
+      </Carousel>
+        )}
 
         {/* Team Creation Form */}
         {showCreateForm && (
