@@ -21,13 +21,6 @@ import {
   Users, Trophy, Target, Dumbbell, Zap, Mountain,
   Bike, Waves, Heart, Music, Flag, Swords, Circle
 } from "lucide-react";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselPrevious,
-  CarouselNext,
-} from "@/components/ui/carousel";
 
 // Sports options
 const SPORTS_OPTIONS = [
@@ -639,9 +632,12 @@ export default function Teams() {
               </Button>
             </div>
           ) : (
-
-            (teams as any[]).map((team: any) => (
-              <Card key={team.id} className="overflow-hidden hover:shadow-md transition-shadow">
+            <div className="flex gap-4 overflow-x-auto pb-4">
+              {(teams as any[]).map((team: any) => (
+                <Card
+                  key={team.id}
+                  className="overflow-hidden hover:shadow-md transition-shadow flex-shrink-0"
+                >
 
                 <div className="h-32 relative">
                   {team.teamImagePath ? (
@@ -789,14 +785,10 @@ export default function Teams() {
                     </Link>
                   </div>
                 </CardContent>
-              </Card>
-            </CarouselItem>
-          ))}
-        </CarouselContent>
-        <CarouselPrevious className="hidden md:flex" />
-        <CarouselNext className="hidden md:flex" />
-      </Carousel>
-        )}
+                </Card>
+              ))}
+            </div>
+          )}
 
         {/* Team Creation Form */}
         {showCreateForm && (
