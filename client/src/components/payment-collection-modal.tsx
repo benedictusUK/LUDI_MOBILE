@@ -27,6 +27,13 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { apiRequest } from "@/lib/queryClient";
+import { calculateTotalAmount, calculatePerPersonCost } from "@/lib/payment-utils";
+import type { PlatformCharge, TeamMember, AttendanceRecord } from "@/types";
+
+interface OrganiserStatus {
+  payoutsEnabled?: boolean;
+}
 
 interface PaymentCollectionModalProps {
   isOpen: boolean;
@@ -63,58 +70,25 @@ export function PaymentCollectionModal({
   }, [isOpen, eventCreatorId, eventCost]);
 
   // Fetch team members for organiser selection
-  const { data: teamMembers = [], isLoading: loadingMembers } = useQuery({
+  const { data: teamMembers = [], isLoading: loadingMembers } = useQuery<TeamMember[]>({
     queryKey: ["/api/events", eventId, "team-members"],
     enabled: isOpen,
   });
 
   // Fetch event attendance to get attendees
-  const { data: attendance = [], isLoading: loadingAttendance } = useQuery({
+  const { data: attendance = [], isLoading: loadingAttendance } = useQuery<AttendanceRecord[]>({
     queryKey: ["/api/events", eventId, "attendance"],
     enabled: isOpen,
   });
 
   // Fetch platform charges for payment calculation
-  const { data: platformCharges = [] } = useQuery({
+  const { data: platformCharges = [] } = useQuery<PlatformCharge[]>({
     queryKey: ["/api/platform-charges"],
     enabled: isOpen,
   });
 
-  // Calculate total amount with platform charges
-  const calculateTotalAmount = (baseAmount: string) => {
-    const base = parseFloat(baseAmount) || 0;
-    if (base <= 0) return { breakdown: [], total: 0, totalCharges: 0 };
-
-    let totalCharges = 0;
-    const breakdown = [{ name: "Base Amount", amount: base, type: "base" }];
-
-    (platformCharges as any[]).forEach((charge: any) => {
-      let chargeAmount = 0;
-      if (charge.type === "percentage") {
-        chargeAmount = base * parseFloat(charge.value);
-      } else if (charge.type === "fixed") {
-        chargeAmount = parseFloat(charge.value);
-      }
-      
-      if (chargeAmount > 0) {
-        breakdown.push({
-          name: charge.description || charge.name,
-          amount: chargeAmount,
-          type: charge.type
-        });
-        totalCharges += chargeAmount;
-      }
-    });
-
-    return {
-      breakdown,
-      total: base + totalCharges,
-      totalCharges
-    };
-  };
-
   // Fetch organiser Connect status
-  const { data: organiserStatus = {}, isLoading: loadingStatus } = useQuery({
+  const { data: organiserStatus = {}, isLoading: loadingStatus } = useQuery<OrganiserStatus>({
     queryKey: ["/api/connect/status", selectedOrganiserId],
     enabled: isOpen && !!selectedOrganiserId,
   });
@@ -123,33 +97,24 @@ export function PaymentCollectionModal({
   useEffect(() => {
     if (Array.isArray(teamMembers) && Array.isArray(attendance) && attendance.length > 0) {
       const attendingIds = attendance
-        .filter((vote: any) => vote.status === "can_attend" || vote.status === "attending")
-        .map((vote: any) => vote.userId);
+        .filter((vote) => vote.status === "can_attend" || vote.status === "attending")
+        .map((vote) => vote.userId);
       setSelectedAttendees(attendingIds);
     }
   }, [teamMembers, attendance]);
 
   const collectPaymentMutation = useMutation({
-    mutationFn: async (data: { 
-      eventId: string; 
-      organiserId: string; 
-      venueCost: string; 
-      attendeeIds: string[] 
+    mutationFn: async (data: {
+      eventId: string;
+      organiserId: string;
+      venueCost: string;
+      attendeeIds: string[];
     }) => {
-      const response = await fetch(`/api/events/${data.eventId}/collect-payment`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          organiserId: data.organiserId,
-          venueCost: data.venueCost,
-          attendeeIds: data.attendeeIds
-        }),
-        credentials: "include",
+      const response = await apiRequest("POST", `/api/events/${data.eventId}/collect-payment`, {
+        organiserId: data.organiserId,
+        venueCost: data.venueCost,
+        attendeeIds: data.attendeeIds,
       });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to collect payments");
-      }
       return response.json();
     },
     onSuccess: (data) => {
@@ -161,10 +126,11 @@ export function PaymentCollectionModal({
       onClose();
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      const message = error instanceof Error ? error.message : "Failed to collect payments";
       toast({
         title: "Payment Collection Failed",
-        description: error.message || "Failed to collect payments",
+        description: message,
         variant: "destructive",
       });
     },
@@ -172,16 +138,7 @@ export function PaymentCollectionModal({
 
   const createConnectAccountMutation = useMutation({
     mutationFn: async (userId: string) => {
-      const response = await fetch("/api/connect/create-account", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId }),
-        credentials: "include",
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to create Connect account");
-      }
+      const response = await apiRequest("POST", "/api/connect/create-account", { userId });
       return response.json();
     },
     onSuccess: (data) => {
@@ -196,31 +153,21 @@ export function PaymentCollectionModal({
         queryClient.invalidateQueries({ queryKey: ["/api/connect/status", selectedOrganiserId] });
       }, 2000);
     },
-    onError: (error: any) => {
-      const isConnectNotEnabled = error.message?.includes("signed up for Connect");
+    onError: (error: unknown) => {
+      const message = error instanceof Error ? error.message : "Failed to start Connect account setup";
+      const isConnectNotEnabled = message.includes("signed up for Connect");
       toast({
         title: "Setup Failed",
-        description: isConnectNotEnabled 
+        description: isConnectNotEnabled
           ? "Stripe Connect is not enabled for this account. Please contact support to enable Connect functionality."
-          : error.message || "Failed to start Connect account setup",
+          : message,
         variant: "destructive",
       });
     },
   });
-
-  // Calculate per-person cost including platform charges
-  const calculatePerPersonCost = () => {
-    const totalVenueCost = parseFloat(venueCost || "0");
-    if (totalVenueCost <= 0 || selectedAttendees.length === 0) return 0;
-    
-    const baseCostPerPerson = totalVenueCost / selectedAttendees.length;
-    const costCalculation = calculateTotalAmount(baseCostPerPerson.toString());
-    return costCalculation.total;
-  };
-
-  const perPersonCost = calculatePerPersonCost();
+  const perPersonCost = calculatePerPersonCost(venueCost, selectedAttendees.length, platformCharges);
   const baseCostPerPerson = parseFloat(venueCost || "0") / (selectedAttendees.length || 1);
-  const costBreakdown = calculateTotalAmount(baseCostPerPerson.toString());
+  const costBreakdown = calculateTotalAmount(baseCostPerPerson, platformCharges);
 
   const handleCollectPayment = () => {
     if (!selectedOrganiserId) {
@@ -282,24 +229,29 @@ export function PaymentCollectionModal({
   };
 
   // Create a combined list of all team members with their attendance status
-  const allMembersWithVotes = Array.isArray(teamMembers) ? (teamMembers as any[]).map((member: any) => {
-    const attendanceVote = Array.isArray(attendance) ? 
-      attendance.find((vote: any) => vote.userId === member.userId) : null;
-    return {
-      ...member,
-      vote: attendanceVote?.status || null,
-      isAttending: attendanceVote?.status === "can_attend" || attendanceVote?.status === "attending"
-    };
-  }).sort((a: any, b: any) => {
-    // Sort by: attending first, then alphabetical by name
-    if (a.isAttending && !b.isAttending) return -1;
-    if (!a.isAttending && b.isAttending) return 1;
-    const aName = `${a.user?.firstName || ''} ${a.user?.lastName || ''}`.trim();
-    const bName = `${b.user?.firstName || ''} ${b.user?.lastName || ''}`.trim();
-    return aName.localeCompare(bName);
-  }) : [];
-
-  const selectedMember = (teamMembers as any[]).find((m: any) => m.userId === selectedOrganiserId);
+  const allMembersWithVotes = Array.isArray(teamMembers)
+    ? teamMembers
+        .map((member) => {
+          const attendanceVote = Array.isArray(attendance)
+            ? attendance.find((vote) => vote.userId === member.userId)
+            : undefined;
+          return {
+            ...member,
+            vote: attendanceVote?.status || null,
+            isAttending:
+              attendanceVote?.status === "can_attend" ||
+              attendanceVote?.status === "attending",
+          };
+        })
+        .sort((a, b) => {
+          // Sort by: attending first, then alphabetical by name
+          if (a.isAttending && !b.isAttending) return -1;
+          if (!a.isAttending && b.isAttending) return 1;
+          const aName = `${a.user?.firstName || ""} ${a.user?.lastName || ""}`.trim();
+          const bName = `${b.user?.firstName || ""} ${b.user?.lastName || ""}`.trim();
+          return aName.localeCompare(bName);
+        })
+    : [];
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -406,7 +358,7 @@ export function PaymentCollectionModal({
                     </div>
                   ) : (
                     <div className="space-y-2 max-h-48 overflow-y-auto">
-                      {allMembersWithVotes.map((member: any) => {
+                      {allMembersWithVotes.map((member) => {
                         const getStatusText = () => {
                           if (member.vote === "can_attend" || member.vote === "attending") return "Voted to attend";
                           if (member.vote === "cant_attend") return "Can't attend";
@@ -503,7 +455,7 @@ export function PaymentCollectionModal({
                   <SelectValue placeholder="Select organiser" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(teamMembers as any[]).map((member: any) => (
+                  {teamMembers.map((member) => (
                     <SelectItem key={member.userId} value={member.userId}>
                       <div className="flex items-center gap-2">
                         <Avatar className="w-6 h-6">
@@ -529,7 +481,7 @@ export function PaymentCollectionModal({
                 <span className="text-sm font-medium">Payout Status</span>
                 {loadingStatus ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (organiserStatus as any)?.payoutsEnabled ? (
+                ) : organiserStatus?.payoutsEnabled ? (
                   <Badge className="gap-1">
                     <div className="w-2 h-2 bg-green-500 rounded-full" />
                     Ready
@@ -542,7 +494,7 @@ export function PaymentCollectionModal({
                 )}
               </div>
 
-              {!loadingStatus && !(organiserStatus as any)?.payoutsEnabled && (
+              {!loadingStatus && !organiserStatus?.payoutsEnabled && (
                 <div className="space-y-2">
                   <p className="text-xs text-neutral-600">
                     This organiser needs to set up their payout account to receive payments.

@@ -2,7 +2,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, type InputHTMLAttributes } from "react";
 import { z } from "zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,22 +20,22 @@ import { Switch } from "@/components/ui/switch";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
-import { SPORTS } from "@shared/schema";
+import { SPORTS, type PlatformCharge, type Event, type Team } from "@shared/schema";
+import { calculateTotalAmount } from "@/lib/payment-utils";
 
 // Custom Time Input Component with auto-colon insertion
-function TimeInput({ 
-  value, 
-  onChange, 
-  placeholder = "HH:MM", 
+function TimeInput({
+  value,
+  onChange,
+  placeholder = "HH:MM",
   required = false,
-  ...props 
+  ...props
 }: {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   required?: boolean;
-  [key: string]: any;
-}) {
+} & InputHTMLAttributes<HTMLInputElement>) {
   const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let input = e.target.value.replace(/[^\d]/g, ''); // Remove non-digits
     
@@ -105,53 +105,20 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
   const isEditing = !!eventId;
 
   // Fetch teams for selection
-  const { data: teams = [] } = useQuery({
+  const { data: teams = [] } = useQuery<Team[]>({
     queryKey: ["/api/teams"],
   });
 
   // Fetch existing event data if editing
-  const { data: existingEvent } = useQuery({
+  const { data: existingEvent } = useQuery<Event>({
     queryKey: ["/api/events", eventId],
     enabled: !!eventId,
   });
 
   // Fetch platform charges for payment calculation
-  const { data: platformCharges = [] } = useQuery({
+  const { data: platformCharges = [] } = useQuery<PlatformCharge[]>({
     queryKey: ["/api/platform-charges"],
   });
-
-  // Calculate total amount with platform charges
-  const calculateTotalAmount = (baseAmount: string) => {
-    const base = parseFloat(baseAmount) || 0;
-    if (base <= 0) return { breakdown: [], total: 0 };
-
-    let totalCharges = 0;
-    const breakdown = [{ name: "Base Amount", amount: base, type: "base" }];
-
-    (platformCharges as any[]).forEach((charge: any) => {
-      let chargeAmount = 0;
-      if (charge.type === "percentage") {
-        chargeAmount = base * parseFloat(charge.value);
-      } else if (charge.type === "fixed") {
-        chargeAmount = parseFloat(charge.value);
-      }
-      
-      if (chargeAmount > 0) {
-        breakdown.push({
-          name: charge.description || charge.name,
-          amount: chargeAmount,
-          type: charge.type
-        });
-        totalCharges += chargeAmount;
-      }
-    });
-
-    return {
-      breakdown,
-      total: base + totalCharges,
-      totalCharges
-    };
-  };
 
   const form = useForm<EventFormData>({
     resolver: zodResolver(eventFormSchema),
@@ -182,12 +149,12 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
   });
 
   const maxPlayerPayment = form.watch("maxPlayerPayment");
-  const paymentCalculation = calculateTotalAmount(maxPlayerPayment || "0");
+  const paymentCalculation = calculateTotalAmount(maxPlayerPayment || "0", platformCharges);
 
   // Update form values when existing event data loads
   useEffect(() => {
-    if (existingEvent && typeof existingEvent === 'object') {
-      const event = existingEvent as any;
+    if (existingEvent && typeof existingEvent === "object") {
+      const event = existingEvent;
       
       // Use setTimeout to ensure the form is ready before resetting
       setTimeout(() => {
@@ -257,7 +224,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
       });
       onSuccess();
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       if (isUnauthorizedError(error)) {
         toast({
           title: "Unauthorized",
@@ -273,13 +240,13 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
       // Parse error message for detailed feedback
       let errorMessage = `Failed to ${isEditing ? "update" : "create"} event`;
       try {
-        const errorData = JSON.parse(error.message.split(': ')[1] || '{}');
+        const errorData = error instanceof Error ? JSON.parse(error.message.split(': ')[1] || '{}') : {};
         if (errorData.message) {
           errorMessage = errorData.message;
         }
       } catch (e) {
         // If parsing fails, check if it's a simple error message
-        if (error.message && error.message.includes(':')) {
+        if (error instanceof Error && error.message && error.message.includes(':')) {
           const parts = error.message.split(': ');
           if (parts.length > 1) {
             errorMessage = parts[1];
@@ -493,7 +460,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                     <SelectValue placeholder="Select primary team" />
                   </SelectTrigger>
                   <SelectContent>
-                    {(teams as any[]).map((team: any) => (
+                    {teams.map((team) => (
                       <SelectItem key={team.id} value={team.id}>
                         {team.name}
                       </SelectItem>
@@ -522,12 +489,13 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                       <SelectValue placeholder="Add secondary teams..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {(teams as any[])
-                        .filter((team: any) => 
-                          team.id !== form.watch("primaryTeamId") && 
-                          !form.watch("secondaryTeamIds")?.includes(team.id)
+                      {teams
+                        .filter(
+                          (team) =>
+                            team.id !== form.watch("primaryTeamId") &&
+                            !form.watch("secondaryTeamIds")?.includes(team.id)
                         )
-                        .map((team: any) => (
+                        .map((team) => (
                           <SelectItem key={team.id} value={team.id}>
                             {team.name}
                           </SelectItem>
@@ -539,7 +507,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                   {form.watch("secondaryTeamIds") && form.watch("secondaryTeamIds").length > 0 && (
                     <div className="flex flex-wrap gap-2 mt-2">
                       {form.watch("secondaryTeamIds").map((teamId: string) => {
-                        const team = (teams as any[]).find((t: any) => t.id === teamId);
+                        const team = teams.find((t) => t.id === teamId);
                         return team ? (
                           <div
                             key={teamId}
