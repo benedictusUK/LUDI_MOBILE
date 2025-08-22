@@ -18,9 +18,9 @@ import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { LudiInlineLoader } from "@/components/ui/ludi-loader";
-import { 
-  Users, Trophy, Target, Dumbbell, Zap, Mountain, 
-  Bike, Waves, Heart, Music, Flag, Swords, Circle
+import {
+  Users, Trophy, Target, Dumbbell, Zap, Mountain,
+  Bike, Waves, Heart, Music, Flag, Swords, Circle, Plus
 } from "lucide-react";
 
 // Custom SVG sport icons
@@ -198,6 +198,14 @@ export default function Events() {
     const url = new URL(fullUrl);
     const teamParam = url.searchParams.get('team');
     setSelectedTeamId(teamParam || null);
+  }, [location]);
+
+  // Show create form when navigating to /events/new
+  useEffect(() => {
+    if (location.startsWith('/events/new')) {
+      setShowCreateForm(true);
+      setEditingEvent(null);
+    }
   }, [location]);
 
   const { data: events = [], isLoading } = useQuery({
@@ -414,7 +422,7 @@ export default function Events() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-neutral-50">
+      <div className="relative min-h-screen bg-neutral-50">
         <Navigation />
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <LudiInlineLoader size="md" message="Loading events..." />
@@ -424,9 +432,9 @@ export default function Events() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50">
+    <div className="relative min-h-screen bg-neutral-50">
       <Navigation />
-      
+
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <div className="flex items-center justify-between">
@@ -449,10 +457,9 @@ export default function Events() {
                 </Button>
               )}
             </div>
-            <Button 
+            <Button
               onClick={() => {
-                setShowCreateForm(true);
-                setEditingEvent(null);
+                setLocation('/events/new');
               }}
               className="flex items-center space-x-2"
             >
@@ -562,15 +569,21 @@ export default function Events() {
 
         {(showCreateForm || editingEvent) && (
           <div id="edit-form" className="mb-8">
-            <EventForm 
+            <EventForm
               eventId={editingEvent || undefined}
               onCancel={() => {
                 setShowCreateForm(false);
                 setEditingEvent(null);
+                if (location.startsWith('/events/new')) {
+                  setLocation('/events');
+                }
               }}
               onSuccess={() => {
                 setShowCreateForm(false);
                 setEditingEvent(null);
+                if (location.startsWith('/events/new')) {
+                  setLocation('/events');
+                }
               }}
             />
           </div>
@@ -831,6 +844,14 @@ export default function Events() {
           )}
         </div>
       </main>
+
+      <Button
+        onClick={() => setLocation('/events/new')}
+        className="absolute bottom-6 right-6 rounded-full h-14 w-14 p-0 md:hidden flex items-center justify-center"
+        aria-label="Create Event"
+      >
+        <Plus className="h-6 w-6" />
+      </Button>
 
       {/* Audit Modal */}
       <AuditModal

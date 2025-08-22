@@ -144,8 +144,9 @@ function Router() {
         ) : initialLoadComplete && hasShownReveal ? (
           <>
             <Route path="/" component={Home} />
-            <Route path="/events" component={Events} />
+            <Route path="/events/new" component={Events} />
             <Route path="/events/:id" component={EventDetails} />
+            <Route path="/events" component={Events} />
             <Route path="/flare-search" component={FlareSearch} />
             <Route path="/teams" component={Teams} />
             <Route path="/teams/:id" component={Teams} />
@@ -155,8 +156,9 @@ function Router() {
         ) : isAuthenticated && !isLoading ? (
           <>
             <Route path="/" component={Home} />
-            <Route path="/events" component={Events} />
+            <Route path="/events/new" component={Events} />
             <Route path="/events/:id" component={EventDetails} />
+            <Route path="/events" component={Events} />
             <Route path="/flare-search" component={FlareSearch} />
             <Route path="/teams" component={Teams} />
             <Route path="/teams/:id" component={Teams} />
