@@ -683,16 +683,6 @@ export default function Events() {
                               <span>£{parseFloat(event.cost).toFixed(2)}</span>
                             </div>
                           )}
-                          <Badge
-                            variant={event.isPublished ? "default" : "secondary"}
-                            className={
-                              event.isPublished
-                                ? ""
-                                : "bg-white/20 text-white border-white/30"
-                            }
-                          >
-                            {event.isPublished ? "Published" : "Draft"}
-                          </Badge>
                         </div>
                       </div>
 
