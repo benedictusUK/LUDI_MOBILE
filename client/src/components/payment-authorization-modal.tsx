@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { parseStripeError } from "@/lib/utils";
+import type { PaymentEvent } from "@/types/payment";
 import {
   Dialog,
   DialogContent,
@@ -21,7 +23,7 @@ interface PaymentAuthorizationModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  event: any;
+  event: PaymentEvent;
   maxPlayerPayment: number;
   isFromNotification?: boolean; // New prop to differentiate notification-triggered modals
   notificationId?: string; // Pass notification ID for proper API calls
@@ -96,25 +98,9 @@ export default function PaymentAuthorizationModal({
       onSuccess();
       onClose();
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       console.error("Payment authorization failed:", error);
-      let errorMessage = "Failed to authorize payment";
-      
-      try {
-        const errorData = JSON.parse(error.message.split(': ')[1] || '{}');
-        if (errorData.details) {
-          errorMessage = errorData.details;
-        } else if (errorData.message) {
-          errorMessage = errorData.message;
-        }
-      } catch (e) {
-        if (error.message && error.message.includes(':')) {
-          const parts = error.message.split(': ');
-          if (parts.length > 1) {
-            errorMessage = parts[1];
-          }
-        }
-      }
+      const errorMessage = parseStripeError(error);
 
       toast({
         title: "Authorization Failed",
