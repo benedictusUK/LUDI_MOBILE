@@ -43,12 +43,14 @@ export default function EventDetails() {
     eventName: string;
     eventCost: string;
     eventCreatorId: string;
+    maxPlayerPayment: string;
   }>({
     isOpen: false,
     eventId: "",
     eventName: "",
     eventCost: "",
     eventCreatorId: "",
+    maxPlayerPayment: "",
   });
 
   const [paymentAuthModal, setPaymentAuthModal] = useState(false);
@@ -582,6 +584,7 @@ export default function EventDetails() {
                                   eventName: eventData.name,
                                   eventCost: eventData.cost || "0",
                                   eventCreatorId: eventData.createdById,
+                                  maxPlayerPayment: eventData.maxPlayerPayment || "0",
                                 });
                               }
                             }}
@@ -870,11 +873,13 @@ export default function EventDetails() {
           eventName: "",
           eventCost: "",
           eventCreatorId: "",
+          maxPlayerPayment: "",
         })}
         eventId={paymentCollectionModal.eventId}
         eventName={paymentCollectionModal.eventName}
         eventCost={paymentCollectionModal.eventCost}
         eventCreatorId={paymentCollectionModal.eventCreatorId}
+        maxPlayerPayment={paymentCollectionModal.maxPlayerPayment}
       />
 
       <PaymentAuthorizationModal

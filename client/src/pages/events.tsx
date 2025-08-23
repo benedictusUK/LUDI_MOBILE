@@ -183,12 +183,14 @@ export default function Events() {
     eventName: string;
     eventCost: string;
     eventCreatorId: string;
+    maxPlayerPayment: string;
   }>({
     isOpen: false,
     eventId: "",
     eventName: "",
     eventCost: "",
     eventCreatorId: "",
+    maxPlayerPayment: "",
   });
 
   // Extract team parameter from URL
@@ -733,6 +735,7 @@ export default function Events() {
                                 eventName: event.name,
                                 eventCost: event.cost,
                                 eventCreatorId: event.createdById,
+                                maxPlayerPayment: event.maxPlayerPayment,
                               })
                             }
                           >
@@ -855,11 +858,13 @@ export default function Events() {
           eventName: "",
           eventCost: "",
           eventCreatorId: "",
+          maxPlayerPayment: "",
         })}
         eventId={paymentCollectionModal.eventId}
         eventName={paymentCollectionModal.eventName}
         eventCost={paymentCollectionModal.eventCost}
         eventCreatorId={paymentCollectionModal.eventCreatorId}
+        maxPlayerPayment={paymentCollectionModal.maxPlayerPayment}
       />
     </div>
   );
