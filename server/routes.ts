@@ -781,12 +781,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = (req.user as any).claims.sub;
       const includePast = req.query.includePast === 'true';
       const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || (includePast ? 10 : 1000); // Default to 10 for past events, unlimited for future events
+      const limit = parseInt(req.query.limit as string) || (includePast ? 5 : 1000); // Default to 5 for past events, unlimited for future events
+      const teamId = req.query.teamId as string | undefined;
+      const votingStatus = (req.query.votingStatus as string) || 'all';
       
       // Check for expired recurring events and trigger maintenance if needed
       await storage.checkExpiredRecurringEvents();
       
-      const events = await storage.getUserEvents(userId, includePast, page, limit);
+      const events = await storage.getUserEvents(userId, includePast, page, limit, teamId, votingStatus);
       res.json(events);
     } catch (error) {
       console.error("Error fetching events:", error);

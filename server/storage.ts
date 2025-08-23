@@ -90,7 +90,14 @@ export interface IStorage {
   createEvent(event: InsertEvent): Promise<Event>;
   getEvent(id: string): Promise<Event | undefined>;
   getEventById(id: string): Promise<Event | undefined>;
-  getUserEvents(userId: string): Promise<Event[]>;
+  getUserEvents(
+    userId: string,
+    includePast?: boolean,
+    page?: number,
+    limit?: number,
+    teamId?: string,
+    votingStatus?: string
+  ): Promise<any>;
   getTeamEvents(teamId: string): Promise<Event[]>;
   updateEvent(id: string, updates: Partial<InsertEvent>): Promise<Event>;
   deleteEvent(id: string): Promise<void>;
@@ -652,7 +659,14 @@ export class DatabaseStorage implements IStorage {
     return { maintenanceTriggered };
   }
 
-  async getUserEvents(userId: string, includePast: boolean = false, page: number = 1, limit: number = 1000): Promise<any[]> {
+  async getUserEvents(
+    userId: string,
+    includePast: boolean = false,
+    page: number = 1,
+    limit: number = 1000,
+    teamId?: string,
+    votingStatus: string = 'all'
+  ): Promise<any> {
     // Fetch all events first, then filter by end time in JavaScript
     // includePast=true means ONLY past events, includePast=false means ONLY future events
     const dateCondition = undefined; // Remove SQL filtering for now
@@ -714,7 +728,7 @@ export class DatabaseStorage implements IStorage {
 
     // Filter by actual event end time and trigger auto-generation
     const now = new Date();
-    const filteredEvents = uniqueEvents.filter(eventData => {
+    let filteredEvents = uniqueEvents.filter(eventData => {
       const event = eventData.event;
       
       // Calculate actual event end time
@@ -742,6 +756,27 @@ export class DatabaseStorage implements IStorage {
       return includePast ? isPastEvent : !isPastEvent;
     });
 
+    // Apply team filter if provided
+    if (teamId) {
+      filteredEvents = filteredEvents.filter(eventData => eventData.event.primaryTeamId === teamId);
+    }
+
+    // Calculate counts before applying voting status filter
+    const totalCount = filteredEvents.length;
+    const attendanceCounts = {
+      attending: filteredEvents.filter(e => e.userAttendance?.status === 'attending').length,
+      not_attending: filteredEvents.filter(e => e.userAttendance?.status === 'not_attending').length,
+      not_voted: filteredEvents.filter(e => !e.userAttendance || e.userAttendance.status === null).length,
+    };
+
+    // Apply voting status filter for events to return
+    if (votingStatus && votingStatus !== 'all') {
+      filteredEvents = filteredEvents.filter(eventData => {
+        const status = eventData.userAttendance?.status ?? 'not_voted';
+        return status === votingStatus;
+      });
+    }
+
     // Sort events: if showing past events, show most recent first; otherwise show next events first
     filteredEvents.sort((a, b) => {
       const aDateTime = new Date(`${a.event.startDate || ''} ${a.event.startTime || '00:00'}`).getTime();
@@ -755,12 +790,16 @@ export class DatabaseStorage implements IStorage {
     const endIndex = startIndex + limit;
     const paginatedEvents = filteredEvents.slice(startIndex, endIndex);
 
-    // Return events with primary team data and user attendance
-    return paginatedEvents.map(result => ({
-      ...result.event,
-      primaryTeam: result.primaryTeam,
-      userAttendance: result.userAttendance
-    }));
+    // Return events with primary team data and user attendance along with counts
+    return {
+      events: paginatedEvents.map(result => ({
+        ...result.event,
+        primaryTeam: result.primaryTeam,
+        userAttendance: result.userAttendance,
+      })),
+      totalCount,
+      attendanceCounts,
+    };
   }
 
   async getTeamEvents(teamId: string): Promise<any[]> {

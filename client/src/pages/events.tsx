@@ -211,11 +211,22 @@ export default function Events() {
     }
   }, [location]);
 
-  const { data: events = [], isLoading } = useQuery({
-    queryKey: ["/api/events", { includePast: showPastEvents, page: showPastEvents ? pastEventsPage : 1 }],
+  const { data: eventsData, isLoading } = useQuery({
+    queryKey: ["/api/events", {
+      includePast: showPastEvents,
+      page: showPastEvents ? pastEventsPage : 1,
+      teamId: selectedTeamId,
+      votingStatus: votingStatusFilter,
+    }],
     queryFn: async () => {
-      const pageParam = showPastEvents ? `&page=${pastEventsPage}&limit=10` : '';
-      const response = await fetch(`/api/events?includePast=${showPastEvents}${pageParam}`, {
+      const params = new URLSearchParams({ includePast: String(showPastEvents) });
+      if (showPastEvents) {
+        params.set("page", String(pastEventsPage));
+        params.set("limit", "5");
+      }
+      if (selectedTeamId) params.set("teamId", selectedTeamId);
+      if (votingStatusFilter !== "all") params.set("votingStatus", votingStatusFilter);
+      const response = await fetch(`/api/events?${params.toString()}`, {
         credentials: "include",
       });
       if (!response.ok) {
@@ -224,6 +235,23 @@ export default function Events() {
       return response.json();
     },
   });
+
+  const [events, setEvents] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (eventsData) {
+      if (showPastEvents) {
+        setEvents(prev => pastEventsPage === 1 ? eventsData.events : [...prev, ...eventsData.events]);
+      } else {
+        setEvents(eventsData.events);
+      }
+    }
+  }, [eventsData, showPastEvents, pastEventsPage]);
+
+  useEffect(() => {
+    setPastEventsPage(1);
+    setEvents([]);
+  }, [showPastEvents, selectedTeamId, votingStatusFilter]);
 
   // Pre-fetch event details, attendance, and potential players for all events
   // This will cache the data so event details page loads instantly
@@ -255,33 +283,6 @@ export default function Events() {
     queryKey: ["/api/teams"],
   });
 
-  // Fetch attendance data for all events to determine voting status
-  const attendanceQueries = useQuery({
-    queryKey: ["/api/events/attendance-all"],
-    queryFn: async () => {
-      if (!events || events.length === 0) return {};
-      
-      const attendanceData: { [eventId: string]: any[] } = {};
-      await Promise.all(
-        (events as any[]).map(async (event) => {
-          try {
-            const response = await fetch(`/api/events/${event.id}/attendance`, {
-              credentials: "include",
-            });
-            if (response.ok) {
-              attendanceData[event.id] = await response.json();
-            }
-          } catch (error) {
-            console.error(`Failed to fetch attendance for event ${event.id}:`, error);
-          }
-        })
-      );
-      return attendanceData;
-    },
-    enabled: events && (events as any[]).length > 0,
-    staleTime: 30000, // Cache for 30 seconds
-  });
-
   const { user } = useAuth();
 
   // Helper function to check if user can edit an event
@@ -300,15 +301,6 @@ export default function Events() {
     // User can edit if they have admin or captain role in the team
     // The team object already contains the user's role since getUserTeams returns the user's role
     return primaryTeam.role === "admin" || primaryTeam.role === "captain";
-  };
-
-  // Helper function to get user's voting status for an event
-  const getUserVotingStatus = (eventId: string): 'attending' | 'not_attending' | 'not_voted' => {
-    const attendanceData = attendanceQueries.data?.[eventId] || [];
-    const userAttendance = attendanceData.find((a: any) => a.userId === (user as any)?.id);
-    
-    if (!userAttendance) return 'not_voted';
-    return userAttendance.status === 'attending' ? 'attending' : 'not_attending';
   };
 
   // Helper function to check if event is in the past
@@ -330,45 +322,10 @@ export default function Events() {
     return eventEndTime < now;
   };
 
-  // Apply all filters (past events filter is now handled server-side)
-  const filteredEvents = (events as any[])
-    .filter((event: any) => {
-      // Team filter
-      if (selectedTeamId && event.primaryTeamId !== selectedTeamId) return false;
-      
-      // Voting status filter
-      if (votingStatusFilter !== 'all') {
-        const votingStatus = getUserVotingStatus(event.id);
-        if (votingStatusFilter !== votingStatus) return false;
-      }
-      
-      return true;
-    });
-
-  // Calculate filter counts (events array already filtered by server for past/future)
-  const allEventsCount = events.length;
-  
-  // Reset page when toggling past events
-  useEffect(() => {
-    if (showPastEvents) {
-      setPastEventsPage(1);
-    }
-  }, [showPastEvents]);
-  
-  const attendingCount = (events as any[]).filter(event => 
-    (!selectedTeamId || event.primaryTeamId === selectedTeamId) &&
-    getUserVotingStatus(event.id) === 'attending'
-  ).length;
-  
-  const notAttendingCount = (events as any[]).filter(event => 
-    (!selectedTeamId || event.primaryTeamId === selectedTeamId) &&
-    getUserVotingStatus(event.id) === 'not_attending'
-  ).length;
-  
-  const notVotedCount = (events as any[]).filter(event => 
-    (!selectedTeamId || event.primaryTeamId === selectedTeamId) &&
-    getUserVotingStatus(event.id) === 'not_voted'
-  ).length;
+  const allEventsCount = eventsData?.totalCount || 0;
+  const attendingCount = eventsData?.attendanceCounts?.attending || 0;
+  const notAttendingCount = eventsData?.attendanceCounts?.not_attending || 0;
+  const notVotedCount = eventsData?.attendanceCounts?.not_voted || 0;
 
   const selectedTeam = selectedTeamId 
     ? (teams as any[]).find((team: any) => team.id === selectedTeamId)
@@ -550,9 +507,9 @@ export default function Events() {
                 </div>
               </div>
 
-              {filteredEvents.length !== events.length && (
+              {events.length !== allEventsCount && (
                 <Badge variant="secondary" className="text-xs">
-                  Showing {filteredEvents.length} of {allEventsCount} events
+                  Showing {events.length} of {allEventsCount} events
                 </Badge>
               )}
             </div>
@@ -583,22 +540,22 @@ export default function Events() {
 
         {/* Events List */}
         <div className="flex flex-col gap-6">
-          {(filteredEvents as any[]).length === 0 ? (
+          {(events as any[]).length === 0 ? (
             <div className="col-span-full text-center py-12">
               <i className="fas fa-calendar text-neutral-300 text-6xl mb-4"></i>
               <h3 className="text-lg font-semibold text-neutral-900 mb-2">
-                {events.length === 0 
-                  ? "No events yet" 
+                {allEventsCount === 0
+                  ? "No events yet"
                   : "No events match your filters"
                 }
               </h3>
               <p className="text-neutral-500 mb-4">
-                {events.length === 0 
+                {allEventsCount === 0
                   ? "Create your first sports event to get started"
                   : "Try adjusting your filters to see more events"
                 }
               </p>
-              {events.length === 0 && (
+              {allEventsCount === 0 && (
                 <Button onClick={() => {
                   setShowCreateForm(true);
                   setEditingEvent(null);
@@ -608,7 +565,7 @@ export default function Events() {
               )}
             </div>
           ) : (
-            (filteredEvents as any[]).map((event: any) => {
+            (events as any[]).map((event: any) => {
               // Use primary team color or fallback to default
               const teamColor = event.primaryTeam?.color || "#3b82f6";
 
@@ -811,7 +768,7 @@ export default function Events() {
         </div>
 
         {/* Pagination controls for past events */}
-        {showPastEvents && events.length === 10 && (
+        {showPastEvents && events.length < allEventsCount && (
           <div className="flex justify-center mt-6">
             <Button
               variant="outline"
