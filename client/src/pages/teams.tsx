@@ -632,11 +632,11 @@ export default function Teams() {
               </Button>
             </div>
           ) : (
-            <div className="flex gap-4 overflow-x-auto pb-4">
+            <div className="grid gap-4 pb-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
               {(teams as any[]).map((team: any) => (
                 <Card
                   key={team.id}
-                  className="overflow-hidden hover:shadow-md transition-shadow flex-shrink-0"
+                  className="overflow-hidden hover:shadow-md transition-shadow"
                 >
 
                 <div className="h-32 relative">
