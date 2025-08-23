@@ -162,6 +162,7 @@ export default function Events() {
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [votingStatusFilter, setVotingStatusFilter] = useState<string>("all");
   const [showPastEvents, setShowPastEvents] = useState<boolean>(false);
+  const [pastEventsPage, setPastEventsPage] = useState<number>(1);
   const [auditModal, setAuditModal] = useState<{ isOpen: boolean; eventId: string; eventName: string }>({
     isOpen: false,
     eventId: "",
@@ -211,9 +212,10 @@ export default function Events() {
   }, [location]);
 
   const { data: events = [], isLoading } = useQuery({
-    queryKey: ["/api/events", { includePast: showPastEvents }],
+    queryKey: ["/api/events", { includePast: showPastEvents, page: showPastEvents ? pastEventsPage : 1 }],
     queryFn: async () => {
-      const response = await fetch(`/api/events?includePast=${showPastEvents}`, {
+      const pageParam = showPastEvents ? `&page=${pastEventsPage}&limit=10` : '';
+      const response = await fetch(`/api/events?includePast=${showPastEvents}${pageParam}`, {
         credentials: "include",
       });
       if (!response.ok) {
@@ -346,24 +348,12 @@ export default function Events() {
   // Calculate filter counts (events array already filtered by server for past/future)
   const allEventsCount = events.length;
   
-  // For past events count, we need to make a separate query
-  const { data: allEventsData = [] } = useQuery({
-    queryKey: ["/api/events", { includePast: true }],
-    queryFn: async () => {
-      const response = await fetch(`/api/events?includePast=true`, {
-        credentials: "include",
-      });
-      if (!response.ok) {
-        throw new Error("Failed to fetch all events");
-      }
-      return response.json();
-    },
-    enabled: showPastEvents, // Only fetch when we need the count
-  });
-  
-  const pastEventsCount = showPastEvents ? 
-    (allEventsData as any[]).filter(event => isEventPast(event)).length : 
-    0; // We don't show this when showPastEvents is false anyway
+  // Reset page when toggling past events
+  useEffect(() => {
+    if (showPastEvents) {
+      setPastEventsPage(1);
+    }
+  }, [showPastEvents]);
   
   const attendingCount = (events as any[]).filter(event => 
     (!selectedTeamId || event.primaryTeamId === selectedTeamId) &&
@@ -555,7 +545,7 @@ export default function Events() {
                     htmlFor="show-past-events" 
                     className="text-sm font-medium text-neutral-600 cursor-pointer"
                   >
-                    Show Past Events ({pastEventsCount})
+                    Show Past Events
                   </Label>
                 </div>
               </div>
@@ -819,6 +809,19 @@ export default function Events() {
             })
           )}
         </div>
+
+        {/* Pagination controls for past events */}
+        {showPastEvents && events.length === 10 && (
+          <div className="flex justify-center mt-6">
+            <Button
+              variant="outline"
+              onClick={() => setPastEventsPage(prev => prev + 1)}
+              disabled={isLoading}
+            >
+              {isLoading ? "Loading..." : "Load More Past Events"}
+            </Button>
+          </div>
+        )}
 
       </main>
 

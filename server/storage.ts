@@ -652,7 +652,7 @@ export class DatabaseStorage implements IStorage {
     return { maintenanceTriggered };
   }
 
-  async getUserEvents(userId: string, includePast: boolean = false): Promise<any[]> {
+  async getUserEvents(userId: string, includePast: boolean = false, page: number = 1, limit: number = 1000): Promise<any[]> {
     // Fetch all events first, then filter by end time in JavaScript
     // includePast=true means ONLY past events, includePast=false means ONLY future events
     const dateCondition = undefined; // Remove SQL filtering for now
@@ -750,8 +750,13 @@ export class DatabaseStorage implements IStorage {
       return includePast ? bDateTime - aDateTime : aDateTime - bDateTime;
     });
 
+    // Apply pagination
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedEvents = filteredEvents.slice(startIndex, endIndex);
+
     // Return events with primary team data and user attendance
-    return filteredEvents.map(result => ({
+    return paginatedEvents.map(result => ({
       ...result.event,
       primaryTeam: result.primaryTeam,
       userAttendance: result.userAttendance
