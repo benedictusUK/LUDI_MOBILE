@@ -348,6 +348,9 @@ export default function Events() {
     return eventEndTime < now;
   };
 
+  // Use appropriate events array based on view
+  const displayEvents = showPastEvents ? allPastEvents : events;
+
   // Apply all filters (past events filter is now handled server-side)
   const filteredEvents = (displayEvents as any[])
     .filter((event: any) => {
@@ -374,9 +377,6 @@ export default function Events() {
       setHasMorePastEvents(true);
     }
   }, [showPastEvents]);
-  
-  // Use appropriate events array based on view
-  const displayEvents = showPastEvents ? allPastEvents : events;
   
   const attendingCount = (displayEvents as any[]).filter(event => 
     (!selectedTeamId || event.primaryTeamId === selectedTeamId) &&
