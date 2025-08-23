@@ -379,6 +379,21 @@ export default function Events() {
     ? (teams as any[]).find((team: any) => team.id === selectedTeamId)
     : null;
 
+  // Apply all filters (past events filter is now handled server-side)
+  const filteredEvents = (events || [])
+    .filter((event: any) => {
+      // Team filter
+      if (selectedTeamId && event.primaryTeamId !== selectedTeamId) return false;
+      
+      // Voting status filter
+      if (votingStatusFilter !== 'all') {
+        const votingStatus = getUserVotingStatus(event.id);
+        if (votingStatusFilter !== votingStatus) return false;
+      }
+      
+      return true;
+    });
+
   const deleteEventMutation = useMutation({
     mutationFn: async (eventId: string) => {
       const response = await fetch(`/api/events/${eventId}`, {
@@ -555,9 +570,9 @@ export default function Events() {
                 </div>
               </div>
 
-              {events.length !== allEventsCount && (
+              {filteredEvents.length !== allEventsCount && (
                 <Badge variant="secondary" className="text-xs">
-                  Showing {events.length} of {allEventsCount} events
+                  Showing {filteredEvents.length} of {allEventsCount} events
                 </Badge>
               )}
             </div>
@@ -588,7 +603,7 @@ export default function Events() {
 
         {/* Events List */}
         <div className="flex flex-col gap-6">
-          {(events as any[]).length === 0 ? (
+          {filteredEvents.length === 0 ? (
             <div className="col-span-full text-center py-12">
               <i className="fas fa-calendar text-neutral-300 text-6xl mb-4"></i>
               <h3 className="text-lg font-semibold text-neutral-900 mb-2">
@@ -613,7 +628,7 @@ export default function Events() {
               )}
             </div>
           ) : (
-            (events as any[]).map((event: any) => {
+            filteredEvents.map((event: any) => {
               // Use primary team color or fallback to default
               const teamColor = event.primaryTeam?.color || "#3b82f6";
 
@@ -816,7 +831,7 @@ export default function Events() {
         </div>
 
         {/* Pagination controls for past events */}
-        {showPastEvents && events.length < allEventsCount && (
+        {showPastEvents && events.length >= 10 && (
           <div className="flex justify-center mt-6">
             <Button
               variant="outline"

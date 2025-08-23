@@ -29,11 +29,12 @@ export default function Home() {
     queryKey: ["/api/teams"],
   });
 
-  const { data: events = [] } = useQuery({
+  const { data: eventsData } = useQuery({
     queryKey: ["/api/events"],
   });
 
-  // Filter to upcoming events only and sort by soonest first
+  // Extract events array from API response and filter to upcoming events only
+  const events = (eventsData as any)?.events || [];
   const upcomingEvents = (events as any[])
     .filter((event: any) => {
       const eventDate = new Date(event.startDate);
