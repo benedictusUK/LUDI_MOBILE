@@ -197,6 +197,73 @@ export async function notifyAttendeesMissingAuthorization(
   return { authorizedPayments, notificationsSent };
 }
 
+export async function cancelHoldsAndRequestPayments(
+  ctx: CollectPaymentContext,
+  amountPerPerson: number
+): Promise<number> {
+  const { authorisedPayments, attendeeIds, organiserId, userId, event, eventId } = ctx;
+
+  // Cancel existing payment intents and mark payments as cancelled
+  for (const payment of authorisedPayments) {
+    try {
+      if (payment.stripePaymentIntentId) {
+        await stripe.paymentIntents.cancel(payment.stripePaymentIntentId);
+      }
+    } catch (error) {
+      console.error(`Failed to cancel payment intent ${payment.stripePaymentIntentId}:`, error);
+    }
+
+    try {
+      await storage.updatePaymentStatus(payment.id, "cancelled");
+      await storage.updateEventPaymentCancel(eventId, payment.userId, {
+        status: "cancelled",
+        paymentIntentStatus: "canceled",
+      });
+    } catch (error) {
+      console.error(`Failed to update payment status for ${payment.id}:`, error);
+    }
+  }
+
+  // Send payment required notifications to all attendees (excluding organiser)
+  let notificationsSent = 0;
+  if (attendeeIds) {
+    const organiser = await storage.getUserById(userId);
+    for (const attendeeId of attendeeIds) {
+      if (attendeeId === organiserId) continue;
+      try {
+        await storage.createNotification({
+          userId: attendeeId,
+          title: "Payment Required",
+          message: `${organiser?.firstName || 'Event organizer'} has finalised the cost for "${event.name}". Please pay £${amountPerPerson.toFixed(2)} now.`,
+          type: "payment_required",
+          relatedId: eventId,
+          metadata: JSON.stringify({
+            eventId,
+            organizerId: userId,
+            amount: amountPerPerson.toFixed(2),
+            eventName: event.name,
+            requiresAuth: false,
+          }),
+        });
+        notificationsSent++;
+      } catch (error) {
+        console.error(`Failed to send payment required notification to user ${attendeeId}:`, error);
+      }
+    }
+  }
+
+  // Mark event as having initiated payment collection so it can't be retried
+  await storage.updateEvent(eventId, {
+    finalVenueCost: ctx.finalVenueCost,
+    paymentCollectionInitiated: true,
+    paymentCollectionInitiatedAt: new Date(),
+    paymentCollectionInitiatedBy: userId,
+    paymentStatus: "none",
+  });
+
+  return notificationsSent;
+}
+
 export async function captureAuthorizedPayments(
   eventId: string,
   authorisedPayments: Payment[],
@@ -271,14 +338,36 @@ export async function collectPaymentHandler(
 ): Promise<Response | void> {
   try {
     const ctx = await validateCollectPaymentRequest(req);
+
+    const attendeeIds = ctx.attendeeIds || [];
+    const organizerIncluded = attendeeIds.includes(ctx.organiserId || "");
+    const payingAttendeeCount = organizerIncluded ? attendeeIds.length - 1 : attendeeIds.length;
+
+    const authorizedPaymentsForAttendees = ctx.authorisedPayments.filter(
+      p => attendeeIds.includes(p.userId) && p.userId !== ctx.organiserId
+    );
+    const holdAmount = authorizedPaymentsForAttendees.length > 0 ? parseFloat(authorizedPaymentsForAttendees[0].amount) : 0;
+    const amountPerPerson = payingAttendeeCount > 0 ? ctx.finalVenueCost / payingAttendeeCount : 0;
+
+    if (authorizedPaymentsForAttendees.length > 0 && amountPerPerson > holdAmount) {
+      const notificationsSent = await cancelHoldsAndRequestPayments({ ...ctx, authorisedPayments: authorizedPaymentsForAttendees }, amountPerPerson);
+      return res.status(200).json({
+        message: "Final cost exceeds authorized amount. Holds cancelled and payment requests sent to attendees.",
+        notificationsSent,
+        totalAmount: 0,
+        successfulCaptures: 0,
+        failedCaptures: 0,
+        organizerExcluded: organizerIncluded,
+      });
+    }
+
     const notificationResult = await notifyAttendeesMissingAuthorization(ctx);
     const authorizedPayments = notificationResult.authorizedPayments;
     const notificationsSent = notificationResult.notificationsSent;
 
     if (authorizedPayments.length === 0) {
-      const organiserIncluded = ctx.attendeeIds?.includes(ctx.organiserId || "");
       const message = ctx.attendeeIds && ctx.attendeeIds.length > 0
-        ? `Payment authorization notifications sent to ${notificationsSent} attendees${organiserIncluded ? ' (venue organizer excluded from payments)' : ''}. No payments to capture at this time.`
+        ? `Payment authorization notifications sent to ${notificationsSent} attendees${organizerIncluded ? ' (venue organizer excluded from payments)' : ''}. No payments to capture at this time.`
         : "No authorized payments found for this event";
 
       return res.status(200).json({
@@ -287,7 +376,7 @@ export async function collectPaymentHandler(
         totalAmount: 0,
         successfulCaptures: 0,
         failedCaptures: 0,
-        organizerExcluded: organiserIncluded || false,
+        organizerExcluded: organizerIncluded || false,
       });
     }
 
@@ -305,7 +394,6 @@ export async function collectPaymentHandler(
       paymentStatus: failedCaptures === 0 ? "captured" : "partial_captured",
     });
 
-    const organizerIncluded = ctx.attendeeIds?.includes(ctx.organiserId || "");
     const totalSelectedAttendees = ctx.attendeeIds ? ctx.attendeeIds.length : 0;
 
     return res.json({

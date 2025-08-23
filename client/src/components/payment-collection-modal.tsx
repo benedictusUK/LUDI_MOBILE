@@ -42,6 +42,7 @@ interface PaymentCollectionModalProps {
   eventName: string;
   eventCost: string;
   eventCreatorId: string;
+  maxPlayerPayment: string;
 }
 
 export function PaymentCollectionModal({
@@ -51,6 +52,7 @@ export function PaymentCollectionModal({
   eventName,
   eventCost,
   eventCreatorId,
+  maxPlayerPayment,
 }: PaymentCollectionModalProps) {
   const [selectedOrganiserId, setSelectedOrganiserId] = useState<string>(eventCreatorId);
   const [venueCost, setVenueCost] = useState<string>(eventCost);
@@ -168,6 +170,8 @@ export function PaymentCollectionModal({
   const perPersonCost = calculatePerPersonCost(venueCost, selectedAttendees.length, platformCharges);
   const baseCostPerPerson = parseFloat(venueCost || "0") / (selectedAttendees.length || 1);
   const costBreakdown = calculateTotalAmount(baseCostPerPerson, platformCharges);
+  const holdAmount = calculateTotalAmount(maxPlayerPayment || "0", platformCharges).total;
+  const exceedsHold = holdAmount > 0 && perPersonCost > holdAmount;
 
   const handleCollectPayment = () => {
     if (!selectedOrganiserId) {
@@ -312,6 +316,19 @@ export function PaymentCollectionModal({
                     Total to collect: £{(perPersonCost * selectedAttendees.length).toFixed(2)} from {selectedAttendees.length} attendees
                   </div>
                 </div>
+              </div>
+            )}
+
+            {exceedsHold && (
+              <div
+                className="mt-3 p-3 bg-amber-50 rounded-lg border border-amber-200 text-amber-700 text-sm flex gap-2"
+                data-testid="warning-hold-exceeded"
+              >
+                <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                <span>
+                  Cost per player (£{perPersonCost.toFixed(2)}) exceeds the authorised hold amount (£{holdAmount.toFixed(2)}).
+                  Existing holds will be cancelled and attendees will need to pay the new amount.
+                </span>
               </div>
             )}
           </div>
