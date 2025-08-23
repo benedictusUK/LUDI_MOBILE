@@ -163,8 +163,6 @@ export default function Events() {
   const [votingStatusFilter, setVotingStatusFilter] = useState<string>("all");
   const [showPastEvents, setShowPastEvents] = useState<boolean>(false);
   const [pastEventsPage, setPastEventsPage] = useState<number>(1);
-  const [allPastEvents, setAllPastEvents] = useState<any[]>([]);
-  const [hasMorePastEvents, setHasMorePastEvents] = useState<boolean>(true);
   const [auditModal, setAuditModal] = useState<{ isOpen: boolean; eventId: string; eventName: string }>({
     isOpen: false,
     eventId: "",
@@ -223,23 +221,7 @@ export default function Events() {
       if (!response.ok) {
         throw new Error("Failed to fetch events");
       }
-      const data = await response.json();
-      
-      // Handle pagination for past events
-      if (showPastEvents) {
-        if (pastEventsPage === 1) {
-          // First page - replace all past events
-          setAllPastEvents(data);
-        } else {
-          // Additional pages - append to existing past events
-          setAllPastEvents(prev => [...prev, ...data]);
-        }
-        // Check if we have more events (if we got less than 10, we're at the end)
-        setHasMorePastEvents(data.length === 10);
-        return data;
-      }
-      
-      return data;
+      return response.json();
     },
   });
 
@@ -348,11 +330,8 @@ export default function Events() {
     return eventEndTime < now;
   };
 
-  // Use appropriate events array based on view
-  const displayEvents = showPastEvents ? allPastEvents : events;
-
   // Apply all filters (past events filter is now handled server-side)
-  const filteredEvents = (displayEvents as any[])
+  const filteredEvents = (events as any[])
     .filter((event: any) => {
       // Team filter
       if (selectedTeamId && event.primaryTeamId !== selectedTeamId) return false;
@@ -367,28 +346,26 @@ export default function Events() {
     });
 
   // Calculate filter counts (events array already filtered by server for past/future)
-  const allEventsCount = displayEvents.length;
+  const allEventsCount = events.length;
   
   // Reset page when toggling past events
   useEffect(() => {
     if (showPastEvents) {
       setPastEventsPage(1);
-      setAllPastEvents([]);
-      setHasMorePastEvents(true);
     }
   }, [showPastEvents]);
   
-  const attendingCount = (displayEvents as any[]).filter(event => 
+  const attendingCount = (events as any[]).filter(event => 
     (!selectedTeamId || event.primaryTeamId === selectedTeamId) &&
     getUserVotingStatus(event.id) === 'attending'
   ).length;
   
-  const notAttendingCount = (displayEvents as any[]).filter(event => 
+  const notAttendingCount = (events as any[]).filter(event => 
     (!selectedTeamId || event.primaryTeamId === selectedTeamId) &&
     getUserVotingStatus(event.id) === 'not_attending'
   ).length;
   
-  const notVotedCount = (displayEvents as any[]).filter(event => 
+  const notVotedCount = (events as any[]).filter(event => 
     (!selectedTeamId || event.primaryTeamId === selectedTeamId) &&
     getUserVotingStatus(event.id) === 'not_voted'
   ).length;
@@ -610,18 +587,18 @@ export default function Events() {
             <div className="col-span-full text-center py-12">
               <i className="fas fa-calendar text-neutral-300 text-6xl mb-4"></i>
               <h3 className="text-lg font-semibold text-neutral-900 mb-2">
-                {displayEvents.length === 0 
+                {events.length === 0 
                   ? "No events yet" 
                   : "No events match your filters"
                 }
               </h3>
               <p className="text-neutral-500 mb-4">
-                {displayEvents.length === 0 
+                {events.length === 0 
                   ? "Create your first sports event to get started"
                   : "Try adjusting your filters to see more events"
                 }
               </p>
-              {displayEvents.length === 0 && (
+              {events.length === 0 && (
                 <Button onClick={() => {
                   setShowCreateForm(true);
                   setEditingEvent(null);
@@ -834,7 +811,7 @@ export default function Events() {
         </div>
 
         {/* Pagination controls for past events */}
-        {showPastEvents && hasMorePastEvents && (
+        {showPastEvents && events.length === 10 && (
           <div className="flex justify-center mt-6">
             <Button
               variant="outline"
