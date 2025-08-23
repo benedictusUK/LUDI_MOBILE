@@ -239,7 +239,7 @@ export default function Events() {
   const [events, setEvents] = useState<any[]>([]);
 
   useEffect(() => {
-    if (eventsData) {
+    if (eventsData && eventsData.events && Array.isArray(eventsData.events)) {
       if (showPastEvents) {
         setEvents(prev => pastEventsPage === 1 ? eventsData.events : [...prev, ...eventsData.events]);
       } else {
@@ -283,7 +283,43 @@ export default function Events() {
     queryKey: ["/api/teams"],
   });
 
+  // Fetch attendance data for all events to determine voting status
+  const attendanceQueries = useQuery({
+    queryKey: ["/api/events/attendance-all"],
+    queryFn: async () => {
+      if (!events || events.length === 0) return {};
+      
+      const attendanceData: { [eventId: string]: any[] } = {};
+      await Promise.all(
+        (events as any[]).map(async (event) => {
+          try {
+            const response = await fetch(`/api/events/${event.id}/attendance`, {
+              credentials: "include",
+            });
+            if (response.ok) {
+              attendanceData[event.id] = await response.json();
+            }
+          } catch (error) {
+            console.error(`Failed to fetch attendance for event ${event.id}:`, error);
+          }
+        })
+      );
+      return attendanceData;
+    },
+    enabled: events && (events as any[]).length > 0,
+    staleTime: 30000, // Cache for 30 seconds
+  });
+
   const { user } = useAuth();
+
+  // Helper function to get user's voting status for an event
+  const getUserVotingStatus = (eventId: string): 'attending' | 'not_attending' | 'not_voted' => {
+    const attendanceData = attendanceQueries.data?.[eventId] || [];
+    const userAttendance = attendanceData.find((a: any) => a.userId === (user as any)?.id);
+    
+    if (!userAttendance) return 'not_voted';
+    return userAttendance.status === 'attending' ? 'attending' : 'not_attending';
+  };
 
   // Helper function to check if user can edit an event
   const canEditEvent = (event: any) => {
@@ -322,10 +358,22 @@ export default function Events() {
     return eventEndTime < now;
   };
 
-  const allEventsCount = eventsData?.totalCount || 0;
-  const attendingCount = eventsData?.attendanceCounts?.attending || 0;
-  const notAttendingCount = eventsData?.attendanceCounts?.not_attending || 0;
-  const notVotedCount = eventsData?.attendanceCounts?.not_voted || 0;
+  // Calculate filter counts based on current events
+  const allEventsCount = events?.length || 0;
+  const attendingCount = (events || []).filter(event => 
+    (!selectedTeamId || event.primaryTeamId === selectedTeamId) &&
+    getUserVotingStatus(event.id) === 'attending'
+  ).length;
+  
+  const notAttendingCount = (events || []).filter(event => 
+    (!selectedTeamId || event.primaryTeamId === selectedTeamId) &&
+    getUserVotingStatus(event.id) === 'not_attending'
+  ).length;
+  
+  const notVotedCount = (events || []).filter(event => 
+    (!selectedTeamId || event.primaryTeamId === selectedTeamId) &&
+    getUserVotingStatus(event.id) === 'not_voted'
+  ).length;
 
   const selectedTeam = selectedTeamId 
     ? (teams as any[]).find((team: any) => team.id === selectedTeamId)
