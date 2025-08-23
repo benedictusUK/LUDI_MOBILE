@@ -7,6 +7,9 @@ if (!process.env.STRIPE_SECRET_KEY) {
 }
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
+// Percentage of each payment kept by the platform
+const PLATFORM_FEE_PERCENTAGE = 0.05;
+
 interface CollectPaymentRequestBody {
   organiserId?: string;
   venueCost?: string;
@@ -254,7 +257,7 @@ export async function cancelHoldsAndRequestPayments(
 
   // Mark event as having initiated payment collection so it can't be retried
   await storage.updateEvent(eventId, {
-    finalVenueCost: ctx.finalVenueCost,
+    finalVenueCost: ctx.finalVenueCost.toString(),
     paymentCollectionInitiated: true,
     paymentCollectionInitiatedAt: new Date(),
     paymentCollectionInitiatedBy: userId,
@@ -276,28 +279,37 @@ export async function captureAuthorizedPayments(
 
   for (const payment of authorisedPayments) {
     try {
-      if (payment.stripePaymentIntentId) {
-        const paymentIntent = await stripe.paymentIntents.capture(
-          payment.stripePaymentIntentId,
-          {}
-        );
+        if (payment.stripePaymentIntentId) {
+          const paymentIntent = (await stripe.paymentIntents.capture(
+            payment.stripePaymentIntentId,
+            {}
+          )) as Stripe.PaymentIntent;
 
         if (organiserAccount && paymentIntent.status === "succeeded") {
           try {
-            const amountInPence = Math.round(parseFloat(payment.amount) * 100);
-            const transferAmount = Math.round(amountInPence * 0.95);
+            const chargeId = paymentIntent.latest_charge as string;
+            const charge = await stripe.charges.retrieve(chargeId);
+            const balanceTxId = charge.balance_transaction as string;
+            const balanceTx = await stripe.balanceTransactions.retrieve(balanceTxId);
 
-            await stripe.transfers.create({
-              amount: transferAmount,
-              currency: "gbp",
-              destination: organiserAccount,
-              transfer_group: `event_${eventId}`,
-              metadata: {
-                eventId,
-                paymentId: payment.id,
-                userId: payment.userId,
-              },
-            });
+            const amountInPence = balanceTx.amount;
+            const stripeFee = balanceTx.fee;
+            const platformFee = Math.round(amountInPence * PLATFORM_FEE_PERCENTAGE);
+            const transferAmount = Math.max(amountInPence - stripeFee - platformFee, 0);
+
+            if (transferAmount > 0) {
+              await stripe.transfers.create({
+                amount: transferAmount,
+                currency: "gbp",
+                destination: organiserAccount,
+                transfer_group: `event_${eventId}`,
+                metadata: {
+                  eventId,
+                  paymentId: payment.id,
+                  userId: payment.userId,
+                },
+              });
+            }
           } catch (transferError) {
             console.error(`Transfer failed for payment ${payment.id}:`, transferError);
           }
