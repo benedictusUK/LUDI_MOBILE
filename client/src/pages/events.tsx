@@ -222,7 +222,7 @@ export default function Events() {
       const params = new URLSearchParams({ includePast: String(showPastEvents) });
       if (showPastEvents) {
         params.set("page", String(pastEventsPage));
-        params.set("limit", "5");
+        params.set("limit", "10");
       }
       if (selectedTeamId) params.set("teamId", selectedTeamId);
       if (votingStatusFilter !== "all") params.set("votingStatus", votingStatusFilter);
@@ -238,12 +238,17 @@ export default function Events() {
 
   const [events, setEvents] = useState<any[]>([]);
 
+  const [hasMorePastEvents, setHasMorePastEvents] = useState(true);
+
   useEffect(() => {
     if (eventsData && eventsData.events && Array.isArray(eventsData.events)) {
       if (showPastEvents) {
-        setEvents(prev => pastEventsPage === 1 ? eventsData.events : [...prev, ...eventsData.events]);
+        const newEvents = eventsData.events;
+        setHasMorePastEvents(newEvents.length >= 10); // If we got a full page, there might be more
+        setEvents(prev => pastEventsPage === 1 ? newEvents : [...prev, ...newEvents]);
       } else {
         setEvents(eventsData.events);
+        setHasMorePastEvents(true); // Reset for next time past events are shown
       }
     }
   }, [eventsData, showPastEvents, pastEventsPage]);
@@ -251,6 +256,7 @@ export default function Events() {
   useEffect(() => {
     setPastEventsPage(1);
     setEvents([]);
+    setHasMorePastEvents(true);
   }, [showPastEvents, selectedTeamId, votingStatusFilter]);
 
   // Pre-fetch event details, attendance, and potential players for all events
@@ -831,7 +837,7 @@ export default function Events() {
         </div>
 
         {/* Pagination controls for past events */}
-        {showPastEvents && events.length >= 10 && (
+        {showPastEvents && hasMorePastEvents && events.length > 0 && (
           <div className="flex justify-center mt-6">
             <Button
               variant="outline"
