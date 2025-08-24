@@ -44,6 +44,7 @@ export default function EventDetails() {
     eventCost: string;
     eventCreatorId: string;
     maxPlayerPayment: string;
+    venueOrganiserId?: string;
   }>({
     isOpen: false,
     eventId: "",
@@ -51,6 +52,7 @@ export default function EventDetails() {
     eventCost: "",
     eventCreatorId: "",
     maxPlayerPayment: "",
+    venueOrganiserId: "",
   });
 
   const [paymentAuthModal, setPaymentAuthModal] = useState(false);
@@ -526,7 +528,7 @@ export default function EventDetails() {
                   </div>
 
                   {/* Payment Section - Shows when user has voted to attend and event has cost */}
-                  {userAttendance?.status === "attending" && eventData.cost && parseFloat(eventData.cost) > 0 && (
+                  {userAttendance?.status === "attending" && eventData.cost && parseFloat(eventData.cost) > 0 && (user as any)?.id !== eventData.venueOrganiserId && (
                     <EventPayment
                       eventId={eventId!}
                       eventName={eventData.name}
@@ -542,7 +544,7 @@ export default function EventDetails() {
                   )}
 
                   {/* Payment Requirement Notice - Shows for paid events when user hasn't voted yet */}
-                  {!userAttendance && eventData.paymentRequired && eventData.maxPlayerPayment && parseFloat(eventData.maxPlayerPayment) > 0 && (
+                  {!userAttendance && eventData.paymentRequired && eventData.maxPlayerPayment && parseFloat(eventData.maxPlayerPayment) > 0 && (user as any)?.id !== eventData.venueOrganiserId && (
                     <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
                       <div className="flex items-center gap-2">
                         <div className="text-amber-600 font-medium">Payment Authorization Required</div>
@@ -585,6 +587,7 @@ export default function EventDetails() {
                                   eventCost: eventData.cost || "0",
                                   eventCreatorId: eventData.createdById,
                                   maxPlayerPayment: eventData.maxPlayerPayment || "0",
+                                  venueOrganiserId: eventData.venueOrganiserId || eventData.createdById,
                                 });
                               }
                             }}
@@ -874,12 +877,14 @@ export default function EventDetails() {
           eventCost: "",
           eventCreatorId: "",
           maxPlayerPayment: "",
+          venueOrganiserId: "",
         })}
         eventId={paymentCollectionModal.eventId}
         eventName={paymentCollectionModal.eventName}
         eventCost={paymentCollectionModal.eventCost}
         eventCreatorId={paymentCollectionModal.eventCreatorId}
         maxPlayerPayment={paymentCollectionModal.maxPlayerPayment}
+        venueOrganiserId={paymentCollectionModal.venueOrganiserId}
       />
 
       <PaymentAuthorizationModal
