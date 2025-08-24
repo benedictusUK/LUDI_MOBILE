@@ -2931,7 +2931,8 @@ export class DatabaseStorage implements IStorage {
         paymentStatus: templateEvent.paymentStatus || "none",
         paymentCollectionInitiated: false,
         paymentCollectionInitiatedAt: undefined,
-        paymentCollectionInitiatedBy: undefined
+        paymentCollectionInitiatedBy: undefined,
+        venueOrganiserId: templateEvent.venueOrganiserId || null
       };
 
       const newEvent = await this.createEvent(newEventData);
@@ -3011,7 +3012,8 @@ export class DatabaseStorage implements IStorage {
         paymentStatus: firstEvent.paymentStatus || "none",
         paymentCollectionInitiated: false,
         paymentCollectionInitiatedAt: undefined,
-        paymentCollectionInitiatedBy: undefined
+        paymentCollectionInitiatedBy: undefined,
+        venueOrganiserId: firstEvent.venueOrganiserId || null
       };
 
       // Generate new events to maintain 2 weeks ahead (reduced from 4)
@@ -3121,9 +3123,10 @@ export class DatabaseStorage implements IStorage {
           maxPlayerPayment: (series as any).maxPlayerPayment || null,
           finalVenueCost: (series as any).finalVenueCost || null,
           paymentStatus: (series as any).paymentStatus || "none",
-          paymentCollectionInitiated: false,
-          paymentCollectionInitiatedAt: undefined,
-          paymentCollectionInitiatedBy: undefined
+        paymentCollectionInitiated: false,
+        paymentCollectionInitiatedAt: undefined,
+        paymentCollectionInitiatedBy: undefined,
+        venueOrganiserId: (series as any).venueOrganiserId || null
         };
 
         // Generate new events to maintain 2 weeks ahead (reduced from 4)

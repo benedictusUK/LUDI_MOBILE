@@ -28,6 +28,7 @@ interface Event {
   endDate?: string | null;
   startTime?: string | null;
   endTime?: string | null;
+  venueOrganiserId?: string | null;
 }
 
 interface Payment {
@@ -77,7 +78,7 @@ export async function validateCollectPaymentRequest(
 ): Promise<CollectPaymentContext> {
   const userId = req.user?.claims?.sub;
   const eventId = req.params.id;
-  const { organiserId, venueCost, attendeeIds } = req.body;
+  const { organiserId: organiserIdBody, venueCost, attendeeIds } = req.body;
 
   if (!userId) {
     throw new HttpError(401, "Unauthorized");
@@ -121,6 +122,8 @@ export async function validateCollectPaymentRequest(
   if (finalVenueCost <= 0) {
     throw new HttpError(400, "Venue cost must be greater than 0");
   }
+
+  const organiserId = organiserIdBody || event.venueOrganiserId || undefined;
 
   let organiserAccount: string | null = null;
   if (organiserId) {

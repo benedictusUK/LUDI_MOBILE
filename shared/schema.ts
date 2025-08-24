@@ -156,6 +156,7 @@ export const events = pgTable("events", {
   primaryTeamId: varchar("primary_team_id").notNull().references(() => teams.id),
   secondaryTeamIds: text("secondary_team_ids").array().default(sql`'{}'`),
   createdById: varchar("created_by_id").notNull().references(() => users.id),
+  venueOrganiserId: varchar("venue_organiser_id").references(() => users.id),
   isPublished: boolean("is_published").default(false),
   enableVoting: boolean("enable_voting").default(false),
   venueBooked: boolean("venue_booked").default(false),
@@ -388,6 +389,10 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
   }),
   createdBy: one(users, {
     fields: [events.createdById],
+    references: [users.id],
+  }),
+  venueOrganiser: one(users, {
+    fields: [events.venueOrganiserId],
     references: [users.id],
   }),
   eventTeams: many(eventTeams),
@@ -631,6 +636,7 @@ export const insertEventSchema = createInsertSchema(events).omit({
   paymentCollectionInitiated: z.boolean().default(false),
   paymentCollectionInitiatedAt: z.date().optional(),
   paymentCollectionInitiatedBy: z.string().optional(),
+  venueOrganiserId: z.string().optional().transform(val => val || null),
 });
 
 export const insertEventAttendanceSchema = createInsertSchema(eventAttendance).omit({

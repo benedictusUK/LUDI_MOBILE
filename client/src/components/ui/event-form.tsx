@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, type InputHTMLAttributes } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import { z } from "zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { SPORTS, type PlatformCharge, type Event, type Team } from "@shared/schema";
+import type { TeamMember } from "@/types";
 import { calculateTotalAmount } from "@/lib/payment-utils";
 
 // Custom Time Input Component with auto-colon insertion
@@ -35,7 +37,7 @@ function TimeInput({
   onChange: (value: string) => void;
   placeholder?: string;
   required?: boolean;
-} & InputHTMLAttributes<HTMLInputElement>) {
+} & Omit<InputHTMLAttributes<HTMLInputElement>, "onChange">) {
   const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let input = e.target.value.replace(/[^\d]/g, ''); // Remove non-digits
     
@@ -86,6 +88,7 @@ const eventFormSchema = z.object({
   isPublished: z.boolean().default(false),
   requiresPayment: z.boolean().default(false),
   maxPlayerPayment: z.string().optional(),
+  venueOrganiserId: z.string().optional(),
   // Recurring events fields
   recurrenceType: z.enum(["none", "daily", "weekly", "monthly"]).default("none"),
   recurrenceDaysOfWeek: z.array(z.string()).optional().default([]),
@@ -103,6 +106,7 @@ interface EventFormProps {
 export default function EventForm({ onCancel, onSuccess, eventId }: EventFormProps) {
   const { toast } = useToast();
   const isEditing = !!eventId;
+  const { user } = useAuth();
 
   // Fetch teams for selection
   const { data: teams = [] } = useQuery<Team[]>({
@@ -142,14 +146,35 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
       isPublished: false,
       requiresPayment: false,
       maxPlayerPayment: "",
+      venueOrganiserId: "",
       recurrenceType: "none",
       recurrenceDaysOfWeek: [],
-      recurrenceEndDate: "",
+    recurrenceEndDate: "",
     },
+  });
+
+  const requiresPayment = form.watch("requiresPayment");
+  const primaryTeamId = form.watch("primaryTeamId");
+
+  const { data: teamMembers = [] } = useQuery<TeamMember[]>({
+    queryKey: ["/api/teams", primaryTeamId, "members"],
+    enabled: requiresPayment && !!primaryTeamId,
   });
 
   const maxPlayerPayment = form.watch("maxPlayerPayment");
   const paymentCalculation = calculateTotalAmount(maxPlayerPayment || "0", platformCharges);
+
+  useEffect(() => {
+    if (user && (!form.getValues("venueOrganiserId") || form.getValues("venueOrganiserId") === "")) {
+      form.setValue("venueOrganiserId", (user as any).id);
+    }
+  }, [user, form]);
+
+  useEffect(() => {
+    if (requiresPayment && user && !form.getValues("venueOrganiserId")) {
+      form.setValue("venueOrganiserId", (user as any).id);
+    }
+  }, [requiresPayment, user, form]);
 
   // Update form values when existing event data loads
   useEffect(() => {
@@ -172,13 +197,14 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
           endTime: event.endTime || "",
           primaryTeamId: event.primaryTeamId || "",
           secondaryTeamIds: event.secondaryTeamIds || [],
-          maxParticipants: event.participants?.toString() || "",
+          maxParticipants: (event as any).participants?.toString() || "",
           reserveSpots: event.reserveSpots?.toString() || "",
           cost: event.cost || "",
-          isPublished: event.isPublished || false,
-          requiresPayment: event.paymentRequired || false,
-          maxPlayerPayment: event.maxPlayerPayment || "",
-          recurrenceType: event.recurrenceType || "none",
+        isPublished: event.isPublished || false,
+        requiresPayment: event.paymentRequired || false,
+        maxPlayerPayment: event.maxPlayerPayment || "",
+        venueOrganiserId: event.venueOrganiserId || event.createdById || "",
+        recurrenceType: event.recurrenceType || "none",
           recurrenceDaysOfWeek: event.recurrenceDaysOfWeek || [],
           recurrenceEndDate: event.recurrenceEndDate || "",
         });
@@ -199,6 +225,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
         cost: data.cost || "0.00",
         paymentRequired: data.requiresPayment || false,
         maxPlayerPayment: data.maxPlayerPayment || null,
+        venueOrganiserId: data.venueOrganiserId || null,
         participants: data.maxParticipants ? parseInt(data.maxParticipants) : null,
         reserveSpots: data.reserveSpots ? parseInt(data.reserveSpots) : 0,
         // Convert empty strings to null for optional fields
@@ -225,7 +252,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
       onSuccess();
     },
     onError: (error: unknown) => {
-      if (isUnauthorizedError(error)) {
+      if (isUnauthorizedError(error as Error)) {
         toast({
           title: "Unauthorized",
           description: "You are logged out. Logging in again...",
@@ -263,6 +290,14 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
   });
 
   const onSubmit = (data: EventFormData) => {
+    if (data.requiresPayment && !data.venueOrganiserId) {
+      toast({
+        title: "Venue Organiser Required",
+        description: "Please select a venue organiser",
+        variant: "destructive",
+      });
+      return;
+    }
     createEventMutation.mutate(data);
   };
 
@@ -699,6 +734,27 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                             </p>
                           </div>
                         )}
+                      </div>
+                      <div>
+                        <Label htmlFor="venueOrganiserId" className="text-sm">Venue Organiser *</Label>
+                        <Select
+                          value={form.watch("venueOrganiserId")}
+                          onValueChange={(value) => form.setValue("venueOrganiserId", value)}
+                        >
+                          <SelectTrigger id="venueOrganiserId" className="bg-white">
+                            <SelectValue placeholder="Select organiser" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {teamMembers.map(member => (
+                              <SelectItem key={member.userId} value={member.userId}>
+                                {member.user.firstName} {member.user.lastName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-blue-600 mt-1">
+                          This member will manage the venue and won't need to authorize payment to attend.
+                        </p>
                       </div>
 
                       <p className="text-xs text-blue-600">

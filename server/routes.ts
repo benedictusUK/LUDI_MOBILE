@@ -699,10 +699,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/events', isAuthenticated, async (req: any, res) => {
     try {
       const userId = (req.user as any).claims.sub;
-      
+      const venueOrganiserId = req.body.venueOrganiserId || (req.body.paymentRequired ? userId : null);
+
       // Parse and validate the event data
       const eventData = insertEventSchema.parse({
         ...req.body,
+        venueOrganiserId,
         createdById: userId,
       });
       
@@ -834,9 +836,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      const venueOrganiserId = req.body.venueOrganiserId || (req.body.paymentRequired ? userId : null);
+
       // Parse and validate the event data
       const eventData = insertEventSchema.parse({
         ...req.body,
+        venueOrganiserId,
         createdById: userId,
       });
       
@@ -931,7 +936,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`Voting check: event.paymentRequired=${event.paymentRequired}, maxPlayerPayment=${maxPlayerPayment}`);
         
         // If event requires payment authorization, check if user needs to authorize payment
-        if (event.paymentRequired && maxPlayerPayment > 0) {
+        if (event.paymentRequired && maxPlayerPayment > 0 && userId !== event.venueOrganiserId) {
           console.log("Payment authorization required - checking existing authorization");
           
           // Check if user already has a payment authorization for this event
@@ -1544,7 +1549,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.removeVote(eventId, userId);
 
       // If user was attending and event requires payment, release the payment authorization
-      if (wasAttending && event?.paymentRequired) {
+      if (wasAttending && event?.paymentRequired && userId !== event.venueOrganiserId) {
         console.log(`Unvote: User was attending paid event, attempting to cancel payment authorization`);
         
         try {

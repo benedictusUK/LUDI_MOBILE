@@ -43,6 +43,7 @@ interface PaymentCollectionModalProps {
   eventCost: string;
   eventCreatorId: string;
   maxPlayerPayment: string;
+  venueOrganiserId?: string;
 }
 
 export function PaymentCollectionModal({
@@ -53,8 +54,9 @@ export function PaymentCollectionModal({
   eventCost,
   eventCreatorId,
   maxPlayerPayment,
+  venueOrganiserId,
 }: PaymentCollectionModalProps) {
-  const [selectedOrganiserId, setSelectedOrganiserId] = useState<string>(eventCreatorId);
+  const [selectedOrganiserId, setSelectedOrganiserId] = useState<string>(venueOrganiserId || eventCreatorId);
   const [venueCost, setVenueCost] = useState<string>(eventCost);
   const [selectedAttendees, setSelectedAttendees] = useState<string[]>([]);
   const [attendeesExpanded, setAttendeesExpanded] = useState(false);
@@ -64,12 +66,12 @@ export function PaymentCollectionModal({
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
-      setSelectedOrganiserId(eventCreatorId);
+      setSelectedOrganiserId(venueOrganiserId || eventCreatorId);
       setVenueCost(eventCost);
       setSelectedAttendees([]);
       setAttendeesExpanded(false);
     }
-  }, [isOpen, eventCreatorId, eventCost]);
+  }, [isOpen, eventCreatorId, eventCost, venueOrganiserId]);
 
   // Fetch team members for organiser selection
   const { data: teamMembers = [], isLoading: loadingMembers } = useQuery<TeamMember[]>({
