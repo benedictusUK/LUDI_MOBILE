@@ -272,10 +272,11 @@ export async function captureAuthorizedPayments(
   authorisedPayments: Payment[],
   organiserAccount: string | null,
   organiserId?: string
-): Promise<{ captureResults: CaptureResult[]; totalCaptured: number; failedCaptures: number }> {
+): Promise<{ captureResults: CaptureResult[]; totalCaptured: number; failedCaptures: number; totalNetAmount: number }> {
   const captureResults: CaptureResult[] = [];
   let totalCaptured = 0;
   let failedCaptures = 0;
+  let totalNetAmount = 0;
 
   for (const payment of authorisedPayments) {
     try {
@@ -285,19 +286,20 @@ export async function captureAuthorizedPayments(
             {}
           )) as Stripe.PaymentIntent;
 
-        if (organiserAccount && paymentIntent.status === "succeeded") {
-          try {
-            const chargeId = paymentIntent.latest_charge as string;
-            const charge = await stripe.charges.retrieve(chargeId);
-            const balanceTxId = charge.balance_transaction as string;
-            const balanceTx = await stripe.balanceTransactions.retrieve(balanceTxId);
+        let transferAmount = 0;
+        try {
+          const chargeId = paymentIntent.latest_charge as string;
+          const charge = await stripe.charges.retrieve(chargeId);
+          const balanceTxId = charge.balance_transaction as string;
+          const balanceTx = await stripe.balanceTransactions.retrieve(balanceTxId);
 
-            const amountInPence = balanceTx.amount;
-            const stripeFee = balanceTx.fee;
-            const platformFee = Math.round(amountInPence * PLATFORM_FEE_PERCENTAGE);
-            const transferAmount = Math.max(amountInPence - stripeFee - platformFee, 0);
+          const amountInPence = balanceTx.amount;
+          const stripeFee = balanceTx.fee;
+          const platformFee = Math.round(amountInPence * PLATFORM_FEE_PERCENTAGE);
+          transferAmount = Math.max(amountInPence - stripeFee - platformFee, 0);
 
-            if (transferAmount > 0) {
+          if (organiserAccount && paymentIntent.status === "succeeded" && transferAmount > 0) {
+            try {
               await stripe.transfers.create({
                 amount: transferAmount,
                 currency: "gbp",
@@ -309,11 +311,15 @@ export async function captureAuthorizedPayments(
                   userId: payment.userId,
                 },
               });
+            } catch (transferError) {
+              console.error(`Transfer failed for payment ${payment.id}:`, transferError);
             }
-          } catch (transferError) {
-            console.error(`Transfer failed for payment ${payment.id}:`, transferError);
           }
+        } catch (transferCalcError) {
+          console.error(`Transfer calculation failed for payment ${payment.id}:`, transferCalcError);
         }
+
+        totalNetAmount += transferAmount;
 
         await storage.updatePaymentStatus(payment.id, "captured");
 
@@ -341,7 +347,7 @@ export async function captureAuthorizedPayments(
     }
   }
 
-  return { captureResults, totalCaptured, failedCaptures };
+  return { captureResults, totalCaptured, failedCaptures, totalNetAmount };
 }
 
 export async function collectPaymentHandler(
@@ -392,12 +398,24 @@ export async function collectPaymentHandler(
       });
     }
 
-    const { captureResults, totalCaptured, failedCaptures } = await captureAuthorizedPayments(
+    const { captureResults, totalCaptured, failedCaptures, totalNetAmount } = await captureAuthorizedPayments(
       ctx.eventId,
       authorizedPayments,
       ctx.organiserAccount,
       ctx.organiserId
     );
+
+    if (ctx.organiserId && totalNetAmount > 0) {
+      const payoutStatus = ctx.organiserAccount && failedCaptures === 0 ? "transferred" : "pending";
+      await storage.createPayment({
+        userId: ctx.organiserId,
+        eventId: ctx.eventId,
+        teamId: ctx.event.primaryTeamId,
+        amount: (totalNetAmount / 100).toFixed(2),
+        status: payoutStatus,
+        type: "payout",
+      });
+    }
 
     await storage.updateEvent(ctx.eventId, {
       paymentCollectionInitiated: true,

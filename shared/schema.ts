@@ -229,7 +229,7 @@ export const payments = pgTable("payments", {
   eventId: varchar("event_id").references(() => events.id, { onDelete: "cascade" }),
   teamId: varchar("team_id").references(() => teams.id, { onDelete: "cascade" }),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
-  status: varchar("status", { length: 50 }).default("pending"), // pending, paid, overdue, refunded
+  status: varchar("status", { length: 50 }).default("pending"), // pending, paid, overdue, refunded, transferred
   dueDate: date("due_date"),
   paidAt: timestamp("paid_at"),
   stripePaymentIntentId: varchar("stripe_payment_intent_id"),

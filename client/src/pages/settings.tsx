@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Settings as SettingsIcon, Bell, CreditCard, User } from "lucide-react";
 import { ProfileForm } from "@/components/ui/profile-form";
 import PaymentMethodManager from "@/components/payment-method-manager";
-import type { NotificationPreferences, PlatformCharge, EventPayment, Event } from "@shared/schema";
+import type { NotificationPreferences, PlatformCharge, Event, Payment } from "@shared/schema";
 
 export default function Settings() {
   useScrollToTop();
@@ -28,8 +28,12 @@ export default function Settings() {
     queryKey: ['/api/auth/user'],
   });
 
-  const { data: payments = [] } = useQuery<(EventPayment & { event?: Event })[]>({
+  const { data: payments = [] } = useQuery<(Payment & { event?: Event })[]>({
     queryKey: ['/api/payments'],
+  });
+
+  const { data: incomingPayments = [] } = useQuery<(Payment & { event?: Event })[]>({
+    queryKey: ['/api/payments/incoming'],
   });
 
   const { data: paymentMethods = [] } = useQuery({
@@ -196,87 +200,164 @@ export default function Settings() {
           </TabsContent>
 
           <TabsContent value="payments">
-            <div className="space-y-6">
-              <PaymentMethodManager />
-              
-              {/* Payment History */}
-              {payments.length > 0 ? (
-                <Card>
-                  <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-                    <div className="flex items-center space-x-2">
-                      <CreditCard className="h-5 w-5" />
-                      <CardTitle className="text-lg">Payment History</CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {payments.map((payment) => (
-                        <div
-                          key={payment.id}
-                          className="flex items-center justify-between p-4 border rounded-lg"
-                          data-testid={`payment-history-item-${payment.id}`}
-                        >
-                          <div className="space-y-1 flex-1">
-                            {payment.event ? (
-                              <>
-                                <p className="font-medium" data-testid={`payment-event-name-${payment.id}`}>
-                                  {payment.event.name}
-                                </p>
-                                <p className="text-sm text-neutral-600" data-testid={`payment-event-date-${payment.id}`}>
-                                  Event: {new Date(payment.event.startDate).toLocaleDateString()} at {payment.event.startTime}
-                                </p>
-                                <p className="text-sm text-neutral-500" data-testid={`payment-created-date-${payment.id}`}>
-                                  Payment: {new Date(payment.createdAt).toLocaleDateString()}
-                                </p>
-                              </>
-                            ) : (
-                              <>
-                                <p className="font-medium" data-testid={`payment-general-name-${payment.id}`}>
-                                  {payment.type === 'event_fee' ? 'Event Payment' : 'Payment'}
-                                </p>
-                                <p className="text-sm text-neutral-500" data-testid={`payment-created-date-${payment.id}`}>
-                                  {new Date(payment.createdAt).toLocaleDateString()}
-                                </p>
-                              </>
-                            )}
-                          </div>
-                          <div className="text-right">
-                            <p className="font-medium" data-testid={`payment-amount-${payment.id}`}>
-                              £{parseFloat(payment.amount).toFixed(2)}
-                            </p>
-                            <p className={`text-sm capitalize ${
-                              payment.status === 'completed' || payment.status === 'captured' || payment.status === 'paid'
-                                ? 'text-green-600' 
-                                : payment.status === 'failed' || payment.status === 'cancelled'
-                                ? 'text-red-600' 
-                                : 'text-yellow-600'
-                            }`} data-testid={`payment-status-${payment.id}`}>
-                              {payment.status}
-                            </p>
-                          </div>
+            <Tabs defaultValue="out" className="space-y-6">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="out">Payments Out</TabsTrigger>
+                <TabsTrigger value="in">Payments In</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="out">
+                <div className="space-y-6">
+                  <PaymentMethodManager />
+
+                  {payments.length > 0 ? (
+                    <Card>
+                      <CardHeader className="flex flex-row items-center space-y-0 pb-2">
+                        <div className="flex items-center space-x-2">
+                          <CreditCard className="h-5 w-5" />
+                          <CardTitle className="text-lg">Payment History</CardTitle>
                         </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
-                      <CreditCard className="h-5 w-5" />
-                      <span>Payment History</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-center py-8">
-                      <CreditCard className="h-12 w-12 text-neutral-300 mx-auto mb-4" />
-                      <h3 className="text-lg font-semibold text-neutral-900 mb-2">No payments yet</h3>
-                      <p className="text-neutral-500">Your payment history will appear here once you make payments for events.</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          {payments.map((payment) => (
+                            <div
+                              key={payment.id}
+                              className="flex items-center justify-between p-4 border rounded-lg"
+                              data-testid={`payment-history-item-${payment.id}`}
+                            >
+                              <div className="space-y-1 flex-1">
+                                {payment.event ? (
+                                  <>
+                                    <p className="font-medium" data-testid={`payment-event-name-${payment.id}`}>
+                                      {payment.event.name}
+                                    </p>
+                                    <p className="text-sm text-neutral-600" data-testid={`payment-event-date-${payment.id}`}>
+                                      Event: {payment.event.startDate ? new Date(payment.event.startDate).toLocaleDateString() : ''} at {payment.event.startTime}
+                                    </p>
+                                    <p className="text-sm text-neutral-500" data-testid={`payment-created-date-${payment.id}`}>
+                                      Payment: {payment.createdAt ? new Date(payment.createdAt).toLocaleDateString() : ''}
+                                    </p>
+                                  </>
+                                ) : (
+                                  <>
+                                    <p className="font-medium" data-testid={`payment-general-name-${payment.id}`}>
+                                      {payment.type === 'event_fee' ? 'Event Payment' : 'Payment'}
+                                    </p>
+                                    <p className="text-sm text-neutral-500" data-testid={`payment-created-date-${payment.id}`}>
+                                      {payment.createdAt ? new Date(payment.createdAt).toLocaleDateString() : ''}
+                                    </p>
+                                  </>
+                                )}
+                              </div>
+                              <div className="text-right">
+                                <p className="font-medium" data-testid={`payment-amount-${payment.id}`}>
+                                  £{parseFloat(payment.amount).toFixed(2)}
+                                </p>
+                                <p className={`text-sm capitalize ${
+                                  payment.status === 'completed' || payment.status === 'captured' || payment.status === 'paid'
+                                    ? 'text-green-600'
+                                    : payment.status === 'failed' || payment.status === 'cancelled'
+                                    ? 'text-red-600'
+                                    : 'text-yellow-600'
+                                }`} data-testid={`payment-status-${payment.id}`}>
+                                  {payment.status}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center space-x-2">
+                          <CreditCard className="h-5 w-5" />
+                          <span>Payment History</span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-center py-8">
+                          <CreditCard className="h-12 w-12 text-neutral-300 mx-auto mb-4" />
+                          <h3 className="text-lg font-semibold text-neutral-900 mb-2">No payments yet</h3>
+                          <p className="text-neutral-500">Your payment history will appear here once you make payments for events.</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="in">
+                <div className="space-y-6">
+                  {incomingPayments.length > 0 ? (
+                    <Card>
+                      <CardHeader className="flex flex-row items-center space-y-0 pb-2">
+                        <div className="flex items-center space-x-2">
+                          <CreditCard className="h-5 w-5" />
+                          <CardTitle className="text-lg">Incoming Payments</CardTitle>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          {incomingPayments.map((payment) => (
+                            <div
+                              key={payment.id}
+                              className="flex items-center justify-between p-4 border rounded-lg"
+                            >
+                              <div className="space-y-1 flex-1">
+                                {payment.event ? (
+                                  <>
+                                    <p className="font-medium">{payment.event.name}</p>
+                                    <p className="text-sm text-neutral-600">
+                                      Event: {payment.event.startDate ? new Date(payment.event.startDate).toLocaleDateString() : ''} at {payment.event.startTime}
+                                    </p>
+                                    <p className="text-sm text-neutral-500">
+                                      Recorded: {payment.createdAt ? new Date(payment.createdAt).toLocaleDateString() : ''}
+                                    </p>
+                                  </>
+                                ) : (
+                                  <p className="font-medium">Payment</p>
+                                )}
+                              </div>
+                              <div className="text-right">
+                                <p className="font-medium">£{parseFloat(payment.amount).toFixed(2)}</p>
+                                <p className={`text-sm capitalize ${
+                                  payment.status === 'paid'
+                                    ? 'text-green-600'
+                                    : payment.status === 'transferred'
+                                    ? 'text-blue-600'
+                                    : 'text-yellow-600'
+                                }`}>
+                                  {payment.status}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center space-x-2">
+                          <CreditCard className="h-5 w-5" />
+                          <span>Incoming Payments</span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-center py-8">
+                          <CreditCard className="h-12 w-12 text-neutral-300 mx-auto mb-4" />
+                          <h3 className="text-lg font-semibold text-neutral-900 mb-2">No incoming payments</h3>
+                          <p className="text-neutral-500">Payments you receive will appear here once events are settled.</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
           </TabsContent>
 
           <TabsContent value="platform">
