@@ -2044,6 +2044,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/payments/incoming', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = (req.user as any).claims.sub;
+      const user = await storage.getUserById(userId);
+      const payments = await storage.getIncomingPayments(userId);
+
+      if (user?.stripeAccountId) {
+        for (const payment of payments) {
+          if (payment.status === 'transferred') {
+            try {
+              const payouts = await stripe.payouts.list({ limit: 1 }, { stripeAccount: user.stripeAccountId });
+              if (payouts.data.length > 0 && payouts.data[0].status === 'paid' && payouts.data[0].created * 1000 > new Date(payment.createdAt as any).getTime()) {
+                await storage.updatePaymentStatus(payment.id, 'paid');
+                payment.status = 'paid';
+              }
+            } catch (err) {
+              console.error('Error checking payout status:', err);
+            }
+          }
+        }
+      }
+
+      res.json(payments);
+    } catch (error) {
+      console.error('Error fetching incoming payments:', error);
+      res.status(500).json({ message: 'Failed to fetch incoming payments' });
+    }
+  });
+
   app.get('/api/events/:id/payments', isAuthenticated, async (req, res) => {
     try {
       const eventId = req.params.id;

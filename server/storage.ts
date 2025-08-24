@@ -134,6 +134,7 @@ export interface IStorage {
   getUserPayments(userId: string): Promise<Payment[]>;
   getEventPayments(eventId: string): Promise<(Payment & { user: User })[]>;
   updatePaymentStatus(paymentId: string, status: string, stripePaymentIntentId?: string): Promise<Payment>;
+  getIncomingPayments(userId: string): Promise<(Payment & { event?: { name: string; startDate: string; startTime: string } })[]>;
   
   // Event payment operations (Stripe holds/reserved payments)
   createEventPayment(eventPayment: InsertEventPayment): Promise<EventPayment>;
@@ -1337,8 +1338,29 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(events, eq(payments.eventId, events.id))
       .where(eq(payments.userId, userId))
       .orderBy(desc(payments.createdAt));
-    
+
     return userPayments.map(record => ({
+      ...record.payment,
+      event: record.event?.name ? record.event : undefined
+    }));
+  }
+
+  async getIncomingPayments(userId: string): Promise<(Payment & { event?: { name: string; startDate: string; startTime: string } })[]> {
+    const incoming = await db
+      .select({
+        payment: payments,
+        event: {
+          name: events.name,
+          startDate: events.startDate,
+          startTime: events.startTime
+        }
+      })
+      .from(payments)
+      .leftJoin(events, eq(payments.eventId, events.id))
+      .where(and(eq(payments.userId, userId), eq(payments.type, "payout")))
+      .orderBy(desc(payments.createdAt));
+
+    return incoming.map(record => ({
       ...record.payment,
       event: record.event?.name ? record.event : undefined
     }));
