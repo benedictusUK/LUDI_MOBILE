@@ -149,9 +149,16 @@ c2.717-4.894,0.954-11.065-3.94-13.782L155.15,153.433z"/>
   );
 
   const BasketballIcon = ({ className }: { className?: string }) => (
-    <svg viewBox="0 0 24 24" className={className} fill="currentColor">
-      <circle cx="12" cy="12" r="9" fill="currentColor"/>
-      <path d="M3 12h18M12 3v18M7 7l10 10M17 7L7 17" stroke="white" strokeWidth="0.8" fill="none"/>
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18M12 3v18" />
+      <path d="M5.65 5.65a9 9 0 0 1 0 12.7M18.35 5.65a9 9 0 0 0 0 12.7" />
     </svg>
   );
 
@@ -168,6 +175,7 @@ c2.717-4.894,0.954-11.065-3.94-13.782L155.15,153.433z"/>
     if (sportLower.includes('soccer')) return FootballIcon; // Soccer ball
     if (sportLower.includes('basketball')) return BasketballIcon; // Basketball with lines
     if (sportLower.includes('volleyball')) return Circle; // Volleyball
+    if (sportLower.includes('paddle')) return TennisIcon; // Paddle uses tennis-style icon
     if (sportLower.includes('tennis')) return TennisIcon; // Tennis ball with curved lines
     if (sportLower.includes('badminton')) return Swords; // Badminton racquet
     if (sportLower.includes('baseball') || sportLower.includes('cricket')) return Circle; // Ball sports
