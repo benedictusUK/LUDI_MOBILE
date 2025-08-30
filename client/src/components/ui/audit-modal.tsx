@@ -240,11 +240,6 @@ export default function AuditModal({ eventId, eventName, isOpen, onClose }: Audi
                                         Amount: £{Number(payment.finalAmount || payment.holdAmount || payment.amount || 0).toFixed(2)}
                                       </div>
                                       
-                                      {payment.paymentIntentId && (
-                                        <div className="text-xs text-neutral-400">
-                                          Payment Intent: {payment.paymentIntentId}
-                                        </div>
-                                      )}
                                       
                                       {payment.stripePaymentIntentId && (
                                         <div className="text-xs text-neutral-400">
