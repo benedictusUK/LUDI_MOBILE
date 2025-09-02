@@ -5,6 +5,7 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { collectPaymentHandler } from "./routes/payments";
+import mobileAuthRoutes, { verifyMobileToken } from "./routes/mobileAuth";
 import { 
   insertTeamSchema, 
   insertEventSchema, 
@@ -24,6 +25,47 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
+
+  // Mobile authentication routes
+  app.use('/api/auth/mobile', mobileAuthRoutes);
+  
+  // Mobile-specific Replit auth endpoints
+  app.get('/api/mobile/login', (req, res) => {
+    const redirectUri = req.query.redirect_uri as string;
+    if (redirectUri) {
+      req.session.mobileRedirectUri = redirectUri;
+    }
+    res.redirect('/api/login');
+  });
+
+  // API endpoint for mobile apps to get current user
+  app.get('/api/user', verifyMobileToken, async (req: any, res) => {
+    try {
+      const user = await storage.getUserById(req.userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      res.json(user);
+    } catch (error) {
+      console.error('Error fetching user:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Mobile profile update endpoint
+  app.put('/api/users/profile', verifyMobileToken, async (req: any, res) => {
+    try {
+      const userId = req.userId;
+      const profileData = req.body;
+      
+      // Update user profile
+      const updatedUser = await storage.updateUserProfile(userId, profileData);
+      res.json(updatedUser);
+    } catch (error) {
+      console.error('Error updating mobile profile:', error);
+      res.status(500).json({ message: 'Failed to update profile' });
+    }
+  });
 
   // Object storage routes for team images
   app.get("/objects/:objectPath(*)", async (req, res) => {

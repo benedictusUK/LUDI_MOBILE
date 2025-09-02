@@ -1,0 +1,299 @@
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  SafeAreaView,
+  Image
+} from 'react-native';
+import * as AuthSession from 'expo-auth-session';
+import * as WebBrowser from 'expo-web-browser';
+import { useAuthRequest } from 'expo-auth-session';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+WebBrowser.maybeCompleteAuthSession();
+
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
+
+export default function AuthScreen({ onAuthSuccess }) {
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Google OAuth configuration
+  const discovery = {
+    authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
+    tokenEndpoint: 'https://oauth2.googleapis.com/token',
+    revocationEndpoint: 'https://oauth2.googleapis.com/revoke',
+  };
+
+  const [request, response, promptAsync] = useAuthRequest(
+    {
+      clientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+      scopes: ['openid', 'profile', 'email'],
+      redirectUri: AuthSession.makeRedirectUri({
+        scheme: 'ludi',
+        path: 'auth/google/callback'
+      }),
+    },
+    discovery
+  );
+
+  React.useEffect(() => {
+    if (response?.type === 'success') {
+      handleGoogleAuthSuccess(response.authentication.accessToken);
+    }
+  }, [response]);
+
+  const handleGoogleAuthSuccess = async (accessToken) => {
+    try {
+      setIsLoading(true);
+      
+      // Get user info from Google
+      const userInfoResponse = await fetch(
+        `https://www.googleapis.com/oauth2/v2/userinfo?access_token=${accessToken}`
+      );
+      const userInfo = await userInfoResponse.json();
+
+      // Send to our backend to create/update user
+      const response = await fetch(`${API_BASE_URL}/api/auth/mobile/google`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          access_token: accessToken,
+          user_info: userInfo
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        await AsyncStorage.setItem('userToken', data.token);
+        await AsyncStorage.setItem('userId', data.user.id);
+        onAuthSuccess(data.user);
+      } else {
+        Alert.alert('Authentication Failed', data.message || 'Please try again');
+      }
+    } catch (error) {
+      console.error('Google auth error:', error);
+      Alert.alert('Authentication Error', 'Unable to sign in with Google');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    try {
+      setIsLoading(true);
+      
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+
+      const response = await fetch(`${API_BASE_URL}/api/auth/mobile/apple`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          identity_token: credential.identityToken,
+          user_info: {
+            email: credential.email,
+            fullName: credential.fullName
+          }
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        await AsyncStorage.setItem('userToken', data.token);
+        await AsyncStorage.setItem('userId', data.user.id);
+        onAuthSuccess(data.user);
+      } else {
+        Alert.alert('Authentication Failed', data.message || 'Please try again');
+      }
+    } catch (error) {
+      if (error.code === 'ERR_CANCELED') {
+        // User canceled the sign-in flow
+        return;
+      }
+      console.error('Apple auth error:', error);
+      Alert.alert('Authentication Error', 'Unable to sign in with Apple');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleReplitSignIn = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Open web browser for Replit OAuth
+      const redirectUri = AuthSession.makeRedirectUri({
+        scheme: 'ludi',
+        path: 'auth/replit/callback'
+      });
+      
+      const authUrl = `${API_BASE_URL}/api/mobile/login?redirect_uri=${encodeURIComponent(redirectUri)}`;
+      
+      const result = await AuthSession.startAsync({
+        authUrl,
+        returnUrl: redirectUri,
+      });
+
+      if (result.type === 'success' && result.url) {
+        const url = new URL(result.url);
+        const token = url.searchParams.get('token');
+        const userId = url.searchParams.get('user_id');
+        
+        if (token && userId) {
+          await AsyncStorage.setItem('userToken', token);
+          await AsyncStorage.setItem('userId', userId);
+          
+          // Fetch user data
+          const userResponse = await fetch(`${API_BASE_URL}/api/user`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          if (userResponse.ok) {
+            const userData = await userResponse.json();
+            onAuthSuccess(userData);
+          }
+        } else {
+          Alert.alert('Authentication Failed', 'Unable to complete sign in');
+        }
+      }
+    } catch (error) {
+      console.error('Replit auth error:', error);
+      Alert.alert('Authentication Error', 'Unable to sign in with Replit');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.content}>
+        <View style={styles.header}>
+          <Image 
+            source={require('../assets/logo.png')} 
+            style={styles.logo}
+            onError={() => console.log('Logo not found, using text fallback')}
+          />
+          <Text style={styles.title}>Welcome to LUDI</Text>
+          <Text style={styles.subtitle}>Connect, Play, Compete</Text>
+        </View>
+
+        <View style={styles.authButtons}>
+          {/* Replit Sign In */}
+          <TouchableOpacity
+            style={[styles.authButton, styles.replitButton]}
+            onPress={handleReplitSignIn}
+            disabled={isLoading}
+          >
+            <Text style={styles.authButtonText}>Continue with Replit</Text>
+          </TouchableOpacity>
+
+          {/* Google Sign In */}
+          <TouchableOpacity
+            style={[styles.authButton, styles.googleButton]}
+            onPress={() => promptAsync()}
+            disabled={!request || isLoading}
+          >
+            <Text style={[styles.authButtonText, styles.googleButtonText]}>Continue with Google</Text>
+          </TouchableOpacity>
+
+          {/* Apple Sign In */}
+          <AppleAuthentication.AppleAuthenticationButton
+            buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+            buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+            cornerRadius={8}
+            style={styles.appleButton}
+            onPress={handleAppleSignIn}
+          />
+        </View>
+
+        <Text style={styles.termsText}>
+          By continuing, you agree to our Terms of Service and Privacy Policy
+        </Text>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 48,
+  },
+  logo: {
+    width: 80,
+    height: 80,
+    marginBottom: 16,
+    borderRadius: 16,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#64748b',
+    fontWeight: '500',
+  },
+  authButtons: {
+    gap: 16,
+  },
+  authButton: {
+    height: 50,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  replitButton: {
+    backgroundColor: '#3b82f6',
+  },
+  googleButton: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+  },
+  authButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  googleButtonText: {
+    color: '#374151',
+  },
+  appleButton: {
+    height: 50,
+  },
+  termsText: {
+    textAlign: 'center',
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 24,
+    lineHeight: 16,
+  },
+});

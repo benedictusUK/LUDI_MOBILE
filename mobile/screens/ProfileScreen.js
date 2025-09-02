@@ -1,0 +1,479 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Image,
+  Alert,
+  SafeAreaView,
+  TextInput,
+} from 'react-native';
+import { useAuth } from '../contexts/AuthContext';
+import { Picker } from '@react-native-picker/picker';
+
+const SPORTS = [
+  "Team Social",
+  "Badminton",
+  "Basketball",
+  "Boxing",
+  "Cricket",
+  "Cycling",
+  "Fitness Training",
+  "Football",
+  "Golf",
+  "Hiking",
+  "Hockey",
+  "Martial Arts",
+  "Other",
+  "Paddle",
+  "Rugby",
+  "Running",
+  "Squash",
+  "Swimming",
+  "Table Tennis",
+  "Tennis",
+  "Volleyball",
+  "Walking",
+  "Wild Camping",
+  "Yoga",
+];
+
+export default function ProfileScreen({ navigation }) {
+  const { user, updateUser, apiRequest, signOut } = useAuth();
+  const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [profileData, setProfileData] = useState({
+    firstName: user?.firstName || '',
+    lastName: user?.lastName || '',
+    username: user?.username || '',
+    phoneNumber: user?.phoneNumber || '',
+    dateOfBirth: user?.dateOfBirth || '',
+    postcode: user?.postcode || '',
+    gender: user?.gender || '',
+    sportsInterests: user?.sportsInterests || [],
+    travelRadius: user?.travelRadius || 10,
+  });
+
+  useEffect(() => {
+    if (user) {
+      setProfileData({
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        username: user.username || '',
+        phoneNumber: user.phoneNumber || '',
+        dateOfBirth: user.dateOfBirth || '',
+        postcode: user.postcode || '',
+        gender: user.gender || '',
+        sportsInterests: user.sportsInterests || [],
+        travelRadius: user.travelRadius || 10,
+      });
+    }
+  }, [user]);
+
+  const handleSave = async () => {
+    try {
+      setLoading(true);
+      
+      const response = await apiRequest('/api/users/profile', {
+        method: 'PUT',
+        body: JSON.stringify(profileData),
+      });
+
+      if (response.ok) {
+        const updatedUser = await response.json();
+        updateUser(updatedUser);
+        setIsEditing(false);
+        Alert.alert('Success', 'Profile updated successfully');
+      } else {
+        const error = await response.json();
+        Alert.alert('Error', error.message || 'Failed to update profile');
+      }
+    } catch (error) {
+      console.error('Profile update error:', error);
+      Alert.alert('Error', 'Failed to update profile');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSportToggle = (sport) => {
+    const currentSports = profileData.sportsInterests;
+    const updatedSports = currentSports.includes(sport)
+      ? currentSports.filter(s => s !== sport)
+      : [...currentSports, sport];
+    
+    setProfileData({ ...profileData, sportsInterests: updatedSports });
+  };
+
+  const handleSignOut = () => {
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Sign Out', style: 'destructive', onPress: signOut },
+      ]
+    );
+  };
+
+  const profileComplete = user?.username && user?.dateOfBirth && user?.postcode && user?.gender;
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView style={styles.scrollView}>
+        <View style={styles.header}>
+          <Image 
+            source={{ uri: user?.profileImageUrl || 'https://via.placeholder.com/100' }}
+            style={styles.profileImage}
+          />
+          <Text style={styles.name}>
+            {user?.firstName || user?.lastName ? 
+              `${user.firstName || ''} ${user.lastName || ''}`.trim() : 
+              'Unknown User'}
+          </Text>
+          <Text style={styles.email}>{user?.email}</Text>
+          
+          {!profileComplete && (
+            <View style={styles.incompleteNotice}>
+              <Text style={styles.incompleteText}>
+                Complete your profile to access all features
+              </Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Profile Information</Text>
+            <TouchableOpacity
+              onPress={() => setIsEditing(!isEditing)}
+              style={styles.editButton}
+            >
+              <Text style={styles.editButtonText}>
+                {isEditing ? 'Cancel' : 'Edit'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {isEditing ? (
+            <View style={styles.form}>
+              <Text style={styles.label}>First Name</Text>
+              <TextInput
+                style={styles.input}
+                value={profileData.firstName}
+                onChangeText={(text) => setProfileData({ ...profileData, firstName: text })}
+                placeholder="Enter first name"
+              />
+
+              <Text style={styles.label}>Last Name</Text>
+              <TextInput
+                style={styles.input}
+                value={profileData.lastName}
+                onChangeText={(text) => setProfileData({ ...profileData, lastName: text })}
+                placeholder="Enter last name"
+              />
+
+              <Text style={styles.label}>Username *</Text>
+              <TextInput
+                style={styles.input}
+                value={profileData.username}
+                onChangeText={(text) => setProfileData({ ...profileData, username: text })}
+                placeholder="Enter username"
+                autoCapitalize="none"
+              />
+
+              <Text style={styles.label}>Phone Number</Text>
+              <TextInput
+                style={styles.input}
+                value={profileData.phoneNumber}
+                onChangeText={(text) => setProfileData({ ...profileData, phoneNumber: text })}
+                placeholder="Enter phone number"
+                keyboardType="phone-pad"
+              />
+
+              <Text style={styles.label}>Date of Birth * (YYYY-MM-DD)</Text>
+              <TextInput
+                style={styles.input}
+                value={profileData.dateOfBirth}
+                onChangeText={(text) => setProfileData({ ...profileData, dateOfBirth: text })}
+                placeholder="1990-01-01"
+              />
+
+              <Text style={styles.label}>Postcode *</Text>
+              <TextInput
+                style={styles.input}
+                value={profileData.postcode}
+                onChangeText={(text) => setProfileData({ ...profileData, postcode: text })}
+                placeholder="Enter postcode"
+                autoCapitalize="characters"
+              />
+
+              <Text style={styles.label}>Gender *</Text>
+              <View style={styles.pickerContainer}>
+                <Picker
+                  selectedValue={profileData.gender}
+                  onValueChange={(value) => setProfileData({ ...profileData, gender: value })}
+                  style={styles.picker}
+                >
+                  <Picker.Item label="Select gender" value="" />
+                  <Picker.Item label="Male" value="male" />
+                  <Picker.Item label="Female" value="female" />
+                </Picker>
+              </View>
+
+              <Text style={styles.label}>Travel Radius (km)</Text>
+              <TextInput
+                style={styles.input}
+                value={String(profileData.travelRadius)}
+                onChangeText={(text) => setProfileData({ ...profileData, travelRadius: parseInt(text) || 10 })}
+                placeholder="10"
+                keyboardType="numeric"
+              />
+
+              <TouchableOpacity
+                style={styles.saveButton}
+                onPress={handleSave}
+                disabled={loading}
+              >
+                <Text style={styles.saveButtonText}>
+                  {loading ? 'Saving...' : 'Save Changes'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.infoView}>
+              <InfoRow label="Username" value={user?.username || 'Not set'} />
+              <InfoRow label="Phone" value={user?.phoneNumber || 'Not set'} />
+              <InfoRow label="Date of Birth" value={user?.dateOfBirth || 'Not set'} />
+              <InfoRow label="Postcode" value={user?.postcode || 'Not set'} />
+              <InfoRow label="Gender" value={user?.gender || 'Not set'} />
+              <InfoRow label="Travel Radius" value={`${user?.travelRadius || 10} km`} />
+            </View>
+          )}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Sports Interests</Text>
+          {isEditing ? (
+            <View style={styles.sportsGrid}>
+              {SPORTS.map((sport) => (
+                <TouchableOpacity
+                  key={sport}
+                  style={[
+                    styles.sportChip,
+                    profileData.sportsInterests.includes(sport) && styles.sportChipSelected
+                  ]}
+                  onPress={() => handleSportToggle(sport)}
+                >
+                  <Text style={[
+                    styles.sportChipText,
+                    profileData.sportsInterests.includes(sport) && styles.sportChipTextSelected
+                  ]}>
+                    {sport}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.sportsGrid}>
+              {(user?.sportsInterests || []).map((sport) => (
+                <View key={sport} style={styles.sportChipSelected}>
+                  <Text style={styles.sportChipTextSelected}>{sport}</Text>
+                </View>
+              ))}
+              {(!user?.sportsInterests || user.sportsInterests.length === 0) && (
+                <Text style={styles.noSports}>No sports selected</Text>
+              )}
+            </View>
+          )}
+        </View>
+
+        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+          <Text style={styles.signOutButtonText}>Sign Out</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function InfoRow({ label, value }) {
+  return (
+    <View style={styles.infoRow}>
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text style={styles.infoValue}>{value}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  header: {
+    alignItems: 'center',
+    padding: 24,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  profileImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    marginBottom: 16,
+  },
+  name: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginBottom: 4,
+  },
+  email: {
+    fontSize: 16,
+    color: '#64748b',
+  },
+  incompleteNotice: {
+    backgroundColor: '#fef3c7',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 16,
+  },
+  incompleteText: {
+    color: '#92400e',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  section: {
+    backgroundColor: '#ffffff',
+    margin: 16,
+    padding: 16,
+    borderRadius: 12,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1e293b',
+  },
+  editButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#3b82f6',
+    borderRadius: 6,
+  },
+  editButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  form: {
+    gap: 16,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 4,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: '#ffffff',
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    backgroundColor: '#ffffff',
+  },
+  picker: {
+    height: 50,
+  },
+  saveButton: {
+    backgroundColor: '#10b981',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  saveButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  infoView: {
+    gap: 12,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  infoLabel: {
+    fontSize: 16,
+    color: '#64748b',
+    fontWeight: '500',
+  },
+  infoValue: {
+    fontSize: 16,
+    color: '#1e293b',
+    fontWeight: '600',
+  },
+  sportsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  sportChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#f1f5f9',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  sportChipSelected: {
+    backgroundColor: '#3b82f6',
+    borderColor: '#3b82f6',
+  },
+  sportChipText: {
+    fontSize: 14,
+    color: '#64748b',
+  },
+  sportChipTextSelected: {
+    color: '#ffffff',
+    fontWeight: '500',
+  },
+  noSports: {
+    color: '#9ca3af',
+    fontStyle: 'italic',
+  },
+  signOutButton: {
+    margin: 16,
+    backgroundColor: '#ef4444',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  signOutButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});
