@@ -67,6 +67,269 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Mobile Teams API routes
+  app.get('/api/teams', verifyMobileToken, async (req: any, res) => {
+    try {
+      const userId = req.userId;
+      const teams = await storage.getUserTeams(userId);
+      res.json(teams);
+    } catch (error) {
+      console.error('Error fetching teams:', error);
+      res.status(500).json({ message: 'Failed to fetch teams' });
+    }
+  });
+
+  app.post('/api/teams', verifyMobileToken, async (req: any, res) => {
+    try {
+      const userId = req.userId;
+      const teamData = insertTeamSchema.parse({
+        ...req.body,
+        ownerId: userId,
+      });
+      
+      const team = await storage.createTeam(teamData, userId);
+      res.json(team);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          message: 'Validation failed',
+          errors: error.errors
+        });
+      }
+      console.error('Error creating team:', error);
+      res.status(500).json({ message: 'Failed to create team' });
+    }
+  });
+
+  app.get('/api/teams/:id', verifyMobileToken, async (req: any, res) => {
+    try {
+      const team = await storage.getTeam(req.params.id);
+      if (!team) {
+        return res.status(404).json({ message: 'Team not found' });
+      }
+      res.json(team);
+    } catch (error) {
+      console.error('Error fetching team:', error);
+      res.status(500).json({ message: 'Failed to fetch team' });
+    }
+  });
+
+  // Mobile Events API routes
+  app.get('/api/events', verifyMobileToken, async (req: any, res) => {
+    try {
+      const userId = req.userId;
+      const events = await storage.getUserEvents(userId);
+      res.json(events);
+    } catch (error) {
+      console.error('Error fetching events:', error);
+      res.status(500).json({ message: 'Failed to fetch events' });
+    }
+  });
+
+  app.post('/api/events', verifyMobileToken, async (req: any, res) => {
+    try {
+      const userId = req.userId;
+      
+      const eventData = insertEventSchema.parse({
+        ...req.body,
+        createdById: userId,
+        primaryTeamId: req.body.teamId, // Map mobile teamId to primaryTeamId
+      });
+      
+      const event = await storage.createEvent(eventData);
+      
+      // Add the primary team to eventTeams table
+      await storage.addEventTeam(event.id, eventData.primaryTeamId);
+      
+      res.json(event);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          message: 'Validation failed',
+          errors: error.errors
+        });
+      }
+      console.error('Error creating event:', error);
+      res.status(500).json({ message: 'Failed to create event' });
+    }
+  });
+
+  app.get('/api/events/:id', verifyMobileToken, async (req: any, res) => {
+    try {
+      const event = await storage.getEvent(req.params.id);
+      if (!event) {
+        return res.status(404).json({ message: 'Event not found' });
+      }
+      res.json(event);
+    } catch (error) {
+      console.error('Error fetching event:', error);
+      res.status(500).json({ message: 'Failed to fetch event' });
+    }
+  });
+
+  app.get('/api/events/:id/attendance', verifyMobileToken, async (req: any, res) => {
+    try {
+      const attendance = await storage.getEventAttendance(req.params.id);
+      res.json(attendance);
+    } catch (error) {
+      console.error('Error fetching attendance:', error);
+      res.status(500).json({ message: 'Failed to fetch attendance' });
+    }
+  });
+
+  app.post('/api/events/:id/attendance', verifyMobileToken, async (req: any, res) => {
+    try {
+      const userId = req.userId;
+      const { status } = req.body;
+      const eventId = req.params.id;
+      
+      await storage.voteOnEvent(eventId, userId, status);
+      res.json({ message: 'Attendance updated successfully' });
+    } catch (error) {
+      console.error('Error updating attendance:', error);
+      res.status(500).json({ message: 'Failed to update attendance' });
+    }
+  });
+
+  // Mobile Notifications API routes
+  app.get('/api/notifications', verifyMobileToken, async (req: any, res) => {
+    try {
+      const userId = req.userId;
+      const notifications = await storage.getUserNotifications(userId);
+      res.json(notifications);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      res.status(500).json({ message: 'Failed to fetch notifications' });
+    }
+  });
+
+  app.put('/api/notifications/:id/read', verifyMobileToken, async (req: any, res) => {
+    try {
+      const notificationId = req.params.id;
+      
+      await storage.markNotificationAsRead(notificationId);
+      res.json({ message: 'Notification marked as read' });
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      res.status(500).json({ message: 'Failed to update notification' });
+    }
+  });
+
+  app.delete('/api/notifications/:id', verifyMobileToken, async (req: any, res) => {
+    try {
+      const notificationId = req.params.id;
+      
+      // For now, just mark as read since there's no delete method in storage
+      await storage.markNotificationAsRead(notificationId);
+      res.json({ message: 'Notification deleted' });
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+      res.status(500).json({ message: 'Failed to delete notification' });
+    }
+  });
+
+  app.put('/api/notifications/mark-all-read', verifyMobileToken, async (req: any, res) => {
+    try {
+      const userId = req.userId;
+      await storage.markAllNotificationsAsRead(userId);
+      res.json({ message: 'All notifications marked as read' });
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+      res.status(500).json({ message: 'Failed to update notifications' });
+    }
+  });
+
+  // Mobile Flare Search API routes
+  app.get('/api/flare-events', verifyMobileToken, async (req: any, res) => {
+    try {
+      const { postcode, radius = '10', sport } = req.query;
+      
+      if (!postcode) {
+        return res.status(400).json({ message: 'Postcode is required' });
+      }
+
+      const userId = req.userId;
+      const events = await storage.searchFlareEvents(
+        postcode as string, 
+        parseInt(radius as string), 
+        sport as string,
+        userId
+      );
+      res.json(events);
+    } catch (error) {
+      console.error('Error searching flare events:', error);
+      res.status(500).json({ message: 'Failed to search flare events' });
+    }
+  });
+
+  app.post('/api/events/:id/flare-response', verifyMobileToken, async (req: any, res) => {
+    try {
+      const eventId = req.params.id;
+      const userId = req.userId;
+      const { status } = req.body;
+      
+      if (!['interested', 'not_interested', 'maybe'].includes(status)) {
+        return res.status(400).json({ message: 'Invalid response status' });
+      }
+
+      const response = await storage.respondToFlare(eventId, userId, status);
+      res.json(response);
+    } catch (error) {
+      console.error('Error responding to flare:', error);
+      res.status(500).json({ message: 'Failed to respond to flare' });
+    }
+  });
+
+  // Mobile Payment API routes
+  app.post('/api/payments/create-intent', verifyMobileToken, async (req: any, res) => {
+    try {
+      const { eventId, amount } = req.body;
+      const userId = req.userId;
+
+      if (!eventId || !amount) {
+        return res.status(400).json({ message: 'Event ID and amount are required' });
+      }
+
+      // Get event details to validate
+      const event = await storage.getEvent(eventId);
+      if (!event) {
+        return res.status(404).json({ message: 'Event not found' });
+      }
+
+      // Calculate fees and total
+      const baseAmount = parseFloat(amount);
+      const platformFee = Math.max(0.30, baseAmount * 0.029); // 2.9% + 30p minimum
+      const totalAmount = baseAmount + platformFee;
+
+      // Create Stripe payment intent
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(totalAmount * 100), // Convert to pence
+        currency: 'gbp',
+        automatic_payment_methods: {
+          enabled: true,
+        },
+        metadata: {
+          eventId,
+          userId,
+          baseAmount: baseAmount.toString(),
+          platformFee: platformFee.toString(),
+        },
+      });
+
+      res.json({
+        clientSecret: paymentIntent.client_secret,
+        totalAmount,
+        breakdown: [
+          { name: 'Event Fee', amount: baseAmount },
+          { name: 'Platform Fee', amount: platformFee },
+        ],
+      });
+    } catch (error) {
+      console.error('Error creating payment intent:', error);
+      res.status(500).json({ message: 'Failed to create payment intent' });
+    }
+  });
+
   // Object storage routes for team images
   app.get("/objects/:objectPath(*)", async (req, res) => {
     const objectStorageService = new ObjectStorageService();

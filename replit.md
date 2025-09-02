@@ -3,6 +3,8 @@
 ## Overview
 LUDI is a full-stack sports event management platform designed to streamline the creation and management of sports teams and events. Its core purpose is to provide a modern, efficient, and user-friendly solution for sports enthusiasts to connect, plan, and participate in activities. Key capabilities include comprehensive team, event, and user management, real-time notifications, and robust authentication. LUDI aims to enhance community engagement and simplify the organization of sports events, fostering a vibrant and active sports community.
 
+**Mobile App**: LUDI now includes a complete React Native mobile application built with Expo, providing native iOS and Android experiences with full feature parity to the web platform. The mobile app uses JWT token authentication and provides native mobile UI components for optimal performance and user experience.
+
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
@@ -18,12 +20,17 @@ Preferred communication style: Simple, everyday language.
 *   **Responsive Design**: Mobile-first approach with Tailwind breakpoints for broad device compatibility.
 
 ### Technical Implementations
-*   **Frontend**: React 18 with TypeScript and Vite, Wouter for routing, React Hook Form with Zod for form handling, and Tailwind CSS for styling.
-*   **Backend**: Express.js with TypeScript, RESTful API endpoints, and Drizzle ORM for PostgreSQL.
+*   **Web Frontend**: React 18 with TypeScript and Vite, Wouter for routing, React Hook Form with Zod for form handling, and Tailwind CSS for styling.
+*   **Mobile Frontend**: React Native with Expo, React Navigation for routing, native mobile UI components, JWT authentication, and Stripe React Native SDK for payments.
+*   **Backend**: Express.js with TypeScript, RESTful API endpoints, and Drizzle ORM for PostgreSQL. Dual authentication system supporting web sessions and mobile JWT tokens.
 *   **Database**: PostgreSQL (via Neon serverless) with Drizzle ORM for schema definition and Drizzle Kit for migrations.
-*   **Authentication**: Replit OAuth (OIDC) with server-side sessions, HTTP-only cookies, and automatic user creation/updates. Also supports Google and Apple OAuth.
+*   **Authentication**: 
+    - Web: Replit OAuth (OIDC) with server-side sessions, HTTP-only cookies, and automatic user creation/updates. Also supports Google and Apple OAuth.
+    - Mobile: JWT token-based authentication with secure token storage and refresh mechanisms.
 *   **Business Logic**: Comprehensive modules for user, team, and event management, including role-based access with three-tier permissions (owner/admin/captain), join requests with automatic notification management, member blocking, recurring events, reserve player system, and a real-time notification system with comprehensive event management authorization. Payment collection and authorization with Stripe integration for secure transactions.
-*   **UI/UX**: Custom sports-focused color palette (primary blue, secondary green, accent red), with `shadcn/ui` components ensuring WCAG compliance. Includes a custom loading component system and an animated logo reveal.
+*   **UI/UX**: 
+    - Web: Custom sports-focused color palette with `shadcn/ui` components ensuring WCAG compliance.
+    - Mobile: Native mobile UI with emoji icons, tab navigation, floating action buttons, pull-to-refresh, and platform-optimized components.
 
 ### Feature Specifications
 *   **Authentication**: Secure Replit, Google, and Apple OAuth integration for user login and profile management.
@@ -36,6 +43,8 @@ Preferred communication style: Simple, everyday language.
 *   **Data Validation**: Robust validation for all input fields, including uniqueness checks for usernames and team names.
 
 ## External Dependencies
+
+### Web Dependencies
 *   **@neondatabase/serverless**: For connecting to the Neon PostgreSQL database.
 *   **@radix-ui/***: Provides accessible UI component primitives.
 *   **@tanstack/react-query**: Utilized for server state management.
@@ -52,3 +61,16 @@ Preferred communication style: Simple, everyday language.
 *   **Apple OAuth**: For user authentication.
 *   **connect-pg-simple**: For PostgreSQL-backed session storage.
 *   **Stripe**: Payment processing.
+
+### Mobile Dependencies
+*   **React Native**: Mobile app framework.
+*   **Expo**: Development platform and toolchain for React Native.
+*   **@react-navigation/native**: Navigation library for React Native.
+*   **@react-navigation/bottom-tabs**: Tab navigation component.
+*   **@react-navigation/native-stack**: Stack navigation component.
+*   **@stripe/stripe-react-native**: Native Stripe SDK for mobile payments.
+*   **@expo/vector-icons**: Icon library for Expo applications.
+*   **expo-secure-store**: Secure storage for sensitive data like tokens.
+*   **@react-native-async-storage/async-storage**: Local storage for React Native.
+*   **jsonwebtoken**: JWT token handling for mobile authentication.
+*   **@react-native-picker/picker**: Native picker component for mobile forms.

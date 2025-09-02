@@ -13,6 +13,7 @@ import SettingsScreen from './screens/SettingsScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import SearchScreen from './screens/SearchScreen';
 import CreateTeamScreen from './screens/CreateTeamScreen';
+import CreateEventScreen from './screens/CreateEventScreen';
 import EventDetailsScreen from './screens/EventDetailsScreen';
 import PaymentScreen from './screens/PaymentScreen';
 import { usePushNotifications } from './hooks/usePushNotifications';
@@ -23,13 +24,100 @@ const Stack = createNativeStackNavigator();
 
 function MainTabs() {
   return (
-    <Tab.Navigator>
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Events" component={EventsScreen} />
-      <Tab.Screen name="Search" component={SearchScreen} />
-      <Tab.Screen name="Teams" component={TeamsScreen} />
-      <Tab.Screen name="Notifications" component={NotificationsScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        tabBarIcon: ({ focused, color, size }) => {
+          let emoji;
+
+          switch (route.name) {
+            case 'Home':
+              emoji = '🏠';
+              break;
+            case 'Events':
+              emoji = '📅';
+              break;
+            case 'Search':
+              emoji = '🔍';
+              break;
+            case 'Teams':
+              emoji = '👥';
+              break;
+            case 'Notifications':
+              emoji = '🔔';
+              break;
+            case 'Profile':
+              emoji = '👤';
+              break;
+            default:
+              emoji = '❓';
+          }
+
+          return (
+            <Text style={{ fontSize: size, opacity: focused ? 1 : 0.6 }}>
+              {emoji}
+            </Text>
+          );
+        },
+        tabBarActiveTintColor: '#3b82f6',
+        tabBarInactiveTintColor: '#6b7280',
+        tabBarStyle: {
+          backgroundColor: '#ffffff',
+          borderTopWidth: 1,
+          borderTopColor: '#e5e7eb',
+          paddingTop: 8,
+          paddingBottom: 8,
+          height: 70,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '500',
+          marginTop: 4,
+        },
+        headerShown: false,
+      })}
+    >
+      <Tab.Screen 
+        name="Home" 
+        component={HomeScreen}
+        options={{
+          tabBarLabel: 'Home',
+        }}
+      />
+      <Tab.Screen 
+        name="Events" 
+        component={EventsScreen}
+        options={{
+          tabBarLabel: 'Events',
+        }}
+      />
+      <Tab.Screen 
+        name="Search" 
+        component={SearchScreen}
+        options={{
+          tabBarLabel: 'Search',
+        }}
+      />
+      <Tab.Screen 
+        name="Teams" 
+        component={TeamsScreen}
+        options={{
+          tabBarLabel: 'Teams',
+        }}
+      />
+      <Tab.Screen 
+        name="Notifications" 
+        component={NotificationsScreen}
+        options={{
+          tabBarLabel: 'Alerts',
+        }}
+      />
+      <Tab.Screen 
+        name="Profile" 
+        component={ProfileScreen}
+        options={{
+          tabBarLabel: 'Profile',
+        }}
+      />
     </Tab.Navigator>
   );
 }
@@ -55,6 +143,7 @@ function AppContent() {
       <Stack.Navigator>
         <Stack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
         <Stack.Screen name="CreateTeam" component={CreateTeamScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="CreateEvent" component={CreateEventScreen} options={{ headerShown: false }} />
         <Stack.Screen name="EventDetails" component={EventDetailsScreen} options={{ title: 'Event Details' }} />
         <Stack.Screen name="Payment" component={PaymentScreen} options={{ title: 'Payment' }} />
       </Stack.Navigator>
