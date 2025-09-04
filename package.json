@@ -11,6 +11,7 @@
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
+    "@expo/cli": "^0.24.20",
     "@google-cloud/storage": "^7.16.0",
     "@hookform/resolvers": "^3.10.0",
     "@jest/globals": "^30.0.5",
