@@ -5,7 +5,7 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { collectPaymentHandler } from "./routes/payments";
-import mobileAuthRoutes, { verifyMobileToken } from "./routes/mobileAuth";
+import mobileAuthRoutes, { verifyMobileToken, verifyAuth } from "./routes/mobileAuth";
 import { 
   insertTeamSchema, 
   insertEventSchema, 
@@ -67,8 +67,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Mobile Teams API routes
-  app.get('/api/teams', verifyMobileToken, async (req: any, res) => {
+  // Teams API routes (supports both web and mobile)
+  app.get('/api/teams', verifyAuth, async (req: any, res) => {
     try {
       const userId = req.userId;
       const teams = await storage.getUserTeams(userId);
@@ -79,7 +79,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/teams', verifyMobileToken, async (req: any, res) => {
+  app.post('/api/teams', verifyAuth, async (req: any, res) => {
     try {
       const userId = req.userId;
       const teamData = insertTeamSchema.parse({
@@ -101,7 +101,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/teams/:id', verifyMobileToken, async (req: any, res) => {
+  app.get('/api/teams/:id', verifyAuth, async (req: any, res) => {
     try {
       const team = await storage.getTeam(req.params.id);
       if (!team) {
@@ -115,7 +115,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Mobile Events API routes
-  app.get('/api/events', verifyMobileToken, async (req: any, res) => {
+  // Events API routes (supports both web and mobile)
+  app.get('/api/events', verifyAuth, async (req: any, res) => {
     try {
       const userId = req.userId;
       const events = await storage.getUserEvents(userId);
@@ -126,7 +127,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/events', verifyMobileToken, async (req: any, res) => {
+  app.post('/api/events', verifyAuth, async (req: any, res) => {
     try {
       const userId = req.userId;
       
@@ -154,7 +155,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/events/:id', verifyMobileToken, async (req: any, res) => {
+  app.get('/api/events/:id', verifyAuth, async (req: any, res) => {
     try {
       const event = await storage.getEvent(req.params.id);
       if (!event) {
@@ -167,7 +168,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/events/:id/attendance', verifyMobileToken, async (req: any, res) => {
+  app.get('/api/events/:id/attendance', verifyAuth, async (req: any, res) => {
     try {
       const attendance = await storage.getEventAttendance(req.params.id);
       res.json(attendance);
@@ -177,7 +178,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/events/:id/attendance', verifyMobileToken, async (req: any, res) => {
+  app.post('/api/events/:id/attendance', verifyAuth, async (req: any, res) => {
     try {
       const userId = req.userId;
       const { status } = req.body;
@@ -192,7 +193,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Mobile Notifications API routes
-  app.get('/api/notifications', verifyMobileToken, async (req: any, res) => {
+  app.get('/api/notifications', verifyAuth, async (req: any, res) => {
     try {
       const userId = req.userId;
       const notifications = await storage.getUserNotifications(userId);
@@ -203,7 +204,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/notifications/:id/read', verifyMobileToken, async (req: any, res) => {
+  app.put('/api/notifications/:id/read', verifyAuth, async (req: any, res) => {
     try {
       const notificationId = req.params.id;
       
@@ -215,7 +216,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/notifications/:id', verifyMobileToken, async (req: any, res) => {
+  app.delete('/api/notifications/:id', verifyAuth, async (req: any, res) => {
     try {
       const notificationId = req.params.id;
       
@@ -228,7 +229,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/notifications/mark-all-read', verifyMobileToken, async (req: any, res) => {
+  app.put('/api/notifications/mark-all-read', verifyAuth, async (req: any, res) => {
     try {
       const userId = req.userId;
       await storage.markAllNotificationsAsRead(userId);
@@ -240,7 +241,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Mobile Flare Search API routes
-  app.get('/api/flare-events', verifyMobileToken, async (req: any, res) => {
+  app.get('/api/flare-events', verifyAuth, async (req: any, res) => {
     try {
       const { postcode, radius = '10', sport } = req.query;
       
@@ -262,7 +263,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/events/:id/flare-response', verifyMobileToken, async (req: any, res) => {
+  app.post('/api/events/:id/flare-response', verifyAuth, async (req: any, res) => {
     try {
       const eventId = req.params.id;
       const userId = req.userId;
@@ -281,7 +282,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Mobile Payment API routes
-  app.post('/api/payments/create-intent', verifyMobileToken, async (req: any, res) => {
+  app.post('/api/payments/create-intent', verifyAuth, async (req: any, res) => {
     try {
       const { eventId, amount } = req.body;
       const userId = req.userId;

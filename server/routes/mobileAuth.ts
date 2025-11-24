@@ -38,6 +38,32 @@ export function verifyMobileToken(req: any, res: any, next: any) {
   }
 }
 
+// Dual authentication middleware: supports both web sessions AND mobile JWT tokens
+export function verifyAuth(req: any, res: any, next: any) {
+  // Try mobile JWT token first
+  const authHeader = req.headers.authorization;
+  const token = authHeader && authHeader.split(' ')[1];
+  
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+      req.userId = decoded.userId;
+      return next();
+    } catch (error) {
+      // Invalid token, fall through to session check
+    }
+  }
+  
+  // Fall back to web session authentication
+  if (req.isAuthenticated && req.isAuthenticated() && req.user) {
+    req.userId = req.user.claims.sub;
+    return next();
+  }
+  
+  // No valid authentication found
+  return res.status(401).json({ message: 'Unauthorized' });
+}
+
 // Google OAuth for mobile
 router.post('/google', async (req, res) => {
   try {
