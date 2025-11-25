@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigation } from '@react-navigation/native';
+import { calculateTotalAmount } from '../lib/paymentUtils';
 
 const SPORTS = [
   "Team Social",
@@ -83,10 +84,16 @@ export default function CreateEventScreen() {
     gender: 'mixed',
     recurrenceType: 'none',
     isPublished: true,
+    paymentRequired: false,
+    maxPlayerPayment: '',
+    finalVenueCost: '',
   });
+
+  const [platformCharges, setPlatformCharges] = useState([]);
 
   useEffect(() => {
     fetchUserTeams();
+    fetchPlatformCharges();
   }, []);
 
   const fetchUserTeams = async () => {
@@ -101,6 +108,18 @@ export default function CreateEventScreen() {
       }
     } catch (error) {
       console.error('Failed to fetch teams:', error);
+    }
+  };
+
+  const fetchPlatformCharges = async () => {
+    try {
+      const response = await apiRequest('/api/platform-charges');
+      if (response.ok) {
+        const charges = await response.json();
+        setPlatformCharges(charges);
+      }
+    } catch (error) {
+      console.error('Failed to fetch platform charges:', error);
     }
   };
 
@@ -170,7 +189,9 @@ export default function CreateEventScreen() {
         recurrenceEndDate: null,
         recurrenceDaysOfWeek: [],
         isPublished: formData.isPublished,
-        paymentRequired: false,
+        paymentRequired: formData.paymentRequired,
+        maxPlayerPayment: formData.paymentRequired && formData.maxPlayerPayment ? formData.maxPlayerPayment : null,
+        finalVenueCost: formData.paymentRequired && formData.finalVenueCost ? formData.finalVenueCost : null,
       };
 
       const response = await apiRequest('/api/events', {
@@ -393,6 +414,77 @@ export default function CreateEventScreen() {
             numberOfLines={3}
           />
 
+          <View style={styles.sectionDivider} />
+          <Text style={styles.sectionTitle}>💳 Payment Options</Text>
+
+          <View style={styles.optionRow}>
+            <View style={styles.optionLeft}>
+              <Text style={styles.optionTitle}>Require Payment</Text>
+              <Text style={styles.optionSubtitle}>Collect payment from attendees</Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => setFormData({ ...formData, paymentRequired: !formData.paymentRequired })}
+            >
+              <View style={[
+                styles.toggle,
+                formData.paymentRequired && styles.toggleActive
+              ]}>
+                <View style={[
+                  styles.toggleThumb,
+                  formData.paymentRequired && styles.toggleThumbActive
+                ]} />
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          {formData.paymentRequired && (
+            <>
+              <Text style={styles.label}>Max Player Payment (£) *</Text>
+              <TextInput
+                style={styles.input}
+                value={formData.maxPlayerPayment}
+                onChangeText={(text) => setFormData({ ...formData, maxPlayerPayment: text })}
+                placeholder="20.00"
+                keyboardType="decimal-pad"
+              />
+
+              <Text style={styles.label}>Final Venue Cost (£)</Text>
+              <Text style={styles.sublabel}>Actual venue cost to be covered (optional)</Text>
+              <TextInput
+                style={styles.input}
+                value={formData.finalVenueCost}
+                onChangeText={(text) => setFormData({ ...formData, finalVenueCost: text })}
+                placeholder="100.00"
+                keyboardType="decimal-pad"
+              />
+
+              {formData.maxPlayerPayment && parseFloat(formData.maxPlayerPayment) > 0 && (
+                <View style={styles.costBreakdown}>
+                  <Text style={styles.costBreakdownTitle}>Cost Breakdown per Player</Text>
+                  {(() => {
+                    const { breakdown, total } = calculateTotalAmount(formData.maxPlayerPayment, platformCharges);
+                    return (
+                      <>
+                        {breakdown.map((item, index) => (
+                          <View key={index} style={styles.costBreakdownRow}>
+                            <Text style={styles.costBreakdownLabel}>{item.name}</Text>
+                            <Text style={styles.costBreakdownValue}>£{item.amount.toFixed(2)}</Text>
+                          </View>
+                        ))}
+                        <View style={[styles.costBreakdownRow, styles.costBreakdownTotal]}>
+                          <Text style={styles.costBreakdownTotalLabel}>Total per Player</Text>
+                          <Text style={styles.costBreakdownTotalValue}>£{total.toFixed(2)}</Text>
+                        </View>
+                      </>
+                    );
+                  })()}
+                </View>
+              )}
+            </>
+          )}
+
+          <View style={styles.sectionDivider} />
+
           <View style={styles.optionRow}>
             <View style={styles.optionLeft}>
               <Text style={styles.optionTitle}>Published</Text>
@@ -600,6 +692,67 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  sublabel: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginBottom: 8,
+    marginTop: -4,
+  },
+  sectionDivider: {
+    height: 1,
+    backgroundColor: '#e5e7eb',
+    marginVertical: 24,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginBottom: 16,
+  },
+  costBreakdown: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 8,
+    padding: 16,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  costBreakdownTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: 12,
+  },
+  costBreakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+  },
+  costBreakdownLabel: {
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  costBreakdownValue: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#1e293b',
+  },
+  costBreakdownTotal: {
+    borderTopWidth: 1,
+    borderTopColor: '#d1d5db',
+    marginTop: 8,
+    paddingTop: 12,
+  },
+  costBreakdownTotalLabel: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1e293b',
+  },
+  costBreakdownTotalValue: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#3b82f6',
   },
   modalOverlay: {
     flex: 1,
