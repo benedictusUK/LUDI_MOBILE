@@ -126,6 +126,11 @@ export default function CreateEventScreen() {
       return;
     }
 
+    if (!formData.location.trim()) {
+      Alert.alert('Validation Error', 'Location is required');
+      return;
+    }
+
     if (!formData.teamId) {
       Alert.alert('Validation Error', 'Please select a team');
       return;
@@ -146,7 +151,7 @@ export default function CreateEventScreen() {
         startTime: formData.startTime,
         endDate: null,
         endTime: formData.endTime || null,
-        location: formData.location || null,
+        location: formData.location,
         address: formData.address || null,
         postcode: formData.postcode || null,
         primaryTeamId: formData.teamId,
@@ -313,7 +318,7 @@ export default function CreateEventScreen() {
             placeholder="16:30"
           />
 
-          <Text style={styles.label}>Location</Text>
+          <Text style={styles.label}>Location *</Text>
           <TextInput
             style={styles.input}
             value={formData.location}
