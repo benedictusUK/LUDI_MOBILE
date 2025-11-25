@@ -134,7 +134,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const eventData = insertEventSchema.parse({
         ...req.body,
         createdById: userId,
-        primaryTeamId: req.body.teamId, // Map mobile teamId to primaryTeamId
+        // Support both teamId (mobile legacy) and primaryTeamId (current)
+        primaryTeamId: req.body.primaryTeamId || req.body.teamId,
       });
       
       const event = await storage.createEvent(eventData);
@@ -145,6 +146,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(event);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error('Validation error creating event:', JSON.stringify(error.errors, null, 2));
         return res.status(400).json({
           message: 'Validation failed',
           errors: error.errors
