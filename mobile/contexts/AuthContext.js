@@ -31,7 +31,7 @@ export function AuthProvider({ children }) {
         setToken(storedToken);
         
         // Verify token is still valid and get user data
-        const response = await fetch(`${API_BASE_URL}/api/user`, {
+        const response = await fetch(`${API_BASE_URL}/api/auth/user`, {
           headers: {
             'Authorization': `Bearer ${storedToken}`
           }

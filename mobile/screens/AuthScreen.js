@@ -153,11 +153,8 @@ export default function AuthScreen({ onAuthSuccess }) {
         const userId = url.searchParams.get('user_id');
         
         if (token && userId) {
-          await AsyncStorage.setItem('userToken', token);
-          await AsyncStorage.setItem('userId', userId);
-          
           // Fetch user data
-          const userResponse = await fetch(`${API_BASE_URL}/api/user`, {
+          const userResponse = await fetch(`${API_BASE_URL}/api/auth/user`, {
             headers: {
               'Authorization': `Bearer ${token}`
             }
@@ -165,7 +162,8 @@ export default function AuthScreen({ onAuthSuccess }) {
           
           if (userResponse.ok) {
             const userData = await userResponse.json();
-            onAuthSuccess(userData);
+            // Use signIn from AuthContext to properly update auth state
+            await signIn(userData, token);
           }
         } else {
           Alert.alert('Authentication Failed', 'Unable to complete sign in');

@@ -31,15 +31,19 @@ export default function HomeScreen() {
       ]);
 
       if (eventsResponse.ok && teamsResponse.ok) {
-        const events = await eventsResponse.json();
-        const teams = await teamsResponse.json();
+        const eventsData = await eventsResponse.json();
+        const teamsData = await teamsResponse.json();
+        
+        // Events API returns {events: [...]} while teams returns array directly
+        const eventsList = eventsData.events || [];
+        const teamsList = Array.isArray(teamsData) ? teamsData : [];
         
         setDashboardData({
-          upcomingEvents: events.slice(0, 3),
-          recentTeams: teams.slice(0, 3),
+          upcomingEvents: eventsList.slice(0, 3),
+          recentTeams: teamsList.slice(0, 3),
           stats: {
-            eventsCount: events.length,
-            teamsCount: teams.length,
+            eventsCount: eventsList.length,
+            teamsCount: teamsList.length,
             notificationsCount: 0 // TODO: implement notifications count
           }
         });
