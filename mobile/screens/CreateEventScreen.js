@@ -63,6 +63,7 @@ export default function CreateEventScreen() {
   // Modal states
   const [showSportPicker, setShowSportPicker] = useState(false);
   const [showTeamPicker, setShowTeamPicker] = useState(false);
+  const [showSecondaryTeamPicker, setShowSecondaryTeamPicker] = useState(false);
   const [showGenderPicker, setShowGenderPicker] = useState(false);
   const [showRecurrencePicker, setShowRecurrencePicker] = useState(false);
   
@@ -77,6 +78,7 @@ export default function CreateEventScreen() {
     address: '',
     postcode: '',
     teamId: '',
+    secondaryTeamIds: [],
     maxParticipants: '',
     reserveSpots: '',
     cost: '',
@@ -90,6 +92,7 @@ export default function CreateEventScreen() {
   });
 
   const [platformCharges, setPlatformCharges] = useState([]);
+  const [tempSecondaryTeamIds, setTempSecondaryTeamIds] = useState([]);
 
   useEffect(() => {
     fetchUserTeams();
@@ -121,6 +124,40 @@ export default function CreateEventScreen() {
     } catch (error) {
       console.error('Failed to fetch platform charges:', error);
     }
+  };
+
+  const handleRemoveSecondaryTeam = (teamId) => {
+    setFormData({
+      ...formData,
+      secondaryTeamIds: formData.secondaryTeamIds.filter(id => id !== teamId)
+    });
+  };
+
+  const handleOpenSecondaryTeamPicker = () => {
+    setTempSecondaryTeamIds([...formData.secondaryTeamIds]);
+    setShowSecondaryTeamPicker(true);
+  };
+
+  const handleToggleSecondaryTeam = (teamId) => {
+    if (tempSecondaryTeamIds.includes(teamId)) {
+      setTempSecondaryTeamIds(tempSecondaryTeamIds.filter(id => id !== teamId));
+    } else {
+      setTempSecondaryTeamIds([...tempSecondaryTeamIds, teamId]);
+    }
+  };
+
+  const handleConfirmSecondaryTeams = () => {
+    setFormData({ ...formData, secondaryTeamIds: tempSecondaryTeamIds });
+    setShowSecondaryTeamPicker(false);
+  };
+
+  const getAvailableSecondaryTeams = () => {
+    return teams.filter(team => team.id !== formData.teamId);
+  };
+
+  const getTeamName = (teamId) => {
+    const team = teams.find(t => t.id === teamId);
+    return team ? team.name : '';
   };
 
   const handleSubmit = async () => {
@@ -302,7 +339,7 @@ export default function CreateEventScreen() {
             <Text style={styles.pickerArrow}>▼</Text>
           </TouchableOpacity>
 
-          <Text style={styles.label}>Team *</Text>
+          <Text style={styles.label}>Primary Team *</Text>
           <TouchableOpacity
             style={styles.pickerButton}
             onPress={() => setShowTeamPicker(true)}
@@ -310,6 +347,31 @@ export default function CreateEventScreen() {
             <Text style={styles.pickerButtonText}>{getTeamLabel()}</Text>
             <Text style={styles.pickerArrow}>▼</Text>
           </TouchableOpacity>
+
+          {formData.secondaryTeamIds.length > 0 && (
+            <View style={styles.secondaryTeamsContainer}>
+              <Text style={styles.secondaryTeamsLabel}>Additional Teams</Text>
+              <View style={styles.chipContainer}>
+                {formData.secondaryTeamIds.map((teamId) => (
+                  <View key={teamId} style={styles.chip}>
+                    <Text style={styles.chipText}>{getTeamName(teamId)}</Text>
+                    <TouchableOpacity onPress={() => handleRemoveSecondaryTeam(teamId)}>
+                      <Text style={styles.chipRemove}>✕</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {getAvailableSecondaryTeams().length > 0 && (
+            <TouchableOpacity
+              style={styles.addMoreButton}
+              onPress={handleOpenSecondaryTeamPicker}
+            >
+              <Text style={styles.addMoreButtonText}>+ Add more teams</Text>
+            </TouchableOpacity>
+          )}
 
           <Text style={styles.label}>Gender Restriction *</Text>
           <TouchableOpacity
@@ -554,6 +616,52 @@ export default function CreateEventScreen() {
         selectedValue={formData.recurrenceType}
         onSelect={(value) => setFormData({ ...formData, recurrenceType: value })}
       />
+
+      <Modal
+        visible={showSecondaryTeamPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowSecondaryTeamPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Add Additional Teams</Text>
+              <TouchableOpacity onPress={() => setShowSecondaryTeamPicker(false)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalScroll}>
+              {getAvailableSecondaryTeams().map((team) => {
+                const isSelected = tempSecondaryTeamIds.includes(team.id);
+                
+                return (
+                  <TouchableOpacity
+                    key={team.id}
+                    style={[styles.modalOption, isSelected && styles.modalOptionSelected]}
+                    onPress={() => handleToggleSecondaryTeam(team.id)}
+                  >
+                    <Text style={[styles.modalOptionText, isSelected && styles.modalOptionTextSelected]}>
+                      {team.name}
+                    </Text>
+                    {isSelected && <Text style={styles.modalCheckmark}>✓</Text>}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={styles.modalConfirmButton}
+                onPress={handleConfirmSecondaryTeams}
+              >
+                <Text style={styles.modalConfirmButtonText}>
+                  Confirm ({tempSecondaryTeamIds.length} selected)
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -808,5 +916,73 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#3b82f6',
     fontWeight: 'bold',
+  },
+  secondaryTeamsContainer: {
+    marginTop: 12,
+  },
+  secondaryTeamsLabel: {
+    fontSize: 13,
+    color: '#6b7280',
+    marginBottom: 8,
+    fontWeight: '500',
+  },
+  chipContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#eff6ff',
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+    borderRadius: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  chipText: {
+    fontSize: 14,
+    color: '#1e40af',
+    marginRight: 6,
+  },
+  chipRemove: {
+    fontSize: 16,
+    color: '#3b82f6',
+    fontWeight: 'bold',
+  },
+  addMoreButton: {
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#3b82f6',
+    borderRadius: 8,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+  },
+  addMoreButtonText: {
+    fontSize: 14,
+    color: '#3b82f6',
+    fontWeight: '600',
+  },
+  modalFooter: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+    backgroundColor: '#ffffff',
+  },
+  modalConfirmButton: {
+    backgroundColor: '#3b82f6',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalConfirmButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
