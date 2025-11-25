@@ -12,6 +12,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { useAuthRequest } from 'expo-auth-session';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '../contexts/AuthContext';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -19,6 +20,7 @@ const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
 
 export default function AuthScreen({ onAuthSuccess }) {
   const [isLoading, setIsLoading] = useState(false);
+  const { signIn } = useAuth();
 
   // Google OAuth configuration
   const discovery = {
@@ -70,9 +72,8 @@ export default function AuthScreen({ onAuthSuccess }) {
       const data = await response.json();
       
       if (response.ok) {
-        await AsyncStorage.setItem('userToken', data.token);
-        await AsyncStorage.setItem('userId', data.user.id);
-        onAuthSuccess(data.user);
+        // Use signIn from AuthContext to properly update auth state
+        await signIn(data.user, data.token);
       } else {
         Alert.alert('Authentication Failed', data.message || 'Please try again');
       }
@@ -112,9 +113,8 @@ export default function AuthScreen({ onAuthSuccess }) {
       const data = await response.json();
       
       if (response.ok) {
-        await AsyncStorage.setItem('userToken', data.token);
-        await AsyncStorage.setItem('userId', data.user.id);
-        onAuthSuccess(data.user);
+        // Use signIn from AuthContext to properly update auth state
+        await signIn(data.user, data.token);
       } else {
         Alert.alert('Authentication Failed', data.message || 'Please try again');
       }
