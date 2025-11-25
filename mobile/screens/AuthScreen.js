@@ -5,8 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
-  SafeAreaView,
-  Image
+  SafeAreaView
 } from 'react-native';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
@@ -184,11 +183,9 @@ export default function AuthScreen({ onAuthSuccess }) {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <View style={styles.header}>
-          <Image 
-            source={require('../assets/logo.png')} 
-            style={styles.logo}
-            onError={() => console.log('Logo not found, using text fallback')}
-          />
+          <View style={styles.logoContainer}>
+            <Text style={styles.logoEmoji}>🏆</Text>
+          </View>
           <Text style={styles.title}>Welcome to LUDI</Text>
           <Text style={styles.subtitle}>Connect, Play, Compete</Text>
         </View>
@@ -244,11 +241,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 48,
   },
-  logo: {
+  logoContainer: {
     width: 80,
     height: 80,
     marginBottom: 16,
     borderRadius: 16,
+    backgroundColor: '#3b82f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoEmoji: {
+    fontSize: 40,
   },
   title: {
     fontSize: 32,
