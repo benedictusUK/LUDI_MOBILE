@@ -141,6 +141,11 @@ export default function CreateEventScreen() {
       return;
     }
 
+    if (!formData.requirements.trim()) {
+      Alert.alert('Validation Error', 'Description is required');
+      return;
+    }
+
     try {
       setLoading(true);
       
@@ -378,12 +383,12 @@ export default function CreateEventScreen() {
             keyboardType="decimal-pad"
           />
 
-          <Text style={styles.label}>Requirements</Text>
+          <Text style={styles.label}>Description *</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
             value={formData.requirements}
             onChangeText={(text) => setFormData({ ...formData, requirements: text })}
-            placeholder="Any special requirements"
+            placeholder="Enter event description"
             multiline
             numberOfLines={3}
           />
