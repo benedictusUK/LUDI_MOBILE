@@ -323,21 +323,47 @@ export class DatabaseStorage implements IStorage {
     }
     
     // No existing user - create a new one
-    const [user] = await db
-      .insert(users)
-      .values([userData])
-      .onConflictDoUpdate({
-        target: users.id,
-        set: {
-          ...(userData.email && { email: userData.email }),
-          ...(userData.firstName && { firstName: userData.firstName }),
-          ...(userData.lastName && { lastName: userData.lastName }),
-          ...(userData.profileImageUrl && { profileImageUrl: userData.profileImageUrl }),
-          updatedAt: new Date(),
-        },
-      })
-      .returning();
-    return user;
+    // Use a try-catch to handle potential email conflicts
+    try {
+      const [user] = await db
+        .insert(users)
+        .values([userData])
+        .onConflictDoUpdate({
+          target: users.id,
+          set: {
+            ...(userData.email && { email: userData.email }),
+            ...(userData.firstName && { firstName: userData.firstName }),
+            ...(userData.lastName && { lastName: userData.lastName }),
+            ...(userData.profileImageUrl && { profileImageUrl: userData.profileImageUrl }),
+            updatedAt: new Date(),
+          },
+        })
+        .returning();
+      return user;
+    } catch (error: any) {
+      // If email constraint violation, this means a user exists with this email but different ID
+      // This happens when switching auth providers (e.g., from Replit to Apple)
+      if (error.code === '23505' && error.constraint === 'users_email_unique' && userData.email) {
+        // Find and update the existing user by email
+        const [existingUser] = await db.select().from(users).where(eq(users.email, userData.email)).limit(1);
+        if (existingUser) {
+          const [updatedUser] = await db
+            .update(users)
+            .set({
+              ...(userData.firstName && { firstName: userData.firstName }),
+              ...(userData.lastName && { lastName: userData.lastName }),
+              ...(userData.profileImageUrl && { profileImageUrl: userData.profileImageUrl }),
+              authProvider: userData.authProvider,
+              updatedAt: new Date(),
+            })
+            .where(eq(users.email, userData.email))
+            .returning();
+          return updatedUser;
+        }
+      }
+      // Re-throw if it's not an email constraint error
+      throw error;
+    }
   }
 
   async getUserById(id: string): Promise<User | undefined> {
