@@ -2844,7 +2844,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Recurring Events Methods
-  async createRecurringEvents(parentEvent: InsertEvent, numberOfWeeks: number = 4): Promise<Event[]> {
+  // Create a maximum of 5 future events for recurring series
+  async createRecurringEvents(parentEvent: InsertEvent, maxEventsToCreate: number = 5): Promise<Event[]> {
     if (parentEvent.recurrenceType === "none") {
       // Create single event
       return [await this.createEvent(parentEvent)];
@@ -2888,10 +2889,9 @@ export class DatabaseStorage implements IStorage {
       currentDate.setDate(currentDate.getDate() + daysUntilTarget);
     }
     
-    const endGenerationDate = new Date(currentDate);
-    endGenerationDate.setDate(endGenerationDate.getDate() + (numberOfWeeks * 7));
-
-    while (currentDate <= endGenerationDate) {
+    // Create only up to maxEventsToCreate (default 5) future events
+    // This prevents database bloat and ensures only 5 future events exist at any time
+    while (createdEvents.length < maxEventsToCreate) {
       const dayOfWeek = currentDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
       
       const shouldCreateEvent = parentEvent.recurrenceType === "daily" || 
@@ -3029,10 +3029,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Check if a recurring event series needs maintenance (triggered by event expiry)
+  // Only creates 1 new event when series drops below 5 future events
   async checkAndMaintainRecurringEventSeries(recurringSeriesId: string): Promise<{ maintained: boolean; created: number }> {
-    let totalCreatedEvents = 0;
-
-    // Get series information from the first event
+    // Get all events in the series
     const seriesEvents = await db
       .select()
       .from(events)
@@ -3043,22 +3042,47 @@ export class DatabaseStorage implements IStorage {
       return { maintained: false, created: 0 };
     }
 
-    const firstEvent = seriesEvents[0];
-    const lastEvent = seriesEvents[seriesEvents.length - 1];
-    const lastEventDate = new Date(lastEvent.startDate);
-    
-    const today = new Date();
-    const twoWeeksFromNow = new Date();
-    twoWeeksFromNow.setDate(today.getDate() + (2 * 7));
+    // Count future events (events that haven't ended yet)
+    const now = new Date();
+    const futureEvents = seriesEvents.filter(event => {
+      let eventEndTime: Date;
+      if (event.endDate && event.endTime) {
+        eventEndTime = new Date(`${event.endDate} ${event.endTime}`);
+      } else if (event.startDate && event.endTime) {
+        eventEndTime = new Date(`${event.startDate} ${event.endTime}`);
+      } else {
+        eventEndTime = new Date(event.startDate || '');
+        eventEndTime.setHours(23, 59, 59);
+      }
+      return eventEndTime > now;
+    });
 
-    // Check if we need to create more events (if latest event is less than 2 weeks away)
-    if (lastEventDate < twoWeeksFromNow) {
-      // Create a template event from the series info
-      const templateEvent: InsertEvent = {
+    // Only create a new event if we have fewer than 5 future events
+    if (futureEvents.length < 5) {
+      const firstEvent = seriesEvents[0];
+      const lastEvent = seriesEvents[seriesEvents.length - 1];
+      const lastEventDate = new Date(lastEvent.startDate);
+      
+      // Calculate next event date based on recurrence type
+      const nextEventDate = new Date(lastEventDate);
+      switch (firstEvent.recurrenceType) {
+        case "daily":
+          nextEventDate.setDate(nextEventDate.getDate() + 1);
+          break;
+        case "weekly":
+          nextEventDate.setDate(nextEventDate.getDate() + 7);
+          break;
+        case "monthly":
+          nextEventDate.setMonth(nextEventDate.getMonth() + 1);
+          break;
+      }
+
+      // Create only 1 new event to maintain the 5 future events limit
+      const newEventData: InsertEvent = {
         name: firstEvent.name || '',
         sport: firstEvent.sport || '',
         location: firstEvent.location || '',
-        startDate: new Date(lastEventDate.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Start from day after last event
+        startDate: nextEventDate.toISOString().split('T')[0],
         endDate: null,
         startTime: firstEvent.startTime || '',
         endTime: firstEvent.endTime || '',
@@ -3067,6 +3091,7 @@ export class DatabaseStorage implements IStorage {
         recurrenceType: firstEvent.recurrenceType || "none",
         recurrenceDaysOfWeek: firstEvent.recurrenceDaysOfWeek || [],
         recurrenceEndDate: null,
+        recurringSeriesId: recurringSeriesId,
         isRecurringSuspended: false,
         isPublished: firstEvent.isPublished,
         createdById: firstEvent.createdById || '',
@@ -3087,9 +3112,7 @@ export class DatabaseStorage implements IStorage {
         venueOrganiserId: firstEvent.venueOrganiserId || null
       };
 
-      // Generate new events to maintain 2 weeks ahead (reduced from 4)
-      const newEvents = await this.createRecurringEvents(templateEvent, 2);
-      totalCreatedEvents += newEvents.length;
+      const newEvent = await this.createEvent(newEventData);
 
       // Copy event teams associations from the first event in the series
       const eventTeamsAssociations = await db
@@ -3097,16 +3120,14 @@ export class DatabaseStorage implements IStorage {
         .from(eventTeams)
         .where(eq(eventTeams.eventId, firstEvent.id));
 
-      // Add same team associations to all new events
-      for (const newEvent of newEvents) {
-        for (const teamAssoc of eventTeamsAssociations) {
-          if (teamAssoc.teamId) {
-            await this.addEventTeam(newEvent.id, teamAssoc.teamId);
-          }
+      for (const teamAssoc of eventTeamsAssociations) {
+        if (teamAssoc.teamId) {
+          await this.addEventTeam(newEvent.id, teamAssoc.teamId);
         }
       }
 
-      return { maintained: true, created: totalCreatedEvents };
+      console.log(`Maintained recurring series ${recurringSeriesId}: created 1 new event for ${newEvent.startDate}`);
+      return { maintained: true, created: 1 };
     }
 
     return { maintained: false, created: 0 };
