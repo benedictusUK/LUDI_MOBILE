@@ -1,5 +1,5 @@
 import { Router } from "express";
-import * as jwt from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 import { storage } from "../storage";
 import { verifyAppleToken } from "../oauthProviders";
 
