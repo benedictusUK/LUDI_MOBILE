@@ -9,10 +9,11 @@ import {
   Alert,
   SafeAreaView,
   RefreshControl,
+  Modal,
+  ScrollView,
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigation } from '@react-navigation/native';
-import { Picker } from '@react-native-picker/picker';
+import { useNavigation} from '@react-navigation/native';
 
 const SPORTS = [
   "All Sports",
@@ -42,6 +43,14 @@ const SPORTS = [
   "Yoga",
 ];
 
+const RADIUS_OPTIONS = [
+  { label: '5 miles', value: '5' },
+  { label: '10 miles', value: '10' },
+  { label: '15 miles', value: '15' },
+  { label: '25 miles', value: '25' },
+  { label: '50 miles', value: '50' },
+];
+
 export default function SearchScreen() {
   const [postcode, setPostcode] = useState('');
   const [radius, setRadius] = useState('10');
@@ -50,6 +59,8 @@ export default function SearchScreen() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [showRadiusPicker, setShowRadiusPicker] = useState(false);
+  const [showSportPicker, setShowSportPicker] = useState(false);
   
   const { apiRequest } = useAuth();
   const navigation = useNavigation();
@@ -231,34 +242,26 @@ export default function SearchScreen() {
 
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Search Radius</Text>
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={radius}
-              onValueChange={setRadius}
-              style={styles.picker}
-            >
-              <Picker.Item label="5 miles" value="5" />
-              <Picker.Item label="10 miles" value="10" />
-              <Picker.Item label="15 miles" value="15" />
-              <Picker.Item label="25 miles" value="25" />
-              <Picker.Item label="50 miles" value="50" />
-            </Picker>
-          </View>
+          <TouchableOpacity
+            style={styles.pickerButton}
+            onPress={() => setShowRadiusPicker(true)}
+          >
+            <Text style={styles.pickerButtonText}>
+              {RADIUS_OPTIONS.find(r => r.value === radius)?.label || '10 miles'}
+            </Text>
+            <Text style={styles.pickerArrow}>▼</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Sport</Text>
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={sport}
-              onValueChange={setSport}
-              style={styles.picker}
-            >
-              {SPORTS.map((sportOption) => (
-                <Picker.Item key={sportOption} label={sportOption} value={sportOption} />
-              ))}
-            </Picker>
-          </View>
+          <TouchableOpacity
+            style={styles.pickerButton}
+            onPress={() => setShowSportPicker(true)}
+          >
+            <Text style={styles.pickerButtonText}>{sport}</Text>
+            <Text style={styles.pickerArrow}>▼</Text>
+          </TouchableOpacity>
         </View>
 
         <TouchableOpacity
@@ -298,6 +301,84 @@ export default function SearchScreen() {
           )
         }
       />
+
+      <Modal
+        visible={showRadiusPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowRadiusPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Search Radius</Text>
+              <TouchableOpacity onPress={() => setShowRadiusPicker(false)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalScroll}>
+              {RADIUS_OPTIONS.map((option, index) => {
+                const isSelected = radius === option.value;
+                
+                return (
+                  <TouchableOpacity
+                    key={index}
+                    style={[styles.modalOption, isSelected && styles.modalOptionSelected]}
+                    onPress={() => {
+                      setRadius(option.value);
+                      setShowRadiusPicker(false);
+                    }}
+                  >
+                    <Text style={[styles.modalOptionText, isSelected && styles.modalOptionTextSelected]}>
+                      {option.label}
+                    </Text>
+                    {isSelected && <Text style={styles.modalCheckmark}>✓</Text>}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showSportPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowSportPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Sport</Text>
+              <TouchableOpacity onPress={() => setShowSportPicker(false)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalScroll}>
+              {SPORTS.map((sportOption, index) => {
+                const isSelected = sport === sportOption;
+                
+                return (
+                  <TouchableOpacity
+                    key={index}
+                    style={[styles.modalOption, isSelected && styles.modalOptionSelected]}
+                    onPress={() => {
+                      setSport(sportOption);
+                      setShowSportPicker(false);
+                    }}
+                  >
+                    <Text style={[styles.modalOptionText, isSelected && styles.modalOptionTextSelected]}>
+                      {sportOption}
+                    </Text>
+                    {isSelected && <Text style={styles.modalCheckmark}>✓</Text>}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -341,14 +422,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#ffffff',
   },
-  pickerContainer: {
+  pickerButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     borderWidth: 1,
     borderColor: '#d1d5db',
     borderRadius: 8,
+    padding: 12,
     backgroundColor: '#ffffff',
   },
-  picker: {
-    height: 50,
+  pickerButtonText: {
+    fontSize: 16,
+    color: '#1e293b',
+  },
+  pickerArrow: {
+    fontSize: 12,
+    color: '#6b7280',
   },
   searchButton: {
     backgroundColor: '#3b82f6',
@@ -515,5 +605,60 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     textAlign: 'center',
     lineHeight: 22,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '70%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1e293b',
+  },
+  modalClose: {
+    fontSize: 24,
+    color: '#6b7280',
+  },
+  modalScroll: {
+    maxHeight: 400,
+  },
+  modalOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  modalOptionSelected: {
+    backgroundColor: '#eff6ff',
+  },
+  modalOptionText: {
+    fontSize: 16,
+    color: '#1e293b',
+  },
+  modalOptionTextSelected: {
+    color: '#3b82f6',
+    fontWeight: '600',
+  },
+  modalCheckmark: {
+    fontSize: 18,
+    color: '#3b82f6',
+    fontWeight: 'bold',
   },
 });

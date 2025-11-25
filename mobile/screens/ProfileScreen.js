@@ -9,9 +9,9 @@ import {
   Alert,
   SafeAreaView,
   TextInput,
+  Modal,
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
-import { Picker } from '@react-native-picker/picker';
 
 const SPORTS = [
   "Team Social",
@@ -40,10 +40,16 @@ const SPORTS = [
   "Yoga",
 ];
 
+const GENDERS = [
+  { label: 'Male', value: 'male' },
+  { label: 'Female', value: 'female' },
+];
+
 export default function ProfileScreen({ navigation }) {
   const { user, updateUser, apiRequest, signOut } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showGenderPicker, setShowGenderPicker] = useState(false);
   const [profileData, setProfileData] = useState({
     firstName: user?.firstName || '',
     lastName: user?.lastName || '',
@@ -211,17 +217,15 @@ export default function ProfileScreen({ navigation }) {
               />
 
               <Text style={styles.label}>Gender *</Text>
-              <View style={styles.pickerContainer}>
-                <Picker
-                  selectedValue={profileData.gender}
-                  onValueChange={(value) => setProfileData({ ...profileData, gender: value })}
-                  style={styles.picker}
-                >
-                  <Picker.Item label="Select gender" value="" />
-                  <Picker.Item label="Male" value="male" />
-                  <Picker.Item label="Female" value="female" />
-                </Picker>
-              </View>
+              <TouchableOpacity
+                style={styles.pickerButton}
+                onPress={() => setShowGenderPicker(true)}
+              >
+                <Text style={styles.pickerButtonText}>
+                  {GENDERS.find(g => g.value === profileData.gender)?.label || 'Select gender'}
+                </Text>
+                <Text style={styles.pickerArrow}>▼</Text>
+              </TouchableOpacity>
 
               <Text style={styles.label}>Travel Radius (km)</Text>
               <TextInput
@@ -294,6 +298,45 @@ export default function ProfileScreen({ navigation }) {
           <Text style={styles.signOutButtonText}>Sign Out</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <Modal
+        visible={showGenderPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowGenderPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Gender</Text>
+              <TouchableOpacity onPress={() => setShowGenderPicker(false)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalScroll}>
+              {GENDERS.map((option, index) => {
+                const isSelected = profileData.gender === option.value;
+                
+                return (
+                  <TouchableOpacity
+                    key={index}
+                    style={[styles.modalOption, isSelected && styles.modalOptionSelected]}
+                    onPress={() => {
+                      setProfileData({ ...profileData, gender: option.value });
+                      setShowGenderPicker(false);
+                    }}
+                  >
+                    <Text style={[styles.modalOptionText, isSelected && styles.modalOptionTextSelected]}>
+                      {option.label}
+                    </Text>
+                    {isSelected && <Text style={styles.modalCheckmark}>✓</Text>}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -394,14 +437,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#ffffff',
   },
-  pickerContainer: {
+  pickerButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     borderWidth: 1,
     borderColor: '#d1d5db',
     borderRadius: 8,
+    padding: 12,
     backgroundColor: '#ffffff',
   },
-  picker: {
-    height: 50,
+  pickerButtonText: {
+    fontSize: 16,
+    color: '#1e293b',
+  },
+  pickerArrow: {
+    fontSize: 12,
+    color: '#6b7280',
   },
   saveButton: {
     backgroundColor: '#10b981',
@@ -475,5 +527,60 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '70%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1e293b',
+  },
+  modalClose: {
+    fontSize: 24,
+    color: '#6b7280',
+  },
+  modalScroll: {
+    maxHeight: 400,
+  },
+  modalOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  modalOptionSelected: {
+    backgroundColor: '#eff6ff',
+  },
+  modalOptionText: {
+    fontSize: 16,
+    color: '#1e293b',
+  },
+  modalOptionTextSelected: {
+    color: '#3b82f6',
+    fontWeight: '600',
+  },
+  modalCheckmark: {
+    fontSize: 18,
+    color: '#3b82f6',
+    fontWeight: 'bold',
   },
 });

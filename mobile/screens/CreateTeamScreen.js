@@ -8,10 +8,10 @@ import {
   ScrollView,
   Alert,
   SafeAreaView,
+  Modal,
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigation } from '@react-navigation/native';
-import { Picker } from '@react-native-picker/picker';
 
 const SPORTS = [
   "Team Social",
@@ -53,10 +53,17 @@ const TEAM_COLORS = [
   "#6366f1", // Indigo
 ];
 
+const GENDERS = [
+  { label: 'Mixed', value: 'mixed' },
+  { label: 'Male', value: 'male' },
+  { label: 'Female', value: 'female' },
+];
+
 export default function CreateTeamScreen() {
   const navigation = useNavigation();
   const { apiRequest } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [showGenderPicker, setShowGenderPicker] = useState(false);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -198,17 +205,15 @@ export default function CreateTeamScreen() {
           />
 
           <Text style={styles.label}>Gender Preference</Text>
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={formData.gender}
-              onValueChange={(value) => setFormData({ ...formData, gender: value })}
-              style={styles.picker}
-            >
-              <Picker.Item label="Mixed" value="mixed" />
-              <Picker.Item label="Male" value="male" />
-              <Picker.Item label="Female" value="female" />
-            </Picker>
-          </View>
+          <TouchableOpacity
+            style={styles.pickerButton}
+            onPress={() => setShowGenderPicker(true)}
+          >
+            <Text style={styles.pickerButtonText}>
+              {GENDERS.find(g => g.value === formData.gender)?.label || 'Select gender'}
+            </Text>
+            <Text style={styles.pickerArrow}>▼</Text>
+          </TouchableOpacity>
 
           <View style={styles.optionsContainer}>
             <TouchableOpacity
@@ -265,6 +270,45 @@ export default function CreateTeamScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <Modal
+        visible={showGenderPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowGenderPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Gender Preference</Text>
+              <TouchableOpacity onPress={() => setShowGenderPicker(false)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalScroll}>
+              {GENDERS.map((option, index) => {
+                const isSelected = formData.gender === option.value;
+                
+                return (
+                  <TouchableOpacity
+                    key={index}
+                    style={[styles.modalOption, isSelected && styles.modalOptionSelected]}
+                    onPress={() => {
+                      setFormData({ ...formData, gender: option.value });
+                      setShowGenderPicker(false);
+                    }}
+                  >
+                    <Text style={[styles.modalOptionText, isSelected && styles.modalOptionTextSelected]}>
+                      {option.label}
+                    </Text>
+                    {isSelected && <Text style={styles.modalCheckmark}>✓</Text>}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -371,14 +415,23 @@ const styles = StyleSheet.create({
     borderColor: '#1e293b',
     borderWidth: 3,
   },
-  pickerContainer: {
+  pickerButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     borderWidth: 1,
     borderColor: '#d1d5db',
     borderRadius: 8,
+    padding: 12,
     backgroundColor: '#ffffff',
   },
-  picker: {
-    height: 50,
+  pickerButtonText: {
+    fontSize: 16,
+    color: '#1e293b',
+  },
+  pickerArrow: {
+    fontSize: 12,
+    color: '#6b7280',
   },
   optionsContainer: {
     gap: 16,
@@ -441,5 +494,60 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '70%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1e293b',
+  },
+  modalClose: {
+    fontSize: 24,
+    color: '#6b7280',
+  },
+  modalScroll: {
+    maxHeight: 400,
+  },
+  modalOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  modalOptionSelected: {
+    backgroundColor: '#eff6ff',
+  },
+  modalOptionText: {
+    fontSize: 16,
+    color: '#1e293b',
+  },
+  modalOptionTextSelected: {
+    color: '#3b82f6',
+    fontWeight: '600',
+  },
+  modalCheckmark: {
+    fontSize: 18,
+    color: '#3b82f6',
+    fontWeight: 'bold',
   },
 });

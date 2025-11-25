@@ -8,10 +8,10 @@ import {
   ScrollView,
   Alert,
   SafeAreaView,
+  Modal,
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigation } from '@react-navigation/native';
-import { Picker } from '@react-native-picker/picker';
 
 const SPORTS = [
   "Team Social",
@@ -40,24 +40,49 @@ const SPORTS = [
   "Yoga",
 ];
 
+const GENDERS = [
+  { label: 'Mixed', value: 'mixed' },
+  { label: 'Male', value: 'male' },
+  { label: 'Female', value: 'female' },
+];
+
+const RECURRENCE_TYPES = [
+  { label: 'None', value: 'none' },
+  { label: 'Daily', value: 'daily' },
+  { label: 'Weekly', value: 'weekly' },
+  { label: 'Monthly', value: 'monthly' },
+];
+
 export default function CreateEventScreen() {
   const navigation = useNavigation();
   const { apiRequest } = useAuth();
   const [loading, setLoading] = useState(false);
   const [teams, setTeams] = useState([]);
   
+  // Modal states
+  const [showSportPicker, setShowSportPicker] = useState(false);
+  const [showTeamPicker, setShowTeamPicker] = useState(false);
+  const [showGenderPicker, setShowGenderPicker] = useState(false);
+  const [showRecurrencePicker, setShowRecurrencePicker] = useState(false);
+  
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     sport: SPORTS[0],
-    date: '',
-    time: '',
+    startDate: '',
+    startTime: '',
+    endTime: '',
     location: '',
+    address: '',
+    postcode: '',
     teamId: '',
-    maxAttendees: '',
+    maxParticipants: '',
+    reserveSpots: '',
     cost: '',
-    isPublic: true,
-    allowReserves: true,
+    requirements: '',
+    gender: 'mixed',
+    recurrenceType: 'none',
+    isPublished: true,
   });
 
   useEffect(() => {
@@ -80,40 +105,62 @@ export default function CreateEventScreen() {
   };
 
   const handleSubmit = async () => {
+    // Validation
     if (!formData.name.trim()) {
-      Alert.alert('Error', 'Event name is required');
+      Alert.alert('Validation Error', 'Event name is required');
       return;
     }
 
-    if (!formData.date) {
-      Alert.alert('Error', 'Event date is required');
+    if (!formData.sport) {
+      Alert.alert('Validation Error', 'Please select a sport');
+      return;
+    }
+
+    if (!formData.startDate) {
+      Alert.alert('Validation Error', 'Start date is required');
+      return;
+    }
+
+    if (!formData.startTime) {
+      Alert.alert('Validation Error', 'Start time is required');
       return;
     }
 
     if (!formData.teamId) {
-      Alert.alert('Error', 'Please select a team');
+      Alert.alert('Validation Error', 'Please select a team');
+      return;
+    }
+
+    if (!formData.gender) {
+      Alert.alert('Validation Error', 'Please select gender restriction');
       return;
     }
 
     try {
       setLoading(true);
       
-      // Combine date and time
-      const eventDateTime = formData.time ? 
-        `${formData.date}T${formData.time}:00` : 
-        `${formData.date}T12:00:00`;
-
       const eventData = {
         name: formData.name,
-        description: formData.description,
         sport: formData.sport,
-        date: eventDateTime,
-        location: formData.location,
-        teamId: formData.teamId,
-        maxAttendees: formData.maxAttendees ? parseInt(formData.maxAttendees) : null,
-        cost: formData.cost ? parseFloat(formData.cost) : null,
-        isPublic: formData.isPublic,
-        allowReserves: formData.allowReserves,
+        startDate: formData.startDate,
+        startTime: formData.startTime,
+        endDate: null,
+        endTime: formData.endTime || null,
+        location: formData.location || null,
+        address: formData.address || null,
+        postcode: formData.postcode || null,
+        primaryTeamId: formData.teamId,
+        secondaryTeamIds: [],
+        maxParticipants: formData.maxParticipants ? parseInt(formData.maxParticipants) : null,
+        reserveSpots: formData.reserveSpots ? parseInt(formData.reserveSpots) : 0,
+        cost: formData.cost || '0.00',
+        requirements: formData.requirements || '',
+        gender: formData.gender,
+        recurrenceType: formData.recurrenceType,
+        recurrenceEndDate: null,
+        recurrenceDaysOfWeek: [],
+        isPublished: formData.isPublished,
+        paymentRequired: false,
       };
 
       const response = await apiRequest('/api/events', {
@@ -122,7 +169,6 @@ export default function CreateEventScreen() {
       });
 
       if (response.ok) {
-        const newEvent = await response.json();
         Alert.alert('Success', 'Event created successfully!', [
           { text: 'OK', onPress: () => navigation.goBack() }
         ]);
@@ -136,6 +182,63 @@ export default function CreateEventScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const PickerModal = ({ visible, onClose, title, options, selectedValue, onSelect, valueKey = 'value', labelKey = 'label' }) => (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>{title}</Text>
+            <TouchableOpacity onPress={onClose}>
+              <Text style={styles.modalClose}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.modalScroll}>
+            {options.map((option, index) => {
+              const value = typeof option === 'string' ? option : option[valueKey];
+              const label = typeof option === 'string' ? option : option[labelKey];
+              const isSelected = selectedValue === value;
+              
+              return (
+                <TouchableOpacity
+                  key={index}
+                  style={[styles.modalOption, isSelected && styles.modalOptionSelected]}
+                  onPress={() => {
+                    onSelect(value);
+                    onClose();
+                  }}
+                >
+                  <Text style={[styles.modalOptionText, isSelected && styles.modalOptionTextSelected]}>
+                    {label}
+                  </Text>
+                  {isSelected && <Text style={styles.modalCheckmark}>✓</Text>}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+
+  const getSportLabel = () => formData.sport || 'Select sport';
+  const getTeamLabel = () => {
+    const team = teams.find(t => t.id === formData.teamId);
+    return team ? team.name : 'Select team';
+  };
+  const getGenderLabel = () => {
+    const gender = GENDERS.find(g => g.value === formData.gender);
+    return gender ? gender.label : 'Select gender';
+  };
+  const getRecurrenceLabel = () => {
+    const recurrence = RECURRENCE_TYPES.find(r => r.value === formData.recurrenceType);
+    return recurrence ? recurrence.label : 'Select recurrence';
   };
 
   return (
@@ -159,61 +262,55 @@ export default function CreateEventScreen() {
             maxLength={100}
           />
 
-          <Text style={styles.label}>Description</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            value={formData.description}
-            onChangeText={(text) => setFormData({ ...formData, description: text })}
-            placeholder="Describe your event"
-            multiline
-            numberOfLines={3}
-            maxLength={500}
-          />
-
           <Text style={styles.label}>Sport *</Text>
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={formData.sport}
-              onValueChange={(value) => setFormData({ ...formData, sport: value })}
-              style={styles.picker}
-            >
-              {SPORTS.map((sport) => (
-                <Picker.Item key={sport} label={sport} value={sport} />
-              ))}
-            </Picker>
-          </View>
+          <TouchableOpacity
+            style={styles.pickerButton}
+            onPress={() => setShowSportPicker(true)}
+          >
+            <Text style={styles.pickerButtonText}>{getSportLabel()}</Text>
+            <Text style={styles.pickerArrow}>▼</Text>
+          </TouchableOpacity>
 
           <Text style={styles.label}>Team *</Text>
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={formData.teamId}
-              onValueChange={(value) => setFormData({ ...formData, teamId: value })}
-              style={styles.picker}
-            >
-              {teams.length === 0 ? (
-                <Picker.Item label="No teams available" value="" />
-              ) : (
-                teams.map((team) => (
-                  <Picker.Item key={team.id} label={team.name} value={team.id} />
-                ))
-              )}
-            </Picker>
-          </View>
+          <TouchableOpacity
+            style={styles.pickerButton}
+            onPress={() => setShowTeamPicker(true)}
+          >
+            <Text style={styles.pickerButtonText}>{getTeamLabel()}</Text>
+            <Text style={styles.pickerArrow}>▼</Text>
+          </TouchableOpacity>
 
-          <Text style={styles.label}>Date * (YYYY-MM-DD)</Text>
+          <Text style={styles.label}>Gender Restriction *</Text>
+          <TouchableOpacity
+            style={styles.pickerButton}
+            onPress={() => setShowGenderPicker(true)}
+          >
+            <Text style={styles.pickerButtonText}>{getGenderLabel()}</Text>
+            <Text style={styles.pickerArrow}>▼</Text>
+          </TouchableOpacity>
+
+          <Text style={styles.label}>Start Date * (YYYY-MM-DD)</Text>
           <TextInput
             style={styles.input}
-            value={formData.date}
-            onChangeText={(text) => setFormData({ ...formData, date: text })}
+            value={formData.startDate}
+            onChangeText={(text) => setFormData({ ...formData, startDate: text })}
             placeholder="2024-12-25"
           />
 
-          <Text style={styles.label}>Time (HH:MM)</Text>
+          <Text style={styles.label}>Start Time * (HH:MM)</Text>
           <TextInput
             style={styles.input}
-            value={formData.time}
-            onChangeText={(text) => setFormData({ ...formData, time: text })}
+            value={formData.startTime}
+            onChangeText={(text) => setFormData({ ...formData, startTime: text })}
             placeholder="14:30"
+          />
+
+          <Text style={styles.label}>End Time (HH:MM)</Text>
+          <TextInput
+            style={styles.input}
+            value={formData.endTime}
+            onChangeText={(text) => setFormData({ ...formData, endTime: text })}
+            placeholder="16:30"
           />
 
           <Text style={styles.label}>Location</Text>
@@ -224,12 +321,46 @@ export default function CreateEventScreen() {
             placeholder="Enter location"
           />
 
-          <Text style={styles.label}>Max Attendees</Text>
+          <Text style={styles.label}>Address</Text>
           <TextInput
             style={styles.input}
-            value={formData.maxAttendees}
-            onChangeText={(text) => setFormData({ ...formData, maxAttendees: text })}
+            value={formData.address}
+            onChangeText={(text) => setFormData({ ...formData, address: text })}
+            placeholder="Full address"
+          />
+
+          <Text style={styles.label}>Postcode</Text>
+          <TextInput
+            style={styles.input}
+            value={formData.postcode}
+            onChangeText={(text) => setFormData({ ...formData, postcode: text })}
+            placeholder="Enter postcode"
+          />
+
+          <Text style={styles.label}>Recurrence</Text>
+          <TouchableOpacity
+            style={styles.pickerButton}
+            onPress={() => setShowRecurrencePicker(true)}
+          >
+            <Text style={styles.pickerButtonText}>{getRecurrenceLabel()}</Text>
+            <Text style={styles.pickerArrow}>▼</Text>
+          </TouchableOpacity>
+
+          <Text style={styles.label}>Max Participants</Text>
+          <TextInput
+            style={styles.input}
+            value={formData.maxParticipants}
+            onChangeText={(text) => setFormData({ ...formData, maxParticipants: text })}
             placeholder="Leave empty for no limit"
+            keyboardType="numeric"
+          />
+
+          <Text style={styles.label}>Reserve Spots</Text>
+          <TextInput
+            style={styles.input}
+            value={formData.reserveSpots}
+            onChangeText={(text) => setFormData({ ...formData, reserveSpots: text })}
+            placeholder="0"
             keyboardType="numeric"
           />
 
@@ -242,45 +373,31 @@ export default function CreateEventScreen() {
             keyboardType="decimal-pad"
           />
 
-          <View style={styles.optionsContainer}>
-            <TouchableOpacity
-              style={styles.optionRow}
-              onPress={() => setFormData({ ...formData, isPublic: !formData.isPublic })}
-            >
-              <View style={styles.optionLeft}>
-                <Text style={styles.optionTitle}>Public Event</Text>
-                <Text style={styles.optionSubtitle}>
-                  Visible in flare search
-                </Text>
-              </View>
-              <View style={[
-                styles.toggle,
-                formData.isPublic && styles.toggleActive
-              ]}>
-                <View style={[
-                  styles.toggleThumb,
-                  formData.isPublic && styles.toggleThumbActive
-                ]} />
-              </View>
-            </TouchableOpacity>
+          <Text style={styles.label}>Requirements</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            value={formData.requirements}
+            onChangeText={(text) => setFormData({ ...formData, requirements: text })}
+            placeholder="Any special requirements"
+            multiline
+            numberOfLines={3}
+          />
 
+          <View style={styles.optionRow}>
+            <View style={styles.optionLeft}>
+              <Text style={styles.optionTitle}>Published</Text>
+              <Text style={styles.optionSubtitle}>Make event visible immediately</Text>
+            </View>
             <TouchableOpacity
-              style={styles.optionRow}
-              onPress={() => setFormData({ ...formData, allowReserves: !formData.allowReserves })}
+              onPress={() => setFormData({ ...formData, isPublished: !formData.isPublished })}
             >
-              <View style={styles.optionLeft}>
-                <Text style={styles.optionTitle}>Allow Reserves</Text>
-                <Text style={styles.optionSubtitle}>
-                  Enable reserve player system
-                </Text>
-              </View>
               <View style={[
                 styles.toggle,
-                formData.allowReserves && styles.toggleActive
+                formData.isPublished && styles.toggleActive
               ]}>
                 <View style={[
                   styles.toggleThumb,
-                  formData.allowReserves && styles.toggleThumbActive
+                  formData.isPublished && styles.toggleThumbActive
                 ]} />
               </View>
             </TouchableOpacity>
@@ -297,6 +414,44 @@ export default function CreateEventScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <PickerModal
+        visible={showSportPicker}
+        onClose={() => setShowSportPicker(false)}
+        title="Select Sport"
+        options={SPORTS}
+        selectedValue={formData.sport}
+        onSelect={(value) => setFormData({ ...formData, sport: value })}
+      />
+
+      <PickerModal
+        visible={showTeamPicker}
+        onClose={() => setShowTeamPicker(false)}
+        title="Select Team"
+        options={teams}
+        selectedValue={formData.teamId}
+        onSelect={(value) => setFormData({ ...formData, teamId: value })}
+        valueKey="id"
+        labelKey="name"
+      />
+
+      <PickerModal
+        visible={showGenderPicker}
+        onClose={() => setShowGenderPicker(false)}
+        title="Gender Restriction"
+        options={GENDERS}
+        selectedValue={formData.gender}
+        onSelect={(value) => setFormData({ ...formData, gender: value })}
+      />
+
+      <PickerModal
+        visible={showRecurrencePicker}
+        onClose={() => setShowRecurrencePicker(false)}
+        title="Recurrence"
+        options={RECURRENCE_TYPES}
+        selectedValue={formData.recurrenceType}
+        onSelect={(value) => setFormData({ ...formData, recurrenceType: value })}
+      />
     </SafeAreaView>
   );
 }
@@ -337,13 +492,13 @@ const styles = StyleSheet.create({
   },
   form: {
     padding: 16,
-    gap: 20,
   },
   label: {
     fontSize: 16,
     fontWeight: '600',
     color: '#374151',
-    marginBottom: 4,
+    marginTop: 16,
+    marginBottom: 8,
   },
   input: {
     borderWidth: 1,
@@ -357,17 +512,23 @@ const styles = StyleSheet.create({
     height: 80,
     textAlignVertical: 'top',
   },
-  pickerContainer: {
+  pickerButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     borderWidth: 1,
     borderColor: '#d1d5db',
     borderRadius: 8,
+    padding: 12,
     backgroundColor: '#ffffff',
   },
-  picker: {
-    height: 50,
+  pickerButtonText: {
+    fontSize: 16,
+    color: '#1e293b',
   },
-  optionsContainer: {
-    gap: 16,
+  pickerArrow: {
+    fontSize: 12,
+    color: '#6b7280',
   },
   optionRow: {
     flexDirection: 'row',
@@ -378,6 +539,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#e5e7eb',
+    marginTop: 16,
   },
   optionLeft: {
     flex: 1,
@@ -418,7 +580,8 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 24,
+    marginBottom: 32,
   },
   submitButtonDisabled: {
     backgroundColor: '#9ca3af',
@@ -427,5 +590,60 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '70%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1e293b',
+  },
+  modalClose: {
+    fontSize: 24,
+    color: '#6b7280',
+  },
+  modalScroll: {
+    maxHeight: 400,
+  },
+  modalOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  modalOptionSelected: {
+    backgroundColor: '#eff6ff',
+  },
+  modalOptionText: {
+    fontSize: 16,
+    color: '#1e293b',
+  },
+  modalOptionTextSelected: {
+    color: '#3b82f6',
+    fontWeight: '600',
+  },
+  modalCheckmark: {
+    fontSize: 18,
+    color: '#3b82f6',
+    fontWeight: 'bold',
   },
 });
