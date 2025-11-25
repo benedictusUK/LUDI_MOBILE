@@ -3119,8 +3119,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ received: true });
   });
 
-  // Platform charges management routes
-  app.get('/api/platform-charges', isAuthenticated, async (req: any, res) => {
+  // Platform charges management routes (public endpoint - no auth required)
+  app.get('/api/platform-charges', async (req: any, res) => {
     try {
       const charges = await storage.getPlatformCharges();
       res.json(charges);
