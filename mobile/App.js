@@ -17,7 +17,7 @@ import CreateEventScreen from './screens/CreateEventScreen';
 import EventDetailsScreen from './screens/EventDetailsScreen';
 import PaymentScreen from './screens/PaymentScreen';
 import { usePushNotifications } from './hooks/usePushNotifications';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, AppRegistry } from 'react-native';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -173,3 +173,6 @@ const styles = StyleSheet.create({
     color: '#64748b',
   },
 });
+
+// Register the app
+AppRegistry.registerComponent('main', () => App);
