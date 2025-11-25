@@ -276,6 +276,28 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertAuthUser(userData: AuthUser): Promise<User> {
+    // First check if a user with this email already exists
+    const existingUser = await db.select().from(users).where(eq(users.email, userData.email)).limit(1);
+    
+    if (existingUser.length > 0) {
+      // Update the existing user with the new auth provider info
+      const [updatedUser] = await db
+        .update(users)
+        .set({
+          // Only update firstName if it has a value from auth provider
+          ...(userData.firstName && { firstName: userData.firstName }),
+          // Only update lastName if it has a value from auth provider
+          ...(userData.lastName && { lastName: userData.lastName }),
+          profileImageUrl: userData.profileImageUrl,
+          authProvider: userData.authProvider, // Update to the new auth provider
+          updatedAt: new Date(),
+        })
+        .where(eq(users.email, userData.email))
+        .returning();
+      return updatedUser;
+    }
+    
+    // No existing user with this email, create a new one
     const [user] = await db
       .insert(users)
       .values([userData])
@@ -283,9 +305,7 @@ export class DatabaseStorage implements IStorage {
         target: users.id,
         set: {
           email: userData.email,
-          // Only update firstName if it has a value from auth provider
           ...(userData.firstName && { firstName: userData.firstName }),
-          // Only update lastName if it has a value from auth provider
           ...(userData.lastName && { lastName: userData.lastName }),
           profileImageUrl: userData.profileImageUrl,
           updatedAt: new Date(),
