@@ -24,10 +24,12 @@ export function AuthProvider({ children }) {
 
   const checkAuthState = async () => {
     try {
+      console.log('[AuthContext] Checking auth state...');
       const storedToken = await AsyncStorage.getItem('userToken');
       const storedUserId = await AsyncStorage.getItem('userId');
 
       if (storedToken && storedUserId) {
+        console.log('[AuthContext] Found stored token, verifying...');
         setToken(storedToken);
         
         // Verify token is still valid and get user data
@@ -37,17 +39,24 @@ export function AuthProvider({ children }) {
           }
         });
 
+        console.log('[AuthContext] Token verification response:', response.status);
+
         if (response.ok) {
           const userData = await response.json();
+          console.log('[AuthContext] User authenticated:', userData.id);
           setUser(userData);
         } else {
           // Token is invalid, clear storage
+          console.log('[AuthContext] Token invalid, clearing storage');
           await signOut();
         }
+      } else {
+        console.log('[AuthContext] No stored token found');
       }
     } catch (error) {
-      console.error('Error checking auth state:', error);
+      console.error('[AuthContext] Error checking auth state:', error);
     } finally {
+      console.log('[AuthContext] Setting isLoading to false');
       setIsLoading(false);
     }
   };
