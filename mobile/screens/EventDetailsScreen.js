@@ -117,28 +117,28 @@ export default function EventDetailsScreen() {
         </View>
 
         <View style={styles.detailsCard}>
-          <DetailRow icon="📅" label="Date" value={new Date(event.date).toLocaleDateString()} />
-          <DetailRow icon="🕐" label="Time" value={new Date(event.date).toLocaleTimeString()} />
+          <DetailRow icon="📅" label="Date" value={event.startDate ? new Date(event.startDate).toLocaleDateString() : 'Date TBD'} />
+          <DetailRow icon="🕐" label="Time" value={event.startTime || 'Time TBD'} />
           {event.location && (
             <DetailRow icon="📍" label="Location" value={event.location} />
           )}
-          <DetailRow icon="👥" label="Team" value={event.team?.name || 'Unknown'} />
-          {event.maxAttendees && (
+          <DetailRow icon="👥" label="Team" value={event.primaryTeam?.name || 'Unknown'} />
+          {event.maxParticipants && (
             <DetailRow 
               icon="🎯" 
               label="Capacity" 
-              value={`${attendeeCount}/${event.maxAttendees}`} 
+              value={`${attendeeCount}/${event.maxParticipants}`} 
             />
           )}
-          {event.cost && (
+          {event.cost && parseFloat(event.cost) > 0 && (
             <DetailRow icon="💰" label="Cost" value={`£${event.cost}`} />
           )}
         </View>
 
-        {event.description && (
+        {event.requirements && (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Description</Text>
-            <Text style={styles.description}>{event.description}</Text>
+            <Text style={styles.description}>{event.requirements}</Text>
           </View>
         )}
 

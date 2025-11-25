@@ -54,47 +54,53 @@ export default function EventsScreen() {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.eventCard}
-            onPress={() => navigation.navigate('EventDetails', { id: item.id })}
-          >
-            <View style={styles.eventHeader}>
-              <Text style={styles.eventTitle}>{item.name}</Text>
-              <Text style={styles.eventDate}>
-                {new Date(item.date).toLocaleDateString()}
-              </Text>
-            </View>
-            
-            <Text style={styles.eventTime}>
-              {new Date(item.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </Text>
-            
-            {item.location && (
-              <Text style={styles.eventLocation}>📍 {item.location}</Text>
-            )}
-            
-            {item.description && (
-              <Text style={styles.eventDescription} numberOfLines={2}>
-                {item.description}
-              </Text>
-            )}
-            
-            <View style={styles.eventFooter}>
-              <Text style={styles.eventSport}>{item.sport}</Text>
-              <View style={styles.eventInfo}>
-                {item.cost && (
-                  <Text style={styles.eventCost}>£{item.cost}</Text>
-                )}
-                {item.maxAttendees && (
-                  <Text style={styles.eventCapacity}>
-                    Max: {item.maxAttendees}
-                  </Text>
-                )}
+        renderItem={({ item }) => {
+          const eventDate = item.startDate ? new Date(item.startDate) : null;
+          const dateStr = eventDate ? eventDate.toLocaleDateString() : 'Date TBD';
+          const timeStr = item.startTime || 'Time TBD';
+          
+          return (
+            <TouchableOpacity
+              style={styles.eventCard}
+              onPress={() => navigation.navigate('EventDetails', { id: item.id })}
+            >
+              <View style={styles.eventHeader}>
+                <Text style={styles.eventTitle}>{item.name}</Text>
+                <Text style={styles.eventDate}>{dateStr}</Text>
               </View>
-            </View>
-          </TouchableOpacity>
-        )}
+              
+              <Text style={styles.eventTime}>{timeStr}</Text>
+              
+              {item.location && (
+                <Text style={styles.eventLocation}>📍 {item.location}</Text>
+              )}
+              
+              {item.primaryTeam && (
+                <Text style={styles.eventTeam}>👥 {item.primaryTeam.name}</Text>
+              )}
+              
+              {item.requirements && (
+                <Text style={styles.eventDescription} numberOfLines={2}>
+                  {item.requirements}
+                </Text>
+              )}
+              
+              <View style={styles.eventFooter}>
+                <Text style={styles.eventSport}>{item.sport}</Text>
+                <View style={styles.eventInfo}>
+                  {item.cost && parseFloat(item.cost) > 0 && (
+                    <Text style={styles.eventCost}>£{item.cost}</Text>
+                  )}
+                  {item.maxParticipants && (
+                    <Text style={styles.eventCapacity}>
+                      Max: {item.maxParticipants}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            </TouchableOpacity>
+          );
+        }}
         ListEmptyComponent={
           <View style={styles.centerContainer}>
             <Text style={styles.emptyText}>No events found</Text>
@@ -177,6 +183,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   eventLocation: {
+    fontSize: 14,
+    color: '#64748b',
+    marginBottom: 8,
+  },
+  eventTeam: {
     fontSize: 14,
     color: '#64748b',
     marginBottom: 8,
