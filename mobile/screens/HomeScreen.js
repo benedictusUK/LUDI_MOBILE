@@ -126,7 +126,7 @@ export default function HomeScreen() {
               >
                 <Text style={styles.eventTitle}>{event.name}</Text>
                 <Text style={styles.eventDate}>
-                  {new Date(event.date).toLocaleDateString()}
+                  {event.startDate ? new Date(event.startDate).toLocaleDateString() : 'Date TBD'} • {event.startTime || 'Time TBD'}
                 </Text>
                 <Text style={styles.eventSport}>{event.sport}</Text>
               </TouchableOpacity>

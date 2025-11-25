@@ -99,9 +99,9 @@ export default function EventDetailsScreen() {
     );
   }
 
-  const userAttendance = attendance?.attendees?.find(a => a.userId === user?.id);
-  const attendeeCount = attendance?.attendees?.filter(a => a.status === 'attending').length || 0;
-  const reserveCount = attendance?.reserves?.length || 0;
+  const userAttendance = Array.isArray(attendance) ? attendance.find(a => a.userId === user?.id) : null;
+  const attendeeCount = Array.isArray(attendance) ? attendance.filter(a => a.status === 'attending').length : 0;
+  const reserveCount = Array.isArray(attendance) ? attendance.filter(a => a.status === 'reserve').length : 0;
 
   return (
     <SafeAreaView style={styles.container}>
