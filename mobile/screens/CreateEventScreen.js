@@ -73,6 +73,7 @@ export default function CreateEventScreen() {
     sport: SPORTS[0],
     startDate: '',
     startTime: '',
+    endDate: '',
     endTime: '',
     location: '',
     address: '',
@@ -85,6 +86,7 @@ export default function CreateEventScreen() {
     requirements: '',
     gender: 'mixed',
     recurrenceType: 'none',
+    recurrenceEndDate: '',
     isPublished: true,
     paymentRequired: false,
     maxPlayerPayment: '',
@@ -202,6 +204,16 @@ export default function CreateEventScreen() {
       return;
     }
 
+    if (formData.paymentRequired && !formData.maxPlayerPayment) {
+      Alert.alert('Validation Error', 'Max player payment is required when payment is enabled');
+      return;
+    }
+
+    if (formData.paymentRequired && !formData.finalVenueCost) {
+      Alert.alert('Validation Error', 'Final venue cost is required when payment is enabled');
+      return;
+    }
+
     try {
       setLoading(true);
       
@@ -210,25 +222,25 @@ export default function CreateEventScreen() {
         sport: formData.sport,
         startDate: formData.startDate,
         startTime: formData.startTime,
-        endDate: null,
-        endTime: formData.endTime || null,
+        endDate: formData.endDate || undefined,
+        endTime: formData.endTime || undefined,
         location: formData.location,
-        address: formData.address || null,
-        postcode: formData.postcode || null,
+        address: formData.address || '',
+        postcode: formData.postcode || '',
         primaryTeamId: formData.teamId,
-        secondaryTeamIds: [],
-        maxParticipants: formData.maxParticipants ? parseInt(formData.maxParticipants) : null,
+        secondaryTeamIds: formData.secondaryTeamIds || [],
+        maxParticipants: formData.maxParticipants ? parseInt(formData.maxParticipants) : undefined,
         reserveSpots: formData.reserveSpots ? parseInt(formData.reserveSpots) : 0,
         cost: formData.cost || '0.00',
         requirements: formData.requirements || '',
         gender: formData.gender,
         recurrenceType: formData.recurrenceType,
-        recurrenceEndDate: null,
+        recurrenceEndDate: formData.recurrenceEndDate || undefined,
         recurrenceDaysOfWeek: [],
         isPublished: formData.isPublished,
         paymentRequired: formData.paymentRequired,
-        maxPlayerPayment: formData.paymentRequired && formData.maxPlayerPayment ? formData.maxPlayerPayment : null,
-        finalVenueCost: formData.paymentRequired && formData.finalVenueCost ? formData.finalVenueCost : null,
+        maxPlayerPayment: formData.paymentRequired && formData.maxPlayerPayment ? formData.maxPlayerPayment : undefined,
+        finalVenueCost: formData.paymentRequired && formData.finalVenueCost ? formData.finalVenueCost : undefined,
       };
 
       const response = await apiRequest('/api/events', {
