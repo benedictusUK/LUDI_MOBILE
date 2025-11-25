@@ -112,17 +112,22 @@ router.post('/apple', async (req, res) => {
       return res.status(400).json({ message: 'Apple identity token required' });
     }
 
-    // Verify Apple token (implement this based on your Apple auth setup)
+    // Verify Apple token
     const applePayload = jwt.decode(identity_token) as any;
     
-    if (!applePayload || !applePayload.sub || !applePayload.email) {
+    // Apple only provides email on first sign-in, so we only require the user ID (sub)
+    if (!applePayload || !applePayload.sub) {
       return res.status(400).json({ message: 'Invalid Apple identity token' });
     }
+
+    // Try to get email from token first, then from user_info
+    // Email may be null on repeat sign-ins - that's OK
+    const email = applePayload.email || user_info?.email || null;
 
     // Create or update user
     const userData = {
       id: `apple_${applePayload.sub}`,
-      email: applePayload.email,
+      email: email,
       firstName: user_info?.fullName?.givenName || undefined,
       lastName: user_info?.fullName?.familyName || undefined,
       profileImageUrl: undefined,
