@@ -15,7 +15,7 @@ export default function EventsScreen() {
       const response = await apiRequest('/api/events');
       if (response.ok) {
         const data = await response.json();
-        setEvents(data || []);
+        setEvents(data.events || []);
       } else {
         Alert.alert('Error', 'Failed to load events');
       }
