@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, RefreshControl, Alert, SafeAreaView } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, RefreshControl, Alert, SafeAreaView, Switch } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -7,12 +7,14 @@ export default function EventsScreen() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showPastEvents, setShowPastEvents] = useState(false);
   const navigation = useNavigation();
   const { apiRequest } = useAuth();
 
-  const fetchEvents = async () => {
+  const fetchEvents = async (includePast = false) => {
     try {
-      const response = await apiRequest('/api/events');
+      const queryParams = includePast ? '?includePast=true' : '';
+      const response = await apiRequest(`/api/events${queryParams}`);
       if (response.ok) {
         const data = await response.json();
         setEvents(data.events || []);
@@ -29,12 +31,25 @@ export default function EventsScreen() {
   };
 
   useEffect(() => {
-    fetchEvents();
-  }, []);
+    fetchEvents(showPastEvents);
+  }, [showPastEvents]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchEvents();
+    fetchEvents(showPastEvents);
+  };
+
+  const togglePastEvents = (value) => {
+    setShowPastEvents(value);
+    setLoading(true);
+  };
+
+  const isPastEvent = (item) => {
+    if (!item.startDate) return false;
+    const eventDate = new Date(item.startDate);
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    return eventDate < now;
   };
 
   if (loading) {
@@ -47,6 +62,25 @@ export default function EventsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <View style={styles.toggleContainer}>
+        <TouchableOpacity
+          style={[styles.toggleButton, !showPastEvents && styles.toggleButtonActive]}
+          onPress={() => togglePastEvents(false)}
+        >
+          <Text style={[styles.toggleButtonText, !showPastEvents && styles.toggleButtonTextActive]}>
+            Upcoming
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.toggleButton, showPastEvents && styles.toggleButtonActive]}
+          onPress={() => togglePastEvents(true)}
+        >
+          <Text style={[styles.toggleButtonText, showPastEvents && styles.toggleButtonTextActive]}>
+            Past Events
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       <FlatList
         contentContainerStyle={styles.list}
         data={events}
@@ -58,43 +92,50 @@ export default function EventsScreen() {
           const eventDate = item.startDate ? new Date(item.startDate) : null;
           const dateStr = eventDate ? eventDate.toLocaleDateString() : 'Date TBD';
           const timeStr = item.startTime || 'Time TBD';
+          const isPast = isPastEvent(item);
           
           return (
             <TouchableOpacity
-              style={styles.eventCard}
+              style={[styles.eventCard, isPast && styles.pastEventCard]}
               onPress={() => navigation.navigate('EventDetails', { id: item.id })}
             >
               <View style={styles.eventHeader}>
-                <Text style={styles.eventTitle}>{item.name}</Text>
-                <Text style={styles.eventDate}>{dateStr}</Text>
+                <Text style={[styles.eventTitle, isPast && styles.pastEventText]}>{item.name}</Text>
+                <View style={styles.dateContainer}>
+                  <Text style={[styles.eventDate, isPast && styles.pastEventText]}>{dateStr}</Text>
+                  {isPast && <Text style={styles.pastBadge}>PAST</Text>}
+                </View>
               </View>
               
-              <Text style={styles.eventTime}>{timeStr}</Text>
+              <Text style={[styles.eventTime, isPast && styles.pastEventText]}>{timeStr}</Text>
               
               {item.location && (
-                <Text style={styles.eventLocation}>📍 {item.location}</Text>
+                <Text style={[styles.eventLocation, isPast && styles.pastEventText]}>📍 {item.location}</Text>
               )}
               
               {item.primaryTeam && (
-                <Text style={styles.eventTeam}>👥 {item.primaryTeam.name}</Text>
+                <Text style={[styles.eventTeam, isPast && styles.pastEventText]}>👥 {item.primaryTeam.name}</Text>
               )}
               
               {item.requirements && (
-                <Text style={styles.eventDescription} numberOfLines={2}>
+                <Text style={[styles.eventDescription, isPast && styles.pastEventText]} numberOfLines={2}>
                   {item.requirements}
                 </Text>
               )}
               
               <View style={styles.eventFooter}>
-                <Text style={styles.eventSport}>{item.sport}</Text>
+                <Text style={[styles.eventSport, isPast && styles.pastEventSport]}>{item.sport}</Text>
                 <View style={styles.eventInfo}>
                   {item.cost && parseFloat(item.cost) > 0 && (
-                    <Text style={styles.eventCost}>£{item.cost}</Text>
+                    <Text style={[styles.eventCost, isPast && styles.pastEventCost]}>£{item.cost}</Text>
                   )}
                   {item.maxParticipants && (
-                    <Text style={styles.eventCapacity}>
+                    <Text style={[styles.eventCapacity, isPast && styles.pastEventText]}>
                       Max: {item.maxParticipants}
                     </Text>
+                  )}
+                  {item.recurringSeriesId && (
+                    <Text style={styles.recurringBadge}>🔄</Text>
                   )}
                 </View>
               </View>
@@ -103,16 +144,22 @@ export default function EventsScreen() {
         }}
         ListEmptyComponent={
           <View style={styles.centerContainer}>
-            <Text style={styles.emptyText}>No events found</Text>
-            <Text style={styles.emptySubtext}>
-              Join a team or create an event to get started!
+            <Text style={styles.emptyText}>
+              {showPastEvents ? 'No past events' : 'No upcoming events'}
             </Text>
-            <TouchableOpacity
-              style={styles.createButton}
-              onPress={() => navigation.navigate('CreateEvent')}
-            >
-              <Text style={styles.createButtonText}>Create Your First Event</Text>
-            </TouchableOpacity>
+            <Text style={styles.emptySubtext}>
+              {showPastEvents 
+                ? 'Your past events will appear here'
+                : 'Join a team or create an event to get started!'}
+            </Text>
+            {!showPastEvents && (
+              <TouchableOpacity
+                style={styles.createButton}
+                onPress={() => navigation.navigate('CreateEvent')}
+              >
+                <Text style={styles.createButtonText}>Create Your First Event</Text>
+              </TouchableOpacity>
+            )}
           </View>
         }
       />
@@ -133,10 +180,36 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8fafc',
   },
+  toggleContainer: {
+    flexDirection: 'row',
+    padding: 16,
+    paddingBottom: 8,
+    gap: 8,
+  },
+  toggleButton: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: '#e2e8f0',
+    alignItems: 'center',
+  },
+  toggleButtonActive: {
+    backgroundColor: '#3b82f6',
+  },
+  toggleButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  toggleButtonTextActive: {
+    color: '#ffffff',
+  },
   list: {
     padding: 16,
+    paddingTop: 8,
     flexGrow: 1,
-    paddingBottom: 80, // Space for FAB
+    paddingBottom: 80,
   },
   centerContainer: {
     flex: 1,
@@ -159,11 +232,31 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 3,
   },
+  pastEventCard: {
+    backgroundColor: '#f1f5f9',
+    opacity: 0.85,
+  },
+  pastEventText: {
+    color: '#94a3b8',
+  },
   eventHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 4,
+  },
+  dateContainer: {
+    alignItems: 'flex-end',
+  },
+  pastBadge: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#94a3b8',
+    backgroundColor: '#e2e8f0',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginTop: 4,
   },
   eventTitle: {
     fontSize: 18,
@@ -212,6 +305,10 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 6,
   },
+  pastEventSport: {
+    color: '#94a3b8',
+    backgroundColor: '#e2e8f0',
+  },
   eventInfo: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -226,9 +323,16 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 4,
   },
+  pastEventCost: {
+    color: '#94a3b8',
+    backgroundColor: '#e2e8f0',
+  },
   eventCapacity: {
     fontSize: 12,
     color: '#6b7280',
+  },
+  recurringBadge: {
+    fontSize: 14,
   },
   emptyText: {
     fontSize: 18,
