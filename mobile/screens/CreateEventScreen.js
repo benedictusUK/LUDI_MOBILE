@@ -243,10 +243,14 @@ export default function CreateEventScreen() {
         finalVenueCost: formData.paymentRequired && formData.finalVenueCost ? formData.finalVenueCost : undefined,
       };
 
+      console.log('[CreateEvent] Sending event data:', eventData);
+
       const response = await apiRequest('/api/events', {
         method: 'POST',
         body: JSON.stringify(eventData),
       });
+
+      console.log('[CreateEvent] Response received:', response.status);
 
       if (response.ok) {
         Alert.alert('Success', 'Event created successfully!', [
@@ -254,11 +258,12 @@ export default function CreateEventScreen() {
         ]);
       } else {
         const error = await response.json();
+        console.error('[CreateEvent] Server error:', error);
         Alert.alert('Error', error.message || 'Failed to create event');
       }
     } catch (error) {
-      console.error('Create event error:', error);
-      Alert.alert('Error', 'Failed to create event');
+      console.error('[CreateEvent] Error:', error);
+      Alert.alert('Error', error.message || 'Failed to create event. Check your internet connection.');
     } finally {
       setLoading(false);
     }
