@@ -22,7 +22,7 @@ Preferred communication style: Simple, everyday language.
 ### Technical Implementations
 *   **Web Frontend**: React 18 with TypeScript and Vite, Wouter for routing, React Hook Form with Zod for form handling, and Tailwind CSS for styling.
 *   **Mobile Frontend**: React Native with Expo, React Navigation for routing, native mobile UI components, JWT authentication, and Stripe React Native SDK for payments.
-*   **Backend**: Express.js with TypeScript, RESTful API endpoints, and Drizzle ORM for PostgreSQL. Dual authentication system supporting web sessions and mobile JWT tokens.
+*   **Backend**: Express.js with TypeScript, RESTful API endpoints, CORS enabled for cross-origin requests, and Drizzle ORM for PostgreSQL. Dual authentication system supporting web sessions and mobile JWT tokens.
 *   **Database**: PostgreSQL (via Neon serverless) with Drizzle ORM for schema definition and Drizzle Kit for migrations.
 *   **Authentication**: 
     - Web: Replit OAuth (OIDC) with server-side sessions, HTTP-only cookies, and automatic user creation/updates. Also supports Google and Apple OAuth.
