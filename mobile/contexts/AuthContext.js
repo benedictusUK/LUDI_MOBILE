@@ -100,18 +100,38 @@ export function AuthProvider({ children }) {
       headers.Authorization = `Bearer ${token}`;
     }
 
-    const response = await fetch(url, {
-      ...options,
-      headers,
-    });
+    console.log('[apiRequest] Making request to:', endpoint, options.method || 'GET');
 
-    if (response.status === 401) {
-      // Token expired or invalid
-      await signOut();
-      throw new Error('Authentication required');
+    try {
+      // Add timeout to prevent hanging requests
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+      const response = await fetch(url, {
+        ...options,
+        headers,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      console.log('[apiRequest] Response status:', response.status);
+
+      if (response.status === 401) {
+        // Token expired or invalid
+        await signOut();
+        throw new Error('Authentication required');
+      }
+
+      return response;
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        console.error('[apiRequest] Request timeout after 30s:', endpoint);
+        throw new Error('Request timeout - please check your internet connection');
+      }
+      console.error('[apiRequest] Request failed:', error);
+      throw error;
     }
-
-    return response;
   };
 
   const value = {
