@@ -119,7 +119,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/events', verifyAuth, async (req: any, res) => {
     try {
       const userId = req.userId;
-      const events = await storage.getUserEvents(userId);
+      const includePast = req.query.includePast === 'true';
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || (includePast ? 20 : 1000);
+      const teamId = req.query.teamId as string | undefined;
+      const votingStatus = (req.query.votingStatus as string) || 'all';
+      
+      // Check for expired recurring events and trigger maintenance if needed
+      await storage.checkExpiredRecurringEvents();
+      
+      const events = await storage.getUserEvents(userId, includePast, page, limit, teamId, votingStatus);
       res.json(events);
     } catch (error) {
       console.error('Error fetching events:', error);
@@ -138,10 +147,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         primaryTeamId: req.body.primaryTeamId || req.body.teamId,
       });
       
-      const event = await storage.createEvent(eventData);
-      
-      // Add the primary team to eventTeams table
-      await storage.addEventTeam(event.id, eventData.primaryTeamId);
+      let event;
+      // Use createRecurringEvents for recurring events
+      if (eventData.recurrenceType && eventData.recurrenceType !== 'none') {
+        const events = await storage.createRecurringEvents(eventData, 5);
+        event = events[0]; // Return the first event
+        
+        // Add the primary team to eventTeams table for all created events
+        for (const e of events) {
+          await storage.addEventTeam(e.id, eventData.primaryTeamId);
+        }
+      } else {
+        event = await storage.createEvent(eventData);
+        // Add the primary team to eventTeams table
+        await storage.addEventTeam(event.id, eventData.primaryTeamId);
+      }
       
       res.json(event);
     } catch (error) {
