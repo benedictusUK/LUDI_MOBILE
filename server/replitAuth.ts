@@ -133,10 +133,31 @@ export async function setupAuth(app: Express) {
   });
 }
 
+import jwt from "jsonwebtoken";
+
+const JWT_SECRET = process.env.JWT_SECRET || process.env.SESSION_SECRET || 'fallback-secret';
+
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
+  // First, try mobile JWT token authentication
+  const authHeader = req.headers.authorization;
+  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+  
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+      (req as any).userId = decoded.userId;
+      // Also set req.user for compatibility with existing code
+      (req as any).user = { claims: { sub: decoded.userId } };
+      return next();
+    } catch (error) {
+      // Invalid JWT token, fall through to session check
+    }
+  }
+
+  // Fall back to web session authentication
   const user = req.user as any;
 
-  if (!req.isAuthenticated() || !user.expires_at) {
+  if (!req.isAuthenticated || !req.isAuthenticated() || !user?.expires_at) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
