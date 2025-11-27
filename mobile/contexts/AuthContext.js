@@ -91,8 +91,11 @@ export function AuthProvider({ children }) {
   // API request helper with authentication
   const apiRequest = async (endpoint, options = {}) => {
     const url = `${API_BASE_URL}${endpoint}`;
+    const method = options.method || 'GET';
+    
     const headers = {
       'Content-Type': 'application/json',
+      'Accept': 'application/json',
       ...options.headers,
     };
 
@@ -100,22 +103,37 @@ export function AuthProvider({ children }) {
       headers.Authorization = `Bearer ${token}`;
     }
 
-    console.log('[apiRequest] Making request to:', endpoint, options.method || 'GET');
+    console.log('[apiRequest] Making request:', method, url);
+    console.log('[apiRequest] Headers:', JSON.stringify(headers));
+    if (options.body) {
+      console.log('[apiRequest] Body length:', options.body.length);
+    }
 
     try {
       // Add timeout to prevent hanging requests
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      const timeoutId = setTimeout(() => {
+        console.log('[apiRequest] Timeout triggered for:', endpoint);
+        controller.abort();
+      }, 30000); // 30 second timeout
 
-      const response = await fetch(url, {
-        ...options,
+      const fetchOptions = {
+        method,
         headers,
         signal: controller.signal,
-      });
+      };
+      
+      // Only add body for non-GET requests
+      if (options.body && method !== 'GET') {
+        fetchOptions.body = options.body;
+      }
+
+      console.log('[apiRequest] Calling fetch...');
+      const response = await fetch(url, fetchOptions);
 
       clearTimeout(timeoutId);
 
-      console.log('[apiRequest] Response status:', response.status);
+      console.log('[apiRequest] Response received, status:', response.status);
 
       if (response.status === 401) {
         // Token expired or invalid
@@ -129,7 +147,7 @@ export function AuthProvider({ children }) {
         console.error('[apiRequest] Request timeout after 30s:', endpoint);
         throw new Error('Request timeout - please check your internet connection');
       }
-      console.error('[apiRequest] Request failed:', error);
+      console.error('[apiRequest] Request failed:', error.message, error.name);
       throw error;
     }
   };
