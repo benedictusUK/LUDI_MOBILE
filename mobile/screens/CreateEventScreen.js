@@ -54,6 +54,16 @@ const RECURRENCE_TYPES = [
   { label: 'Monthly', value: 'monthly' },
 ];
 
+const DAYS_OF_WEEK = [
+  { label: 'Monday', value: 'monday' },
+  { label: 'Tuesday', value: 'tuesday' },
+  { label: 'Wednesday', value: 'wednesday' },
+  { label: 'Thursday', value: 'thursday' },
+  { label: 'Friday', value: 'friday' },
+  { label: 'Saturday', value: 'saturday' },
+  { label: 'Sunday', value: 'sunday' },
+];
+
 export default function CreateEventScreen() {
   const navigation = useNavigation();
   const { apiRequest } = useAuth();
@@ -66,6 +76,7 @@ export default function CreateEventScreen() {
   const [showSecondaryTeamPicker, setShowSecondaryTeamPicker] = useState(false);
   const [showGenderPicker, setShowGenderPicker] = useState(false);
   const [showRecurrencePicker, setShowRecurrencePicker] = useState(false);
+  const [showDaysOfWeekPicker, setShowDaysOfWeekPicker] = useState(false);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -87,6 +98,7 @@ export default function CreateEventScreen() {
     gender: 'mixed',
     recurrenceType: 'none',
     recurrenceEndDate: '',
+    recurrenceDaysOfWeek: [],
     isPublished: true,
     paymentRequired: false,
     maxPlayerPayment: '',
@@ -163,25 +175,6 @@ export default function CreateEventScreen() {
   };
 
   const handleSubmit = async () => {
-    // First, test if POST requests work at all
-    try {
-      console.log('[CreateEvent] Testing POST connectivity...');
-      const testResponse = await apiRequest('/api/test-post', {
-        method: 'POST',
-        body: JSON.stringify({ test: 'connectivity-check' }),
-      });
-      console.log('[CreateEvent] Test POST response:', testResponse.status);
-      if (!testResponse.ok) {
-        console.error('[CreateEvent] Test POST failed');
-      } else {
-        console.log('[CreateEvent] Test POST succeeded!');
-      }
-    } catch (testError) {
-      console.error('[CreateEvent] Test POST error:', testError.message);
-      Alert.alert('Network Issue', 'Cannot connect to server. POST requests are failing. Please check your internet connection.');
-      return;
-    }
-
     // Validation
     if (!formData.name.trim()) {
       Alert.alert('Validation Error', 'Event name is required');
@@ -233,6 +226,19 @@ export default function CreateEventScreen() {
       return;
     }
 
+    // Validate recurrence fields
+    if (formData.recurrenceType !== 'none') {
+      if (!formData.recurrenceEndDate) {
+        Alert.alert('Validation Error', 'Recurrence end date is required for recurring events');
+        return;
+      }
+      
+      if (formData.recurrenceType === 'weekly' && formData.recurrenceDaysOfWeek.length === 0) {
+        Alert.alert('Validation Error', 'Please select at least one day of the week for weekly recurrence');
+        return;
+      }
+    }
+
     try {
       setLoading(true);
       
@@ -255,7 +261,7 @@ export default function CreateEventScreen() {
         gender: formData.gender,
         recurrenceType: formData.recurrenceType,
         recurrenceEndDate: formData.recurrenceEndDate || undefined,
-        recurrenceDaysOfWeek: [],
+        recurrenceDaysOfWeek: formData.recurrenceDaysOfWeek,
         isPublished: formData.isPublished,
         paymentRequired: formData.paymentRequired,
         maxPlayerPayment: formData.paymentRequired && formData.maxPlayerPayment ? formData.maxPlayerPayment : undefined,
@@ -475,6 +481,40 @@ export default function CreateEventScreen() {
             <Text style={styles.pickerArrow}>▼</Text>
           </TouchableOpacity>
 
+          {/* Days of Week Picker - shown only for Weekly recurrence */}
+          {formData.recurrenceType === 'weekly' && (
+            <>
+              <Text style={styles.label}>Days of Week *</Text>
+              <TouchableOpacity
+                style={styles.pickerButton}
+                onPress={() => setShowDaysOfWeekPicker(true)}
+              >
+                <Text style={styles.pickerButtonText}>
+                  {formData.recurrenceDaysOfWeek.length > 0 
+                    ? formData.recurrenceDaysOfWeek.map(d => d.charAt(0).toUpperCase() + d.slice(1, 3)).join(', ')
+                    : 'Select days'}
+                </Text>
+                <Text style={styles.pickerArrow}>▼</Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          {/* Recurrence End Date - shown for any recurrence pattern */}
+          {formData.recurrenceType !== 'none' && (
+            <>
+              <Text style={styles.label}>Recurrence End Date (YYYY-MM-DD) *</Text>
+              <TextInput
+                style={styles.input}
+                value={formData.recurrenceEndDate}
+                onChangeText={(text) => setFormData({ ...formData, recurrenceEndDate: text })}
+                placeholder="2025-12-31"
+              />
+              <Text style={styles.sublabel}>
+                Series will create up to 5 future events until this date
+              </Text>
+            </>
+          )}
+
           <Text style={styles.label}>Max Participants</Text>
           <TextInput
             style={styles.input}
@@ -652,6 +692,65 @@ export default function CreateEventScreen() {
         selectedValue={formData.recurrenceType}
         onSelect={(value) => setFormData({ ...formData, recurrenceType: value })}
       />
+
+      {/* Days of Week Multi-Select Modal */}
+      <Modal
+        visible={showDaysOfWeekPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowDaysOfWeekPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Days</Text>
+              <TouchableOpacity onPress={() => setShowDaysOfWeekPicker(false)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalScroll}>
+              {DAYS_OF_WEEK.map((day) => {
+                const isSelected = formData.recurrenceDaysOfWeek.includes(day.value);
+                
+                return (
+                  <TouchableOpacity
+                    key={day.value}
+                    style={[styles.modalOption, isSelected && styles.modalOptionSelected]}
+                    onPress={() => {
+                      if (isSelected) {
+                        setFormData({
+                          ...formData,
+                          recurrenceDaysOfWeek: formData.recurrenceDaysOfWeek.filter(d => d !== day.value)
+                        });
+                      } else {
+                        setFormData({
+                          ...formData,
+                          recurrenceDaysOfWeek: [...formData.recurrenceDaysOfWeek, day.value]
+                        });
+                      }
+                    }}
+                  >
+                    <Text style={[styles.modalOptionText, isSelected && styles.modalOptionTextSelected]}>
+                      {day.label}
+                    </Text>
+                    {isSelected && <Text style={styles.modalCheckmark}>✓</Text>}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={styles.modalConfirmButton}
+                onPress={() => setShowDaysOfWeekPicker(false)}
+              >
+                <Text style={styles.modalConfirmButtonText}>
+                  Done ({formData.recurrenceDaysOfWeek.length} selected)
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         visible={showSecondaryTeamPicker}
