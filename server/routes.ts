@@ -23,6 +23,12 @@ if (!process.env.STRIPE_SECRET_KEY) {
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Simple test endpoint for debugging POST requests (no auth required)
+  app.post('/api/test-post', (req, res) => {
+    console.log('[TEST] POST request received:', JSON.stringify(req.body).substring(0, 100));
+    res.json({ success: true, received: true, bodyKeys: Object.keys(req.body || {}) });
+  });
+
   // Auth middleware
   await setupAuth(app);
 

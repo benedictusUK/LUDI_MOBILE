@@ -163,6 +163,25 @@ export default function CreateEventScreen() {
   };
 
   const handleSubmit = async () => {
+    // First, test if POST requests work at all
+    try {
+      console.log('[CreateEvent] Testing POST connectivity...');
+      const testResponse = await apiRequest('/api/test-post', {
+        method: 'POST',
+        body: JSON.stringify({ test: 'connectivity-check' }),
+      });
+      console.log('[CreateEvent] Test POST response:', testResponse.status);
+      if (!testResponse.ok) {
+        console.error('[CreateEvent] Test POST failed');
+      } else {
+        console.log('[CreateEvent] Test POST succeeded!');
+      }
+    } catch (testError) {
+      console.error('[CreateEvent] Test POST error:', testError.message);
+      Alert.alert('Network Issue', 'Cannot connect to server. POST requests are failing. Please check your internet connection.');
+      return;
+    }
+
     // Validation
     if (!formData.name.trim()) {
       Alert.alert('Validation Error', 'Event name is required');
