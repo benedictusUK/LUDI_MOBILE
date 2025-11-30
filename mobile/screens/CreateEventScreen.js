@@ -9,10 +9,73 @@ import {
   Alert,
   SafeAreaView,
   Modal,
+  Platform,
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigation } from '@react-navigation/native';
 import { calculateTotalAmount } from '../lib/paymentUtils';
+
+// Helper functions for date/time
+const formatDateForDisplay = (dateStr) => {
+  if (!dateStr) return 'Select date';
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+};
+
+const formatTimeForDisplay = (timeStr) => {
+  if (!timeStr) return 'Select time';
+  return timeStr;
+};
+
+const getDefaultDate = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
+
+const getDefaultTime = () => {
+  const now = new Date();
+  // Round to next hour
+  const nextHour = new Date(now);
+  nextHour.setHours(now.getHours() + 1, 0, 0, 0);
+  return `${String(nextHour.getHours()).padStart(2, '0')}:00`;
+};
+
+const getDefaultEndTime = () => {
+  const now = new Date();
+  // 2 hours from now, rounded
+  const endTime = new Date(now);
+  endTime.setHours(now.getHours() + 2, 0, 0, 0);
+  return `${String(endTime.getHours()).padStart(2, '0')}:00`;
+};
+
+// Generate arrays for picker wheels
+const generateYears = () => {
+  const currentYear = new Date().getFullYear();
+  return Array.from({ length: 5 }, (_, i) => currentYear + i);
+};
+
+const MONTHS = [
+  { label: 'January', value: 1 },
+  { label: 'February', value: 2 },
+  { label: 'March', value: 3 },
+  { label: 'April', value: 4 },
+  { label: 'May', value: 5 },
+  { label: 'June', value: 6 },
+  { label: 'July', value: 7 },
+  { label: 'August', value: 8 },
+  { label: 'September', value: 9 },
+  { label: 'October', value: 10 },
+  { label: 'November', value: 11 },
+  { label: 'December', value: 12 },
+];
+
+const generateDays = (year, month) => {
+  const daysInMonth = new Date(year, month, 0).getDate();
+  return Array.from({ length: daysInMonth }, (_, i) => i + 1);
+};
+
+const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+const MINUTES = ['00', '15', '30', '45'];
 
 const SPORTS = [
   "Team Social",
@@ -78,14 +141,25 @@ export default function CreateEventScreen() {
   const [showRecurrencePicker, setShowRecurrencePicker] = useState(false);
   const [showDaysOfWeekPicker, setShowDaysOfWeekPicker] = useState(false);
   
+  // Date/Time picker modal states
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
+  const [showRecurrenceEndDatePicker, setShowRecurrenceEndDatePicker] = useState(false);
+  
+  // Temporary picker values
+  const [tempDate, setTempDate] = useState({ year: new Date().getFullYear(), month: new Date().getMonth() + 1, day: new Date().getDate() });
+  const [tempTime, setTempTime] = useState({ hour: '12', minute: '00' });
+  
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     sport: SPORTS[0],
-    startDate: '',
-    startTime: '',
-    endDate: '',
-    endTime: '',
+    startDate: getDefaultDate(),
+    startTime: getDefaultTime(),
+    endDate: getDefaultDate(),
+    endTime: getDefaultEndTime(),
     location: '',
     address: '',
     postcode: '',
@@ -228,11 +302,7 @@ export default function CreateEventScreen() {
 
     // Validate recurrence fields
     if (formData.recurrenceType !== 'none') {
-      if (!formData.recurrenceEndDate) {
-        Alert.alert('Validation Error', 'Recurrence end date is required for recurring events');
-        return;
-      }
-      
+      // Recurrence end date is optional - system will auto-create up to 5 events
       if (formData.recurrenceType === 'weekly' && formData.recurrenceDaysOfWeek.length === 0) {
         Alert.alert('Validation Error', 'Please select at least one day of the week for weekly recurrence');
         return;
@@ -424,29 +494,44 @@ export default function CreateEventScreen() {
             <Text style={styles.pickerArrow}>▼</Text>
           </TouchableOpacity>
 
-          <Text style={styles.label}>Start Date * (YYYY-MM-DD)</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.startDate}
-            onChangeText={(text) => setFormData({ ...formData, startDate: text })}
-            placeholder="2024-12-25"
-          />
+          <Text style={styles.label}>Start Date *</Text>
+          <TouchableOpacity
+            style={styles.pickerButton}
+            onPress={() => {
+              const [year, month, day] = formData.startDate.split('-').map(Number);
+              setTempDate({ year, month, day });
+              setShowStartDatePicker(true);
+            }}
+          >
+            <Text style={styles.pickerButtonText}>{formatDateForDisplay(formData.startDate)}</Text>
+            <Text style={styles.pickerArrow}>📅</Text>
+          </TouchableOpacity>
 
-          <Text style={styles.label}>Start Time * (HH:MM)</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.startTime}
-            onChangeText={(text) => setFormData({ ...formData, startTime: text })}
-            placeholder="14:30"
-          />
+          <Text style={styles.label}>Start Time *</Text>
+          <TouchableOpacity
+            style={styles.pickerButton}
+            onPress={() => {
+              const [hour, minute] = formData.startTime.split(':');
+              setTempTime({ hour, minute: MINUTES.includes(minute) ? minute : '00' });
+              setShowStartTimePicker(true);
+            }}
+          >
+            <Text style={styles.pickerButtonText}>{formatTimeForDisplay(formData.startTime)}</Text>
+            <Text style={styles.pickerArrow}>🕐</Text>
+          </TouchableOpacity>
 
-          <Text style={styles.label}>End Time (HH:MM)</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.endTime}
-            onChangeText={(text) => setFormData({ ...formData, endTime: text })}
-            placeholder="16:30"
-          />
+          <Text style={styles.label}>End Time</Text>
+          <TouchableOpacity
+            style={styles.pickerButton}
+            onPress={() => {
+              const [hour, minute] = formData.endTime.split(':');
+              setTempTime({ hour, minute: MINUTES.includes(minute) ? minute : '00' });
+              setShowEndTimePicker(true);
+            }}
+          >
+            <Text style={styles.pickerButtonText}>{formatTimeForDisplay(formData.endTime)}</Text>
+            <Text style={styles.pickerArrow}>🕐</Text>
+          </TouchableOpacity>
 
           <Text style={styles.label}>Location *</Text>
           <TextInput
@@ -502,15 +587,33 @@ export default function CreateEventScreen() {
           {/* Recurrence End Date - shown for any recurrence pattern */}
           {formData.recurrenceType !== 'none' && (
             <>
-              <Text style={styles.label}>Recurrence End Date (YYYY-MM-DD) *</Text>
-              <TextInput
-                style={styles.input}
-                value={formData.recurrenceEndDate}
-                onChangeText={(text) => setFormData({ ...formData, recurrenceEndDate: text })}
-                placeholder="2025-12-31"
-              />
+              <Text style={styles.label}>Recurrence End Date (Optional)</Text>
+              <TouchableOpacity
+                style={styles.pickerButton}
+                onPress={() => {
+                  if (formData.recurrenceEndDate) {
+                    const [year, month, day] = formData.recurrenceEndDate.split('-').map(Number);
+                    setTempDate({ year, month, day });
+                  } else {
+                    // Default to 3 months from now
+                    const futureDate = new Date();
+                    futureDate.setMonth(futureDate.getMonth() + 3);
+                    setTempDate({ 
+                      year: futureDate.getFullYear(), 
+                      month: futureDate.getMonth() + 1, 
+                      day: futureDate.getDate() 
+                    });
+                  }
+                  setShowRecurrenceEndDatePicker(true);
+                }}
+              >
+                <Text style={styles.pickerButtonText}>
+                  {formData.recurrenceEndDate ? formatDateForDisplay(formData.recurrenceEndDate) : 'No end date (auto 5 events)'}
+                </Text>
+                <Text style={styles.pickerArrow}>📅</Text>
+              </TouchableOpacity>
               <Text style={styles.sublabel}>
-                Series will create up to 5 future events until this date
+                Leave empty to auto-create up to 5 future events
               </Text>
             </>
           )}
@@ -746,6 +849,307 @@ export default function CreateEventScreen() {
                 <Text style={styles.modalConfirmButtonText}>
                   Done ({formData.recurrenceDaysOfWeek.length} selected)
                 </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Start Date Picker Modal */}
+      <Modal
+        visible={showStartDatePicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowStartDatePicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.datePickerContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Start Date</Text>
+              <TouchableOpacity onPress={() => setShowStartDatePicker(false)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.datePickerRow}>
+              <View style={styles.datePickerColumn}>
+                <Text style={styles.datePickerLabel}>Year</Text>
+                <ScrollView style={styles.datePickerScroll}>
+                  {generateYears().map((year) => (
+                    <TouchableOpacity
+                      key={year}
+                      style={[styles.datePickerItem, tempDate.year === year && styles.datePickerItemSelected]}
+                      onPress={() => setTempDate({ ...tempDate, year })}
+                    >
+                      <Text style={[styles.datePickerItemText, tempDate.year === year && styles.datePickerItemTextSelected]}>
+                        {year}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+              <View style={styles.datePickerColumn}>
+                <Text style={styles.datePickerLabel}>Month</Text>
+                <ScrollView style={styles.datePickerScroll}>
+                  {MONTHS.map((month) => (
+                    <TouchableOpacity
+                      key={month.value}
+                      style={[styles.datePickerItem, tempDate.month === month.value && styles.datePickerItemSelected]}
+                      onPress={() => setTempDate({ ...tempDate, month: month.value, day: Math.min(tempDate.day, generateDays(tempDate.year, month.value).length) })}
+                    >
+                      <Text style={[styles.datePickerItemText, tempDate.month === month.value && styles.datePickerItemTextSelected]}>
+                        {month.label.substring(0, 3)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+              <View style={styles.datePickerColumn}>
+                <Text style={styles.datePickerLabel}>Day</Text>
+                <ScrollView style={styles.datePickerScroll}>
+                  {generateDays(tempDate.year, tempDate.month).map((day) => (
+                    <TouchableOpacity
+                      key={day}
+                      style={[styles.datePickerItem, tempDate.day === day && styles.datePickerItemSelected]}
+                      onPress={() => setTempDate({ ...tempDate, day })}
+                    >
+                      <Text style={[styles.datePickerItemText, tempDate.day === day && styles.datePickerItemTextSelected]}>
+                        {day}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            </View>
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={styles.modalConfirmButton}
+                onPress={() => {
+                  const dateStr = `${tempDate.year}-${String(tempDate.month).padStart(2, '0')}-${String(tempDate.day).padStart(2, '0')}`;
+                  setFormData({ ...formData, startDate: dateStr, endDate: dateStr });
+                  setShowStartDatePicker(false);
+                }}
+              >
+                <Text style={styles.modalConfirmButtonText}>Confirm</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Start Time Picker Modal */}
+      <Modal
+        visible={showStartTimePicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowStartTimePicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.datePickerContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Start Time</Text>
+              <TouchableOpacity onPress={() => setShowStartTimePicker(false)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.timePickerRow}>
+              <View style={styles.timePickerColumn}>
+                <Text style={styles.datePickerLabel}>Hour</Text>
+                <ScrollView style={styles.datePickerScroll}>
+                  {HOURS.map((hour) => (
+                    <TouchableOpacity
+                      key={hour}
+                      style={[styles.datePickerItem, tempTime.hour === hour && styles.datePickerItemSelected]}
+                      onPress={() => setTempTime({ ...tempTime, hour })}
+                    >
+                      <Text style={[styles.datePickerItemText, tempTime.hour === hour && styles.datePickerItemTextSelected]}>
+                        {hour}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+              <View style={styles.timePickerColumn}>
+                <Text style={styles.datePickerLabel}>Minute</Text>
+                <ScrollView style={styles.datePickerScroll}>
+                  {MINUTES.map((minute) => (
+                    <TouchableOpacity
+                      key={minute}
+                      style={[styles.datePickerItem, tempTime.minute === minute && styles.datePickerItemSelected]}
+                      onPress={() => setTempTime({ ...tempTime, minute })}
+                    >
+                      <Text style={[styles.datePickerItemText, tempTime.minute === minute && styles.datePickerItemTextSelected]}>
+                        {minute}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            </View>
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={styles.modalConfirmButton}
+                onPress={() => {
+                  const timeStr = `${tempTime.hour}:${tempTime.minute}`;
+                  setFormData({ ...formData, startTime: timeStr });
+                  setShowStartTimePicker(false);
+                }}
+              >
+                <Text style={styles.modalConfirmButtonText}>Confirm</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* End Time Picker Modal */}
+      <Modal
+        visible={showEndTimePicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowEndTimePicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.datePickerContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select End Time</Text>
+              <TouchableOpacity onPress={() => setShowEndTimePicker(false)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.timePickerRow}>
+              <View style={styles.timePickerColumn}>
+                <Text style={styles.datePickerLabel}>Hour</Text>
+                <ScrollView style={styles.datePickerScroll}>
+                  {HOURS.map((hour) => (
+                    <TouchableOpacity
+                      key={hour}
+                      style={[styles.datePickerItem, tempTime.hour === hour && styles.datePickerItemSelected]}
+                      onPress={() => setTempTime({ ...tempTime, hour })}
+                    >
+                      <Text style={[styles.datePickerItemText, tempTime.hour === hour && styles.datePickerItemTextSelected]}>
+                        {hour}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+              <View style={styles.timePickerColumn}>
+                <Text style={styles.datePickerLabel}>Minute</Text>
+                <ScrollView style={styles.datePickerScroll}>
+                  {MINUTES.map((minute) => (
+                    <TouchableOpacity
+                      key={minute}
+                      style={[styles.datePickerItem, tempTime.minute === minute && styles.datePickerItemSelected]}
+                      onPress={() => setTempTime({ ...tempTime, minute })}
+                    >
+                      <Text style={[styles.datePickerItemText, tempTime.minute === minute && styles.datePickerItemTextSelected]}>
+                        {minute}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            </View>
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={styles.modalConfirmButton}
+                onPress={() => {
+                  const timeStr = `${tempTime.hour}:${tempTime.minute}`;
+                  setFormData({ ...formData, endTime: timeStr });
+                  setShowEndTimePicker(false);
+                }}
+              >
+                <Text style={styles.modalConfirmButtonText}>Confirm</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Recurrence End Date Picker Modal */}
+      <Modal
+        visible={showRecurrenceEndDatePicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowRecurrenceEndDatePicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.datePickerContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Recurrence End Date</Text>
+              <TouchableOpacity onPress={() => setShowRecurrenceEndDatePicker(false)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.datePickerRow}>
+              <View style={styles.datePickerColumn}>
+                <Text style={styles.datePickerLabel}>Year</Text>
+                <ScrollView style={styles.datePickerScroll}>
+                  {generateYears().map((year) => (
+                    <TouchableOpacity
+                      key={year}
+                      style={[styles.datePickerItem, tempDate.year === year && styles.datePickerItemSelected]}
+                      onPress={() => setTempDate({ ...tempDate, year })}
+                    >
+                      <Text style={[styles.datePickerItemText, tempDate.year === year && styles.datePickerItemTextSelected]}>
+                        {year}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+              <View style={styles.datePickerColumn}>
+                <Text style={styles.datePickerLabel}>Month</Text>
+                <ScrollView style={styles.datePickerScroll}>
+                  {MONTHS.map((month) => (
+                    <TouchableOpacity
+                      key={month.value}
+                      style={[styles.datePickerItem, tempDate.month === month.value && styles.datePickerItemSelected]}
+                      onPress={() => setTempDate({ ...tempDate, month: month.value, day: Math.min(tempDate.day, generateDays(tempDate.year, month.value).length) })}
+                    >
+                      <Text style={[styles.datePickerItemText, tempDate.month === month.value && styles.datePickerItemTextSelected]}>
+                        {month.label.substring(0, 3)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+              <View style={styles.datePickerColumn}>
+                <Text style={styles.datePickerLabel}>Day</Text>
+                <ScrollView style={styles.datePickerScroll}>
+                  {generateDays(tempDate.year, tempDate.month).map((day) => (
+                    <TouchableOpacity
+                      key={day}
+                      style={[styles.datePickerItem, tempDate.day === day && styles.datePickerItemSelected]}
+                      onPress={() => setTempDate({ ...tempDate, day })}
+                    >
+                      <Text style={[styles.datePickerItemText, tempDate.day === day && styles.datePickerItemTextSelected]}>
+                        {day}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            </View>
+            <View style={styles.datePickerButtons}>
+              <TouchableOpacity
+                style={styles.clearDateButton}
+                onPress={() => {
+                  setFormData({ ...formData, recurrenceEndDate: '' });
+                  setShowRecurrenceEndDatePicker(false);
+                }}
+              >
+                <Text style={styles.clearDateButtonText}>Clear (No End Date)</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalConfirmButton}
+                onPress={() => {
+                  const dateStr = `${tempDate.year}-${String(tempDate.month).padStart(2, '0')}-${String(tempDate.day).padStart(2, '0')}`;
+                  setFormData({ ...formData, recurrenceEndDate: dateStr });
+                  setShowRecurrenceEndDatePicker(false);
+                }}
+              >
+                <Text style={styles.modalConfirmButtonText}>Confirm</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1118,6 +1522,83 @@ const styles = StyleSheet.create({
   modalConfirmButtonText: {
     color: '#ffffff',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  // Date/Time Picker Styles
+  datePickerContent: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '60%',
+  },
+  datePickerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  datePickerColumn: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  datePickerLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6b7280',
+    marginBottom: 8,
+  },
+  datePickerScroll: {
+    height: 200,
+  },
+  datePickerItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginVertical: 2,
+    minWidth: 60,
+    alignItems: 'center',
+  },
+  datePickerItemSelected: {
+    backgroundColor: '#3b82f6',
+  },
+  datePickerItemText: {
+    fontSize: 16,
+    color: '#1e293b',
+  },
+  datePickerItemTextSelected: {
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+  timePickerRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 32,
+  },
+  timePickerColumn: {
+    alignItems: 'center',
+  },
+  datePickerButtons: {
+    flexDirection: 'row',
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+    backgroundColor: '#ffffff',
+    gap: 12,
+  },
+  clearDateButton: {
+    flex: 1,
+    backgroundColor: '#f3f4f6',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+  },
+  clearDateButtonText: {
+    color: '#374151',
+    fontSize: 14,
     fontWeight: '600',
   },
 });
