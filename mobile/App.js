@@ -14,6 +14,7 @@ import ProfileScreen from './screens/ProfileScreen';
 import SearchScreen from './screens/SearchScreen';
 import CreateTeamScreen from './screens/CreateTeamScreen';
 import CreateEventScreen from './screens/CreateEventScreen';
+import EditEventScreen from './screens/EditEventScreen';
 import EventDetailsScreen from './screens/EventDetailsScreen';
 import PaymentScreen from './screens/PaymentScreen';
 import { usePushNotifications } from './hooks/usePushNotifications';
@@ -144,6 +145,7 @@ function AppContent() {
         <Stack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
         <Stack.Screen name="CreateTeam" component={CreateTeamScreen} options={{ headerShown: false }} />
         <Stack.Screen name="CreateEvent" component={CreateEventScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="EditEvent" component={EditEventScreen} options={{ headerShown: false }} />
         <Stack.Screen name="EventDetails" component={EventDetailsScreen} options={{ title: 'Event Details' }} />
         <Stack.Screen name="Payment" component={PaymentScreen} options={{ title: 'Payment' }} />
       </Stack.Navigator>

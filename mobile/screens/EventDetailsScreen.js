@@ -8,6 +8,7 @@ import {
   Alert,
   SafeAreaView,
   RefreshControl,
+  Modal,
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -22,6 +23,9 @@ export default function EventDetailsScreen() {
   const [attendance, setAttendance] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [canManage, setCanManage] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchEventDetails = async () => {
     try {
@@ -33,6 +37,14 @@ export default function EventDetailsScreen() {
       if (eventResponse.ok) {
         const eventData = await eventResponse.json();
         setEvent(eventData);
+        
+        // Check if user can manage this event
+        const isEventCreator = eventData.createdById === user?.id;
+        const isTeamOwner = eventData.primaryTeam?.ownerId === user?.id;
+        const userMembership = eventData.primaryTeam?.members?.find(m => m.userId === user?.id);
+        const isAdminOrCaptain = userMembership && ['admin', 'captain'].includes(userMembership.role);
+        
+        setCanManage(isEventCreator || isTeamOwner || isAdminOrCaptain);
       }
 
       if (attendanceResponse.ok) {
@@ -55,6 +67,63 @@ export default function EventDetailsScreen() {
   const onRefresh = () => {
     setRefreshing(true);
     fetchEventDetails();
+  };
+
+  const handleEdit = () => {
+    navigation.navigate('EditEvent', { event });
+  };
+
+  const handleDelete = async (deleteSeriesAfter = false) => {
+    setDeleting(true);
+    try {
+      // Only consider it a recurring event if it actually has a series ID
+      const isPartOfSeries = !!event.recurringSeriesId;
+      
+      let endpoint = `/api/events/${id}`;
+      // Only use the recurring endpoint if deleting the entire series
+      if (isPartOfSeries && deleteSeriesAfter) {
+        endpoint = `/api/events/${id}/recurring?deleteSeriesAfter=true`;
+      }
+      
+      const response = await apiRequest(endpoint, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        setShowDeleteModal(false);
+        Alert.alert(
+          'Success',
+          deleteSeriesAfter ? 'Event and remaining recurrences deleted' : 'Event deleted successfully',
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+      } else {
+        const error = await response.json();
+        Alert.alert('Error', error.message || 'Failed to delete event');
+      }
+    } catch (error) {
+      console.error('Failed to delete event:', error);
+      Alert.alert('Error', 'Failed to delete event');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const confirmDelete = () => {
+    // Only show the modal for events that are actually part of a recurring series
+    const isPartOfSeries = !!event.recurringSeriesId;
+    
+    if (isPartOfSeries) {
+      setShowDeleteModal(true);
+    } else {
+      Alert.alert(
+        'Delete Event',
+        'Are you sure you want to delete this event?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete', style: 'destructive', onPress: () => handleDelete(false) }
+        ]
+      );
+    }
   };
 
   const handleAttendanceUpdate = async (status) => {
@@ -110,10 +179,27 @@ export default function EventDetailsScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <View style={styles.header}>
-          <Text style={styles.eventTitle}>{event.name}</Text>
+          <View style={styles.headerTop}>
+            <Text style={styles.eventTitle}>{event.name}</Text>
+            {canManage && (
+              <View style={styles.actionButtons}>
+                <TouchableOpacity style={styles.editButton} onPress={handleEdit}>
+                  <Text style={styles.editButtonText}>✏️ Edit</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.deleteButton} onPress={confirmDelete}>
+                  <Text style={styles.deleteButtonText}>🗑️</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
           <View style={styles.sportBadge}>
             <Text style={styles.sportText}>{event.sport}</Text>
           </View>
+          {!!event.recurringSeriesId && (
+            <View style={styles.recurringBadge}>
+              <Text style={styles.recurringText}>🔄 Recurring Event</Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.detailsCard}>
@@ -237,6 +323,51 @@ export default function EventDetailsScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Delete Modal for Recurring Events */}
+      <Modal
+        visible={showDeleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDeleteModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.deleteModalContent}>
+            <Text style={styles.deleteModalTitle}>Delete Recurring Event</Text>
+            <Text style={styles.deleteModalText}>
+              This event is part of a recurring series. What would you like to delete?
+            </Text>
+            
+            <TouchableOpacity
+              style={[styles.deleteModalButton, styles.deleteSingleButton]}
+              onPress={() => handleDelete(false)}
+              disabled={deleting}
+            >
+              <Text style={styles.deleteModalButtonText}>
+                {deleting ? 'Deleting...' : 'Delete This Event Only'}
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.deleteModalButton, styles.deleteSeriesButton]}
+              onPress={() => handleDelete(true)}
+              disabled={deleting}
+            >
+              <Text style={styles.deleteModalButtonText}>
+                {deleting ? 'Deleting...' : 'Delete All Remaining Events'}
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.deleteModalButton, styles.cancelButton]}
+              onPress={() => setShowDeleteModal(false)}
+              disabled={deleting}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -457,6 +588,103 @@ const styles = StyleSheet.create({
   },
   paymentButtonText: {
     color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  editButton: {
+    backgroundColor: '#3b82f6',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  editButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  deleteButton: {
+    backgroundColor: '#fef2f2',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  deleteButtonText: {
+    fontSize: 16,
+  },
+  recurringBadge: {
+    backgroundColor: '#fef3c7',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    alignSelf: 'flex-start',
+    marginTop: 8,
+  },
+  recurringText: {
+    color: '#b45309',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  deleteModalContent: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 320,
+  },
+  deleteModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1e293b',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  deleteModalText: {
+    fontSize: 16,
+    color: '#64748b',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 24,
+  },
+  deleteModalButton: {
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  deleteSingleButton: {
+    backgroundColor: '#f59e0b',
+  },
+  deleteSeriesButton: {
+    backgroundColor: '#ef4444',
+  },
+  deleteModalButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  cancelButton: {
+    backgroundColor: '#f1f5f9',
+  },
+  cancelButtonText: {
+    color: '#64748b',
     fontSize: 16,
     fontWeight: '600',
   },

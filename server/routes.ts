@@ -196,6 +196,153 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Mobile: Update event
+  app.put('/api/events/:id', verifyAuth, async (req: any, res) => {
+    try {
+      const userId = req.userId;
+      const eventId = req.params.id;
+      
+      // Get the event to check authorization
+      const existingEvent = await storage.getEvent(eventId);
+      if (!existingEvent) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+
+      // Check if user is event creator
+      const isEventCreator = existingEvent.createdById === userId;
+      
+      // Check if user has admin access to the primary team
+      const userTeamMembership = await storage.getUserTeam(userId, existingEvent.primaryTeamId);
+      const team = await storage.getTeam(existingEvent.primaryTeamId);
+      
+      // Allow editing if user is event creator, team owner, or has admin/captain role
+      const canEdit = isEventCreator || 
+                     (team && team.ownerId === userId) || 
+                     (userTeamMembership && ["admin", "captain"].includes(userTeamMembership.role));
+      
+      if (!canEdit) {
+        return res.status(403).json({ 
+          message: "Not authorized to edit this event. Only event creators, team owners, admins, and captains can edit events." 
+        });
+      }
+      
+      const venueOrganiserId = req.body.venueOrganiserId || (req.body.paymentRequired ? userId : null);
+
+      // Parse and validate the event data
+      const eventData = insertEventSchema.parse({
+        ...req.body,
+        venueOrganiserId,
+        createdById: existingEvent.createdById, // Preserve original creator
+      });
+      
+      const event = await storage.updateEvent(eventId, eventData);
+      
+      // Send notifications to team members about event changes
+      try {
+        const teamMembers = await storage.getTeamMembers(existingEvent.primaryTeamId);
+        const eventUpdater = await storage.getUserById(userId);
+        
+        for (const member of teamMembers) {
+          if (member.userId !== userId) {
+            await storage.createNotificationIfAllowed({
+              userId: member.userId,
+              title: "Event Updated",
+              message: `${eventUpdater?.firstName || 'Team member'} updated the event: "${event.name}"`,
+              type: "event_changed",
+              relatedId: event.id
+            });
+          }
+        }
+      } catch (notificationError) {
+        console.error("Error sending event update notifications:", notificationError);
+      }
+      
+      res.json(event);
+    } catch (error: any) {
+      console.error("Error updating event:", error);
+      
+      if (error.name === 'ZodError') {
+        const firstError = error.errors[0];
+        return res.status(400).json({ 
+          message: firstError.message,
+          field: firstError.path.join('.'),
+          errors: error.errors
+        });
+      }
+      
+      res.status(400).json({ message: "Failed to update event" });
+    }
+  });
+
+  // Mobile: Delete single event
+  app.delete('/api/events/:id', verifyAuth, async (req: any, res) => {
+    try {
+      const userId = req.userId;
+      const eventId = req.params.id;
+      
+      // Get the event to check authorization
+      const event = await storage.getEvent(eventId);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+
+      // Check if user is event creator
+      const isEventCreator = event.createdById === userId;
+      
+      // Check if user has admin access to the primary team
+      const userTeamMembership = await storage.getUserTeam(userId, event.primaryTeamId);
+      const team = await storage.getTeam(event.primaryTeamId);
+      
+      // Allow deleting if user is event creator, team owner, or has admin/captain role
+      const canDelete = isEventCreator || 
+                       (team && team.ownerId === userId) || 
+                       (userTeamMembership && ["admin", "captain"].includes(userTeamMembership.role));
+      
+      if (!canDelete) {
+        return res.status(403).json({ 
+          message: "Not authorized to delete this event. Only event creators, team owners, admins, and captains can delete events." 
+        });
+      }
+      
+      await storage.deleteEvent(eventId);
+      res.json({ message: "Event deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting event:", error);
+      res.status(500).json({ message: "Failed to delete event" });
+    }
+  });
+
+  // Mobile: Delete recurring event (single or series)
+  app.delete('/api/events/:id/recurring', verifyAuth, async (req: any, res) => {
+    try {
+      const eventId = req.params.id;
+      const { deleteSeriesAfter } = req.query;
+      const userId = req.userId;
+      
+      // Check authorization
+      const event = await storage.getEvent(eventId);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+      
+      const isEventCreator = event.createdById === userId;
+      
+      if (!isEventCreator) {
+        const userTeam = await storage.getUserTeam(userId, event.primaryTeamId);
+        const team = await storage.getTeam(event.primaryTeamId);
+        if (!userTeam || (!["admin", "captain"].includes(userTeam.role) && team?.ownerId !== userId)) {
+          return res.status(403).json({ message: "Not authorized to delete recurring events" });
+        }
+      }
+      
+      await storage.deleteRecurringEvent(eventId, deleteSeriesAfter === 'true');
+      res.json({ message: "Event(s) deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting recurring event:", error);
+      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to delete recurring event" });
+    }
+  });
+
   app.get('/api/events/:id/attendance', verifyAuth, async (req: any, res) => {
     try {
       const attendance = await storage.getEventAttendance(req.params.id);
