@@ -345,19 +345,25 @@ export default function CreateEventScreen() {
         body: JSON.stringify(eventData),
       });
 
-      console.log('[CreateEvent] Response received:', response.status);
+      console.log('[CreateEvent] Response received:', response.status, 'ok:', response.ok);
 
       if (response.ok) {
+        console.log('[CreateEvent] SUCCESS - showing alert');
+        setLoading(false); // Stop loading before showing alert
         Alert.alert('Success', 'Event created successfully!', [
-          { text: 'OK', onPress: () => navigation.goBack() }
+          { text: 'OK', onPress: () => {
+            console.log('[CreateEvent] Alert OK pressed, navigating back');
+            navigation.goBack();
+          }}
         ]);
+        return; // Exit early since we handled everything
       } else {
         const error = await response.json();
         console.error('[CreateEvent] Server error:', error);
         Alert.alert('Error', error.message || 'Failed to create event');
       }
     } catch (error) {
-      console.error('[CreateEvent] Error:', error);
+      console.error('[CreateEvent] Error:', error.message, error);
       Alert.alert('Error', error.message || 'Failed to create event. Check your internet connection.');
     } finally {
       setLoading(false);
