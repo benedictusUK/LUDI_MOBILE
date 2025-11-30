@@ -1,51 +1,90 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Alert,
-  SafeAreaView
+  SafeAreaView,
+  Platform
 } from 'react-native';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
-import { useAuthRequest } from 'expo-auth-session';
+import { useAuthRequest, ResponseType } from 'expo-auth-session';
+import * as Google from 'expo-auth-session/providers/google';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 import { useAuth } from '../contexts/AuthContext';
 
 WebBrowser.maybeCompleteAuthSession();
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
 
+// Check if running in Expo Go
+const isExpoGo = Constants.appOwnership === 'expo';
+
 export default function AuthScreen({ onAuthSuccess }) {
   const [isLoading, setIsLoading] = useState(false);
   const { signIn } = useAuth();
 
-  // Google OAuth configuration
-  const discovery = {
-    authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
-    tokenEndpoint: 'https://oauth2.googleapis.com/token',
-    revocationEndpoint: 'https://oauth2.googleapis.com/revoke',
+  // Warm up browser for faster authentication
+  useEffect(() => {
+    WebBrowser.warmUpAsync();
+    return () => {
+      WebBrowser.coolDownAsync();
+    };
+  }, []);
+
+  // Use the Expo Google provider which handles platform differences
+  // Note: On Android in Expo Go, this uses the web client ID through Expo's auth proxy
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    expoClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+    scopes: ['openid', 'profile', 'email'],
+  });
+
+  useEffect(() => {
+    handleGoogleResponse();
+  }, [response]);
+
+  const handleGoogleResponse = async () => {
+    if (response?.type === 'success') {
+      // The response contains authentication with accessToken on success
+      const accessToken = response.authentication?.accessToken;
+      
+      if (accessToken) {
+        await handleGoogleAuthSuccess(accessToken);
+      } else {
+        console.error('Google auth: No access token in response', response);
+        Alert.alert('Authentication Error', 'Failed to get access token from Google');
+      }
+    } else if (response?.type === 'error') {
+      console.error('Google auth error:', response.error);
+      Alert.alert('Authentication Error', response.error?.message || 'Google sign-in failed');
+    } else if (response?.type === 'dismiss') {
+      console.log('Google auth dismissed by user');
+    }
   };
 
-  const [request, response, promptAsync] = useAuthRequest(
-    {
-      clientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
-      scopes: ['openid', 'profile', 'email'],
-      redirectUri: AuthSession.makeRedirectUri({
-        scheme: 'ludi',
-        path: 'auth/google/callback'
-      }),
-    },
-    discovery
-  );
-
-  React.useEffect(() => {
-    if (response?.type === 'success') {
-      handleGoogleAuthSuccess(response.authentication.accessToken);
+  const handleGoogleSignIn = async () => {
+    if (!request) {
+      Alert.alert(
+        'Google Sign-In Not Available',
+        'Google sign-in is not configured. Please try another sign-in method.'
+      );
+      return;
     }
-  }, [response]);
+    
+    try {
+      await promptAsync();
+    } catch (error) {
+      console.error('Google prompt error:', error);
+      Alert.alert('Sign-In Error', 'Unable to open Google sign-in. Please try again.');
+    }
+  };
 
   const handleGoogleAuthSuccess = async (accessToken) => {
     try {
@@ -55,10 +94,15 @@ export default function AuthScreen({ onAuthSuccess }) {
       const userInfoResponse = await fetch(
         `https://www.googleapis.com/oauth2/v2/userinfo?access_token=${accessToken}`
       );
+      
+      if (!userInfoResponse.ok) {
+        throw new Error('Failed to fetch user info from Google');
+      }
+      
       const userInfo = await userInfoResponse.json();
 
       // Send to our backend to create/update user
-      const response = await fetch(`${API_BASE_URL}/api/auth/mobile/google`, {
+      const backendResponse = await fetch(`${API_BASE_URL}/api/auth/mobile/google`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -69,9 +113,9 @@ export default function AuthScreen({ onAuthSuccess }) {
         }),
       });
 
-      const data = await response.json();
+      const data = await backendResponse.json();
       
-      if (response.ok) {
+      if (backendResponse.ok) {
         // Use signIn from AuthContext to properly update auth state
         await signIn(data.user, data.token);
       } else {
@@ -201,8 +245,8 @@ export default function AuthScreen({ onAuthSuccess }) {
           {/* Google Sign In */}
           <TouchableOpacity
             style={[styles.authButton, styles.googleButton]}
-            onPress={() => promptAsync()}
-            disabled={!request || isLoading}
+            onPress={handleGoogleSignIn}
+            disabled={isLoading}
           >
             <Text style={[styles.authButtonText, styles.googleButtonText]}>Continue with Google</Text>
           </TouchableOpacity>

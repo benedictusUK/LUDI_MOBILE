@@ -10,7 +10,8 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.ludi.mobile"
+      "bundleIdentifier": "com.ludi.mobile",
+      "usesAppleSignIn": true
     },
     "android": {
       "package": "com.ludi.mobile",
@@ -18,7 +19,14 @@
         "backgroundColor": "#3b82f6"
       }
     },
-    "plugins": [],
-    "scheme": "ludi-mobile"
+    "plugins": [
+      "expo-apple-authentication"
+    ],
+    "scheme": "ludi-mobile",
+    "extra": {
+      "eas": {
+        "projectId": "ludi-mobile"
+      }
+    }
   }
 }
