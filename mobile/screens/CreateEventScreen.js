@@ -348,25 +348,42 @@ export default function CreateEventScreen() {
       console.log('[CreateEvent] Response received:', response.status, 'ok:', response.ok);
 
       if (response.ok) {
-        console.log('[CreateEvent] SUCCESS - showing alert');
-        setLoading(false); // Stop loading before showing alert
-        Alert.alert('Success', 'Event created successfully!', [
-          { text: 'OK', onPress: () => {
-            console.log('[CreateEvent] Alert OK pressed, navigating back');
-            navigation.goBack();
-          }}
-        ]);
-        return; // Exit early since we handled everything
+        console.log('[CreateEvent] SUCCESS - event created');
+        setLoading(false);
+        
+        // Use setTimeout to ensure the UI has settled before showing alert
+        setTimeout(() => {
+          console.log('[CreateEvent] Showing success alert');
+          Alert.alert(
+            'Success',
+            'Event created successfully!',
+            [
+              {
+                text: 'OK',
+                onPress: () => {
+                  console.log('[CreateEvent] Navigating back');
+                  navigation.goBack();
+                }
+              }
+            ],
+            { cancelable: false }
+          );
+        }, 100);
+        return;
       } else {
         const error = await response.json();
         console.error('[CreateEvent] Server error:', error);
-        Alert.alert('Error', error.message || 'Failed to create event');
+        setLoading(false);
+        setTimeout(() => {
+          Alert.alert('Error', error.message || 'Failed to create event');
+        }, 100);
       }
     } catch (error) {
       console.error('[CreateEvent] Error:', error.message, error);
-      Alert.alert('Error', error.message || 'Failed to create event. Check your internet connection.');
-    } finally {
       setLoading(false);
+      setTimeout(() => {
+        Alert.alert('Error', error.message || 'Failed to create event. Check your internet connection.');
+      }, 100);
     }
   };
 
