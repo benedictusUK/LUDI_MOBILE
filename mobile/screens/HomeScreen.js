@@ -24,27 +24,37 @@ export default function HomeScreen() {
 
   const fetchDashboardData = async () => {
     try {
-      // Fetch recent events and teams
-      const [eventsResponse, teamsResponse] = await Promise.all([
+      // Fetch recent events, teams, and notifications
+      const [eventsResponse, teamsResponse, notificationsResponse] = await Promise.all([
         apiRequest('/api/events?limit=3'),
-        apiRequest('/api/teams?limit=3')
+        apiRequest('/api/teams'),
+        apiRequest('/api/notifications')
       ]);
 
       if (eventsResponse.ok && teamsResponse.ok) {
         const eventsData = await eventsResponse.json();
         const teamsData = await teamsResponse.json();
         
-        // Events API returns {events: [...]} while teams returns array directly
+        // Events API returns {events: [...], totalCount: n} while teams returns array directly
         const eventsList = eventsData.events || [];
+        const totalEventsCount = eventsData.totalCount || eventsList.length;
         const teamsList = Array.isArray(teamsData) ? teamsData : [];
+        
+        // Get unread notifications count
+        let unreadNotificationsCount = 0;
+        if (notificationsResponse.ok) {
+          const notificationsData = await notificationsResponse.json();
+          const notificationsList = Array.isArray(notificationsData) ? notificationsData : [];
+          unreadNotificationsCount = notificationsList.filter(n => !n.isRead).length;
+        }
         
         setDashboardData({
           upcomingEvents: eventsList.slice(0, 3),
           recentTeams: teamsList.slice(0, 3),
           stats: {
-            eventsCount: eventsList.length,
+            eventsCount: totalEventsCount,
             teamsCount: teamsList.length,
-            notificationsCount: 0 // TODO: implement notifications count
+            notificationsCount: unreadNotificationsCount
           }
         });
       }
