@@ -185,10 +185,11 @@ export default function EventDetailsScreen() {
             {canManage && (
               <View style={styles.actionButtons}>
                 <TouchableOpacity style={styles.editButton} onPress={handleEdit}>
-                  <Text style={styles.editButtonText}>✏️ Edit</Text>
+                  <Ionicons name="create-outline" size={18} color="#10b981" />
+                  <Text style={styles.editButtonText}>Edit</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.deleteButton} onPress={confirmDelete}>
-                  <Text style={styles.deleteButtonText}>🗑️</Text>
+                  <Ionicons name="trash-outline" size={18} color="#ef4444" />
                 </TouchableOpacity>
               </View>
             )}
@@ -205,21 +206,21 @@ export default function EventDetailsScreen() {
         </View>
 
         <View style={styles.detailsCard}>
-          <DetailRow icon="📅" label="Date" value={event.startDate ? new Date(event.startDate).toLocaleDateString() : 'Date TBD'} />
-          <DetailRow icon="🕐" label="Time" value={event.startTime || 'Time TBD'} />
+          <DetailRow icon="calendar" label="Date" value={event.startDate ? new Date(event.startDate).toLocaleDateString() : 'Date TBD'} />
+          <DetailRow icon="time" label="Time" value={event.startTime || 'Time TBD'} />
           {event.location && (
-            <DetailRow icon="📍" label="Location" value={event.location} />
+            <DetailRow icon="location" label="Location" value={event.location} />
           )}
-          <DetailRow icon="👥" label="Team" value={event.primaryTeam?.name || 'Unknown'} />
+          <DetailRow icon="people" label="Team" value={event.primaryTeam?.name || 'Unknown'} />
           {event.maxParticipants && (
             <DetailRow 
-              icon="🎯" 
+              icon="target" 
               label="Capacity" 
               value={`${attendeeCount}/${event.maxParticipants}`} 
             />
           )}
           {event.cost && parseFloat(event.cost) > 0 && (
-            <DetailRow icon="💰" label="Cost" value={`£${event.cost}`} />
+            <DetailRow icon="cash" label="Cost" value={`£${event.cost}`} />
           )}
         </View>
 
@@ -241,11 +242,16 @@ export default function EventDetailsScreen() {
               ]}
               onPress={() => handleAttendanceUpdate('attending')}
             >
+              <Ionicons 
+                name="checkmark-circle" 
+                size={18} 
+                color={userAttendance?.status === 'attending' ? "#ffffff" : "#10b981"} 
+              />
               <Text style={[
                 styles.attendanceButtonText,
                 userAttendance?.status === 'attending' && styles.attendanceButtonTextActive
               ]}>
-                ✓ Can Attend
+                Can Attend
               </Text>
             </TouchableOpacity>
 
@@ -257,11 +263,16 @@ export default function EventDetailsScreen() {
               ]}
               onPress={() => handleAttendanceUpdate('not_attending')}
             >
+              <Ionicons 
+                name="close-circle" 
+                size={18} 
+                color={userAttendance?.status === 'not_attending' ? "#ffffff" : "#ef4444"} 
+              />
               <Text style={[
                 styles.attendanceButtonText,
                 userAttendance?.status === 'not_attending' && styles.attendanceButtonTextActive
               ]}>
-                ✗ Can't Attend
+                Can't Attend
               </Text>
             </TouchableOpacity>
 
@@ -375,9 +386,18 @@ export default function EventDetailsScreen() {
 }
 
 function DetailRow({ icon, label, value }) {
+  const iconMap = {
+    'calendar': 'calendar-outline',
+    'time': 'time-outline',
+    'location': 'location-outline',
+    'people': 'people-outline',
+    'target': 'target-outline',
+    'cash': 'cash-outline',
+  };
+  
   return (
     <View style={styles.detailRow}>
-      <Text style={styles.detailIcon}>{icon}</Text>
+      <Ionicons name={iconMap[icon] || icon} size={18} color="#64748b" style={styles.detailIcon} />
       <Text style={styles.detailLabel}>{label}</Text>
       <Text style={styles.detailValue}>{value}</Text>
     </View>
@@ -494,7 +514,6 @@ const styles = StyleSheet.create({
     borderBottomColor: '#f1f5f9',
   },
   detailIcon: {
-    fontSize: 16,
     marginRight: 12,
     width: 24,
   },
@@ -607,6 +626,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   editButtonText: {
     color: '#ffffff',

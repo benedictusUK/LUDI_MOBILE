@@ -11,6 +11,7 @@ import {
   Modal,
   Platform,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigation } from '@react-navigation/native';
 import { calculateTotalAmount } from '../lib/paymentUtils';
@@ -527,7 +528,7 @@ export default function CreateEventScreen() {
             }}
           >
             <Text style={styles.pickerButtonText}>{formatDateForDisplay(formData.startDate)}</Text>
-            <Text style={styles.pickerArrow}>📅</Text>
+            <Ionicons name="calendar-outline" size={20} color="#64748b" />
           </TouchableOpacity>
 
           <Text style={styles.label}>Start Time *</Text>
@@ -540,7 +541,7 @@ export default function CreateEventScreen() {
             }}
           >
             <Text style={styles.pickerButtonText}>{formatTimeForDisplay(formData.startTime)}</Text>
-            <Text style={styles.pickerArrow}>🕐</Text>
+            <Ionicons name="time-outline" size={20} color="#64748b" />
           </TouchableOpacity>
 
           <Text style={styles.label}>End Time</Text>
@@ -553,7 +554,7 @@ export default function CreateEventScreen() {
             }}
           >
             <Text style={styles.pickerButtonText}>{formatTimeForDisplay(formData.endTime)}</Text>
-            <Text style={styles.pickerArrow}>🕐</Text>
+            <Ionicons name="time-outline" size={20} color="#64748b" />
           </TouchableOpacity>
 
           <Text style={styles.label}>Location *</Text>

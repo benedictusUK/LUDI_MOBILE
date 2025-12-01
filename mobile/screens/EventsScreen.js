@@ -147,11 +147,17 @@ export default function EventsScreen() {
               <Text style={[styles.eventTime, isPast && styles.pastEventText, isLive && styles.liveEventText]}>{timeStr}</Text>
               
               {item.location && (
-                <Text style={[styles.eventLocation, isPast && styles.pastEventText, isLive && styles.liveEventText]}>📍 {item.location}</Text>
+                <View style={styles.eventDetail}>
+                  <Ionicons name="location" size={14} color={isLive ? "#ffffff" : isPast ? "#94a3b8" : "#64748b"} />
+                  <Text style={[styles.eventLocation, isPast && styles.pastEventText, isLive && styles.liveEventText]}>{item.location}</Text>
+                </View>
               )}
               
               {item.primaryTeam && (
-                <Text style={[styles.eventTeam, isPast && styles.pastEventText, isLive && styles.liveEventText]}>👥 {item.primaryTeam.name}</Text>
+                <View style={styles.eventDetail}>
+                  <Ionicons name="people" size={14} color={isLive ? "#ffffff" : isPast ? "#94a3b8" : "#64748b"} />
+                  <Text style={[styles.eventTeam, isPast && styles.pastEventText, isLive && styles.liveEventText]}>{item.primaryTeam.name}</Text>
+                </View>
               )}
               
               {item.requirements && (
@@ -372,15 +378,19 @@ const styles = StyleSheet.create({
     color: '#64748b',
     marginBottom: 8,
   },
+  eventDetail: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
   eventLocation: {
     fontSize: 14,
     color: '#64748b',
-    marginBottom: 8,
   },
   eventTeam: {
     fontSize: 14,
     color: '#64748b',
-    marginBottom: 8,
   },
   eventDescription: {
     fontSize: 14,

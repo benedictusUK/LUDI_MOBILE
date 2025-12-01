@@ -10,6 +10,7 @@ import {
   SafeAreaView,
   Modal,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
@@ -483,7 +484,7 @@ export default function EditEventScreen() {
           <Text style={styles.label}>Start Date *</Text>
           <TouchableOpacity style={styles.pickerButton} onPress={() => setShowStartDatePicker(true)}>
             <Text style={styles.pickerButtonText}>{formatDateForDisplay(formData.startDate)}</Text>
-            <Text style={styles.pickerArrow}>📅</Text>
+            <Ionicons name="calendar-outline" size={20} color="#64748b" />
           </TouchableOpacity>
         </View>
 
@@ -492,7 +493,7 @@ export default function EditEventScreen() {
           <Text style={styles.label}>Start Time *</Text>
           <TouchableOpacity style={styles.pickerButton} onPress={() => setShowStartTimePicker(true)}>
             <Text style={styles.pickerButtonText}>{formatTimeForDisplay(formData.startTime)}</Text>
-            <Text style={styles.pickerArrow}>🕐</Text>
+            <Ionicons name="time-outline" size={20} color="#64748b" />
           </TouchableOpacity>
         </View>
 
@@ -501,7 +502,7 @@ export default function EditEventScreen() {
           <Text style={styles.label}>End Date</Text>
           <TouchableOpacity style={styles.pickerButton} onPress={() => setShowEndDatePicker(true)}>
             <Text style={styles.pickerButtonText}>{formatDateForDisplay(formData.endDate)}</Text>
-            <Text style={styles.pickerArrow}>📅</Text>
+            <Ionicons name="calendar-outline" size={20} color="#64748b" />
           </TouchableOpacity>
         </View>
 
@@ -510,7 +511,7 @@ export default function EditEventScreen() {
           <Text style={styles.label}>End Time</Text>
           <TouchableOpacity style={styles.pickerButton} onPress={() => setShowEndTimePicker(true)}>
             <Text style={styles.pickerButtonText}>{formatTimeForDisplay(formData.endTime)}</Text>
-            <Text style={styles.pickerArrow}>🕐</Text>
+            <Ionicons name="time-outline" size={20} color="#64748b" />
           </TouchableOpacity>
         </View>
 

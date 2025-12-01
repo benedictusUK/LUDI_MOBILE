@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import HeaderWithNotifications from '../components/HeaderWithNotifications';
 
 const SPORTS = [
@@ -49,9 +50,11 @@ const GENDERS = [
 
 export default function ProfileScreen({ navigation }) {
   const { user, updateUser, apiRequest, signOut } = useAuth();
+  const { themeMode, changeTheme } = useTheme();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showGenderPicker, setShowGenderPicker] = useState(false);
+  const [showThemePicker, setShowThemePicker] = useState(false);
   const [profileData, setProfileData] = useState({
     firstName: user?.firstName || '',
     lastName: user?.lastName || '',
@@ -261,6 +264,32 @@ export default function ProfileScreen({ navigation }) {
           )}
         </View>
 
+        {/* Appearance Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Appearance</Text>
+          <TouchableOpacity
+            style={styles.themeButton}
+            onPress={() => setShowThemePicker(true)}
+          >
+            <View style={styles.themeButtonContent}>
+              <View style={styles.themeButtonLeft}>
+                <Ionicons 
+                  name={themeMode === 'light' ? 'sunny' : themeMode === 'dark' ? 'moon' : 'phone-portrait'} 
+                  size={20} 
+                  color="#64748b" 
+                />
+                <Text style={styles.themeButtonLabel}>Theme</Text>
+              </View>
+              <View style={styles.themeButtonRight}>
+                <Text style={styles.themeButtonValue}>
+                  {themeMode === 'light' ? 'Light' : themeMode === 'dark' ? 'Dark' : 'System'}
+                </Text>
+                <Ionicons name="chevron-forward" size={20} color="#64748b" />
+              </View>
+            </View>
+          </TouchableOpacity>
+        </View>
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Interests</Text>
           {isEditing ? (
@@ -349,6 +378,52 @@ export default function ProfileScreen({ navigation }) {
                       {option.label}
                     </Text>
                     {isSelected && <Text style={styles.modalCheckmark}>✓</Text>}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showThemePicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowThemePicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Theme</Text>
+              <TouchableOpacity onPress={() => setShowThemePicker(false)}>
+                <Ionicons name="close" size={24} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalScroll}>
+              {[
+                { label: 'Light', value: 'light', icon: 'sunny' },
+                { label: 'Dark', value: 'dark', icon: 'moon' },
+                { label: 'System', value: 'system', icon: 'phone-portrait' },
+              ].map((option, index) => {
+                const isSelected = themeMode === option.value;
+                
+                return (
+                  <TouchableOpacity
+                    key={index}
+                    style={[styles.modalOption, isSelected && styles.modalOptionSelected]}
+                    onPress={() => {
+                      changeTheme(option.value);
+                      setShowThemePicker(false);
+                    }}
+                  >
+                    <View style={styles.themeOption}>
+                      <Ionicons name={option.icon} size={20} color={isSelected ? "#3b82f6" : "#64748b"} />
+                      <Text style={[styles.modalOptionText, isSelected && styles.modalOptionTextSelected]}>
+                        {option.label}
+                      </Text>
+                    </View>
+                    {isSelected && <Ionicons name="checkmark" size={20} color="#3b82f6" />}
                   </TouchableOpacity>
                 );
               })}
@@ -662,5 +737,41 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#3b82f6',
     fontWeight: 'bold',
+  },
+  themeButton: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  themeButtonContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+  },
+  themeButtonLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  themeButtonLabel: {
+    fontSize: 16,
+    color: '#1e293b',
+    fontWeight: '500',
+  },
+  themeButtonRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  themeButtonValue: {
+    fontSize: 14,
+    color: '#64748b',
+  },
+  themeOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
 });
