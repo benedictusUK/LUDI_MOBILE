@@ -11,11 +11,18 @@ import {
   Modal,
   TextInput,
   Platform,
+  FlatList,
+  Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigation, useRoute } from '@react-navigation/native';
+
+const SPORTS_OPTIONS = [
+  'Football', 'Basketball', 'Tennis', 'Soccer', 'Rugby', 
+  'Cricket', 'Baseball', 'Volleyball', 'Hockey', 'Golf'
+];
 
 export default function TeamDetailsScreen() {
   const { user, apiRequest } = useAuth();
@@ -28,11 +35,36 @@ export default function TeamDetailsScreen() {
   const [pendingRequests, setPendingRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  
+  // Modal states
   const [showMembersModal, setShowMembersModal] = useState(false);
   const [showPendingModal, setShowPendingModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [showBlockModal, setShowBlockModal] = useState(false);
 
-  const userRole = members.find(m => m.userId === user?.id)?.role;
+  // Edit form states
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editSports, setEditSports] = useState([]);
+  const [editIsPrivate, setEditIsPrivate] = useState(false);
+  const [editRequiresApproval, setEditRequiresApproval] = useState(false);
+
+  // User search states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [blockedUsers, setBlockedUsers] = useState([]);
+
+  // Helper function to get display role
+  const getDisplayRole = (member) => {
+    if (!team) return member.role;
+    if (member.userId === team.ownerId) return 'owner';
+    return member.role;
+  };
+
+  const userMembership = members.find(m => m.userId === user?.id);
+  const userRole = userMembership ? getDisplayRole(userMembership) : null;
   const isOwner = userRole === 'owner';
   const isAdmin = userRole === 'admin' || isOwner;
 
@@ -51,6 +83,12 @@ export default function TeamDetailsScreen() {
       if (teamResponse.ok) {
         const teamData = await teamResponse.json();
         setTeam(teamData);
+        // Initialize edit form
+        setEditName(teamData.name);
+        setEditDescription(teamData.description || '');
+        setEditSports(teamData.sports || []);
+        setEditIsPrivate(teamData.isPrivate || false);
+        setEditRequiresApproval(teamData.requiresApproval || false);
       }
 
       if (membersResponse.ok) {
@@ -71,9 +109,153 @@ export default function TeamDetailsScreen() {
     }
   };
 
+  const fetchBlockedUsers = async () => {
+    try {
+      const response = await apiRequest(`/api/teams/${teamId}/blocked-users`);
+      if (response.ok) {
+        const data = await response.json();
+        setBlockedUsers(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch blocked users:', error);
+    }
+  };
+
   const onRefresh = () => {
     setRefreshing(true);
     fetchTeamDetails();
+  };
+
+  const handleSaveSettings = async () => {
+    try {
+      const response = await apiRequest(`/api/teams/${teamId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editName,
+          description: editDescription,
+          sports: editSports,
+          isPrivate: editIsPrivate,
+          requiresApproval: editRequiresApproval,
+        }),
+      });
+
+      if (response.ok) {
+        Alert.alert('Success', 'Team settings updated');
+        setShowEditModal(false);
+        fetchTeamDetails();
+      } else {
+        const error = await response.json();
+        Alert.alert('Error', error.message || 'Failed to update team settings');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update team settings');
+    }
+  };
+
+  const toggleSport = (sport) => {
+    if (editSports.includes(sport)) {
+      setEditSports(editSports.filter(s => s !== sport));
+    } else {
+      setEditSports([...editSports, sport]);
+    }
+  };
+
+  const handleSearchUsers = async (query) => {
+    setSearchQuery(query);
+    if (query.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+
+    setSearchLoading(true);
+    try {
+      const response = await apiRequest(`/api/users/search?q=${encodeURIComponent(query)}`);
+      if (response.ok) {
+        const data = await response.json();
+        // Filter out users already in the team
+        const memberIds = members.map(m => m.userId);
+        const filteredResults = data.filter(u => !memberIds.includes(u.id));
+        setSearchResults(filteredResults);
+      }
+    } catch (error) {
+      console.error('Failed to search users:', error);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const handleInviteUser = async (userId, username) => {
+    try {
+      const response = await apiRequest(`/api/teams/${teamId}/invites`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+
+      if (response.ok) {
+        Alert.alert('Success', `Invitation sent to ${username}`);
+        setSearchQuery('');
+        setSearchResults([]);
+      } else {
+        const error = await response.json();
+        Alert.alert('Error', error.message || 'Failed to send invitation');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to send invitation');
+    }
+  };
+
+  const handleBlockUser = async (userId, username) => {
+    Alert.alert(
+      'Block User',
+      `Block ${username} from joining this team?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const response = await apiRequest(`/api/teams/${teamId}/blocked-users`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId }),
+              });
+
+              if (response.ok) {
+                Alert.alert('Success', `${username} has been blocked`);
+                setSearchQuery('');
+                setSearchResults([]);
+                fetchBlockedUsers();
+              } else {
+                const error = await response.json();
+                Alert.alert('Error', error.message || 'Failed to block user');
+              }
+            } catch (error) {
+              Alert.alert('Error', 'Failed to block user');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleUnblockUser = async (userId, username) => {
+    try {
+      const response = await apiRequest(`/api/teams/${teamId}/blocked-users/${userId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        Alert.alert('Success', `${username} has been unblocked`);
+        fetchBlockedUsers();
+      } else {
+        Alert.alert('Error', 'Failed to unblock user');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to unblock user');
+    }
   };
 
   const handleLeaveTeam = () => {
@@ -293,8 +475,8 @@ export default function TeamDetailsScreen() {
           {members.slice(0, 3).map((member) => (
             <View key={member.userId} style={styles.memberRow}>
               <View style={styles.memberInfo}>
-                <Text style={styles.memberName}>{member.username}</Text>
-                <Text style={styles.memberRole}>{member.role}</Text>
+                <Text style={styles.memberName}>{member.user?.username || 'Unknown'}</Text>
+                <Text style={styles.memberRole}>{getDisplayRole(member)}</Text>
               </View>
             </View>
           ))}
@@ -334,17 +516,49 @@ export default function TeamDetailsScreen() {
         {/* Action Buttons */}
         <View style={styles.actionsSection}>
           {isAdmin && (
-            <TouchableOpacity style={styles.actionButtonWrapper} onPress={() => setShowEditModal(true)}>
-              <LinearGradient
-                colors={['#3b82f6', '#10b981']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.actionButton}
+            <>
+              <TouchableOpacity style={styles.actionButtonWrapper} onPress={() => setShowEditModal(true)}>
+                <LinearGradient
+                  colors={['#3b82f6', '#10b981']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.actionButton}
+                >
+                  <Ionicons name="settings-outline" size={20} color="#ffffff" />
+                  <Text style={styles.actionButtonText}>Edit Settings</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.actionButtonWrapper} onPress={() => setShowInviteModal(true)}>
+                <LinearGradient
+                  colors={['#3b82f6', '#10b981']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.actionButton}
+                >
+                  <Ionicons name="person-add-outline" size={20} color="#ffffff" />
+                  <Text style={styles.actionButtonText}>Invite Players</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.actionButtonWrapper} 
+                onPress={() => {
+                  setShowBlockModal(true);
+                  fetchBlockedUsers();
+                }}
               >
-                <Ionicons name="settings-outline" size={20} color="#ffffff" />
-                <Text style={styles.actionButtonText}>Edit Settings</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+                <LinearGradient
+                  colors={['#3b82f6', '#10b981']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.actionButton}
+                >
+                  <Ionicons name="ban-outline" size={20} color="#ffffff" />
+                  <Text style={styles.actionButtonText}>Block Users</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </>
           )}
 
           {!isOwner && (
@@ -382,30 +596,33 @@ export default function TeamDetailsScreen() {
             </TouchableOpacity>
           </View>
           <ScrollView style={styles.modalContent}>
-            {members.map((member) => (
-              <View key={member.userId} style={styles.memberCard}>
-                <View style={styles.memberCardInfo}>
-                  <Text style={styles.memberCardName}>{member.username}</Text>
-                  <Text style={styles.memberCardRole}>{member.role}</Text>
-                </View>
-                {isAdmin && member.role !== 'owner' && member.userId !== user.id && (
-                  <View style={styles.memberActions}>
-                    <TouchableOpacity
-                      style={styles.roleButton}
-                      onPress={() => handleChangeRole(member.userId, member.username, member.role)}
-                    >
-                      <Text style={styles.roleButtonText}>Change Role</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.removeButton}
-                      onPress={() => handleRemoveMember(member.userId, member.username)}
-                    >
-                      <Text style={styles.removeButtonText}>Remove</Text>
-                    </TouchableOpacity>
+            {members.map((member) => {
+              const displayRole = getDisplayRole(member);
+              return (
+                <View key={member.userId} style={styles.memberCard}>
+                  <View style={styles.memberCardInfo}>
+                    <Text style={styles.memberCardName}>{member.user?.username || 'Unknown'}</Text>
+                    <Text style={styles.memberCardRole}>{displayRole}</Text>
                   </View>
-                )}
-              </View>
-            ))}
+                  {isAdmin && displayRole !== 'owner' && member.userId !== user.id && (
+                    <View style={styles.memberActions}>
+                      <TouchableOpacity
+                        style={styles.roleButton}
+                        onPress={() => handleChangeRole(member.userId, member.user?.username, displayRole)}
+                      >
+                        <Text style={styles.roleButtonText}>Change Role</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.removeButton}
+                        onPress={() => handleRemoveMember(member.userId, member.user?.username)}
+                      >
+                        <Text style={styles.removeButtonText}>Remove</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              );
+            })}
           </ScrollView>
         </SafeAreaView>
       </Modal>
@@ -453,6 +670,246 @@ export default function TeamDetailsScreen() {
                 </View>
               </View>
             ))}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Edit Settings Modal */}
+      <Modal
+        visible={showEditModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowEditModal(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setShowEditModal(false)}>
+              <Text style={styles.cancelButton}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Edit Team Settings</Text>
+            <TouchableOpacity onPress={handleSaveSettings}>
+              <Text style={styles.saveButton}>Save</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.modalContent}>
+            <View style={styles.formSection}>
+              <Text style={styles.formLabel}>Team Name</Text>
+              <TextInput
+                style={styles.textInput}
+                value={editName}
+                onChangeText={setEditName}
+                placeholder="Enter team name"
+                placeholderTextColor="#94a3b8"
+              />
+            </View>
+
+            <View style={styles.formSection}>
+              <Text style={styles.formLabel}>Description</Text>
+              <TextInput
+                style={[styles.textInput, styles.textArea]}
+                value={editDescription}
+                onChangeText={setEditDescription}
+                placeholder="Enter team description"
+                placeholderTextColor="#94a3b8"
+                multiline
+                numberOfLines={4}
+              />
+            </View>
+
+            <View style={styles.formSection}>
+              <Text style={styles.formLabel}>Sports</Text>
+              <View style={styles.sportsGrid}>
+                {SPORTS_OPTIONS.map((sport) => (
+                  <TouchableOpacity
+                    key={sport}
+                    style={[
+                      styles.sportOption,
+                      editSports.includes(sport) && styles.sportOptionSelected,
+                    ]}
+                    onPress={() => toggleSport(sport)}
+                  >
+                    <Text
+                      style={[
+                        styles.sportOptionText,
+                        editSports.includes(sport) && styles.sportOptionTextSelected,
+                      ]}
+                    >
+                      {sport}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.formSection}>
+              <View style={styles.switchRow}>
+                <View>
+                  <Text style={styles.formLabel}>Private Team</Text>
+                  <Text style={styles.formHint}>Only invited members can join</Text>
+                </View>
+                <Switch
+                  value={editIsPrivate}
+                  onValueChange={setEditIsPrivate}
+                  trackColor={{ false: '#cbd5e1', true: '#3b82f6' }}
+                  thumbColor="#ffffff"
+                />
+              </View>
+            </View>
+
+            <View style={styles.formSection}>
+              <View style={styles.switchRow}>
+                <View>
+                  <Text style={styles.formLabel}>Requires Approval</Text>
+                  <Text style={styles.formHint}>Review join requests before accepting</Text>
+                </View>
+                <Switch
+                  value={editRequiresApproval}
+                  onValueChange={setEditRequiresApproval}
+                  trackColor={{ false: '#cbd5e1', true: '#3b82f6' }}
+                  thumbColor="#ffffff"
+                />
+              </View>
+            </View>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Invite Players Modal */}
+      <Modal
+        visible={showInviteModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => {
+          setShowInviteModal(false);
+          setSearchQuery('');
+          setSearchResults([]);
+        }}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Invite Players</Text>
+            <TouchableOpacity onPress={() => {
+              setShowInviteModal(false);
+              setSearchQuery('');
+              setSearchResults([]);
+            }}>
+              <Ionicons name="close" size={28} color="#1e293b" />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.searchContainer}>
+            <Ionicons name="search" size={20} color="#64748b" style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              value={searchQuery}
+              onChangeText={handleSearchUsers}
+              placeholder="Search users by username..."
+              placeholderTextColor="#94a3b8"
+            />
+          </View>
+          <ScrollView style={styles.modalContent}>
+            {searchLoading && (
+              <Text style={styles.searchingText}>Searching...</Text>
+            )}
+            {searchResults.map((result) => (
+              <View key={result.id} style={styles.searchResultCard}>
+                <View>
+                  <Text style={styles.searchResultName}>{result.username}</Text>
+                  {result.email && (
+                    <Text style={styles.searchResultEmail}>{result.email}</Text>
+                  )}
+                </View>
+                <TouchableOpacity
+                  style={styles.inviteButton}
+                  onPress={() => handleInviteUser(result.id, result.username)}
+                >
+                  <Text style={styles.inviteButtonText}>Invite</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+            {!searchLoading && searchQuery.length >= 2 && searchResults.length === 0 && (
+              <Text style={styles.noResultsText}>No users found</Text>
+            )}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Block Users Modal */}
+      <Modal
+        visible={showBlockModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => {
+          setShowBlockModal(false);
+          setSearchQuery('');
+          setSearchResults([]);
+        }}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Block Users</Text>
+            <TouchableOpacity onPress={() => {
+              setShowBlockModal(false);
+              setSearchQuery('');
+              setSearchResults([]);
+            }}>
+              <Ionicons name="close" size={28} color="#1e293b" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Blocked Users List */}
+          {blockedUsers.length > 0 && (
+            <View style={styles.blockedSection}>
+              <Text style={styles.blockedSectionTitle}>Blocked Users</Text>
+              <ScrollView style={styles.blockedList}>
+                {blockedUsers.map((blocked) => (
+                  <View key={blocked.userId} style={styles.blockedUserCard}>
+                    <Text style={styles.blockedUserName}>{blocked.user?.username || 'Unknown'}</Text>
+                    <TouchableOpacity
+                      style={styles.unblockButton}
+                      onPress={() => handleUnblockUser(blocked.userId, blocked.user?.username)}
+                    >
+                      <Text style={styles.unblockButtonText}>Unblock</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* Search to Block */}
+          <View style={styles.searchContainer}>
+            <Ionicons name="search" size={20} color="#64748b" style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              value={searchQuery}
+              onChangeText={handleSearchUsers}
+              placeholder="Search users to block..."
+              placeholderTextColor="#94a3b8"
+            />
+          </View>
+          <ScrollView style={styles.modalContent}>
+            {searchLoading && (
+              <Text style={styles.searchingText}>Searching...</Text>
+            )}
+            {searchResults.map((result) => (
+              <View key={result.id} style={styles.searchResultCard}>
+                <View>
+                  <Text style={styles.searchResultName}>{result.username}</Text>
+                  {result.email && (
+                    <Text style={styles.searchResultEmail}>{result.email}</Text>
+                  )}
+                </View>
+                <TouchableOpacity
+                  style={styles.blockButton}
+                  onPress={() => handleBlockUser(result.id, result.username)}
+                >
+                  <Text style={styles.blockButtonText}>Block</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+            {!searchLoading && searchQuery.length >= 2 && searchResults.length === 0 && (
+              <Text style={styles.noResultsText}>No users found</Text>
+            )}
           </ScrollView>
         </SafeAreaView>
       </Modal>
@@ -735,6 +1192,16 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1e293b',
   },
+  cancelButton: {
+    fontSize: 16,
+    color: '#64748b',
+    fontWeight: '500',
+  },
+  saveButton: {
+    fontSize: 16,
+    color: '#3b82f6',
+    fontWeight: '600',
+  },
   modalContent: {
     flex: 1,
     padding: 16,
@@ -840,6 +1307,181 @@ const styles = StyleSheet.create({
   rejectTextLarge: {
     color: '#ffffff',
     fontSize: 14,
+    fontWeight: '600',
+  },
+  formSection: {
+    marginBottom: 24,
+  },
+  formLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: 8,
+  },
+  formHint: {
+    fontSize: 12,
+    color: '#64748b',
+    marginTop: 4,
+  },
+  textInput: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: '#1e293b',
+  },
+  textArea: {
+    height: 100,
+    textAlignVertical: 'top',
+  },
+  sportsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  sportOption: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    backgroundColor: '#ffffff',
+  },
+  sportOptionSelected: {
+    backgroundColor: '#eff6ff',
+    borderColor: '#3b82f6',
+  },
+  sportOptionText: {
+    fontSize: 14,
+    color: '#64748b',
+    fontWeight: '500',
+  },
+  sportOptionTextSelected: {
+    color: '#3b82f6',
+    fontWeight: '600',
+  },
+  switchRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    margin: 16,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#1e293b',
+  },
+  searchingText: {
+    textAlign: 'center',
+    color: '#64748b',
+    fontSize: 14,
+    marginTop: 20,
+  },
+  searchResultCard: {
+    backgroundColor: '#ffffff',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  searchResultName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: 4,
+  },
+  searchResultEmail: {
+    fontSize: 12,
+    color: '#64748b',
+  },
+  inviteButton: {
+    backgroundColor: '#3b82f6',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  inviteButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  blockButton: {
+    backgroundColor: '#ef4444',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  blockButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  noResultsText: {
+    textAlign: 'center',
+    color: '#64748b',
+    fontSize: 14,
+    marginTop: 20,
+  },
+  blockedSection: {
+    backgroundColor: '#ffffff',
+    margin: 16,
+    marginBottom: 0,
+    padding: 16,
+    borderRadius: 12,
+    maxHeight: 200,
+  },
+  blockedSectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: 12,
+  },
+  blockedList: {
+    maxHeight: 150,
+  },
+  blockedUserCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  blockedUserName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#1e293b',
+  },
+  unblockButton: {
+    backgroundColor: '#10b981',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  unblockButtonText: {
+    color: '#ffffff',
+    fontSize: 12,
     fontWeight: '600',
   },
 });
