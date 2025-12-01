@@ -45,34 +45,78 @@ export default function AuthScreen({ onAuthSuccess }) {
       console.log('Google OAuth redirect URI:', redirectUri);
       console.log('Google OAuth client ID:', clientId);
 
+      // Use response_type=code instead of token for better Expo proxy compatibility
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
         `client_id=${clientId}&` +
         `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-        `response_type=token&` +
-        `scope=${encodeURIComponent('openid profile email')}`;
+        `response_type=code&` +
+        `scope=${encodeURIComponent('openid profile email')}&` +
+        `prompt=select_account`;
 
       const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
 
-      if (result.type === 'success' && result.url) {
-        // Parse the access token from the URL fragment
-        const url = new URL(result.url);
-        const fragment = url.hash.substring(1);
-        const params = new URLSearchParams(fragment);
-        const accessToken = params.get('access_token');
+      console.log('Google auth result:', result);
 
-        if (accessToken) {
-          await handleGoogleAuthSuccess(accessToken);
+      if (result.type === 'success' && result.url) {
+        const url = new URL(result.url);
+        
+        // Try to get code from query params
+        const code = url.searchParams.get('code');
+        
+        // Also try from hash (some flows use fragment)
+        if (!code && url.hash) {
+          const fragment = url.hash.substring(1);
+          const params = new URLSearchParams(fragment);
+          const accessToken = params.get('access_token');
+          
+          if (accessToken) {
+            // Direct token flow worked
+            await handleGoogleAuthSuccess(accessToken);
+            return;
+          }
+        }
+
+        if (code) {
+          // Exchange code for token on backend
+          await handleGoogleCodeExchange(code);
         } else {
-          Alert.alert('Authentication Error', 'Failed to get access token');
+          console.error('No code or token in response:', result.url);
+          Alert.alert('Authentication Error', 'Failed to get authorization code');
         }
       } else if (result.type === 'cancel') {
-        // User cancelled, do nothing
+        console.log('Google auth cancelled by user');
+      } else {
+        console.log('Google auth result type:', result.type);
       }
     } catch (error) {
       console.error('Google auth error:', error);
       Alert.alert('Authentication Error', 'Unable to sign in with Google');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleGoogleCodeExchange = async (code) => {
+    try {
+      // Send code to backend to exchange for token and user info
+      const response = await fetch(`${API_BASE_URL}/api/auth/mobile/google/exchange`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ code }),
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        await signIn(data.user, data.token);
+      } else {
+        Alert.alert('Authentication Failed', data.message || 'Please try again');
+      }
+    } catch (error) {
+      console.error('Code exchange error:', error);
+      Alert.alert('Authentication Error', 'Unable to complete sign in');
     }
   };
 

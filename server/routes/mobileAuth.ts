@@ -64,7 +64,75 @@ export function verifyAuth(req: any, res: any, next: any) {
   return res.status(401).json({ message: 'Unauthorized' });
 }
 
-// Google OAuth for mobile
+// Google OAuth code exchange for mobile
+router.post('/google/exchange', async (req, res) => {
+  try {
+    const { code } = req.body;
+
+    if (!code) {
+      return res.status(400).json({ message: 'Authorization code required' });
+    }
+
+    // Exchange code for access token
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        code,
+        client_id: process.env.GOOGLE_CLIENT_ID || '',
+        client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
+        redirect_uri: 'https://auth.expo.io/@anonymous/ludi-mobile',
+        grant_type: 'authorization_code',
+      }),
+    });
+
+    if (!tokenResponse.ok) {
+      const error = await tokenResponse.text();
+      console.error('Google token exchange error:', error);
+      return res.status(400).json({ message: 'Failed to exchange authorization code' });
+    }
+
+    const tokenData = await tokenResponse.json();
+    const accessToken = tokenData.access_token;
+
+    // Get user info from Google
+    const userInfoResponse = await fetch(
+      `https://www.googleapis.com/oauth2/v2/userinfo?access_token=${accessToken}`
+    );
+
+    if (!userInfoResponse.ok) {
+      return res.status(400).json({ message: 'Failed to get user info from Google' });
+    }
+
+    const userInfo = await userInfoResponse.json();
+
+    // Create or update user
+    const userData = {
+      id: `google_${userInfo.id}`,
+      email: userInfo.email,
+      firstName: userInfo.given_name || null,
+      lastName: userInfo.family_name || null,
+      profileImageUrl: userInfo.picture || null,
+      authProvider: 'google' as const,
+    };
+
+    const user = await storage.upsertAuthUser(userData);
+    const token = generateToken(user.id);
+
+    res.json({
+      success: true,
+      token,
+      user,
+    });
+  } catch (error) {
+    console.error('Mobile Google code exchange error:', error);
+    res.status(500).json({ message: 'Authentication failed' });
+  }
+});
+
+// Google OAuth direct token for mobile (legacy support)
 router.post('/google', async (req, res) => {
   try {
     const { access_token, user_info } = req.body;
