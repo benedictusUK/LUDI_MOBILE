@@ -262,7 +262,7 @@ export default function ProfileScreen({ navigation }) {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Sports Interests</Text>
+          <Text style={styles.sectionTitle}>Interests</Text>
           {isEditing ? (
             <View>
               {profileData.sportsInterests.length > 0 && (
@@ -300,14 +300,14 @@ export default function ProfileScreen({ navigation }) {
               </View>
             </View>
           ) : (
-            <View style={styles.sportsGrid}>
+            <View style={styles.selectedSportsContainer}>
               {(user?.sportsInterests || []).map((sport) => (
-                <View key={sport} style={styles.sportChipSelected}>
-                  <Text style={styles.sportChipTextSelected}>{sport}</Text>
+                <View key={sport} style={styles.selectedSportChip}>
+                  <Text style={styles.selectedSportText}>{sport}</Text>
                 </View>
               ))}
               {(!user?.sportsInterests || user.sportsInterests.length === 0) && (
-                <Text style={styles.noSports}>No sports selected</Text>
+                <Text style={styles.noSports}>No interests selected</Text>
               )}
             </View>
           )}
