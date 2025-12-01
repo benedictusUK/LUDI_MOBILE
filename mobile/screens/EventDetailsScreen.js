@@ -12,12 +12,14 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { useRoute, useNavigation } from '@react-navigation/native';
 
 export default function EventDetailsScreen() {
   const route = useRoute();
   const navigation = useNavigation();
   const { apiRequest, user } = useAuth();
+  const { colors, isDark } = useTheme();
   const { id } = route.params;
   
   const [event, setEvent] = useState(null);
@@ -149,18 +151,18 @@ export default function EventDetailsScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Loading event...</Text>
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading event...</Text>
       </View>
     );
   }
 
   if (!event) {
     return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>Event not found</Text>
+      <View style={[styles.errorContainer, { backgroundColor: colors.background }]}>
+        <Text style={[styles.errorText, { color: colors.text }]}>Event not found</Text>
         <TouchableOpacity 
-          style={styles.backButton}
+          style={[styles.backButton, { backgroundColor: colors.primary }]}
           onPress={() => navigation.goBack()}
         >
           <Text style={styles.backButtonText}>Go Back</Text>
@@ -174,38 +176,38 @@ export default function EventDetailsScreen() {
   const reserveCount = Array.isArray(attendance) ? attendance.filter(a => a.status === 'reserve').length : 0;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView 
         style={styles.scrollView}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        <View style={styles.header}>
+        <View style={[styles.header, { backgroundColor: colors.card }]}>
           <View style={styles.headerTop}>
-            <Text style={styles.eventTitle}>{event.name}</Text>
+            <Text style={[styles.eventTitle, { color: colors.text }]}>{event.name}</Text>
             {canManage && (
               <View style={styles.actionButtons}>
-                <TouchableOpacity style={styles.editButton} onPress={handleEdit}>
-                  <Ionicons name="create-outline" size={18} color="#10b981" />
+                <TouchableOpacity style={[styles.editButton, { backgroundColor: colors.primary }]} onPress={handleEdit}>
+                  <Ionicons name="create-outline" size={18} color="#ffffff" />
                   <Text style={styles.editButtonText}>Edit</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.deleteButton} onPress={confirmDelete}>
-                  <Ionicons name="trash-outline" size={18} color="#ef4444" />
+                <TouchableOpacity style={[styles.deleteButton, { backgroundColor: colors.error }]} onPress={confirmDelete}>
+                  <Ionicons name="trash-outline" size={18} color="#ffffff" />
                 </TouchableOpacity>
               </View>
             )}
           </View>
-          <View style={styles.sportBadge}>
-            <Text style={styles.sportText}>{event.sport}</Text>
+          <View style={[styles.sportBadge, { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff' }]}>
+            <Text style={[styles.sportText, { color: colors.primary }]}>{event.sport}</Text>
           </View>
           {!!event.recurringSeriesId && (
-            <View style={styles.recurringBadge}>
-              <Ionicons name="repeat" size={16} color="#10b981" style={{ marginRight: 6 }} />
-              <Text style={styles.recurringText}>Recurring Event</Text>
+            <View style={[styles.recurringBadge, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#f0fdf4' }]}>
+              <Ionicons name="repeat" size={16} color={colors.success} style={{ marginRight: 6 }} />
+              <Text style={[styles.recurringText, { color: colors.success }]}>Recurring Event</Text>
             </View>
           )}
         </View>
 
-        <View style={styles.detailsCard}>
+        <View style={[styles.detailsCard, { backgroundColor: colors.card }]}>
           <DetailRow icon="calendar" label="Date" value={event.startDate ? new Date(event.startDate).toLocaleDateString() : 'Date TBD'} />
           <DetailRow icon="time" label="Time" value={event.startTime || 'Time TBD'} />
           {event.location && (
@@ -225,14 +227,14 @@ export default function EventDetailsScreen() {
         </View>
 
         {event.requirements && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Description</Text>
-            <Text style={styles.description}>{event.requirements}</Text>
+          <View style={[styles.card, { backgroundColor: colors.card }]}>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>Description</Text>
+            <Text style={[styles.description, { color: colors.textSecondary }]}>{event.requirements}</Text>
           </View>
         )}
 
-        <View style={styles.attendanceCard}>
-          <Text style={styles.cardTitle}>Your Attendance</Text>
+        <View style={[styles.attendanceCard, { backgroundColor: colors.card }]}>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>Your Attendance</Text>
           <View style={styles.attendanceButtons}>
             <TouchableOpacity
               style={[
@@ -386,6 +388,7 @@ export default function EventDetailsScreen() {
 }
 
 function DetailRow({ icon, label, value }) {
+  const { colors } = useTheme();
   const iconMap = {
     'calendar': 'calendar-outline',
     'time': 'time-outline',
@@ -396,10 +399,10 @@ function DetailRow({ icon, label, value }) {
   };
   
   return (
-    <View style={styles.detailRow}>
-      <Ionicons name={iconMap[icon] || icon} size={18} color="#64748b" style={styles.detailIcon} />
-      <Text style={styles.detailLabel}>{label}</Text>
-      <Text style={styles.detailValue}>{value}</Text>
+    <View style={[styles.detailRow, { borderBottomColor: colors.borderLight }]}>
+      <Ionicons name={iconMap[icon] || icon} size={18} color={colors.icon} style={styles.detailIcon} />
+      <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>{label}</Text>
+      <Text style={[styles.detailValue, { color: colors.text }]}>{value}</Text>
     </View>
   );
 }

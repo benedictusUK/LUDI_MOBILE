@@ -4,10 +4,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function HeaderWithNotifications({ title }) {
   const navigation = useNavigation();
   const { apiRequest } = useAuth();
+  const { colors } = useTheme();
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
@@ -40,14 +42,14 @@ export default function HeaderWithNotifications({ title }) {
   };
 
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
       {title === 'Home' ? (
         <View style={styles.logoContainer}>
-          <Text style={styles.logoText}>LUDI</Text>
-          <Text style={styles.logoSubtext}>Don't just watch</Text>
+          <Text style={[styles.logoText, { color: colors.text }]}>LUDI</Text>
+          <Text style={[styles.logoSubtext, { color: colors.primaryGreen }]}>Don't just watch</Text>
         </View>
       ) : (
-        <Text style={styles.title}>{title}</Text>
+        <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
       )}
       <TouchableOpacity 
         onPress={handleNotificationsPress} 
@@ -63,7 +65,7 @@ export default function HeaderWithNotifications({ title }) {
           <Ionicons name="notifications-outline" size={24} color="#ffffff" />
         </LinearGradient>
         {unreadCount > 0 && (
-          <View style={styles.badge}>
+          <View style={[styles.badge, { borderColor: colors.card }]}>
             <Text style={styles.badgeText}>
               {unreadCount > 99 ? '99+' : unreadCount}
             </Text>

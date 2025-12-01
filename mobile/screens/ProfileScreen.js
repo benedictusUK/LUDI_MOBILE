@@ -50,7 +50,7 @@ const GENDERS = [
 
 export default function ProfileScreen({ navigation }) {
   const { user, updateUser, apiRequest, signOut } = useAuth();
-  const { themeMode, changeTheme } = useTheme();
+  const { themeMode, changeTheme, colors } = useTheme();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showGenderPicker, setShowGenderPicker] = useState(false);
@@ -132,20 +132,20 @@ export default function ProfileScreen({ navigation }) {
   const profileComplete = user?.username && user?.dateOfBirth && user?.postcode && user?.gender;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <HeaderWithNotifications title="Profile" />
       <ScrollView style={styles.scrollView}>
-        <View style={styles.profileSection}>
+        <View style={[styles.profileSection, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
           <Image 
             source={{ uri: user?.profileImageUrl || 'https://via.placeholder.com/100' }}
             style={styles.profileImage}
           />
-          <Text style={styles.name}>
+          <Text style={[styles.name, { color: colors.text }]}>
             {user?.firstName || user?.lastName ? 
               `${user.firstName || ''} ${user.lastName || ''}`.trim() : 
               'Unknown User'}
           </Text>
-          <Text style={styles.email}>{user?.email}</Text>
+          <Text style={[styles.email, { color: colors.textSecondary }]}>{user?.email}</Text>
           
           {!profileComplete && (
             <View style={styles.incompleteNotice}>
@@ -156,12 +156,12 @@ export default function ProfileScreen({ navigation }) {
           )}
         </View>
 
-        <View style={styles.section}>
+        <View style={[styles.section, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Profile Information</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Profile Information</Text>
             <TouchableOpacity
               onPress={() => setIsEditing(!isEditing)}
-              style={styles.editButton}
+              style={[styles.editButton, { backgroundColor: colors.primary }]}
             >
               <Text style={styles.editButtonText}>
                 {isEditing ? 'Cancel' : 'Edit'}
@@ -171,79 +171,86 @@ export default function ProfileScreen({ navigation }) {
 
           {isEditing ? (
             <View style={styles.form}>
-              <Text style={styles.label}>First Name</Text>
+              <Text style={[styles.label, { color: colors.text }]}>First Name</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
                 value={profileData.firstName}
                 onChangeText={(text) => setProfileData({ ...profileData, firstName: text })}
                 placeholder="Enter first name"
+                placeholderTextColor={colors.inputPlaceholder}
               />
 
-              <Text style={styles.label}>Last Name</Text>
+              <Text style={[styles.label, { color: colors.text }]}>Last Name</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
                 value={profileData.lastName}
                 onChangeText={(text) => setProfileData({ ...profileData, lastName: text })}
                 placeholder="Enter last name"
+                placeholderTextColor={colors.inputPlaceholder}
               />
 
-              <Text style={styles.label}>Username *</Text>
+              <Text style={[styles.label, { color: colors.text }]}>Username *</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
                 value={profileData.username}
                 onChangeText={(text) => setProfileData({ ...profileData, username: text })}
                 placeholder="Enter username"
+                placeholderTextColor={colors.inputPlaceholder}
                 autoCapitalize="none"
               />
 
-              <Text style={styles.label}>Phone Number</Text>
+              <Text style={[styles.label, { color: colors.text }]}>Phone Number</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
                 value={profileData.phoneNumber}
                 onChangeText={(text) => setProfileData({ ...profileData, phoneNumber: text })}
                 placeholder="Enter phone number"
+                placeholderTextColor={colors.inputPlaceholder}
                 keyboardType="phone-pad"
               />
 
-              <Text style={styles.label}>Date of Birth * (YYYY-MM-DD)</Text>
+              <Text style={[styles.label, { color: colors.text }]}>Date of Birth * (YYYY-MM-DD)</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
                 value={profileData.dateOfBirth}
                 onChangeText={(text) => setProfileData({ ...profileData, dateOfBirth: text })}
                 placeholder="1990-01-01"
+                placeholderTextColor={colors.inputPlaceholder}
               />
 
-              <Text style={styles.label}>Postcode *</Text>
+              <Text style={[styles.label, { color: colors.text }]}>Postcode *</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
                 value={profileData.postcode}
                 onChangeText={(text) => setProfileData({ ...profileData, postcode: text })}
                 placeholder="Enter postcode"
+                placeholderTextColor={colors.inputPlaceholder}
                 autoCapitalize="characters"
               />
 
-              <Text style={styles.label}>Gender *</Text>
+              <Text style={[styles.label, { color: colors.text }]}>Gender *</Text>
               <TouchableOpacity
-                style={styles.pickerButton}
+                style={[styles.pickerButton, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}
                 onPress={() => setShowGenderPicker(true)}
               >
-                <Text style={styles.pickerButtonText}>
+                <Text style={[styles.pickerButtonText, { color: colors.inputText }]}>
                   {GENDERS.find(g => g.value === profileData.gender)?.label || 'Select gender'}
                 </Text>
-                <Text style={styles.pickerArrow}>▼</Text>
+                <Text style={[styles.pickerArrow, { color: colors.icon }]}>▼</Text>
               </TouchableOpacity>
 
-              <Text style={styles.label}>Travel Radius (km)</Text>
+              <Text style={[styles.label, { color: colors.text }]}>Travel Radius (km)</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
                 value={String(profileData.travelRadius)}
                 onChangeText={(text) => setProfileData({ ...profileData, travelRadius: parseInt(text) || 10 })}
                 placeholder="10"
+                placeholderTextColor={colors.inputPlaceholder}
                 keyboardType="numeric"
               />
 
               <TouchableOpacity
-                style={styles.saveButton}
+                style={[styles.saveButton, { backgroundColor: colors.primary }]}
                 onPress={handleSave}
                 disabled={loading}
               >
@@ -265,10 +272,10 @@ export default function ProfileScreen({ navigation }) {
         </View>
 
         {/* Appearance Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Appearance</Text>
+        <View style={[styles.section, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Appearance</Text>
           <TouchableOpacity
-            style={styles.themeButton}
+            style={[styles.themeButton, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}
             onPress={() => setShowThemePicker(true)}
           >
             <View style={styles.themeButtonContent}>
@@ -276,22 +283,22 @@ export default function ProfileScreen({ navigation }) {
                 <Ionicons 
                   name={themeMode === 'light' ? 'sunny' : themeMode === 'dark' ? 'moon' : 'phone-portrait'} 
                   size={20} 
-                  color="#64748b" 
+                  color={colors.icon} 
                 />
-                <Text style={styles.themeButtonLabel}>Theme</Text>
+                <Text style={[styles.themeButtonLabel, { color: colors.text }]}>Theme</Text>
               </View>
               <View style={styles.themeButtonRight}>
-                <Text style={styles.themeButtonValue}>
+                <Text style={[styles.themeButtonValue, { color: colors.textSecondary }]}>
                   {themeMode === 'light' ? 'Light' : themeMode === 'dark' ? 'Dark' : 'System'}
                 </Text>
-                <Ionicons name="chevron-forward" size={20} color="#64748b" />
+                <Ionicons name="chevron-forward" size={20} color={colors.icon} />
               </View>
             </View>
           </TouchableOpacity>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Interests</Text>
+        <View style={[styles.section, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Interests</Text>
           {isEditing ? (
             <View>
               {profileData.sportsInterests.length > 0 && (
@@ -342,7 +349,7 @@ export default function ProfileScreen({ navigation }) {
           )}
         </View>
 
-        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+        <TouchableOpacity style={[styles.signOutButton, { backgroundColor: colors.error }]} onPress={handleSignOut}>
           <Text style={styles.signOutButtonText}>Sign Out</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -436,10 +443,11 @@ export default function ProfileScreen({ navigation }) {
 }
 
 function InfoRow({ label, value }) {
+  const { colors } = useTheme();
   return (
-    <View style={styles.infoRow}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value}</Text>
+    <View style={[styles.infoRow, { borderBottomColor: colors.borderLight }]}>
+      <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>{label}</Text>
+      <Text style={[styles.infoValue, { color: colors.text }]}>{value}</Text>
     </View>
   );
 }

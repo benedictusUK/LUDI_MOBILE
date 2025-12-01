@@ -90,32 +90,48 @@ export default function EventsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <HeaderWithNotifications title="Events" />
         <View style={styles.centerContainer}>
-          <Text style={styles.loadingText}>Loading events...</Text>
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading events...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <HeaderWithNotifications title="Events" />
       <View style={styles.toggleContainer}>
         <TouchableOpacity
-          style={[styles.toggleButton, !showPastEvents && styles.toggleButtonActive]}
+          style={[
+            styles.toggleButton,
+            { backgroundColor: colors.buttonSecondary },
+            !showPastEvents && { backgroundColor: colors.primaryGreen }
+          ]}
           onPress={() => togglePastEvents(false)}
         >
-          <Text style={[styles.toggleButtonText, !showPastEvents && styles.toggleButtonTextActive]}>
+          <Text style={[
+            styles.toggleButtonText,
+            { color: colors.buttonSecondaryText },
+            !showPastEvents && styles.toggleButtonTextActive
+          ]}>
             Upcoming
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.toggleButton, showPastEvents && styles.toggleButtonActive]}
+          style={[
+            styles.toggleButton,
+            { backgroundColor: colors.buttonSecondary },
+            showPastEvents && { backgroundColor: colors.primaryGreen }
+          ]}
           onPress={() => togglePastEvents(true)}
         >
-          <Text style={[styles.toggleButtonText, showPastEvents && styles.toggleButtonTextActive]}>
+          <Text style={[
+            styles.toggleButtonText,
+            { color: colors.buttonSecondaryText },
+            showPastEvents && styles.toggleButtonTextActive
+          ]}>
             Past Events
           </Text>
         </TouchableOpacity>
@@ -136,52 +152,102 @@ export default function EventsScreen() {
           const isPast = isPastEvent(item);
           
           const cardContent = (
-            <View style={[styles.eventCardInner, isLive && styles.liveEventCard, isPast && styles.pastEventCard]}>
+            <View style={[
+              styles.eventCardInner,
+              { backgroundColor: colors.card },
+              isLive && styles.liveEventCard,
+              isPast && { backgroundColor: colors.cardSecondary, opacity: 0.85 }
+            ]}>
               <View style={styles.eventHeader}>
-                <Text style={[styles.eventTitle, isPast && styles.pastEventText, isLive && styles.liveEventText]}>{item.name}</Text>
+                <Text style={[
+                  styles.eventTitle,
+                  { color: colors.text },
+                  isPast && { color: colors.textTertiary },
+                  isLive && styles.liveEventText
+                ]}>{item.name}</Text>
                 <View style={styles.dateContainer}>
-                  <Text style={[styles.eventDate, isPast && styles.pastEventText, isLive && styles.liveEventText]}>{dateStr}</Text>
-                  {isPast && <Text style={styles.pastBadge}>PAST</Text>}
+                  <Text style={[
+                    styles.eventDate,
+                    { color: colors.textSecondary },
+                    isPast && { color: colors.textTertiary },
+                    isLive && styles.liveEventText
+                  ]}>{dateStr}</Text>
+                  {isPast && <Text style={[styles.pastBadge, { color: colors.textTertiary, backgroundColor: colors.border }]}>PAST</Text>}
                   {isLive && <Text style={styles.liveBadge}>LIVE</Text>}
                 </View>
               </View>
               
-              <Text style={[styles.eventTime, isPast && styles.pastEventText, isLive && styles.liveEventText]}>{timeStr}</Text>
+              <Text style={[
+                styles.eventTime,
+                { color: colors.textSecondary },
+                isPast && { color: colors.textTertiary },
+                isLive && styles.liveEventText
+              ]}>{timeStr}</Text>
               
               {item.location && (
                 <View style={styles.eventDetail}>
-                  <Ionicons name="location" size={14} color={isLive ? "#ffffff" : isPast ? "#94a3b8" : "#64748b"} />
-                  <Text style={[styles.eventLocation, isPast && styles.pastEventText, isLive && styles.liveEventText]}>{item.location}</Text>
+                  <Ionicons name="location" size={14} color={isLive ? "#ffffff" : isPast ? colors.textTertiary : colors.textSecondary} />
+                  <Text style={[
+                    styles.eventLocation,
+                    { color: colors.textSecondary },
+                    isPast && { color: colors.textTertiary },
+                    isLive && styles.liveEventText
+                  ]}>{item.location}</Text>
                 </View>
               )}
               
               {item.primaryTeam && (
                 <View style={styles.eventDetail}>
-                  <Ionicons name="people" size={14} color={isLive ? "#ffffff" : isPast ? "#94a3b8" : "#64748b"} />
-                  <Text style={[styles.eventTeam, isPast && styles.pastEventText, isLive && styles.liveEventText]}>{item.primaryTeam.name}</Text>
+                  <Ionicons name="people" size={14} color={isLive ? "#ffffff" : isPast ? colors.textTertiary : colors.textSecondary} />
+                  <Text style={[
+                    styles.eventTeam,
+                    { color: colors.textSecondary },
+                    isPast && { color: colors.textTertiary },
+                    isLive && styles.liveEventText
+                  ]}>{item.primaryTeam.name}</Text>
                 </View>
               )}
               
               {item.requirements && (
-                <Text style={[styles.eventDescription, isPast && styles.pastEventText, isLive && styles.liveEventText]} numberOfLines={2}>
+                <Text style={[
+                  styles.eventDescription,
+                  { color: colors.textSecondary },
+                  isPast && { color: colors.textTertiary },
+                  isLive && styles.liveEventText
+                ]} numberOfLines={2}>
                   {item.requirements}
                 </Text>
               )}
               
               <View style={styles.eventFooter}>
-                <Text style={[styles.eventSport, isPast && styles.pastEventSport, isLive && styles.liveEventSport]}>{item.sport}</Text>
+                <Text style={[
+                  styles.eventSport,
+                  { color: colors.primary, backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff' },
+                  isPast && { color: colors.textTertiary, backgroundColor: colors.border },
+                  isLive && styles.liveEventSport
+                ]}>{item.sport}</Text>
                 <View style={styles.eventInfo}>
                   {item.cost && parseFloat(item.cost) > 0 && (
-                    <Text style={[styles.eventCost, isPast && styles.pastEventCost, isLive && styles.liveEventCost]}>£{item.cost}</Text>
+                    <Text style={[
+                      styles.eventCost,
+                      { color: colors.success, backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#f0fdf4' },
+                      isPast && { color: colors.textTertiary, backgroundColor: colors.border },
+                      isLive && styles.liveEventCost
+                    ]}>£{item.cost}</Text>
                   )}
                   {item.maxParticipants && (
-                    <Text style={[styles.eventCapacity, isPast && styles.pastEventText, isLive && styles.liveEventText]}>
+                    <Text style={[
+                      styles.eventCapacity,
+                      { color: colors.textSecondary },
+                      isPast && { color: colors.textTertiary },
+                      isLive && styles.liveEventText
+                    ]}>
                       Max: {item.maxParticipants}
                     </Text>
                   )}
                   {item.recurringSeriesId && (
                     <View style={styles.recurringBadge}>
-                      <Ionicons name="repeat" size={14} color={isLive ? "#ffffff" : "#10b981"} />
+                      <Ionicons name="repeat" size={14} color={isLive ? "#ffffff" : colors.success} />
                     </View>
                   )}
                 </View>
@@ -211,17 +277,17 @@ export default function EventsScreen() {
         }}
         ListEmptyComponent={
           <View style={styles.centerContainer}>
-            <Text style={styles.emptyText}>
+            <Text style={[styles.emptyText, { color: colors.text }]}>
               {showPastEvents ? 'No past events' : 'No upcoming events'}
             </Text>
-            <Text style={styles.emptySubtext}>
+            <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
               {showPastEvents 
                 ? 'Your past events will appear here'
                 : 'Join a team or create an event to get started!'}
             </Text>
             {!showPastEvents && (
               <TouchableOpacity
-                style={styles.createButton}
+                style={[styles.createButton, { backgroundColor: colors.primary }]}
                 onPress={() => navigation.navigate('CreateEvent')}
               >
                 <Text style={styles.createButtonText}>Create Your First Event</Text>
