@@ -316,22 +316,26 @@ export default function EventDetailsScreen() {
                 label="Attending" 
                 count={attendeeCount}
                 color="#10b981"
+                textColor={colors.text}
               />
               <SummaryItem 
                 label="Not Attending" 
                 count={attendance.attendees?.filter(a => a.status === 'not_attending').length || 0}
                 color="#ef4444"
+                textColor={colors.text}
               />
               <SummaryItem 
                 label="Maybe" 
                 count={attendance.attendees?.filter(a => a.status === 'maybe').length || 0}
                 color="#f59e0b"
+                textColor={colors.text}
               />
               {reserveCount > 0 && (
                 <SummaryItem 
                   label="Reserves" 
                   count={reserveCount}
                   color="#6366f1"
+                  textColor={colors.text}
                 />
               )}
             </View>
@@ -419,12 +423,12 @@ function DetailRow({ icon, label, value }) {
   );
 }
 
-function SummaryItem({ label, count, color }) {
+function SummaryItem({ label, count, color, textColor }) {
   return (
     <View style={styles.summaryItem}>
       <View style={[styles.summaryDot, { backgroundColor: color }]} />
-      <Text style={styles.summaryLabel}>{label}</Text>
-      <Text style={styles.summaryCount}>{count}</Text>
+      <Text style={[styles.summaryLabel, { color: textColor }]}>{label}</Text>
+      <Text style={[styles.summaryCount, { color: textColor }]}>{count}</Text>
     </View>
   );
 }
