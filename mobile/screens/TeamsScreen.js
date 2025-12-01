@@ -3,6 +3,7 @@ import { View, Text, FlatList, StyleSheet, TouchableOpacity, RefreshControl, Ale
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import HeaderWithNotifications from '../components/HeaderWithNotifications';
 
 export default function TeamsScreen() {
@@ -11,6 +12,7 @@ export default function TeamsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const navigation = useNavigation();
   const { apiRequest } = useAuth();
+  const { colors, isDark } = useTheme();
 
   const fetchTeams = async () => {
     try {
@@ -41,17 +43,17 @@ export default function TeamsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <HeaderWithNotifications title="Teams" />
         <View style={styles.centerContainer}>
-          <Text style={styles.loadingText}>Loading teams...</Text>
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading teams...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <HeaderWithNotifications title="Teams" />
       
       <FlatList
@@ -63,15 +65,15 @@ export default function TeamsScreen() {
         }
         renderItem={({ item }) => (
           <TouchableOpacity 
-            style={styles.teamCard}
+            style={[styles.teamCard, { backgroundColor: colors.card }]}
             onPress={() => navigation.navigate('TeamDetails', { teamId: item.id })}
           >
             <View style={styles.teamHeader}>
               <View style={[styles.teamColor, { backgroundColor: item.color || '#3b82f6' }]} />
               <View style={styles.teamInfo}>
-                <Text style={styles.teamName}>{item.name}</Text>
+                <Text style={[styles.teamName, { color: colors.text }]}>{item.name}</Text>
                 {item.description && (
-                  <Text style={styles.teamDescription}>{item.description}</Text>
+                  <Text style={[styles.teamDescription, { color: colors.textSecondary }]}>{item.description}</Text>
                 )}
               </View>
             </View>
@@ -79,16 +81,16 @@ export default function TeamsScreen() {
             <View style={styles.teamFooter}>
               <View style={styles.sportsContainer}>
                 {item.sports?.slice(0, 3).map((sport, index) => (
-                  <Text key={index} style={styles.sportTag}>
+                  <Text key={index} style={[styles.sportTag, { color: colors.primary, backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff' }]}>
                     {sport}
                   </Text>
                 ))}
                 {item.sports?.length > 3 && (
-                  <Text style={styles.sportTag}>+{item.sports.length - 3}</Text>
+                  <Text style={[styles.sportTag, { color: colors.primary, backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff' }]}>+{item.sports.length - 3}</Text>
                 )}
               </View>
               
-              <Text style={styles.memberCount}>
+              <Text style={[styles.memberCount, { color: colors.textSecondary }]}>
                 {item.memberCount || 0} members
               </Text>
             </View>
@@ -96,8 +98,8 @@ export default function TeamsScreen() {
         )}
         ListEmptyComponent={
           <View style={styles.centerContainer}>
-            <Text style={styles.emptyText}>No teams yet</Text>
-            <Text style={styles.emptySubtext}>
+            <Text style={[styles.emptyText, { color: colors.text }]}>No teams yet</Text>
+            <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
               Create or join a team to start organizing events!
             </Text>
           </View>

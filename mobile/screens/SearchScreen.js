@@ -13,6 +13,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { useNavigation} from '@react-navigation/native';
 import HeaderWithNotifications from '../components/HeaderWithNotifications';
 
@@ -64,6 +65,7 @@ export default function SearchScreen() {
   const [showSportPicker, setShowSportPicker] = useState(false);
   
   const { apiRequest } = useAuth();
+  const { colors, isDark } = useTheme();
   const navigation = useNavigation();
 
   const handleSearch = async () => {
@@ -144,39 +146,39 @@ export default function SearchScreen() {
   };
 
   const renderEvent = ({ item }) => (
-    <View style={styles.eventCard}>
+    <View style={[styles.eventCard, { backgroundColor: colors.card }]}>
       <View style={styles.eventHeader}>
-        <View style={styles.flareIndicator}>
+        <View style={[styles.flareIndicator, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.2)' : '#fef2f2' }]}>
           <Text style={styles.flareIcon}>🔥</Text>
-          <Text style={styles.flareText}>FLARE</Text>
+          <Text style={[styles.flareText, { color: colors.error }]}>FLARE</Text>
         </View>
-        <Text style={styles.distance}>
+        <Text style={[styles.distance, { color: colors.textSecondary }]}>
           {item.distance ? `${item.distance.toFixed(1)} miles` : 'Nearby'}
         </Text>
       </View>
 
-      <Text style={styles.eventTitle}>{item.name}</Text>
+      <Text style={[styles.eventTitle, { color: colors.text }]}>{item.name}</Text>
       
       <View style={styles.eventDetails}>
-        <Text style={styles.eventDate}>
+        <Text style={[styles.eventDate, { color: colors.textSecondary }]}>
           📅 {formatDateTime(item.startDate, item.startTime)}
         </Text>
         {item.location && (
-          <Text style={styles.eventLocation}>
+          <Text style={[styles.eventLocation, { color: colors.textSecondary }]}>
             📍 {item.location}
           </Text>
         )}
-        <Text style={styles.eventTeam}>
+        <Text style={[styles.eventTeam, { color: colors.textSecondary }]}>
           👥 {item.team?.name || 'Unknown Team'}
         </Text>
       </View>
 
-      <View style={styles.sportBadge}>
-        <Text style={styles.sportText}>{item.sport}</Text>
+      <View style={[styles.sportBadge, { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff' }]}>
+        <Text style={[styles.sportText, { color: colors.primary }]}>{item.sport}</Text>
       </View>
 
       {item.requirements && (
-        <Text style={styles.requirements} numberOfLines={2}>
+        <Text style={[styles.requirements, { color: colors.textSecondary }]} numberOfLines={2}>
           Requirements: {item.requirements}
         </Text>
       )}
@@ -185,14 +187,14 @@ export default function SearchScreen() {
         <TouchableOpacity
           style={[
             styles.responseButton,
-            styles.interestedButton,
-            item.userResponse === 'interested' && styles.responseButtonActive
+            { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#f0fdf4', borderColor: colors.success },
+            item.userResponse === 'interested' && { backgroundColor: colors.primary, borderColor: colors.primary }
           ]}
           onPress={() => handleFlareResponse(item.id, 'interested')}
         >
           <Text style={[
             styles.responseButtonText,
-            item.userResponse === 'interested' && styles.responseButtonTextActive
+            { color: item.userResponse === 'interested' ? '#ffffff' : colors.text }
           ]}>
             ✓ Interested
           </Text>
@@ -201,41 +203,42 @@ export default function SearchScreen() {
         <TouchableOpacity
           style={[
             styles.responseButton,
-            styles.maybeButton,
-            item.userResponse === 'maybe' && styles.responseButtonActive
+            { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.2)' : '#fffbeb', borderColor: '#f59e0b' },
+            item.userResponse === 'maybe' && { backgroundColor: colors.primary, borderColor: colors.primary }
           ]}
           onPress={() => handleFlareResponse(item.id, 'maybe')}
         >
           <Text style={[
             styles.responseButtonText,
-            item.userResponse === 'maybe' && styles.responseButtonTextActive
+            { color: item.userResponse === 'maybe' ? '#ffffff' : colors.text }
           ]}>
             ? Maybe
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.detailsButton}
+          style={[styles.detailsButton, { backgroundColor: colors.cardSecondary }]}
           onPress={() => navigation.navigate('EventDetails', { id: item.id })}
         >
-          <Text style={styles.detailsButtonText}>View Details</Text>
+          <Text style={[styles.detailsButtonText, { color: colors.textSecondary }]}>View Details</Text>
         </TouchableOpacity>
       </View>
     </View>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <HeaderWithNotifications title="Search" />
-      <View style={styles.searchContainer}>
-        <Text style={styles.searchTitle}>🔍 Find Active Events</Text>
-        <Text style={styles.subtitle}>Discover events looking for players near you</Text>
+      <View style={[styles.searchContainer, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+        <Text style={[styles.searchTitle, { color: colors.text }]}>🔍 Find Active Events</Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Discover events looking for players near you</Text>
 
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Postcode *</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Postcode *</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
             placeholder="e.g. SW1A 1AA"
+            placeholderTextColor={colors.inputPlaceholder}
             value={postcode}
             onChangeText={setPostcode}
             autoCapitalize="characters"
@@ -243,31 +246,31 @@ export default function SearchScreen() {
         </View>
 
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Search Radius</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Search Radius</Text>
           <TouchableOpacity
-            style={styles.pickerButton}
+            style={[styles.pickerButton, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}
             onPress={() => setShowRadiusPicker(true)}
           >
-            <Text style={styles.pickerButtonText}>
+            <Text style={[styles.pickerButtonText, { color: colors.inputText }]}>
               {RADIUS_OPTIONS.find(r => r.value === radius)?.label || '10 miles'}
             </Text>
-            <Text style={styles.pickerArrow}>▼</Text>
+            <Text style={[styles.pickerArrow, { color: colors.icon }]}>▼</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Sport</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Sport</Text>
           <TouchableOpacity
-            style={styles.pickerButton}
+            style={[styles.pickerButton, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}
             onPress={() => setShowSportPicker(true)}
           >
-            <Text style={styles.pickerButtonText}>{sport}</Text>
-            <Text style={styles.pickerArrow}>▼</Text>
+            <Text style={[styles.pickerButtonText, { color: colors.inputText }]}>{sport}</Text>
+            <Text style={[styles.pickerArrow, { color: colors.icon }]}>▼</Text>
           </TouchableOpacity>
         </View>
 
         <TouchableOpacity
-          style={[styles.searchButton, loading && styles.searchButtonDisabled]}
+          style={[styles.searchButton, loading && styles.searchButtonDisabled, { backgroundColor: loading ? colors.disabled : colors.success }]}
           onPress={handleSearch}
           disabled={loading}
         >
@@ -288,15 +291,15 @@ export default function SearchScreen() {
         ListEmptyComponent={
           hasSearched ? (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No active events found</Text>
-              <Text style={styles.emptySubtext}>
+              <Text style={[styles.emptyText, { color: colors.text }]}>No active events found</Text>
+              <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
                 Try searching in a larger radius or different sport
               </Text>
             </View>
           ) : (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>Ready to search</Text>
-              <Text style={styles.emptySubtext}>
+              <Text style={[styles.emptyText, { color: colors.text }]}>Ready to search</Text>
+              <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
                 Enter your postcode to find events looking for players
               </Text>
             </View>
@@ -310,12 +313,12 @@ export default function SearchScreen() {
         animationType="slide"
         onRequestClose={() => setShowRadiusPicker(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Search Radius</Text>
+        <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Select Search Radius</Text>
               <TouchableOpacity onPress={() => setShowRadiusPicker(false)}>
-                <Text style={styles.modalClose}>✕</Text>
+                <Text style={[styles.modalClose, { color: colors.icon }]}>✕</Text>
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.modalScroll}>
@@ -325,16 +328,16 @@ export default function SearchScreen() {
                 return (
                   <TouchableOpacity
                     key={index}
-                    style={[styles.modalOption, isSelected && styles.modalOptionSelected]}
+                    style={[styles.modalOption, { borderBottomColor: colors.borderLight }, isSelected && { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff' }]}
                     onPress={() => {
                       setRadius(option.value);
                       setShowRadiusPicker(false);
                     }}
                   >
-                    <Text style={[styles.modalOptionText, isSelected && styles.modalOptionTextSelected]}>
+                    <Text style={[styles.modalOptionText, { color: isSelected ? colors.primary : colors.text }, isSelected && { fontWeight: '600' }]}>
                       {option.label}
                     </Text>
-                    {isSelected && <Text style={styles.modalCheckmark}>✓</Text>}
+                    {isSelected && <Text style={[styles.modalCheckmark, { color: colors.primary }]}>✓</Text>}
                   </TouchableOpacity>
                 );
               })}
@@ -349,12 +352,12 @@ export default function SearchScreen() {
         animationType="slide"
         onRequestClose={() => setShowSportPicker(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Sport</Text>
+        <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Select Sport</Text>
               <TouchableOpacity onPress={() => setShowSportPicker(false)}>
-                <Text style={styles.modalClose}>✕</Text>
+                <Text style={[styles.modalClose, { color: colors.icon }]}>✕</Text>
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.modalScroll}>
@@ -364,16 +367,16 @@ export default function SearchScreen() {
                 return (
                   <TouchableOpacity
                     key={index}
-                    style={[styles.modalOption, isSelected && styles.modalOptionSelected]}
+                    style={[styles.modalOption, { borderBottomColor: colors.borderLight }, isSelected && { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff' }]}
                     onPress={() => {
                       setSport(sportOption);
                       setShowSportPicker(false);
                     }}
                   >
-                    <Text style={[styles.modalOptionText, isSelected && styles.modalOptionTextSelected]}>
+                    <Text style={[styles.modalOptionText, { color: isSelected ? colors.primary : colors.text }, isSelected && { fontWeight: '600' }]}>
                       {sportOption}
                     </Text>
-                    {isSelected && <Text style={styles.modalCheckmark}>✓</Text>}
+                    {isSelected && <Text style={[styles.modalCheckmark, { color: colors.primary }]}>✓</Text>}
                   </TouchableOpacity>
                 );
               })}

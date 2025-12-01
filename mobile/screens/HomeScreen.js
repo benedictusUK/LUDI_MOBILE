@@ -10,11 +10,13 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 import HeaderWithNotifications from '../components/HeaderWithNotifications';
 
 export default function HomeScreen() {
   const { user, apiRequest } = useAuth();
+  const { colors, isDark } = useTheme();
   const navigation = useNavigation();
   const [dashboardData, setDashboardData] = useState({
     upcomingEvents: [],
@@ -80,26 +82,26 @@ export default function HomeScreen() {
   const profileComplete = user?.username && user?.dateOfBirth && user?.postcode && user?.gender;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <HeaderWithNotifications title="Home" />
       <ScrollView 
         style={styles.scrollView}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        <View style={styles.greetingContainer}>
-          <Text style={styles.greeting}>
+        <View style={[styles.greetingContainer, { backgroundColor: colors.card }]}>
+          <Text style={[styles.greeting, { color: colors.text }]}>
             Hello, {user?.firstName || user?.username || 'User'}! 👋
           </Text>
-          <Text style={styles.subtitle}>Ready to play?</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Ready to play?</Text>
         </View>
 
         {!profileComplete && (
           <TouchableOpacity 
-            style={styles.profilePrompt}
+            style={[styles.profilePrompt, { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.2)' : '#fef3c7', borderLeftColor: '#f59e0b' }]}
             onPress={() => navigation.navigate('Profile')}
           >
-            <Text style={styles.promptTitle}>Complete Your Profile</Text>
-            <Text style={styles.promptSubtitle}>
+            <Text style={[styles.promptTitle, { color: isDark ? '#fbbf24' : '#92400e' }]}>Complete Your Profile</Text>
+            <Text style={[styles.promptSubtitle, { color: isDark ? '#fbbf24' : '#92400e' }]}>
               Add your details to unlock all features
             </Text>
           </TouchableOpacity>
@@ -110,52 +112,54 @@ export default function HomeScreen() {
             title="My Teams" 
             count={dashboardData.stats.teamsCount}
             onPress={() => navigation.navigate('Teams')}
+            colors={colors}
           />
           <StatCard 
             title="Events" 
             count={dashboardData.stats.eventsCount}
             onPress={() => navigation.navigate('Events')}
+            colors={colors}
           />
         </View>
 
         {dashboardData.upcomingEvents.length > 0 && (
-          <View style={styles.section}>
+          <View style={[styles.section, { backgroundColor: colors.card }]}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Upcoming Events</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Upcoming Events</Text>
               <TouchableOpacity onPress={() => navigation.navigate('Events')}>
-                <Text style={styles.seeAllButton}>See All</Text>
+                <Text style={[styles.seeAllButton, { color: colors.primary }]}>See All</Text>
               </TouchableOpacity>
             </View>
             {dashboardData.upcomingEvents.map((event) => (
               <TouchableOpacity
                 key={event.id}
-                style={styles.eventCard}
+                style={[styles.eventCard, { backgroundColor: colors.cardSecondary }]}
                 onPress={() => navigation.navigate('EventDetails', { id: event.id })}
               >
-                <Text style={styles.eventTitle}>{event.name}</Text>
-                <Text style={styles.eventDate}>
+                <Text style={[styles.eventTitle, { color: colors.text }]}>{event.name}</Text>
+                <Text style={[styles.eventDate, { color: colors.textSecondary }]}>
                   {event.startDate ? new Date(event.startDate).toLocaleDateString() : 'Date TBD'} • {event.startTime || 'Time TBD'}
                 </Text>
-                <Text style={styles.eventSport}>{event.sport}</Text>
+                <Text style={[styles.eventSport, { color: colors.primary }]}>{event.sport}</Text>
               </TouchableOpacity>
             ))}
           </View>
         )}
 
         {dashboardData.recentTeams.length > 0 && (
-          <View style={styles.section}>
+          <View style={[styles.section, { backgroundColor: colors.card }]}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>My Teams</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>My Teams</Text>
               <TouchableOpacity onPress={() => navigation.navigate('Teams')}>
-                <Text style={styles.seeAllButton}>See All</Text>
+                <Text style={[styles.seeAllButton, { color: colors.primary }]}>See All</Text>
               </TouchableOpacity>
             </View>
             {dashboardData.recentTeams.map((team) => (
-              <View key={team.id} style={styles.teamCard}>
+              <View key={team.id} style={[styles.teamCard, { backgroundColor: colors.cardSecondary }]}>
                 <View style={[styles.teamColor, { backgroundColor: team.color || '#3b82f6' }]} />
                 <View style={styles.teamInfo}>
-                  <Text style={styles.teamName}>{team.name}</Text>
-                  <Text style={styles.teamSports}>
+                  <Text style={[styles.teamName, { color: colors.text }]}>{team.name}</Text>
+                  <Text style={[styles.teamSports, { color: colors.textSecondary }]}>
                     {team.sports?.slice(0, 2).join(', ')}
                     {team.sports?.length > 2 && ' +more'}
                   </Text>
@@ -166,7 +170,7 @@ export default function HomeScreen() {
         )}
 
         <View style={styles.quickActions}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
           <View style={styles.actionButtons}>
             <TouchableOpacity 
               style={styles.actionButtonWrapper}
@@ -203,11 +207,11 @@ export default function HomeScreen() {
   );
 }
 
-function StatCard({ title, count, onPress }) {
+function StatCard({ title, count, onPress, colors }) {
   return (
-    <TouchableOpacity style={styles.statCard} onPress={onPress}>
-      <Text style={styles.statCount}>{count}</Text>
-      <Text style={styles.statTitle}>{title}</Text>
+    <TouchableOpacity style={[styles.statCard, { backgroundColor: colors.card }]} onPress={onPress}>
+      <Text style={[styles.statCount, { color: colors.primary }]}>{count}</Text>
+      <Text style={[styles.statTitle, { color: colors.textSecondary }]}>{title}</Text>
     </TouchableOpacity>
   );
 }
