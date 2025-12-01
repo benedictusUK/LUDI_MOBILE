@@ -20,8 +20,30 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 const SPORTS_OPTIONS = [
-  'Football', 'Basketball', 'Tennis', 'Soccer', 'Rugby', 
-  'Cricket', 'Baseball', 'Volleyball', 'Hockey', 'Golf'
+  'Team Social',
+  'Badminton',
+  'Basketball',
+  'Boxing',
+  'Cricket',
+  'Cycling',
+  'Fitness Training',
+  'Football',
+  'Golf',
+  'Hiking',
+  'Hockey',
+  'Martial Arts',
+  'Other',
+  'Paddle',
+  'Rugby',
+  'Running',
+  'Squash',
+  'Swimming',
+  'Table Tennis',
+  'Tennis',
+  'Volleyball',
+  'Walking',
+  'Wild Camping',
+  'Yoga',
 ];
 
 export default function TeamDetailsScreen() {
@@ -535,7 +557,7 @@ export default function TeamDetailsScreen() {
                   style={styles.actionButton}
                 >
                   <Ionicons name="settings-outline" size={20} color="#ffffff" />
-                  <Text style={styles.actionButtonText}>Edit Settings</Text>
+                  <Text style={styles.actionButtonText}>Edit</Text>
                 </LinearGradient>
               </TouchableOpacity>
 
@@ -729,27 +751,39 @@ export default function TeamDetailsScreen() {
             </View>
 
             <View style={styles.formSection}>
-              <Text style={styles.formLabel}>Sports</Text>
-              <View style={styles.sportsGrid}>
-                {SPORTS_OPTIONS.map((sport) => (
-                  <TouchableOpacity
-                    key={sport}
-                    style={[
-                      styles.sportOption,
-                      editSports.includes(sport) && styles.sportOptionSelected,
-                    ]}
-                    onPress={() => toggleSport(sport)}
-                  >
-                    <Text
-                      style={[
-                        styles.sportOptionText,
-                        editSports.includes(sport) && styles.sportOptionTextSelected,
-                      ]}
+              <Text style={styles.formLabel}>Sports & Activities</Text>
+              {editSports.length > 0 && (
+                <View style={styles.selectedSportsContainer}>
+                  {editSports.map((sport) => (
+                    <View key={sport} style={styles.selectedSportChip}>
+                      <Text style={styles.selectedSportText}>{sport}</Text>
+                      <TouchableOpacity onPress={() => toggleSport(sport)}>
+                        <Ionicons name="close-circle" size={16} color="#3b82f6" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
+              <View style={styles.sportsListContainer}>
+                <ScrollView style={styles.sportsList} nestedScrollEnabled>
+                  {SPORTS_OPTIONS.map((sport) => (
+                    <TouchableOpacity
+                      key={sport}
+                      style={styles.sportListItem}
+                      onPress={() => toggleSport(sport)}
                     >
-                      {sport}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                      <View style={[
+                        styles.sportCheckbox,
+                        editSports.includes(sport) && styles.sportCheckboxSelected
+                      ]}>
+                        {editSports.includes(sport) && (
+                          <Ionicons name="checkmark" size={16} color="#ffffff" />
+                        )}
+                      </View>
+                      <Text style={styles.sportListText}>{sport}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
               </View>
             </View>
 
@@ -1359,31 +1393,65 @@ const styles = StyleSheet.create({
     height: 100,
     textAlignVertical: 'top',
   },
-  sportsGrid: {
+  selectedSportsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+    marginBottom: 12,
   },
-  sportOption: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+  selectedSportChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#eff6ff',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#3b82f6',
+    gap: 6,
+  },
+  selectedSportText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#3b82f6',
+  },
+  sportsListContainer: {
+    backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#e5e7eb',
-    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    maxHeight: 300,
   },
-  sportOptionSelected: {
-    backgroundColor: '#eff6ff',
+  sportsList: {
+    maxHeight: 300,
+  },
+  sportListItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    gap: 12,
+  },
+  sportCheckbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#cbd5e1',
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sportCheckboxSelected: {
+    backgroundColor: '#3b82f6',
     borderColor: '#3b82f6',
   },
-  sportOptionText: {
-    fontSize: 14,
-    color: '#64748b',
-    fontWeight: '500',
-  },
-  sportOptionTextSelected: {
-    color: '#3b82f6',
-    fontWeight: '600',
+  sportListText: {
+    fontSize: 15,
+    color: '#1e293b',
+    flex: 1,
   },
   switchRow: {
     flexDirection: 'row',
