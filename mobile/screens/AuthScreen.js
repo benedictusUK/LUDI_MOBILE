@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
     height: 80,
     marginBottom: 16,
     borderRadius: 16,
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#10b981',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   replitButton: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#10b981',
   },
   googleButton: {
     backgroundColor: '#ffffff',

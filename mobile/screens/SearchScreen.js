@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigation} from '@react-navigation/native';
+import HeaderWithNotifications from '../components/HeaderWithNotifications';
 
 const SPORTS = [
   "All Sports",
@@ -225,8 +226,9 @@ export default function SearchScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <HeaderWithNotifications title="Search" />
       <View style={styles.searchContainer}>
-        <Text style={styles.title}>🔍 Find Active Events</Text>
+        <Text style={styles.searchTitle}>🔍 Find Active Events</Text>
         <Text style={styles.subtitle}>Discover events looking for players near you</Text>
 
         <View style={styles.inputContainer}>
@@ -394,7 +396,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
   },
-  title: {
+  searchTitle: {
     fontSize: 24,
     fontWeight: '700',
     color: '#1e293b',
@@ -441,7 +443,7 @@ const styles = StyleSheet.create({
     color: '#6b7280',
   },
   searchButton: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#10b981',
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',

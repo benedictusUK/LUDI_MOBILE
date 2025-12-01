@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigation } from '@react-navigation/native';
+import HeaderWithNotifications from '../components/HeaderWithNotifications';
 
 export default function HomeScreen() {
   const { user, apiRequest } = useAuth();
@@ -79,11 +80,12 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <HeaderWithNotifications title="Home" />
       <ScrollView 
         style={styles.scrollView}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        <View style={styles.header}>
+        <View style={styles.greetingContainer}>
           <Text style={styles.greeting}>
             Hello, {user?.firstName || user?.username || 'User'}! 👋
           </Text>
@@ -206,8 +208,9 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  header: {
+  greetingContainer: {
     padding: 24,
+    paddingTop: 16,
     backgroundColor: '#ffffff',
   },
   greeting: {

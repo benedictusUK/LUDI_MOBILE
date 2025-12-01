@@ -6,8 +6,6 @@ const { width, height } = Dimensions.get('window');
 
 export default function LoadingScreen({ onComplete }) {
   const [currentStep, setCurrentStep] = useState(0);
-  const trophyScale = useRef(new Animated.Value(0)).current;
-  const trophyRotate = useRef(new Animated.Value(0)).current;
   const letterOpacities = useRef([...Array(4)].map(() => new Animated.Value(0))).current;
   const letterTranslates = useRef([...Array(4)].map(() => new Animated.Value(50))).current;
   const underlineWidth = useRef(new Animated.Value(0)).current;
@@ -20,31 +18,13 @@ export default function LoadingScreen({ onComplete }) {
   }))).current;
 
   useEffect(() => {
-    // Step 0: Trophy animation (1200ms)
+    // Step 0: LUDI text animation (1000ms) - starts immediately
     const timer1 = setTimeout(() => {
-      Animated.parallel([
-        Animated.spring(trophyScale, {
-          toValue: 1,
-          friction: 5,
-          tension: 40,
-          useNativeDriver: true,
-        }),
-        Animated.timing(trophyRotate, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-      ]).start();
-      setCurrentStep(1);
-    }, 0);
-
-    // Step 1: LUDI text animation (1000ms)
-    const timer2 = setTimeout(() => {
       letterOpacities.forEach((opacity, index) => {
         Animated.timing(opacity, {
           toValue: 1,
           duration: 500,
-          delay: 200 + index * 100,
+          delay: index * 100,
           useNativeDriver: true,
         }).start();
       });
@@ -52,15 +32,15 @@ export default function LoadingScreen({ onComplete }) {
         Animated.timing(translate, {
           toValue: 0,
           duration: 500,
-          delay: 200 + index * 100,
+          delay: index * 100,
           useNativeDriver: true,
         }).start();
       });
-      setCurrentStep(2);
-    }, 1200);
+      setCurrentStep(1);
+    }, 0);
 
-    // Step 2: Underline and tagline animation (1200ms)
-    const timer3 = setTimeout(() => {
+    // Step 1: Underline and tagline animation (1200ms)
+    const timer2 = setTimeout(() => {
       Animated.parallel([
         Animated.timing(underlineWidth, {
           toValue: 1,
@@ -122,26 +102,20 @@ export default function LoadingScreen({ onComplete }) {
         ).start();
       });
       
-      setCurrentStep(3);
-    }, 2200);
+      setCurrentStep(2);
+    }, 1000);
 
-    // Step 3: Complete and call onComplete (after animation finishes)
-    const timer4 = setTimeout(() => {
+    // Step 2: Complete and call onComplete (after animation finishes)
+    const timer3 = setTimeout(() => {
       onComplete?.();
-    }, 3400);
+    }, 2200);
 
     return () => {
       clearTimeout(timer1);
       clearTimeout(timer2);
       clearTimeout(timer3);
-      clearTimeout(timer4);
     };
   }, []);
-
-  const rotation = trophyRotate.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['-180deg', '0deg'],
-  });
 
   return (
     <LinearGradient
@@ -150,23 +124,8 @@ export default function LoadingScreen({ onComplete }) {
       end={{ x: 1, y: 1 }}
       style={styles.container}
     >
-      <View style={styles.content}>
-        {/* Trophy Icon Animation */}
-        <Animated.Text
-          style={[
-            styles.trophy,
-            {
-              transform: [
-                { scale: trophyScale },
-                { rotate: rotation },
-              ],
-            },
-          ]}
-        >
-          🏆
-        </Animated.Text>
-
-        {/* LUDI Text Animation */}
+      <View style={styles.centeredContent}>
+        {/* LUDI Text Animation - Centered */}
         <View style={styles.textContainer}>
           <View style={styles.ludiContainer}>
             {'LUDI'.split('').map((letter, index) => (
@@ -261,12 +220,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  content: {
+  centeredContent: {
     alignItems: 'center',
-  },
-  trophy: {
-    fontSize: 120,
-    marginBottom: 32,
+    justifyContent: 'center',
   },
   textContainer: {
     alignItems: 'center',

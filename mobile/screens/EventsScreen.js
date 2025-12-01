@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity, RefreshControl, Alert, SafeAreaView, Switch } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../contexts/AuthContext';
+import HeaderWithNotifications from '../components/HeaderWithNotifications';
 
 export default function EventsScreen() {
   const [events, setEvents] = useState([]);
@@ -54,14 +56,18 @@ export default function EventsScreen() {
 
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.loadingText}>Loading events...</Text>
-      </View>
+      <SafeAreaView style={styles.container}>
+        <HeaderWithNotifications title="Events" />
+        <View style={styles.centerContainer}>
+          <Text style={styles.loadingText}>Loading events...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
+      <HeaderWithNotifications title="Events" />
       <View style={styles.toggleContainer}>
         <TouchableOpacity
           style={[styles.toggleButton, !showPastEvents && styles.toggleButtonActive]}
@@ -164,12 +170,20 @@ export default function EventsScreen() {
         }
       />
       
-      {/* Floating Action Button */}
+      {/* Floating Action Button with Gradient */}
       <TouchableOpacity
-        style={styles.fab}
+        style={styles.fabContainer}
         onPress={() => navigation.navigate('CreateEvent')}
+        activeOpacity={0.8}
       >
-        <Text style={styles.fabText}>+</Text>
+        <LinearGradient
+          colors={['#3b82f6', '#10b981']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.fab}
+        >
+          <Text style={styles.fabText}>+</Text>
+        </LinearGradient>
       </TouchableOpacity>
     </SafeAreaView>
   );
@@ -195,7 +209,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   toggleButtonActive: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#10b981',
   },
   toggleButtonText: {
     fontSize: 14,
@@ -359,21 +373,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  fab: {
+  fabContainer: {
     position: 'absolute',
     bottom: 20,
     right: 20,
-    width: 56,
-    height: 56,
     borderRadius: 28,
-    backgroundColor: '#3b82f6',
-    justifyContent: 'center',
-    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 8,
+  },
+  fab: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   fabText: {
     color: '#ffffff',

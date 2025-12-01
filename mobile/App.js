@@ -46,9 +46,6 @@ function MainTabs() {
             case 'Teams':
               iconName = focused ? 'people' : 'people-outline';
               break;
-            case 'Notifications':
-              iconName = focused ? 'notifications' : 'notifications-outline';
-              break;
             case 'Profile':
               iconName = focused ? 'person' : 'person-outline';
               break;
@@ -64,8 +61,8 @@ function MainTabs() {
             />
           );
         },
-        tabBarActiveTintColor: '#3b82f6',
-        tabBarInactiveTintColor: '#6b7280',
+        tabBarActiveTintColor: '#10b981',
+        tabBarInactiveTintColor: '#94a3b8',
         tabBarStyle: {
           backgroundColor: '#ffffff',
           borderTopWidth: 1,
@@ -108,13 +105,6 @@ function MainTabs() {
         component={TeamsScreen}
         options={{
           tabBarLabel: 'Teams',
-        }}
-      />
-      <Tab.Screen 
-        name="Notifications" 
-        component={NotificationsScreen}
-        options={{
-          tabBarLabel: 'Alerts',
         }}
       />
       <Tab.Screen 
@@ -174,6 +164,7 @@ function AppContent() {
     <NavigationContainer>
       <Stack.Navigator>
         <Stack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
+        <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: false }} />
         <Stack.Screen name="CreateTeam" component={CreateTeamScreen} options={{ headerShown: false }} />
         <Stack.Screen name="CreateEvent" component={CreateEventScreen} options={{ headerShown: false }} />
         <Stack.Screen name="EditEvent" component={EditEventScreen} options={{ headerShown: false }} />

@@ -12,6 +12,7 @@ import {
   Modal,
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
+import HeaderWithNotifications from '../components/HeaderWithNotifications';
 
 const SPORTS = [
   "Team Social",
@@ -128,8 +129,9 @@ export default function ProfileScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
+      <HeaderWithNotifications title="Profile" />
       <ScrollView style={styles.scrollView}>
-        <View style={styles.header}>
+        <View style={styles.profileSection}>
           <Image 
             source={{ uri: user?.profileImageUrl || 'https://via.placeholder.com/100' }}
             style={styles.profileImage}
@@ -358,7 +360,7 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  header: {
+  profileSection: {
     alignItems: 'center',
     padding: 24,
     backgroundColor: '#ffffff',
@@ -412,7 +414,7 @@ const styles = StyleSheet.create({
   editButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#10b981',
     borderRadius: 6,
   },
   editButtonText: {

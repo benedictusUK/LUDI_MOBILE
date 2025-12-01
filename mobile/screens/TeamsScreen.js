@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity, RefreshControl, Alert, SafeAreaView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../contexts/AuthContext';
+import HeaderWithNotifications from '../components/HeaderWithNotifications';
 
 export default function TeamsScreen() {
   const [teams, setTeams] = useState([]);
@@ -39,23 +41,18 @@ export default function TeamsScreen() {
 
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.loadingText}>Loading teams...</Text>
-      </View>
+      <SafeAreaView style={styles.container}>
+        <HeaderWithNotifications title="Teams" />
+        <View style={styles.centerContainer}>
+          <Text style={styles.loadingText}>Loading teams...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Teams</Text>
-        <TouchableOpacity 
-          style={styles.createButton}
-          onPress={() => navigation.navigate('CreateTeam')}
-        >
-          <Text style={styles.createButtonText}>+ Create Team</Text>
-        </TouchableOpacity>
-      </View>
+      <HeaderWithNotifications title="Teams" />
       
       <FlatList
         contentContainerStyle={styles.list}
@@ -103,6 +100,21 @@ export default function TeamsScreen() {
           </View>
         }
       />
+      
+      <TouchableOpacity
+        style={styles.fabContainer}
+        onPress={() => navigation.navigate('CreateTeam')}
+        activeOpacity={0.8}
+      >
+        <LinearGradient
+          colors={['#3b82f6', '#10b981']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.fab}
+        >
+          <Text style={styles.fabText}>+</Text>
+        </LinearGradient>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -226,5 +238,29 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     textAlign: 'center',
     lineHeight: 22,
+  },
+  fabContainer: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    borderRadius: 28,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  fab: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fabText: {
+    color: '#ffffff',
+    fontSize: 32,
+    fontWeight: '300',
+    lineHeight: 32,
   },
 });
