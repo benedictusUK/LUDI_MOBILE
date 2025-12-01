@@ -11,6 +11,7 @@ import {
   TextInput,
   Modal,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import HeaderWithNotifications from '../components/HeaderWithNotifications';
 
@@ -263,24 +264,40 @@ export default function ProfileScreen({ navigation }) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Sports Interests</Text>
           {isEditing ? (
-            <View style={styles.sportsGrid}>
-              {SPORTS.map((sport) => (
-                <TouchableOpacity
-                  key={sport}
-                  style={[
-                    styles.sportChip,
-                    profileData.sportsInterests.includes(sport) && styles.sportChipSelected
-                  ]}
-                  onPress={() => handleSportToggle(sport)}
-                >
-                  <Text style={[
-                    styles.sportChipText,
-                    profileData.sportsInterests.includes(sport) && styles.sportChipTextSelected
-                  ]}>
-                    {sport}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+            <View>
+              {profileData.sportsInterests.length > 0 && (
+                <View style={styles.selectedSportsContainer}>
+                  {profileData.sportsInterests.map((sport) => (
+                    <View key={sport} style={styles.selectedSportChip}>
+                      <Text style={styles.selectedSportText}>{sport}</Text>
+                      <TouchableOpacity onPress={() => handleSportToggle(sport)}>
+                        <Ionicons name="close-circle" size={16} color="#3b82f6" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
+              <View style={styles.sportsListContainer}>
+                <ScrollView style={styles.sportsList} nestedScrollEnabled>
+                  {SPORTS.map((sport) => (
+                    <TouchableOpacity
+                      key={sport}
+                      style={styles.sportListItem}
+                      onPress={() => handleSportToggle(sport)}
+                    >
+                      <View style={[
+                        styles.sportCheckbox,
+                        profileData.sportsInterests.includes(sport) && styles.sportCheckboxSelected
+                      ]}>
+                        {profileData.sportsInterests.includes(sport) && (
+                          <Ionicons name="checkmark" size={16} color="#ffffff" />
+                        )}
+                      </View>
+                      <Text style={styles.sportListText}>{sport}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
             </View>
           ) : (
             <View style={styles.sportsGrid}>
@@ -513,6 +530,67 @@ const styles = StyleSheet.create({
   sportChipTextSelected: {
     color: '#ffffff',
     fontWeight: '500',
+  },
+  selectedSportsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+    marginTop: 12,
+  },
+  selectedSportChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#eff6ff',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#3b82f6',
+    gap: 6,
+  },
+  selectedSportText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#3b82f6',
+  },
+  sportsListContainer: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 8,
+    maxHeight: 300,
+  },
+  sportsList: {
+    maxHeight: 300,
+  },
+  sportListItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    gap: 12,
+  },
+  sportCheckbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#cbd5e1',
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sportCheckboxSelected: {
+    backgroundColor: '#3b82f6',
+    borderColor: '#3b82f6',
+  },
+  sportListText: {
+    fontSize: 15,
+    color: '#1e293b',
+    flex: 1,
   },
   noSports: {
     color: '#9ca3af',
