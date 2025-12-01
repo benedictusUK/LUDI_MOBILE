@@ -41,7 +41,14 @@ export default function HeaderWithNotifications({ title }) {
 
   return (
     <View style={styles.header}>
-      <Text style={styles.title}>{title}</Text>
+      {title === 'Home' ? (
+        <View style={styles.logoContainer}>
+          <Text style={styles.logoText}>LUDI</Text>
+          <Text style={styles.logoSubtext}>Don't just watch</Text>
+        </View>
+      ) : (
+        <Text style={styles.title}>{title}</Text>
+      )}
       <TouchableOpacity 
         onPress={handleNotificationsPress} 
         style={styles.notificationButton}
@@ -78,6 +85,21 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
+  },
+  logoContainer: {
+    flexDirection: 'column',
+  },
+  logoText: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#1e293b',
+    letterSpacing: 1,
+  },
+  logoSubtext: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#10b981',
+    marginTop: -4,
   },
   title: {
     fontSize: 28,

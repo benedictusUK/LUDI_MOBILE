@@ -8,6 +8,7 @@ import {
   SafeAreaView,
   RefreshControl 
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigation } from '@react-navigation/native';
 import HeaderWithNotifications from '../components/HeaderWithNotifications';
@@ -173,16 +174,32 @@ export default function HomeScreen() {
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.actionButtons}>
             <TouchableOpacity 
-              style={styles.actionButton}
+              style={styles.actionButtonWrapper}
               onPress={() => navigation.navigate('CreateTeam')}
+              activeOpacity={0.8}
             >
-              <Text style={styles.actionButtonText}>Create Team</Text>
+              <LinearGradient
+                colors={['#3b82f6', '#10b981']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.actionButton}
+              >
+                <Text style={styles.actionButtonText}>Create Team</Text>
+              </LinearGradient>
             </TouchableOpacity>
             <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={() => navigation.navigate('Search')}
+              style={styles.actionButtonWrapper}
+              onPress={() => navigation.navigate('CreateEvent')}
+              activeOpacity={0.8}
             >
-              <Text style={styles.actionButtonText}>Find Events</Text>
+              <LinearGradient
+                colors={['#3b82f6', '#10b981']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.actionButton}
+              >
+                <Text style={styles.actionButtonText}>Create Event</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         </View>
@@ -348,9 +365,10 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: 12,
   },
-  actionButton: {
+  actionButtonWrapper: {
     flex: 1,
-    backgroundColor: '#3b82f6',
+  },
+  actionButton: {
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
