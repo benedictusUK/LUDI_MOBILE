@@ -63,6 +63,15 @@ export default function TeamDetailsScreen() {
     return member.role;
   };
 
+  // Helper function to get display name
+  const getDisplayName = (user) => {
+    if (!user) return 'Unknown';
+    if (user.firstName && user.lastName) {
+      return `${user.firstName} ${user.lastName}`;
+    }
+    return user.username || 'Unknown';
+  };
+
   const userMembership = members.find(m => m.userId === user?.id);
   const userRole = userMembership ? getDisplayRole(userMembership) : null;
   const isOwner = userRole === 'owner';
@@ -475,7 +484,8 @@ export default function TeamDetailsScreen() {
           {members.slice(0, 3).map((member) => (
             <View key={member.userId} style={styles.memberRow}>
               <View style={styles.memberInfo}>
-                <Text style={styles.memberName}>{member.user?.username || 'Unknown'}</Text>
+                <Text style={styles.memberName}>{getDisplayName(member.user)}</Text>
+                <Text style={styles.memberUsername}>@{member.user?.username || 'unknown'}</Text>
                 <Text style={styles.memberRole}>{getDisplayRole(member)}</Text>
               </View>
             </View>
@@ -598,23 +608,25 @@ export default function TeamDetailsScreen() {
           <ScrollView style={styles.modalContent}>
             {members.map((member) => {
               const displayRole = getDisplayRole(member);
+              const displayName = getDisplayName(member.user);
               return (
                 <View key={member.userId} style={styles.memberCard}>
                   <View style={styles.memberCardInfo}>
-                    <Text style={styles.memberCardName}>{member.user?.username || 'Unknown'}</Text>
+                    <Text style={styles.memberCardName}>{displayName}</Text>
+                    <Text style={styles.memberCardUsername}>@{member.user?.username || 'unknown'}</Text>
                     <Text style={styles.memberCardRole}>{displayRole}</Text>
                   </View>
                   {isAdmin && displayRole !== 'owner' && member.userId !== user.id && (
                     <View style={styles.memberActions}>
                       <TouchableOpacity
                         style={styles.roleButton}
-                        onPress={() => handleChangeRole(member.userId, member.user?.username, displayRole)}
+                        onPress={() => handleChangeRole(member.userId, displayName, displayRole)}
                       >
                         <Text style={styles.roleButtonText}>Change Role</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={styles.removeButton}
-                        onPress={() => handleRemoveMember(member.userId, member.user?.username)}
+                        onPress={() => handleRemoveMember(member.userId, displayName)}
                       >
                         <Text style={styles.removeButtonText}>Remove</Text>
                       </TouchableOpacity>
@@ -812,15 +824,13 @@ export default function TeamDetailsScreen() {
             )}
             {searchResults.map((result) => (
               <View key={result.id} style={styles.searchResultCard}>
-                <View>
-                  <Text style={styles.searchResultName}>{result.username}</Text>
-                  {result.email && (
-                    <Text style={styles.searchResultEmail}>{result.email}</Text>
-                  )}
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.searchResultName}>{getDisplayName(result)}</Text>
+                  <Text style={styles.searchResultUsername}>@{result.username}</Text>
                 </View>
                 <TouchableOpacity
                   style={styles.inviteButton}
-                  onPress={() => handleInviteUser(result.id, result.username)}
+                  onPress={() => handleInviteUser(result.id, getDisplayName(result))}
                 >
                   <Text style={styles.inviteButtonText}>Invite</Text>
                 </TouchableOpacity>
@@ -863,10 +873,13 @@ export default function TeamDetailsScreen() {
               <ScrollView style={styles.blockedList}>
                 {blockedUsers.map((blocked) => (
                   <View key={blocked.userId} style={styles.blockedUserCard}>
-                    <Text style={styles.blockedUserName}>{blocked.user?.username || 'Unknown'}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.blockedUserName}>{getDisplayName(blocked.user)}</Text>
+                      <Text style={styles.blockedUserUsername}>@{blocked.user?.username || 'unknown'}</Text>
+                    </View>
                     <TouchableOpacity
                       style={styles.unblockButton}
-                      onPress={() => handleUnblockUser(blocked.userId, blocked.user?.username)}
+                      onPress={() => handleUnblockUser(blocked.userId, getDisplayName(blocked.user))}
                     >
                       <Text style={styles.unblockButtonText}>Unblock</Text>
                     </TouchableOpacity>
@@ -893,15 +906,13 @@ export default function TeamDetailsScreen() {
             )}
             {searchResults.map((result) => (
               <View key={result.id} style={styles.searchResultCard}>
-                <View>
-                  <Text style={styles.searchResultName}>{result.username}</Text>
-                  {result.email && (
-                    <Text style={styles.searchResultEmail}>{result.email}</Text>
-                  )}
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.searchResultName}>{getDisplayName(result)}</Text>
+                  <Text style={styles.searchResultUsername}>@{result.username}</Text>
                 </View>
                 <TouchableOpacity
                   style={styles.blockButton}
-                  onPress={() => handleBlockUser(result.id, result.username)}
+                  onPress={() => handleBlockUser(result.id, getDisplayName(result))}
                 >
                   <Text style={styles.blockButtonText}>Block</Text>
                 </TouchableOpacity>
@@ -1087,15 +1098,21 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   memberName: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
     color: '#1e293b',
     marginBottom: 2,
   },
-  memberRole: {
+  memberUsername: {
     fontSize: 12,
     color: '#64748b',
+    marginBottom: 2,
+  },
+  memberRole: {
+    fontSize: 12,
+    color: '#3b82f6',
     textTransform: 'capitalize',
+    fontWeight: '500',
   },
   requestRow: {
     flexDirection: 'row',
@@ -1221,15 +1238,21 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   memberCardName: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
     color: '#1e293b',
     marginBottom: 4,
   },
+  memberCardUsername: {
+    fontSize: 13,
+    color: '#64748b',
+    marginBottom: 4,
+  },
   memberCardRole: {
     fontSize: 14,
-    color: '#64748b',
+    color: '#3b82f6',
     textTransform: 'capitalize',
+    fontWeight: '500',
   },
   memberActions: {
     flexDirection: 'row',
@@ -1411,7 +1434,7 @@ const styles = StyleSheet.create({
     color: '#1e293b',
     marginBottom: 4,
   },
-  searchResultEmail: {
+  searchResultUsername: {
     fontSize: 12,
     color: '#64748b',
   },
@@ -1470,8 +1493,13 @@ const styles = StyleSheet.create({
   },
   blockedUserName: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
     color: '#1e293b',
+    marginBottom: 2,
+  },
+  blockedUserUsername: {
+    fontSize: 12,
+    color: '#64748b',
   },
   unblockButton: {
     backgroundColor: '#10b981',
