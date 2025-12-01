@@ -26,64 +26,13 @@ export default function AuthScreen({ onAuthSuccess }) {
   const [isLoading, setIsLoading] = useState(false);
   const { signIn } = useAuth();
 
-  // Handle Google Sign In with custom scheme redirect
+  // Handle Google Sign In - currently not supported in Expo Go
   const handleGoogleSignIn = async () => {
-    try {
-      setIsLoading(true);
-      
-      const clientId = GOOGLE_CLIENT_ID;
-      
-      if (!clientId) {
-        Alert.alert('Configuration Error', 'Google Sign-In is not configured.');
-        return;
-      }
-
-      // Use the app's custom scheme for redirect
-      const redirectUri = AuthSession.makeRedirectUri({
-        scheme: 'ludi-mobile',
-        path: 'auth'
-      });
-
-      console.log('Google OAuth redirect URI:', redirectUri);
-      console.log('Google OAuth client ID:', clientId);
-
-      // Build the Google OAuth URL with code response type
-      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
-        `client_id=${clientId}&` +
-        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-        `response_type=code&` +
-        `scope=${encodeURIComponent('openid profile email')}&` +
-        `prompt=select_account`;
-
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
-
-      console.log('Google auth result:', result);
-
-      if (result.type === 'success' && result.url) {
-        const url = new URL(result.url);
-        
-        // Get the authorization code from query params
-        const code = url.searchParams.get('code');
-
-        if (code) {
-          console.log('Got authorization code, exchanging for token...');
-          // Exchange code for token on backend
-          await handleGoogleCodeExchange(code, redirectUri);
-        } else {
-          console.error('No code in response:', result.url);
-          Alert.alert('Authentication Error', 'Failed to get authorization code');
-        }
-      } else if (result.type === 'cancel') {
-        console.log('Google auth cancelled by user');
-      } else {
-        console.log('Google auth result type:', result.type);
-      }
-    } catch (error) {
-      console.error('Google auth error:', error);
-      Alert.alert('Authentication Error', 'Unable to sign in with Google');
-    } finally {
-      setIsLoading(false);
-    }
+    Alert.alert(
+      'Google Sign-In Not Available',
+      'Google OAuth has technical limitations in Expo Go. Please use:\n\n• Replit Sign-In\n• Apple Sign-In (on iOS)\n\nGoogle Sign-In will be available when the app is published as a standalone app.',
+      [{ text: 'OK' }]
+    );
   };
 
   const handleGoogleCodeExchange = async (code, redirectUri) => {
@@ -262,13 +211,13 @@ export default function AuthScreen({ onAuthSuccess }) {
             <Text style={styles.authButtonText}>Continue with Replit</Text>
           </TouchableOpacity>
 
-          {/* Google Sign In */}
+          {/* Google Sign In - Disabled in Expo Go */}
           <TouchableOpacity
-            style={[styles.authButton, styles.googleButton]}
+            style={[styles.authButton, styles.googleButton, styles.disabledButton]}
             onPress={handleGoogleSignIn}
             disabled={isLoading}
           >
-            <Text style={[styles.authButtonText, styles.googleButtonText]}>Continue with Google</Text>
+            <Text style={[styles.authButtonText, styles.googleButtonText]}>Continue with Google (Limited)</Text>
           </TouchableOpacity>
 
           {/* Apple Sign In */}
@@ -350,6 +299,9 @@ const styles = StyleSheet.create({
   },
   googleButtonText: {
     color: '#374151',
+  },
+  disabledButton: {
+    opacity: 0.6,
   },
   appleButton: {
     height: 50,
