@@ -21,7 +21,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Technical Implementations
 *   **Web Frontend**: React 18 with TypeScript and Vite, Wouter for routing, React Hook Form with Zod for form handling, and Tailwind CSS for styling.
-*   **Mobile Frontend**: React Native with Expo, React Navigation for routing, native mobile UI components, JWT authentication, and Stripe React Native SDK for payments.
+*   **Mobile Frontend**: React Native with Expo, React Navigation for routing, native mobile UI components with Ionicons for modern navigation icons, JWT authentication, blue-green gradient theme using expo-linear-gradient, animated splash screen with logo reveal animation, and Stripe React Native SDK for payments.
 *   **Backend**: Express.js with TypeScript, RESTful API endpoints, CORS enabled for cross-origin requests, and Drizzle ORM for PostgreSQL. Dual authentication system supporting web sessions and mobile JWT tokens.
 *   **Database**: PostgreSQL (via Neon serverless) with Drizzle ORM for schema definition and Drizzle Kit for migrations.
 *   **Authentication**: 
@@ -29,8 +29,8 @@ Preferred communication style: Simple, everyday language.
     - Mobile: JWT token-based authentication with secure token storage and refresh mechanisms.
 *   **Business Logic**: Comprehensive modules for user, team, and event management, including role-based access with three-tier permissions (owner/admin/captain), join requests with automatic notification management, member blocking, recurring events, reserve player system, and a real-time notification system with comprehensive event management authorization. Payment collection and authorization with Stripe integration for secure transactions.
 *   **UI/UX**: 
-    - Web: Custom sports-focused color palette with `shadcn/ui` components ensuring WCAG compliance.
-    - Mobile: Native mobile UI with emoji icons, tab navigation, floating action buttons, pull-to-refresh, and platform-optimized components.
+    - Web: Custom sports-focused color palette with `shadcn/ui` components ensuring WCAG compliance. Features animated logo reveal on first load with trophy icon, letter-by-letter text animation, and particle effects.
+    - Mobile: Native mobile UI with modern Ionicons navigation icons, blue-green gradient theme throughout the app, tab navigation, floating action buttons, pull-to-refresh, animated splash screen matching web app's logo reveal animation, and platform-optimized components.
 
 ### Feature Specifications
 *   **Authentication**: Secure Replit, Google, and Apple OAuth integration for user login and profile management.
@@ -69,7 +69,8 @@ Preferred communication style: Simple, everyday language.
 *   **@react-navigation/bottom-tabs**: Tab navigation component.
 *   **@react-navigation/native-stack**: Stack navigation component.
 *   **@stripe/stripe-react-native**: Native Stripe SDK for mobile payments.
-*   **@expo/vector-icons**: Icon library for Expo applications.
+*   **@expo/vector-icons**: Icon library including Ionicons for modern navigation icons.
+*   **expo-linear-gradient**: Gradient components for blue-green theme styling.
 *   **expo-secure-store**: Secure storage for sensitive data like tokens.
 *   **@react-native-async-storage/async-storage**: Local storage for React Native.
 *   **jsonwebtoken**: JWT token handling for mobile authentication.

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -17,8 +17,11 @@ import CreateEventScreen from './screens/CreateEventScreen';
 import EditEventScreen from './screens/EditEventScreen';
 import EventDetailsScreen from './screens/EventDetailsScreen';
 import PaymentScreen from './screens/PaymentScreen';
+import LoadingScreen from './components/LoadingScreen';
 import { usePushNotifications } from './hooks/usePushNotifications';
 import { View, Text, StyleSheet, AppRegistry } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -28,35 +31,37 @@ function MainTabs() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
-          let emoji;
+          let iconName;
 
           switch (route.name) {
             case 'Home':
-              emoji = '🏠';
+              iconName = focused ? 'home' : 'home-outline';
               break;
             case 'Events':
-              emoji = '📅';
+              iconName = focused ? 'calendar' : 'calendar-outline';
               break;
             case 'Search':
-              emoji = '🔍';
+              iconName = focused ? 'search' : 'search-outline';
               break;
             case 'Teams':
-              emoji = '👥';
+              iconName = focused ? 'people' : 'people-outline';
               break;
             case 'Notifications':
-              emoji = '🔔';
+              iconName = focused ? 'notifications' : 'notifications-outline';
               break;
             case 'Profile':
-              emoji = '👤';
+              iconName = focused ? 'person' : 'person-outline';
               break;
             default:
-              emoji = '❓';
+              iconName = 'help-outline';
           }
 
           return (
-            <Text style={{ fontSize: size, opacity: focused ? 1 : 0.6 }}>
-              {emoji}
-            </Text>
+            <Ionicons 
+              name={iconName} 
+              size={size} 
+              color={color}
+            />
           );
         },
         tabBarActiveTintColor: '#3b82f6',
@@ -71,7 +76,7 @@ function MainTabs() {
         },
         tabBarLabelStyle: {
           fontSize: 12,
-          fontWeight: '500',
+          fontWeight: '600',
           marginTop: 4,
         },
         headerShown: false,
@@ -125,7 +130,28 @@ function MainTabs() {
 
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
+  const [showLogoReveal, setShowLogoReveal] = useState(false);
+  const [hasShownReveal, setHasShownReveal] = useState(false);
   usePushNotifications();
+
+  // Check if user has seen the logo reveal animation on first load
+  useEffect(() => {
+    if (isAuthenticated && !isLoading) {
+      AsyncStorage.getItem('ludi-logo-revealed').then(hasRevealed => {
+        if (!hasRevealed) {
+          setShowLogoReveal(true);
+        } else {
+          setHasShownReveal(true);
+        }
+      });
+    }
+  }, [isAuthenticated, isLoading]);
+
+  const handleLogoRevealComplete = () => {
+    setShowLogoReveal(false);
+    setHasShownReveal(true);
+    AsyncStorage.setItem('ludi-logo-revealed', 'true');
+  };
 
   if (isLoading) {
     return (
@@ -137,6 +163,11 @@ function AppContent() {
 
   if (!isAuthenticated) {
     return <AuthScreen onAuthSuccess={() => {}} />;
+  }
+
+  // Show logo reveal animation on first app load
+  if (showLogoReveal && !hasShownReveal) {
+    return <LoadingScreen onComplete={handleLogoRevealComplete} />;
   }
 
   return (
