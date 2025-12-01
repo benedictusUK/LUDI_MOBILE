@@ -11,6 +11,7 @@ import {
   Modal,
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 
 const SPORTS = [
@@ -62,6 +63,7 @@ const GENDERS = [
 export default function CreateTeamScreen() {
   const navigation = useNavigation();
   const { apiRequest } = useAuth();
+  const { colors, isDark } = useTheme();
   const [loading, setLoading] = useState(false);
   const [showGenderPicker, setShowGenderPicker] = useState(false);
   
@@ -127,32 +129,34 @@ export default function CreateTeamScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>← Back</Text>
+          <Text style={[styles.backButtonText, { color: colors.primary }]}>← Back</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Create Team</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Create Team</Text>
         <View style={styles.placeholder} />
       </View>
 
       <ScrollView style={styles.scrollView}>
         <View style={styles.form}>
-          <Text style={styles.label}>Team Name *</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Team Name *</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
             value={formData.name}
             onChangeText={(text) => setFormData({ ...formData, name: text })}
             placeholder="Enter team name"
+            placeholderTextColor={colors.inputPlaceholder}
             maxLength={50}
           />
 
-          <Text style={styles.label}>Description</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Description</Text>
           <TextInput
-            style={[styles.input, styles.textArea]}
+            style={[styles.input, styles.textArea, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
             value={formData.description}
             onChangeText={(text) => setFormData({ ...formData, description: text })}
             placeholder="Tell others about your team"
+            placeholderTextColor={colors.inputPlaceholder}
             multiline
             numberOfLines={3}
             maxLength={200}

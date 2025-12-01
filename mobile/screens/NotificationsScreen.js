@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 
 export default function NotificationsScreen() {
@@ -18,6 +19,7 @@ export default function NotificationsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const { apiRequest } = useAuth();
+  const { colors, isDark } = useTheme();
   const navigation = useNavigation();
 
   const fetchNotifications = async () => {
@@ -167,8 +169,8 @@ export default function NotificationsScreen() {
 
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.loadingText}>Loading notifications...</Text>
+      <View style={[styles.centerContainer, { backgroundColor: colors.background }]}>
+        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading notifications...</Text>
       </View>
     );
   }
@@ -176,17 +178,17 @@ export default function NotificationsScreen() {
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <TouchableOpacity 
           onPress={() => navigation.goBack()}
           style={styles.backButton}
         >
-          <Ionicons name="arrow-back" size={24} color="#1e293b" />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Notifications</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Notifications</Text>
         {unreadCount > 0 && (
-          <TouchableOpacity style={styles.markAllButton} onPress={markAllAsRead}>
+          <TouchableOpacity style={[styles.markAllButton, { backgroundColor: colors.primary }]} onPress={markAllAsRead}>
             <Text style={styles.markAllText}>Mark All Read</Text>
           </TouchableOpacity>
         )}

@@ -17,6 +17,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 const SPORTS_OPTIONS = [
@@ -48,6 +49,7 @@ const SPORTS_OPTIONS = [
 
 export default function TeamDetailsScreen() {
   const { user, apiRequest } = useAuth();
+  const { colors, isDark } = useTheme();
   const navigation = useNavigation();
   const route = useRoute();
   const { teamId } = route.params;
