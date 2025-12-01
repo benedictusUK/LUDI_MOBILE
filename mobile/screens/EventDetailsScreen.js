@@ -67,6 +67,18 @@ export default function EventDetailsScreen() {
     fetchEventDetails();
   }, [id]);
 
+  useEffect(() => {
+    navigation.setOptions({
+      headerStyle: {
+        backgroundColor: colors.card,
+      },
+      headerTintColor: colors.text,
+      headerTitleStyle: {
+        color: colors.text,
+      },
+    });
+  }, [colors, navigation]);
+
   const onRefresh = () => {
     setRefreshing(true);
     fetchEventDetails();
