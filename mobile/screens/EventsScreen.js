@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import HeaderWithNotifications from '../components/HeaderWithNotifications';
 
 export default function EventsScreen() {
@@ -13,6 +14,7 @@ export default function EventsScreen() {
   const [showPastEvents, setShowPastEvents] = useState(false);
   const navigation = useNavigation();
   const { apiRequest } = useAuth();
+  const { colors, isDark } = useTheme();
 
   const fetchEvents = async (includePast = false) => {
     try {

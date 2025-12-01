@@ -4,7 +4,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StripeProvider } from '@stripe/stripe-react-native';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { ThemeProvider } from './contexts/ThemeContext';
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import AuthScreen from './screens/AuthScreen';
 import HomeScreen from './screens/HomeScreen';
 import EventsScreen from './screens/EventsScreen';
@@ -29,6 +29,8 @@ const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 function MainTabs() {
+  const { colors } = useTheme();
+  
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -63,12 +65,12 @@ function MainTabs() {
             />
           );
         },
-        tabBarActiveTintColor: '#10b981',
-        tabBarInactiveTintColor: '#94a3b8',
+        tabBarActiveTintColor: colors.primaryGreen,
+        tabBarInactiveTintColor: colors.icon,
         tabBarStyle: {
-          backgroundColor: '#ffffff',
+          backgroundColor: colors.card,
           borderTopWidth: 1,
-          borderTopColor: '#e5e7eb',
+          borderTopColor: colors.border,
           paddingTop: 8,
           paddingBottom: 8,
           height: 70,
@@ -122,6 +124,7 @@ function MainTabs() {
 
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
+  const { colors, loading: themeLoading } = useTheme();
   const [showLogoReveal, setShowLogoReveal] = useState(false);
   const [hasShownReveal, setHasShownReveal] = useState(false);
   usePushNotifications();
@@ -145,10 +148,10 @@ function AppContent() {
     AsyncStorage.setItem('ludi-logo-revealed', 'true');
   };
 
-  if (isLoading) {
+  if (isLoading || themeLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Loading...</Text>
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading...</Text>
       </View>
     );
   }
