@@ -766,7 +766,7 @@ export default function TeamDetailsScreen() {
                   ))}
                 </View>
               )}
-              <View style={styles.sportsListContainer}>
+              <View style={[styles.sportsListContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <ScrollView style={styles.sportsList} nestedScrollEnabled>
                   {SPORTS_OPTIONS.map((sport) => (
                     <TouchableOpacity
