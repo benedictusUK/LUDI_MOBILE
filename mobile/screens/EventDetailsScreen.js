@@ -309,8 +309,8 @@ export default function EventDetailsScreen() {
         </View>
 
         {attendance && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Attendance Summary</Text>
+          <View style={[styles.card, { backgroundColor: colors.card }]}>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>Attendance Summary</Text>
             <View style={styles.attendanceSummary}>
               <SummaryItem 
                 label="Attending" 
@@ -339,8 +339,8 @@ export default function EventDetailsScreen() {
         )}
 
         {event.cost && event.cost > 0 && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Payment</Text>
+          <View style={[styles.card, { backgroundColor: colors.card }]}>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>Payment</Text>
             <TouchableOpacity 
               style={styles.paymentButton}
               onPress={() => navigation.navigate('Payment', { eventId: event.id })}
