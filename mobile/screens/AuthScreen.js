@@ -226,14 +226,14 @@ export default function AuthScreen({ onAuthSuccess }) {
             <Text style={styles.authButtonText}>Continue with Replit</Text>
           </TouchableOpacity>
 
-          {/* Google Sign In - Temporarily disabled for debugging */}
-          {false && <TouchableOpacity
+          {/* Google Sign In */}
+          <TouchableOpacity
             style={[styles.authButton, styles.googleButton]}
             onPress={handleGoogleSignIn}
             disabled={isLoading}
           >
             <Text style={[styles.authButtonText, styles.googleButtonText]}>Continue with Google</Text>
-          </TouchableOpacity>}
+          </TouchableOpacity>
 
           {/* Apple Sign In */}
           <AppleAuthentication.AppleAuthenticationButton
