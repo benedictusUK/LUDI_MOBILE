@@ -9,6 +9,7 @@ import {
   RefreshControl 
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
@@ -79,6 +80,43 @@ export default function HomeScreen() {
     fetchDashboardData();
   };
 
+  // Check if event is active (for highlighting) - based on date range
+  const isEventActive = (event) => {
+    if (!event.startDate) return false;
+    
+    const now = new Date();
+    now.setHours(0, 0, 0, 0); // Reset to start of day for date comparison
+    
+    const startDate = new Date(event.startDate);
+    startDate.setHours(0, 0, 0, 0);
+    
+    const endDate = event.endDate ? new Date(event.endDate) : new Date(event.startDate);
+    endDate.setHours(0, 0, 0, 0);
+    
+    // Event is active if current date is within the event date range
+    return now >= startDate && now <= endDate;
+  };
+
+  // Check if LIVE tag should show - based on time range
+  const isLiveEvent = (event) => {
+    if (!event.startDate || !event.startTime) return false;
+    
+    const now = new Date();
+    const startDateTime = new Date(`${event.startDate}T${event.startTime}`);
+    
+    // If no end time, consider it live for 2 hours after start
+    let endDateTime;
+    if (event.endTime) {
+      const endDate = event.endDate || event.startDate;
+      endDateTime = new Date(`${endDate}T${event.endTime}`);
+    } else {
+      endDateTime = new Date(startDateTime.getTime() + 2 * 60 * 60 * 1000); // 2 hours later
+    }
+    
+    // LIVE tag only shows if current time is between start and end times
+    return now >= startDateTime && now <= endDateTime;
+  };
+
   const profileComplete = user?.username && user?.dateOfBirth && user?.postcode && user?.gender;
 
   return (
@@ -130,19 +168,44 @@ export default function HomeScreen() {
                 <Text style={[styles.seeAllButton, { color: colors.primary }]}>See All</Text>
               </TouchableOpacity>
             </View>
-            {dashboardData.upcomingEvents.map((event) => (
-              <TouchableOpacity
-                key={event.id}
-                style={[styles.eventCard, { backgroundColor: colors.cardSecondary }]}
-                onPress={() => navigation.navigate('EventDetails', { id: event.id })}
-              >
-                <Text style={[styles.eventTitle, { color: colors.text }]}>{event.name}</Text>
-                <Text style={[styles.eventDate, { color: colors.textSecondary }]}>
-                  {event.startDate ? new Date(event.startDate).toLocaleDateString() : 'Date TBD'} • {event.startTime || 'Time TBD'}
-                </Text>
-                <Text style={[styles.eventSport, { color: colors.primary }]}>{event.sport}</Text>
-              </TouchableOpacity>
-            ))}
+            {dashboardData.upcomingEvents.map((event) => {
+              const isActive = isEventActive(event);
+              const isLive = isLiveEvent(event);
+              
+              const cardContent = (
+                <View style={[styles.eventCardInner, { backgroundColor: isActive ? 'transparent' : colors.cardSecondary }]}>
+                  <View style={styles.eventHeader}>
+                    <Text style={[styles.eventTitle, { color: isActive ? '#ffffff' : colors.text }]}>{event.name}</Text>
+                    {isLive && <Text style={styles.liveBadge}>LIVE</Text>}
+                  </View>
+                  <Text style={[styles.eventDate, { color: isActive ? '#ffffff' : colors.textSecondary }]}>
+                    {event.startDate ? new Date(event.startDate).toLocaleDateString() : 'Date TBD'} • {event.startTime || 'Time TBD'}
+                  </Text>
+                  <Text style={[styles.eventSport, { color: isActive ? '#ffffff' : colors.primary }]}>{event.sport}</Text>
+                </View>
+              );
+
+              return (
+                <TouchableOpacity
+                  key={event.id}
+                  style={styles.eventCard}
+                  onPress={() => navigation.navigate('EventDetails', { id: event.id })}
+                >
+                  {isActive ? (
+                    <LinearGradient
+                      colors={['#3b82f6', '#10b981']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.eventCardGradient}
+                    >
+                      {cardContent}
+                    </LinearGradient>
+                  ) : (
+                    cardContent
+                  )}
+                </TouchableOpacity>
+              );
+            })}
           </View>
         )}
 
@@ -299,14 +362,37 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   eventCard: {
-    padding: 12,
     borderRadius: 8,
     marginBottom: 8,
+    overflow: 'hidden',
+  },
+  eventCardInner: {
+    padding: 12,
+    borderRadius: 8,
+  },
+  eventCardGradient: {
+    borderRadius: 8,
+  },
+  eventHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
   },
   eventTitle: {
     fontSize: 16,
     fontWeight: '600',
-    marginBottom: 4,
+    flex: 1,
+  },
+  liveBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#ffffff',
+    overflow: 'hidden',
   },
   eventDate: {
     fontSize: 14,
