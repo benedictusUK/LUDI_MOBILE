@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity, RefreshControl, Alert, SafeAreaView, Switch } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../contexts/AuthContext';
 import HeaderWithNotifications from '../components/HeaderWithNotifications';
@@ -141,7 +142,9 @@ export default function EventsScreen() {
                     </Text>
                   )}
                   {item.recurringSeriesId && (
-                    <Text style={styles.recurringBadge}>🔄</Text>
+                    <View style={styles.recurringBadge}>
+                      <Ionicons name="repeat" size={14} color="#10b981" />
+                    </View>
                   )}
                 </View>
               </View>
@@ -346,7 +349,8 @@ const styles = StyleSheet.create({
     color: '#6b7280',
   },
   recurringBadge: {
-    fontSize: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emptyText: {
     fontSize: 18,

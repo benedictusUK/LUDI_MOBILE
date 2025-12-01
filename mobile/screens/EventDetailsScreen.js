@@ -10,6 +10,7 @@ import {
   RefreshControl,
   Modal,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useRoute, useNavigation } from '@react-navigation/native';
 
@@ -197,7 +198,8 @@ export default function EventDetailsScreen() {
           </View>
           {!!event.recurringSeriesId && (
             <View style={styles.recurringBadge}>
-              <Text style={styles.recurringText}>🔄 Recurring Event</Text>
+              <Ionicons name="repeat" size={16} color="#10b981" style={{ marginRight: 6 }} />
+              <Text style={styles.recurringText}>Recurring Event</Text>
             </View>
           )}
         </View>
@@ -623,7 +625,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   recurringBadge: {
-    backgroundColor: '#fef3c7',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#d1fae5',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
@@ -631,7 +635,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   recurringText: {
-    color: '#b45309',
+    color: '#059669',
     fontSize: 14,
     fontWeight: '600',
   },
