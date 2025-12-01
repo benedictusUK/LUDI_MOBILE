@@ -26,7 +26,7 @@ export default function AuthScreen({ onAuthSuccess }) {
   const [isLoading, setIsLoading] = useState(false);
   const { signIn } = useAuth();
 
-  // Handle Google Sign In with Expo auth proxy
+  // Handle Google Sign In with custom scheme redirect
   const handleGoogleSignIn = async () => {
     try {
       setIsLoading(true);
@@ -38,14 +38,16 @@ export default function AuthScreen({ onAuthSuccess }) {
         return;
       }
 
-      // Construct Expo proxy redirect URI manually
-      // Format: https://auth.expo.io/@owner/slug
-      const redirectUri = 'https://auth.expo.io/@anonymous/ludi-mobile';
+      // Use the app's custom scheme for redirect
+      const redirectUri = AuthSession.makeRedirectUri({
+        scheme: 'ludi-mobile',
+        path: 'auth'
+      });
 
       console.log('Google OAuth redirect URI:', redirectUri);
       console.log('Google OAuth client ID:', clientId);
 
-      // Use response_type=code instead of token for better Expo proxy compatibility
+      // Build the Google OAuth URL with code response type
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
         `client_id=${clientId}&` +
         `redirect_uri=${encodeURIComponent(redirectUri)}&` +
@@ -60,27 +62,15 @@ export default function AuthScreen({ onAuthSuccess }) {
       if (result.type === 'success' && result.url) {
         const url = new URL(result.url);
         
-        // Try to get code from query params
+        // Get the authorization code from query params
         const code = url.searchParams.get('code');
-        
-        // Also try from hash (some flows use fragment)
-        if (!code && url.hash) {
-          const fragment = url.hash.substring(1);
-          const params = new URLSearchParams(fragment);
-          const accessToken = params.get('access_token');
-          
-          if (accessToken) {
-            // Direct token flow worked
-            await handleGoogleAuthSuccess(accessToken);
-            return;
-          }
-        }
 
         if (code) {
+          console.log('Got authorization code, exchanging for token...');
           // Exchange code for token on backend
-          await handleGoogleCodeExchange(code);
+          await handleGoogleCodeExchange(code, redirectUri);
         } else {
-          console.error('No code or token in response:', result.url);
+          console.error('No code in response:', result.url);
           Alert.alert('Authentication Error', 'Failed to get authorization code');
         }
       } else if (result.type === 'cancel') {
@@ -96,7 +86,7 @@ export default function AuthScreen({ onAuthSuccess }) {
     }
   };
 
-  const handleGoogleCodeExchange = async (code) => {
+  const handleGoogleCodeExchange = async (code, redirectUri) => {
     try {
       // Send code to backend to exchange for token and user info
       const response = await fetch(`${API_BASE_URL}/api/auth/mobile/google/exchange`, {
@@ -104,7 +94,7 @@ export default function AuthScreen({ onAuthSuccess }) {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({ code, redirect_uri: redirectUri }),
       });
 
       const data = await response.json();
@@ -112,6 +102,7 @@ export default function AuthScreen({ onAuthSuccess }) {
       if (response.ok) {
         await signIn(data.user, data.token);
       } else {
+        console.error('Code exchange failed:', data);
         Alert.alert('Authentication Failed', data.message || 'Please try again');
       }
     } catch (error) {

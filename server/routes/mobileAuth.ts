@@ -67,11 +67,17 @@ export function verifyAuth(req: any, res: any, next: any) {
 // Google OAuth code exchange for mobile
 router.post('/google/exchange', async (req, res) => {
   try {
-    const { code } = req.body;
+    const { code, redirect_uri } = req.body;
 
     if (!code) {
       return res.status(400).json({ message: 'Authorization code required' });
     }
+
+    // Use the redirect_uri from the request, or fall back to Expo proxy
+    const redirectUri = redirect_uri || 'https://auth.expo.io/@anonymous/ludi-mobile';
+
+    console.log('Google code exchange - code:', code.substring(0, 20) + '...');
+    console.log('Google code exchange - redirect_uri:', redirectUri);
 
     // Exchange code for access token
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
@@ -83,7 +89,7 @@ router.post('/google/exchange', async (req, res) => {
         code,
         client_id: process.env.GOOGLE_CLIENT_ID || '',
         client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
-        redirect_uri: 'https://auth.expo.io/@anonymous/ludi-mobile',
+        redirect_uri: redirectUri,
         grant_type: 'authorization_code',
       }),
     });
@@ -91,11 +97,13 @@ router.post('/google/exchange', async (req, res) => {
     if (!tokenResponse.ok) {
       const error = await tokenResponse.text();
       console.error('Google token exchange error:', error);
-      return res.status(400).json({ message: 'Failed to exchange authorization code' });
+      return res.status(400).json({ message: 'Failed to exchange authorization code', error });
     }
 
     const tokenData = await tokenResponse.json();
     const accessToken = tokenData.access_token;
+
+    console.log('Successfully got access token from Google');
 
     // Get user info from Google
     const userInfoResponse = await fetch(
@@ -103,10 +111,12 @@ router.post('/google/exchange', async (req, res) => {
     );
 
     if (!userInfoResponse.ok) {
+      console.error('Failed to get user info from Google');
       return res.status(400).json({ message: 'Failed to get user info from Google' });
     }
 
     const userInfo = await userInfoResponse.json();
+    console.log('Got user info from Google:', userInfo.email);
 
     // Create or update user
     const userData = {
@@ -120,6 +130,8 @@ router.post('/google/exchange', async (req, res) => {
 
     const user = await storage.upsertAuthUser(userData);
     const token = generateToken(user.id);
+
+    console.log('Created/updated user and generated JWT token');
 
     res.json({
       success: true,
