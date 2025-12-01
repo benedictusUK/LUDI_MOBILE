@@ -26,23 +26,24 @@ export default function AuthScreen({ onAuthSuccess }) {
   const [isLoading, setIsLoading] = useState(false);
   const { signIn } = useAuth();
 
-  // Handle Google Sign In using a simpler approach
+  // Handle Google Sign In with Expo auth proxy
   const handleGoogleSignIn = async () => {
     try {
       setIsLoading(true);
       
-      // Use the appropriate client ID based on platform
-      const clientId = Platform.OS === 'android' ? GOOGLE_ANDROID_CLIENT_ID : GOOGLE_CLIENT_ID;
+      const clientId = GOOGLE_CLIENT_ID;
       
       if (!clientId) {
         Alert.alert('Configuration Error', 'Google Sign-In is not configured.');
         return;
       }
 
-      const redirectUri = AuthSession.makeRedirectUri({
-        scheme: 'ludi-mobile',
-        path: 'auth/google/callback'
-      });
+      // Construct Expo proxy redirect URI manually
+      // Format: https://auth.expo.io/@owner/slug
+      const redirectUri = 'https://auth.expo.io/@anonymous/ludi-mobile';
+
+      console.log('Google OAuth redirect URI:', redirectUri);
+      console.log('Google OAuth client ID:', clientId);
 
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
         `client_id=${clientId}&` +
