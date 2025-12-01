@@ -88,7 +88,7 @@ export default function HomeScreen() {
         style={styles.scrollView}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        <View style={[styles.greetingContainer, { backgroundColor: colors.card }]}>
+        <View style={styles.greetingContainer}>
           <Text style={[styles.greeting, { color: colors.text }]}>
             Hello, {user?.firstName || user?.username || 'User'}! 👋
           </Text>
@@ -227,44 +227,40 @@ const styles = StyleSheet.create({
   greetingContainer: {
     padding: 24,
     paddingTop: 16,
-    backgroundColor: '#ffffff',
+    paddingBottom: 20,
   },
   greeting: {
     fontSize: 26,
     fontWeight: '700',
-    color: '#1e293b',
     marginBottom: 4,
   },
   subtitle: {
     fontSize: 16,
-    color: '#64748b',
   },
   profilePrompt: {
-    backgroundColor: '#fef3c7',
     margin: 16,
+    marginTop: 0,
+    marginBottom: 20,
     padding: 16,
     borderRadius: 12,
     borderLeftWidth: 4,
-    borderLeftColor: '#f59e0b',
   },
   promptTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#92400e',
     marginBottom: 4,
   },
   promptSubtitle: {
     fontSize: 14,
-    color: '#92400e',
   },
   statsContainer: {
     flexDirection: 'row',
     paddingHorizontal: 16,
     gap: 12,
+    marginBottom: 16,
   },
   statCard: {
     flex: 1,
-    backgroundColor: '#ffffff',
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -277,17 +273,14 @@ const styles = StyleSheet.create({
   statCount: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#3b82f6',
     marginBottom: 4,
   },
   statTitle: {
     fontSize: 14,
-    color: '#64748b',
     fontWeight: '500',
   },
   section: {
     margin: 16,
-    backgroundColor: '#ffffff',
     borderRadius: 12,
     padding: 16,
   },
@@ -300,33 +293,27 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1e293b',
   },
   seeAllButton: {
     fontSize: 14,
-    color: '#3b82f6',
     fontWeight: '500',
   },
   eventCard: {
     padding: 12,
     borderRadius: 8,
-    backgroundColor: '#f8fafc',
     marginBottom: 8,
   },
   eventTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1e293b',
     marginBottom: 4,
   },
   eventDate: {
     fontSize: 14,
-    color: '#64748b',
     marginBottom: 2,
   },
   eventSport: {
     fontSize: 12,
-    color: '#3b82f6',
     fontWeight: '500',
   },
   teamCard: {
@@ -334,7 +321,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 12,
     borderRadius: 8,
-    backgroundColor: '#f8fafc',
     marginBottom: 8,
   },
   teamColor: {
