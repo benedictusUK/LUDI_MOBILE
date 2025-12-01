@@ -464,7 +464,7 @@ export default function CreateEventScreen() {
             style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
             value={formData.name}
             onChangeText={(text) => setFormData({ ...formData, name: text })}
-            placeholder=" placeholderTextColor={colors.inputPlaceholder} Enter event name"
+            placeholder="Enter event name"
             placeholderTextColor={colors.inputPlaceholder}
             maxLength={100}
           />
@@ -565,7 +565,7 @@ export default function CreateEventScreen() {
             style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
             value={formData.location}
             onChangeText={(text) => setFormData({ ...formData, location: text })}
-            placeholder=" placeholderTextColor={colors.inputPlaceholder} Enter location"
+            placeholder="Enter location"
           />
 
           <Text style={[styles.label, { color: colors.text }]}>Address</Text>
@@ -573,7 +573,7 @@ export default function CreateEventScreen() {
             style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
             value={formData.address}
             onChangeText={(text) => setFormData({ ...formData, address: text })}
-            placeholder=" placeholderTextColor={colors.inputPlaceholder} Full address"
+            placeholder="Full address"
           />
 
           <Text style={[styles.label, { color: colors.text }]}>Postcode</Text>
@@ -581,7 +581,7 @@ export default function CreateEventScreen() {
             style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
             value={formData.postcode}
             onChangeText={(text) => setFormData({ ...formData, postcode: text })}
-            placeholder=" placeholderTextColor={colors.inputPlaceholder} Enter postcode"
+            placeholder="Enter postcode"
           />
 
           <Text style={[styles.label, { color: colors.text }]}>Recurrence</Text>
@@ -650,7 +650,7 @@ export default function CreateEventScreen() {
             style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
             value={formData.maxParticipants}
             onChangeText={(text) => setFormData({ ...formData, maxParticipants: text })}
-            placeholder=" placeholderTextColor={colors.inputPlaceholder} Leave empty for no limit"
+            placeholder="Leave empty for no limit"
             keyboardType="numeric"
           />
 
@@ -659,7 +659,7 @@ export default function CreateEventScreen() {
             style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
             value={formData.reserveSpots}
             onChangeText={(text) => setFormData({ ...formData, reserveSpots: text })}
-            placeholder=" placeholderTextColor={colors.inputPlaceholder} 0"
+            placeholder="0"
             keyboardType="numeric"
           />
 
@@ -668,7 +668,7 @@ export default function CreateEventScreen() {
             style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
             value={formData.cost}
             onChangeText={(text) => setFormData({ ...formData, cost: text })}
-            placeholder=" placeholderTextColor={colors.inputPlaceholder} 0.00"
+            placeholder="0.00"
             keyboardType="decimal-pad"
           />
 
@@ -677,7 +677,7 @@ export default function CreateEventScreen() {
             style={[styles.input, styles.textArea]}
             value={formData.requirements}
             onChangeText={(text) => setFormData({ ...formData, requirements: text })}
-            placeholder=" placeholderTextColor={colors.inputPlaceholder} Enter event description"
+            placeholder="Enter event description"
             multiline
             numberOfLines={3}
           />
@@ -712,7 +712,7 @@ export default function CreateEventScreen() {
                 style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
                 value={formData.maxPlayerPayment}
                 onChangeText={(text) => setFormData({ ...formData, maxPlayerPayment: text })}
-                placeholder=" placeholderTextColor={colors.inputPlaceholder} 20.00"
+                placeholder="20.00"
                 keyboardType="decimal-pad"
               />
 
@@ -722,7 +722,7 @@ export default function CreateEventScreen() {
                 style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
                 value={formData.finalVenueCost}
                 onChangeText={(text) => setFormData({ ...formData, finalVenueCost: text })}
-                placeholder=" placeholderTextColor={colors.inputPlaceholder} 100.00"
+                placeholder="100.00"
                 keyboardType="decimal-pad"
               />
 
