@@ -8,6 +8,7 @@ import AuthScreen from './screens/AuthScreen';
 import HomeScreen from './screens/HomeScreen';
 import EventsScreen from './screens/EventsScreen';
 import TeamsScreen from './screens/TeamsScreen';
+import TeamDetailsScreen from './screens/TeamDetailsScreen';
 import NotificationsScreen from './screens/NotificationsScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import ProfileScreen from './screens/ProfileScreen';
@@ -165,6 +166,7 @@ function AppContent() {
       <Stack.Navigator>
         <Stack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
         <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="TeamDetails" component={TeamDetailsScreen} options={{ headerShown: false }} />
         <Stack.Screen name="CreateTeam" component={CreateTeamScreen} options={{ headerShown: false }} />
         <Stack.Screen name="CreateEvent" component={CreateEventScreen} options={{ headerShown: false }} />
         <Stack.Screen name="EditEvent" component={EditEventScreen} options={{ headerShown: false }} />

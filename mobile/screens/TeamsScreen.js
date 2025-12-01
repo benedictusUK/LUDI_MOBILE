@@ -62,7 +62,10 @@ export default function TeamsScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         renderItem={({ item }) => (
-          <TouchableOpacity style={styles.teamCard}>
+          <TouchableOpacity 
+            style={styles.teamCard}
+            onPress={() => navigation.navigate('TeamDetails', { teamId: item.id })}
+          >
             <View style={styles.teamHeader}>
               <View style={[styles.teamColor, { backgroundColor: item.color || '#3b82f6' }]} />
               <View style={styles.teamInfo}>
