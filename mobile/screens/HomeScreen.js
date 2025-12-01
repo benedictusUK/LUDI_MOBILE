@@ -116,11 +116,6 @@ export default function HomeScreen() {
             count={dashboardData.stats.eventsCount}
             onPress={() => navigation.navigate('Events')}
           />
-          <StatCard 
-            title="Notifications" 
-            count={dashboardData.stats.notificationsCount}
-            onPress={() => navigation.navigate('Notifications')}
-          />
         </View>
 
         {dashboardData.upcomingEvents.length > 0 && (

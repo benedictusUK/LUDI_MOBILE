@@ -9,6 +9,7 @@ import {
   Alert,
   SafeAreaView,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigation } from '@react-navigation/native';
 
@@ -177,6 +178,12 @@ export default function NotificationsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
+        <TouchableOpacity 
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        >
+          <Ionicons name="arrow-back" size={24} color="#1e293b" />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Notifications</Text>
         {unreadCount > 0 && (
           <TouchableOpacity style={styles.markAllButton} onPress={markAllAsRead}>
@@ -264,10 +271,15 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
   },
+  backButton: {
+    padding: 8,
+    marginRight: 8,
+  },
   headerTitle: {
     fontSize: 24,
     fontWeight: '700',
     color: '#1e293b',
+    flex: 1,
   },
   markAllButton: {
     backgroundColor: '#3b82f6',
