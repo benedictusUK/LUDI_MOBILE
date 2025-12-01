@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '../contexts/ThemeContext';
 
 const { width, height } = Dimensions.get('window');
 
 export default function LoadingScreen({ onComplete }) {
+  const { colors, isDark } = useTheme();
   const [currentStep, setCurrentStep] = useState(0);
   const letterOpacities = useRef([...Array(4)].map(() => new Animated.Value(0))).current;
   const letterTranslates = useRef([...Array(4)].map(() => new Animated.Value(50))).current;
@@ -119,7 +121,7 @@ export default function LoadingScreen({ onComplete }) {
 
   return (
     <LinearGradient
-      colors={['#EBF4FF', '#E0F2F1']}
+      colors={isDark ? ['#0f172a', '#1e293b'] : ['#EBF4FF', '#E0F2F1']}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.container}
@@ -133,6 +135,7 @@ export default function LoadingScreen({ onComplete }) {
                 key={index}
                 style={[
                   styles.letter,
+                  { color: colors.text },
                   {
                     opacity: letterOpacities[index],
                     transform: [{ translateY: letterTranslates[index] }],
@@ -145,7 +148,7 @@ export default function LoadingScreen({ onComplete }) {
           </View>
 
           {/* Underline Animation */}
-          <View style={styles.underlineContainer}>
+          <View style={[styles.underlineContainer, { backgroundColor: isDark ? '#334155' : '#e5e7eb' }]}>
             <Animated.View
               style={[
                 styles.underline,
@@ -171,6 +174,7 @@ export default function LoadingScreen({ onComplete }) {
         <Animated.Text
           style={[
             styles.tagline,
+            { color: colors.textSecondary },
             {
               opacity: taglineOpacity,
               transform: [{ translateY: taglineTranslate }],
@@ -196,6 +200,7 @@ export default function LoadingScreen({ onComplete }) {
               key={i}
               style={[
                 styles.particle,
+                { backgroundColor: isDark ? '#60a5fa' : '#3b82f6' },
                 {
                   left: positions[i].left,
                   top: positions[i].top,
@@ -233,13 +238,11 @@ const styles = StyleSheet.create({
   letter: {
     fontSize: 48,
     fontWeight: '700',
-    color: '#1e293b',
     letterSpacing: 4,
   },
   underlineContainer: {
     width: 256,
     height: 4,
-    backgroundColor: '#e5e7eb',
     borderRadius: 2,
     marginTop: 16,
     overflow: 'hidden',
@@ -253,7 +256,6 @@ const styles = StyleSheet.create({
   },
   tagline: {
     fontSize: 20,
-    color: '#64748b',
     fontWeight: '500',
     marginTop: 24,
   },
@@ -262,6 +264,5 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#3b82f6',
   },
 });

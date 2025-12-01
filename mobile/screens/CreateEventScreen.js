@@ -448,42 +448,43 @@ export default function CreateEventScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>← Back</Text>
+          <Text style={[styles.backButtonText, { color: colors.primary }]}>← Back</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Create Event</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Create Event</Text>
         <View style={styles.placeholder} />
       </View>
 
       <ScrollView style={styles.scrollView}>
         <View style={styles.form}>
-          <Text style={styles.label}>Event Name *</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Event Name *</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
             value={formData.name}
             onChangeText={(text) => setFormData({ ...formData, name: text })}
-            placeholder="Enter event name"
+            placeholder=" placeholderTextColor={colors.inputPlaceholder} Enter event name"
+            placeholderTextColor={colors.inputPlaceholder}
             maxLength={100}
           />
 
-          <Text style={styles.label}>Sport *</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Sport *</Text>
           <TouchableOpacity
-            style={styles.pickerButton}
+            style={[styles.pickerButton, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}
             onPress={() => setShowSportPicker(true)}
           >
-            <Text style={styles.pickerButtonText}>{getSportLabel()}</Text>
-            <Text style={styles.pickerArrow}>▼</Text>
+            <Text style={[styles.pickerButtonText, { color: colors.inputText }]}>{getSportLabel()}</Text>
+            <Text style={[styles.pickerArrow, { color: colors.icon }]}>▼</Text>
           </TouchableOpacity>
 
-          <Text style={styles.label}>Primary Team *</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Primary Team *</Text>
           <TouchableOpacity
-            style={styles.pickerButton}
+            style={[styles.pickerButton, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}
             onPress={() => setShowTeamPicker(true)}
           >
-            <Text style={styles.pickerButtonText}>{getTeamLabel()}</Text>
-            <Text style={styles.pickerArrow}>▼</Text>
+            <Text style={[styles.pickerButtonText, { color: colors.inputText }]}>{getTeamLabel()}</Text>
+            <Text style={[styles.pickerArrow, { color: colors.icon }]}>▼</Text>
           </TouchableOpacity>
 
           {formData.secondaryTeamIds.length > 0 && (
@@ -511,7 +512,7 @@ export default function CreateEventScreen() {
             </TouchableOpacity>
           )}
 
-          <Text style={styles.label}>Gender Restriction *</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Gender Restriction *</Text>
           <TouchableOpacity
             style={styles.pickerButton}
             onPress={() => setShowGenderPicker(true)}
@@ -520,7 +521,7 @@ export default function CreateEventScreen() {
             <Text style={styles.pickerArrow}>▼</Text>
           </TouchableOpacity>
 
-          <Text style={styles.label}>Start Date *</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Start Date *</Text>
           <TouchableOpacity
             style={styles.pickerButton}
             onPress={() => {
@@ -533,7 +534,7 @@ export default function CreateEventScreen() {
             <Ionicons name="calendar-outline" size={20} color="#64748b" />
           </TouchableOpacity>
 
-          <Text style={styles.label}>Start Time *</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Start Time *</Text>
           <TouchableOpacity
             style={styles.pickerButton}
             onPress={() => {
@@ -546,7 +547,7 @@ export default function CreateEventScreen() {
             <Ionicons name="time-outline" size={20} color="#64748b" />
           </TouchableOpacity>
 
-          <Text style={styles.label}>End Time</Text>
+          <Text style={[styles.label, { color: colors.text }]}>End Time</Text>
           <TouchableOpacity
             style={styles.pickerButton}
             onPress={() => {
@@ -559,31 +560,31 @@ export default function CreateEventScreen() {
             <Ionicons name="time-outline" size={20} color="#64748b" />
           </TouchableOpacity>
 
-          <Text style={styles.label}>Location *</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Location *</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
             value={formData.location}
             onChangeText={(text) => setFormData({ ...formData, location: text })}
-            placeholder="Enter location"
+            placeholder=" placeholderTextColor={colors.inputPlaceholder} Enter location"
           />
 
-          <Text style={styles.label}>Address</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Address</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
             value={formData.address}
             onChangeText={(text) => setFormData({ ...formData, address: text })}
-            placeholder="Full address"
+            placeholder=" placeholderTextColor={colors.inputPlaceholder} Full address"
           />
 
-          <Text style={styles.label}>Postcode</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Postcode</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
             value={formData.postcode}
             onChangeText={(text) => setFormData({ ...formData, postcode: text })}
-            placeholder="Enter postcode"
+            placeholder=" placeholderTextColor={colors.inputPlaceholder} Enter postcode"
           />
 
-          <Text style={styles.label}>Recurrence</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Recurrence</Text>
           <TouchableOpacity
             style={styles.pickerButton}
             onPress={() => setShowRecurrencePicker(true)}
@@ -595,7 +596,7 @@ export default function CreateEventScreen() {
           {/* Days of Week Picker - shown only for Weekly recurrence */}
           {formData.recurrenceType === 'weekly' && (
             <>
-              <Text style={styles.label}>Days of Week *</Text>
+              <Text style={[styles.label, { color: colors.text }]}>Days of Week *</Text>
               <TouchableOpacity
                 style={styles.pickerButton}
                 onPress={() => setShowDaysOfWeekPicker(true)}
@@ -613,7 +614,7 @@ export default function CreateEventScreen() {
           {/* Recurrence End Date - shown for any recurrence pattern */}
           {formData.recurrenceType !== 'none' && (
             <>
-              <Text style={styles.label}>Recurrence End Date (Optional)</Text>
+              <Text style={[styles.label, { color: colors.text }]}>Recurrence End Date (Optional)</Text>
               <TouchableOpacity
                 style={styles.pickerButton}
                 onPress={() => {
@@ -644,39 +645,39 @@ export default function CreateEventScreen() {
             </>
           )}
 
-          <Text style={styles.label}>Max Participants</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Max Participants</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
             value={formData.maxParticipants}
             onChangeText={(text) => setFormData({ ...formData, maxParticipants: text })}
-            placeholder="Leave empty for no limit"
+            placeholder=" placeholderTextColor={colors.inputPlaceholder} Leave empty for no limit"
             keyboardType="numeric"
           />
 
-          <Text style={styles.label}>Reserve Spots</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Reserve Spots</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
             value={formData.reserveSpots}
             onChangeText={(text) => setFormData({ ...formData, reserveSpots: text })}
-            placeholder="0"
+            placeholder=" placeholderTextColor={colors.inputPlaceholder} 0"
             keyboardType="numeric"
           />
 
-          <Text style={styles.label}>Cost (£)</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Cost (£)</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
             value={formData.cost}
             onChangeText={(text) => setFormData({ ...formData, cost: text })}
-            placeholder="0.00"
+            placeholder=" placeholderTextColor={colors.inputPlaceholder} 0.00"
             keyboardType="decimal-pad"
           />
 
-          <Text style={styles.label}>Description *</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Description *</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
             value={formData.requirements}
             onChangeText={(text) => setFormData({ ...formData, requirements: text })}
-            placeholder="Enter event description"
+            placeholder=" placeholderTextColor={colors.inputPlaceholder} Enter event description"
             multiline
             numberOfLines={3}
           />
@@ -706,22 +707,22 @@ export default function CreateEventScreen() {
 
           {formData.paymentRequired && (
             <>
-              <Text style={styles.label}>Max Player Payment (£) *</Text>
+              <Text style={[styles.label, { color: colors.text }]}>Max Player Payment (£) *</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
                 value={formData.maxPlayerPayment}
                 onChangeText={(text) => setFormData({ ...formData, maxPlayerPayment: text })}
-                placeholder="20.00"
+                placeholder=" placeholderTextColor={colors.inputPlaceholder} 20.00"
                 keyboardType="decimal-pad"
               />
 
-              <Text style={styles.label}>Final Venue Cost (£)</Text>
+              <Text style={[styles.label, { color: colors.text }]}>Final Venue Cost (£)</Text>
               <Text style={styles.sublabel}>Actual venue cost to be covered (optional)</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
                 value={formData.finalVenueCost}
                 onChangeText={(text) => setFormData({ ...formData, finalVenueCost: text })}
-                placeholder="100.00"
+                placeholder=" placeholderTextColor={colors.inputPlaceholder} 100.00"
                 keyboardType="decimal-pad"
               />
 

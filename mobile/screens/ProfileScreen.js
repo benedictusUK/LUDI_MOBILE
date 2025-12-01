@@ -50,7 +50,7 @@ const GENDERS = [
 
 export default function ProfileScreen({ navigation }) {
   const { user, updateUser, apiRequest, signOut } = useAuth();
-  const { themeMode, changeTheme, colors } = useTheme();
+  const { themeMode, changeTheme, colors, isDark } = useTheme();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showGenderPicker, setShowGenderPicker] = useState(false);
