@@ -47,10 +47,41 @@ export default function EventsScreen() {
     setLoading(true);
   };
 
+  const isLiveEvent = (item) => {
+    if (!item.startDate || !item.startTime) return false;
+    
+    const now = new Date();
+    const startDateTime = new Date(`${item.startDate}T${item.startTime}`);
+    
+    // If no end time, consider it live for 2 hours after start
+    let endDateTime;
+    if (item.endTime) {
+      const endDate = item.endDate || item.startDate;
+      endDateTime = new Date(`${endDate}T${item.endTime}`);
+    } else {
+      endDateTime = new Date(startDateTime.getTime() + 2 * 60 * 60 * 1000); // 2 hours later
+    }
+    
+    return now >= startDateTime && now <= endDateTime;
+  };
+
   const isPastEvent = (item) => {
     if (!item.startDate) return false;
-    const eventDate = new Date(item.startDate);
+    
+    // Don't mark live events as past
+    if (isLiveEvent(item)) return false;
+    
     const now = new Date();
+    
+    // If event has end time, check if it's past the end time
+    if (item.endTime) {
+      const endDate = item.endDate || item.startDate;
+      const endDateTime = new Date(`${endDate}T${item.endTime}`);
+      return now > endDateTime;
+    }
+    
+    // Otherwise check if the date is past
+    const eventDate = new Date(item.startDate);
     now.setHours(0, 0, 0, 0);
     return eventDate < now;
   };
@@ -99,55 +130,74 @@ export default function EventsScreen() {
           const eventDate = item.startDate ? new Date(item.startDate) : null;
           const dateStr = eventDate ? eventDate.toLocaleDateString() : 'Date TBD';
           const timeStr = item.startTime || 'Time TBD';
+          const isLive = isLiveEvent(item);
           const isPast = isPastEvent(item);
           
-          return (
-            <TouchableOpacity
-              style={[styles.eventCard, isPast && styles.pastEventCard]}
-              onPress={() => navigation.navigate('EventDetails', { id: item.id })}
-            >
+          const cardContent = (
+            <View style={[styles.eventCardInner, isLive && styles.liveEventCard, isPast && styles.pastEventCard]}>
               <View style={styles.eventHeader}>
-                <Text style={[styles.eventTitle, isPast && styles.pastEventText]}>{item.name}</Text>
+                <Text style={[styles.eventTitle, isPast && styles.pastEventText, isLive && styles.liveEventText]}>{item.name}</Text>
                 <View style={styles.dateContainer}>
-                  <Text style={[styles.eventDate, isPast && styles.pastEventText]}>{dateStr}</Text>
+                  <Text style={[styles.eventDate, isPast && styles.pastEventText, isLive && styles.liveEventText]}>{dateStr}</Text>
                   {isPast && <Text style={styles.pastBadge}>PAST</Text>}
+                  {isLive && <Text style={styles.liveBadge}>LIVE</Text>}
                 </View>
               </View>
               
-              <Text style={[styles.eventTime, isPast && styles.pastEventText]}>{timeStr}</Text>
+              <Text style={[styles.eventTime, isPast && styles.pastEventText, isLive && styles.liveEventText]}>{timeStr}</Text>
               
               {item.location && (
-                <Text style={[styles.eventLocation, isPast && styles.pastEventText]}>📍 {item.location}</Text>
+                <Text style={[styles.eventLocation, isPast && styles.pastEventText, isLive && styles.liveEventText]}>📍 {item.location}</Text>
               )}
               
               {item.primaryTeam && (
-                <Text style={[styles.eventTeam, isPast && styles.pastEventText]}>👥 {item.primaryTeam.name}</Text>
+                <Text style={[styles.eventTeam, isPast && styles.pastEventText, isLive && styles.liveEventText]}>👥 {item.primaryTeam.name}</Text>
               )}
               
               {item.requirements && (
-                <Text style={[styles.eventDescription, isPast && styles.pastEventText]} numberOfLines={2}>
+                <Text style={[styles.eventDescription, isPast && styles.pastEventText, isLive && styles.liveEventText]} numberOfLines={2}>
                   {item.requirements}
                 </Text>
               )}
               
               <View style={styles.eventFooter}>
-                <Text style={[styles.eventSport, isPast && styles.pastEventSport]}>{item.sport}</Text>
+                <Text style={[styles.eventSport, isPast && styles.pastEventSport, isLive && styles.liveEventSport]}>{item.sport}</Text>
                 <View style={styles.eventInfo}>
                   {item.cost && parseFloat(item.cost) > 0 && (
-                    <Text style={[styles.eventCost, isPast && styles.pastEventCost]}>£{item.cost}</Text>
+                    <Text style={[styles.eventCost, isPast && styles.pastEventCost, isLive && styles.liveEventCost]}>£{item.cost}</Text>
                   )}
                   {item.maxParticipants && (
-                    <Text style={[styles.eventCapacity, isPast && styles.pastEventText]}>
+                    <Text style={[styles.eventCapacity, isPast && styles.pastEventText, isLive && styles.liveEventText]}>
                       Max: {item.maxParticipants}
                     </Text>
                   )}
                   {item.recurringSeriesId && (
                     <View style={styles.recurringBadge}>
-                      <Ionicons name="repeat" size={14} color="#10b981" />
+                      <Ionicons name="repeat" size={14} color={isLive ? "#ffffff" : "#10b981"} />
                     </View>
                   )}
                 </View>
               </View>
+            </View>
+          );
+          
+          return (
+            <TouchableOpacity
+              style={styles.eventCard}
+              onPress={() => navigation.navigate('EventDetails', { id: item.id })}
+            >
+              {isLive ? (
+                <LinearGradient
+                  colors={['#3b82f6', '#10b981']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.liveGradient}
+                >
+                  {cardContent}
+                </LinearGradient>
+              ) : (
+                cardContent
+              )}
             </TouchableOpacity>
           );
         }}
@@ -239,15 +289,35 @@ const styles = StyleSheet.create({
     color: '#64748b',
   },
   eventCard: {
-    backgroundColor: '#ffffff',
     borderRadius: 12,
-    padding: 16,
     marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 3,
+    overflow: 'hidden',
+  },
+  eventCardInner: {
+    backgroundColor: '#ffffff',
+    padding: 16,
+  },
+  liveGradient: {
+    borderRadius: 12,
+  },
+  liveEventCard: {
+    backgroundColor: 'transparent',
+  },
+  liveEventText: {
+    color: '#ffffff',
+  },
+  liveEventSport: {
+    color: '#ffffff',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  liveEventCost: {
+    color: '#ffffff',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
   pastEventCard: {
     backgroundColor: '#f1f5f9',
@@ -270,6 +340,16 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#94a3b8',
     backgroundColor: '#e2e8f0',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginTop: 4,
+  },
+  liveBadge: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#10b981',
+    backgroundColor: '#ffffff',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
