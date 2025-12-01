@@ -162,21 +162,22 @@ export default function CreateTeamScreen() {
             maxLength={200}
           />
 
-          <Text style={styles.label}>Sports *</Text>
-          <Text style={styles.sublabel}>Select all sports your team plays</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Sports *</Text>
+          <Text style={[styles.sublabel, { color: colors.textSecondary }]}>Select all sports your team plays</Text>
           <View style={styles.sportsGrid}>
             {SPORTS.map((sport) => (
               <TouchableOpacity
                 key={sport}
                 style={[
                   styles.sportChip,
-                  formData.sports.includes(sport) && styles.sportChipSelected
+                  { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder },
+                  formData.sports.includes(sport) && { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff', borderColor: colors.primary }
                 ]}
                 onPress={() => handleSportToggle(sport)}
               >
                 <Text style={[
                   styles.sportChipText,
-                  formData.sports.includes(sport) && styles.sportChipTextSelected
+                  { color: formData.sports.includes(sport) ? colors.primary : colors.text }
                 ]}>
                   {sport}
                 </Text>
@@ -184,7 +185,7 @@ export default function CreateTeamScreen() {
             ))}
           </View>
 
-          <Text style={styles.label}>Team Color</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Team Color</Text>
           <View style={styles.colorGrid}>
             {TEAM_COLORS.map((color) => (
               <TouchableOpacity
@@ -199,24 +200,25 @@ export default function CreateTeamScreen() {
             ))}
           </View>
 
-          <Text style={styles.label}>Max Players</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Max Players</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
             value={formData.maxPlayers}
             onChangeText={(text) => setFormData({ ...formData, maxPlayers: text })}
             placeholder="Leave empty for no limit"
+            placeholderTextColor={colors.inputPlaceholder}
             keyboardType="numeric"
           />
 
-          <Text style={styles.label}>Gender Preference</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Gender Preference</Text>
           <TouchableOpacity
-            style={styles.pickerButton}
+            style={[styles.pickerButton, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}
             onPress={() => setShowGenderPicker(true)}
           >
-            <Text style={styles.pickerButtonText}>
+            <Text style={[styles.pickerButtonText, { color: colors.inputText }]}>
               {GENDERS.find(g => g.value === formData.gender)?.label || 'Select gender'}
             </Text>
-            <Text style={styles.pickerArrow}>▼</Text>
+            <Text style={[styles.pickerArrow, { color: colors.icon }]}>▼</Text>
           </TouchableOpacity>
 
           <View style={styles.optionsContainer}>
@@ -225,14 +227,15 @@ export default function CreateTeamScreen() {
               onPress={() => setFormData({ ...formData, isPrivate: !formData.isPrivate })}
             >
               <View style={styles.optionLeft}>
-                <Text style={styles.optionTitle}>Private Team</Text>
-                <Text style={styles.optionSubtitle}>
+                <Text style={[styles.optionTitle, { color: colors.text }]}>Private Team</Text>
+                <Text style={[styles.optionSubtitle, { color: colors.textSecondary }]}>
                   Only visible to invited members
                 </Text>
               </View>
               <View style={[
                 styles.toggle,
-                formData.isPrivate && styles.toggleActive
+                { backgroundColor: colors.inputBackground },
+                formData.isPrivate && { backgroundColor: colors.primary }
               ]}>
                 <View style={[
                   styles.toggleThumb,
@@ -246,14 +249,15 @@ export default function CreateTeamScreen() {
               onPress={() => setFormData({ ...formData, requiresApproval: !formData.requiresApproval })}
             >
               <View style={styles.optionLeft}>
-                <Text style={styles.optionTitle}>Require Approval</Text>
-                <Text style={styles.optionSubtitle}>
+                <Text style={[styles.optionTitle, { color: colors.text }]}>Require Approval</Text>
+                <Text style={[styles.optionSubtitle, { color: colors.textSecondary }]}>
                   Review join requests before accepting
                 </Text>
               </View>
               <View style={[
                 styles.toggle,
-                formData.requiresApproval && styles.toggleActive
+                { backgroundColor: colors.inputBackground },
+                formData.requiresApproval && { backgroundColor: colors.primary }
               ]}>
                 <View style={[
                   styles.toggleThumb,
@@ -281,12 +285,12 @@ export default function CreateTeamScreen() {
         animationType="slide"
         onRequestClose={() => setShowGenderPicker(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Gender Preference</Text>
+        <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Gender Preference</Text>
               <TouchableOpacity onPress={() => setShowGenderPicker(false)}>
-                <Text style={styles.modalClose}>✕</Text>
+                <Text style={[styles.modalClose, { color: colors.icon }]}>✕</Text>
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.modalScroll}>
@@ -296,16 +300,16 @@ export default function CreateTeamScreen() {
                 return (
                   <TouchableOpacity
                     key={index}
-                    style={[styles.modalOption, isSelected && styles.modalOptionSelected]}
+                    style={[styles.modalOption, { borderBottomColor: colors.borderLight }, isSelected && { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff' }]}
                     onPress={() => {
                       setFormData({ ...formData, gender: option.value });
                       setShowGenderPicker(false);
                     }}
                   >
-                    <Text style={[styles.modalOptionText, isSelected && styles.modalOptionTextSelected]}>
+                    <Text style={[styles.modalOptionText, { color: isSelected ? colors.primary : colors.text }, isSelected && { fontWeight: '600' }]}>
                       {option.label}
                     </Text>
-                    {isSelected && <Text style={styles.modalCheckmark}>✓</Text>}
+                    {isSelected && <Text style={[styles.modalCheckmark, { color: colors.primary }]}>✓</Text>}
                   </TouchableOpacity>
                 );
               })}

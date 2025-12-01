@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 import { calculateTotalAmount } from '../lib/paymentUtils';
 
@@ -131,6 +132,7 @@ const DAYS_OF_WEEK = [
 export default function CreateEventScreen() {
   const navigation = useNavigation();
   const { apiRequest } = useAuth();
+  const { colors, isDark } = useTheme();
   const [loading, setLoading] = useState(false);
   const [teams, setTeams] = useState([]);
   
@@ -395,12 +397,12 @@ export default function CreateEventScreen() {
       animationType="slide"
       onRequestClose={onClose}
     >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{title}</Text>
+      <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+        <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>{title}</Text>
             <TouchableOpacity onPress={onClose}>
-              <Text style={styles.modalClose}>✕</Text>
+              <Text style={[styles.modalClose, { color: colors.icon }]}>✕</Text>
             </TouchableOpacity>
           </View>
           <ScrollView style={styles.modalScroll}>
@@ -412,16 +414,16 @@ export default function CreateEventScreen() {
               return (
                 <TouchableOpacity
                   key={index}
-                  style={[styles.modalOption, isSelected && styles.modalOptionSelected]}
+                  style={[styles.modalOption, { borderBottomColor: colors.borderLight }, isSelected && { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff' }]}
                   onPress={() => {
                     onSelect(value);
                     onClose();
                   }}
                 >
-                  <Text style={[styles.modalOptionText, isSelected && styles.modalOptionTextSelected]}>
+                  <Text style={[styles.modalOptionText, { color: isSelected ? colors.primary : colors.text }, isSelected && { fontWeight: '600' }]}>
                     {label}
                   </Text>
-                  {isSelected && <Text style={styles.modalCheckmark}>✓</Text>}
+                  {isSelected && <Text style={[styles.modalCheckmark, { color: colors.primary }]}>✓</Text>}
                 </TouchableOpacity>
               );
             })}

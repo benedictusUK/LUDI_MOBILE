@@ -304,32 +304,33 @@ export default function ProfileScreen({ navigation }) {
               {profileData.sportsInterests.length > 0 && (
                 <View style={styles.selectedSportsContainer}>
                   {profileData.sportsInterests.map((sport) => (
-                    <View key={sport} style={styles.selectedSportChip}>
-                      <Text style={styles.selectedSportText}>{sport}</Text>
+                    <View key={sport} style={[styles.selectedSportChip, { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff' }]}>
+                      <Text style={[styles.selectedSportText, { color: colors.primary }]}>{sport}</Text>
                       <TouchableOpacity onPress={() => handleSportToggle(sport)}>
-                        <Ionicons name="close-circle" size={16} color="#3b82f6" />
+                        <Ionicons name="close-circle" size={16} color={colors.primary} />
                       </TouchableOpacity>
                     </View>
                   ))}
                 </View>
               )}
-              <View style={styles.sportsListContainer}>
+              <View style={[styles.sportsListContainer, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}>
                 <ScrollView style={styles.sportsList} nestedScrollEnabled>
                   {SPORTS.map((sport) => (
                     <TouchableOpacity
                       key={sport}
-                      style={styles.sportListItem}
+                      style={[styles.sportListItem, { borderBottomColor: colors.borderLight }]}
                       onPress={() => handleSportToggle(sport)}
                     >
                       <View style={[
                         styles.sportCheckbox,
-                        profileData.sportsInterests.includes(sport) && styles.sportCheckboxSelected
+                        { borderColor: colors.inputBorder },
+                        profileData.sportsInterests.includes(sport) && { backgroundColor: colors.primary, borderColor: colors.primary }
                       ]}>
                         {profileData.sportsInterests.includes(sport) && (
                           <Ionicons name="checkmark" size={16} color="#ffffff" />
                         )}
                       </View>
-                      <Text style={styles.sportListText}>{sport}</Text>
+                      <Text style={[styles.sportListText, { color: colors.text }]}>{sport}</Text>
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
@@ -338,12 +339,12 @@ export default function ProfileScreen({ navigation }) {
           ) : (
             <View style={styles.selectedSportsContainer}>
               {(user?.sportsInterests || []).map((sport) => (
-                <View key={sport} style={styles.selectedSportChip}>
-                  <Text style={styles.selectedSportText}>{sport}</Text>
+                <View key={sport} style={[styles.selectedSportChip, { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff' }]}>
+                  <Text style={[styles.selectedSportText, { color: colors.primary }]}>{sport}</Text>
                 </View>
               ))}
               {(!user?.sportsInterests || user.sportsInterests.length === 0) && (
-                <Text style={styles.noSports}>No interests selected</Text>
+                <Text style={[styles.noSports, { color: colors.textSecondary }]}>No interests selected</Text>
               )}
             </View>
           )}
@@ -360,12 +361,12 @@ export default function ProfileScreen({ navigation }) {
         animationType="slide"
         onRequestClose={() => setShowGenderPicker(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Gender</Text>
+        <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Select Gender</Text>
               <TouchableOpacity onPress={() => setShowGenderPicker(false)}>
-                <Text style={styles.modalClose}>✕</Text>
+                <Text style={[styles.modalClose, { color: colors.icon }]}>✕</Text>
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.modalScroll}>
@@ -375,16 +376,16 @@ export default function ProfileScreen({ navigation }) {
                 return (
                   <TouchableOpacity
                     key={index}
-                    style={[styles.modalOption, isSelected && styles.modalOptionSelected]}
+                    style={[styles.modalOption, { borderBottomColor: colors.borderLight }, isSelected && { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff' }]}
                     onPress={() => {
                       setProfileData({ ...profileData, gender: option.value });
                       setShowGenderPicker(false);
                     }}
                   >
-                    <Text style={[styles.modalOptionText, isSelected && styles.modalOptionTextSelected]}>
+                    <Text style={[styles.modalOptionText, { color: isSelected ? colors.primary : colors.text }, isSelected && { fontWeight: '600' }]}>
                       {option.label}
                     </Text>
-                    {isSelected && <Text style={styles.modalCheckmark}>✓</Text>}
+                    {isSelected && <Text style={[styles.modalCheckmark, { color: colors.primary }]}>✓</Text>}
                   </TouchableOpacity>
                 );
               })}
@@ -399,9 +400,9 @@ export default function ProfileScreen({ navigation }) {
         animationType="slide"
         onRequestClose={() => setShowThemePicker(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
+        <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
               <Text style={styles.modalTitle}>Select Theme</Text>
               <TouchableOpacity onPress={() => setShowThemePicker(false)}>
                 <Ionicons name="close" size={24} color="#64748b" />
