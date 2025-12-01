@@ -443,12 +443,12 @@ export default function TeamDetailsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#1e293b" />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{team.name}</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{team.name}</Text>
         <View style={styles.headerRight} />
       </View>
 
@@ -457,60 +457,60 @@ export default function TeamDetailsScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {/* Team Info Card */}
-        <View style={styles.infoCard}>
+        <View style={[styles.infoCard, { backgroundColor: colors.card }]}>
           <View style={styles.teamHeader}>
             <View style={[styles.teamColorLarge, { backgroundColor: team.color || '#3b82f6' }]} />
             <View style={styles.teamMainInfo}>
-              <Text style={styles.teamName}>{team.name}</Text>
+              <Text style={[styles.teamName, { color: colors.text }]}>{team.name}</Text>
               {team.description && (
-                <Text style={styles.teamDescription}>{team.description}</Text>
+                <Text style={[styles.teamDescription, { color: colors.textSecondary }]}>{team.description}</Text>
               )}
             </View>
           </View>
 
-          <View style={styles.sportsSection}>
-            <Text style={styles.sectionLabel}>Sports</Text>
+          <View style={[styles.sportsSection, { borderTopColor: colors.border }]}>
+            <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Sports</Text>
             <View style={styles.sportsContainer}>
               {team.sports?.map((sport, index) => (
-                <View key={index} style={styles.sportChip}>
-                  <Text style={styles.sportText}>{sport}</Text>
+                <View key={index} style={[styles.sportChip, { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff' }]}>
+                  <Text style={[styles.sportText, { color: colors.primary }]}>{sport}</Text>
                 </View>
               ))}
             </View>
           </View>
 
-          <View style={styles.statsRow}>
+          <View style={[styles.statsRow, { borderTopColor: colors.border }]}>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{members.length}</Text>
-              <Text style={styles.statLabel}>Members</Text>
+              <Text style={[styles.statValue, { color: colors.text }]}>{members.length}</Text>
+              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Members</Text>
             </View>
             {isAdmin && pendingRequests.length > 0 && (
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{pendingRequests.length}</Text>
-                <Text style={styles.statLabel}>Pending</Text>
+                <Text style={[styles.statValue, { color: colors.text }]}>{pendingRequests.length}</Text>
+                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Pending</Text>
               </View>
             )}
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{team.isPrivate ? 'Private' : 'Public'}</Text>
-              <Text style={styles.statLabel}>Privacy</Text>
+              <Text style={[styles.statValue, { color: colors.text }]}>{team.isPrivate ? 'Private' : 'Public'}</Text>
+              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Privacy</Text>
             </View>
           </View>
         </View>
 
         {/* Members Section */}
-        <View style={styles.section}>
+        <View style={[styles.section, { backgroundColor: colors.card }]}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Members ({members.length})</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Members ({members.length})</Text>
             <TouchableOpacity onPress={() => setShowMembersModal(true)}>
-              <Text style={styles.seeAllButton}>See All</Text>
+              <Text style={[styles.seeAllButton, { color: colors.primary }]}>See All</Text>
             </TouchableOpacity>
           </View>
           {members.slice(0, 3).map((member) => (
-            <View key={member.userId} style={styles.memberRow}>
+            <View key={member.userId} style={[styles.memberRow, { borderBottomColor: colors.border }]}>
               <View style={styles.memberInfo}>
-                <Text style={styles.memberName}>{getDisplayName(member.user)}</Text>
-                <Text style={styles.memberUsername}>@{member.user?.username || 'unknown'}</Text>
-                <Text style={styles.memberRole}>{getDisplayRole(member)}</Text>
+                <Text style={[styles.memberName, { color: colors.text }]}>{getDisplayName(member.user)}</Text>
+                <Text style={[styles.memberUsername, { color: colors.textSecondary }]}>@{member.user?.username || 'unknown'}</Text>
+                <Text style={[styles.memberRole, { color: colors.primary }]}>{getDisplayRole(member)}</Text>
               </View>
             </View>
           ))}
@@ -518,16 +518,16 @@ export default function TeamDetailsScreen() {
 
         {/* Pending Requests for Admins */}
         {isAdmin && pendingRequests.length > 0 && (
-          <View style={styles.section}>
+          <View style={[styles.section, { backgroundColor: colors.card }]}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Pending Requests ({pendingRequests.length})</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Pending Requests ({pendingRequests.length})</Text>
               <TouchableOpacity onPress={() => setShowPendingModal(true)}>
-                <Text style={styles.seeAllButton}>Manage</Text>
+                <Text style={[styles.seeAllButton, { color: colors.primary }]}>Manage</Text>
               </TouchableOpacity>
             </View>
             {pendingRequests.slice(0, 2).map((request) => (
-              <View key={request.id} style={styles.requestRow}>
-                <Text style={styles.requestName}>{request.username}</Text>
+              <View key={request.id} style={[styles.requestRow, { borderBottomColor: colors.border }]}>
+                <Text style={[styles.requestName, { color: colors.text }]}>{request.username}</Text>
                 <View style={styles.requestActions}>
                   <TouchableOpacity
                     style={styles.approveButton}
@@ -622,11 +622,11 @@ export default function TeamDetailsScreen() {
         presentationStyle="pageSheet"
         onRequestClose={() => setShowMembersModal(false)}
       >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Team Members</Text>
+        <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Team Members</Text>
             <TouchableOpacity onPress={() => setShowMembersModal(false)}>
-              <Ionicons name="close" size={28} color="#1e293b" />
+              <Ionicons name="close" size={28} color={colors.text} />
             </TouchableOpacity>
           </View>
           <ScrollView style={styles.modalContent}>
@@ -634,11 +634,11 @@ export default function TeamDetailsScreen() {
               const displayRole = getDisplayRole(member);
               const displayName = getDisplayName(member.user);
               return (
-                <View key={member.userId} style={styles.memberCard}>
+                <View key={member.userId} style={[styles.memberCard, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
                   <View style={styles.memberCardInfo}>
-                    <Text style={styles.memberCardName}>{displayName}</Text>
-                    <Text style={styles.memberCardUsername}>@{member.user?.username || 'unknown'}</Text>
-                    <Text style={styles.memberCardRole}>{displayRole}</Text>
+                    <Text style={[styles.memberCardName, { color: colors.text }]}>{displayName}</Text>
+                    <Text style={[styles.memberCardUsername, { color: colors.textSecondary }]}>@{member.user?.username || 'unknown'}</Text>
+                    <Text style={[styles.memberCardRole, { color: colors.primary }]}>{displayRole}</Text>
                   </View>
                   {isAdmin && displayRole !== 'owner' && member.userId !== user.id && (
                     <View style={styles.memberActions}>
@@ -670,18 +670,18 @@ export default function TeamDetailsScreen() {
         presentationStyle="pageSheet"
         onRequestClose={() => setShowPendingModal(false)}
       >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Pending Requests</Text>
+        <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Pending Requests</Text>
             <TouchableOpacity onPress={() => setShowPendingModal(false)}>
-              <Ionicons name="close" size={28} color="#1e293b" />
+              <Ionicons name="close" size={28} color={colors.text} />
             </TouchableOpacity>
           </View>
           <ScrollView style={styles.modalContent}>
             {pendingRequests.map((request) => (
-              <View key={request.id} style={styles.requestCard}>
-                <Text style={styles.requestCardName}>{request.username}</Text>
-                <Text style={styles.requestCardDate}>
+              <View key={request.id} style={[styles.requestCard, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+                <Text style={[styles.requestCardName, { color: colors.text }]}>{request.username}</Text>
+                <Text style={[styles.requestCardDate, { color: colors.textSecondary }]}>
                   Requested {new Date(request.createdAt).toLocaleDateString()}
                 </Text>
                 <View style={styles.requestCardActions}>
@@ -717,50 +717,50 @@ export default function TeamDetailsScreen() {
         presentationStyle="pageSheet"
         onRequestClose={() => setShowEditModal(false)}
       >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
+        <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
             <TouchableOpacity onPress={() => setShowEditModal(false)}>
-              <Text style={styles.cancelButton}>Cancel</Text>
+              <Text style={[styles.cancelButton, { color: colors.primary }]}>Cancel</Text>
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>Edit Team Settings</Text>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Edit Team Settings</Text>
             <TouchableOpacity onPress={handleSaveSettings}>
-              <Text style={styles.saveButton}>Save</Text>
+              <Text style={[styles.saveButton, { color: colors.primary }]}>Save</Text>
             </TouchableOpacity>
           </View>
           <ScrollView style={styles.modalContent}>
             <View style={styles.formSection}>
-              <Text style={styles.formLabel}>Team Name</Text>
+              <Text style={[styles.formLabel, { color: colors.text }]}>Team Name</Text>
               <TextInput
-                style={styles.textInput}
+                style={[styles.textInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
                 value={editName}
                 onChangeText={setEditName}
                 placeholder="Enter team name"
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={colors.inputPlaceholder}
               />
             </View>
 
             <View style={styles.formSection}>
-              <Text style={styles.formLabel}>Description</Text>
+              <Text style={[styles.formLabel, { color: colors.text }]}>Description</Text>
               <TextInput
-                style={[styles.textInput, styles.textArea]}
+                style={[styles.textInput, styles.textArea, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
                 value={editDescription}
                 onChangeText={setEditDescription}
                 placeholder="Enter team description"
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={colors.inputPlaceholder}
                 multiline
                 numberOfLines={4}
               />
             </View>
 
             <View style={styles.formSection}>
-              <Text style={styles.formLabel}>Sports & Activities</Text>
+              <Text style={[styles.formLabel, { color: colors.text }]}>Sports & Activities</Text>
               {editSports.length > 0 && (
                 <View style={styles.selectedSportsContainer}>
                   {editSports.map((sport) => (
-                    <View key={sport} style={styles.selectedSportChip}>
-                      <Text style={styles.selectedSportText}>{sport}</Text>
+                    <View key={sport} style={[styles.selectedSportChip, { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff', borderColor: colors.primary }]}>
+                      <Text style={[styles.selectedSportText, { color: colors.primary }]}>{sport}</Text>
                       <TouchableOpacity onPress={() => toggleSport(sport)}>
-                        <Ionicons name="close-circle" size={16} color="#3b82f6" />
+                        <Ionicons name="close-circle" size={16} color={colors.primary} />
                       </TouchableOpacity>
                     </View>
                   ))}
@@ -776,13 +776,14 @@ export default function TeamDetailsScreen() {
                     >
                       <View style={[
                         styles.sportCheckbox,
-                        editSports.includes(sport) && styles.sportCheckboxSelected
+                        { borderColor: colors.border },
+                        editSports.includes(sport) && { ...styles.sportCheckboxSelected, backgroundColor: colors.primary }
                       ]}>
                         {editSports.includes(sport) && (
                           <Ionicons name="checkmark" size={16} color="#ffffff" />
                         )}
                       </View>
-                      <Text style={styles.sportListText}>{sport}</Text>
+                      <Text style={[styles.sportListText, { color: colors.text }]}>{sport}</Text>
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
@@ -792,13 +793,13 @@ export default function TeamDetailsScreen() {
             <View style={styles.formSection}>
               <View style={styles.switchRow}>
                 <View>
-                  <Text style={styles.formLabel}>Private Team</Text>
-                  <Text style={styles.formHint}>Only invited members can join</Text>
+                  <Text style={[styles.formLabel, { color: colors.text }]}>Private Team</Text>
+                  <Text style={[styles.formHint, { color: colors.textSecondary }]}>Only invited members can join</Text>
                 </View>
                 <Switch
                   value={editIsPrivate}
                   onValueChange={setEditIsPrivate}
-                  trackColor={{ false: '#cbd5e1', true: '#3b82f6' }}
+                  trackColor={{ false: colors.border, true: colors.primary }}
                   thumbColor="#ffffff"
                 />
               </View>
@@ -807,13 +808,13 @@ export default function TeamDetailsScreen() {
             <View style={styles.formSection}>
               <View style={styles.switchRow}>
                 <View>
-                  <Text style={styles.formLabel}>Requires Approval</Text>
-                  <Text style={styles.formHint}>Review join requests before accepting</Text>
+                  <Text style={[styles.formLabel, { color: colors.text }]}>Requires Approval</Text>
+                  <Text style={[styles.formHint, { color: colors.textSecondary }]}>Review join requests before accepting</Text>
                 </View>
                 <Switch
                   value={editRequiresApproval}
                   onValueChange={setEditRequiresApproval}
-                  trackColor={{ false: '#cbd5e1', true: '#3b82f6' }}
+                  trackColor={{ false: colors.border, true: colors.primary }}
                   thumbColor="#ffffff"
                 />
               </View>
@@ -833,36 +834,36 @@ export default function TeamDetailsScreen() {
           setSearchResults([]);
         }}
       >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Invite Players</Text>
+        <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Invite Players</Text>
             <TouchableOpacity onPress={() => {
               setShowInviteModal(false);
               setSearchQuery('');
               setSearchResults([]);
             }}>
-              <Ionicons name="close" size={28} color="#1e293b" />
+              <Ionicons name="close" size={28} color={colors.text} />
             </TouchableOpacity>
           </View>
-          <View style={styles.searchContainer}>
-            <Ionicons name="search" size={20} color="#64748b" style={styles.searchIcon} />
+          <View style={[styles.searchContainer, { backgroundColor: colors.background }]}>
+            <Ionicons name="search" size={20} color={colors.textSecondary} style={styles.searchIcon} />
             <TextInput
-              style={styles.searchInput}
+              style={[styles.searchInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
               value={searchQuery}
               onChangeText={handleSearchUsers}
               placeholder="Search users by username..."
-              placeholderTextColor="#94a3b8"
+              placeholderTextColor={colors.inputPlaceholder}
             />
           </View>
           <ScrollView style={styles.modalContent}>
             {searchLoading && (
-              <Text style={styles.searchingText}>Searching...</Text>
+              <Text style={[styles.searchingText, { color: colors.textSecondary }]}>Searching...</Text>
             )}
             {searchResults.map((result) => (
-              <View key={result.id} style={styles.searchResultCard}>
+              <View key={result.id} style={[styles.searchResultCard, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.searchResultName}>{getDisplayName(result)}</Text>
-                  <Text style={styles.searchResultUsername}>@{result.username}</Text>
+                  <Text style={[styles.searchResultName, { color: colors.text }]}>{getDisplayName(result)}</Text>
+                  <Text style={[styles.searchResultUsername, { color: colors.textSecondary }]}>@{result.username}</Text>
                 </View>
                 <TouchableOpacity
                   style={styles.inviteButton}
@@ -873,7 +874,7 @@ export default function TeamDetailsScreen() {
               </View>
             ))}
             {!searchLoading && searchQuery.length >= 2 && searchResults.length === 0 && (
-              <Text style={styles.noResultsText}>No users found</Text>
+              <Text style={[styles.noResultsText, { color: colors.textSecondary }]}>No users found</Text>
             )}
           </ScrollView>
         </SafeAreaView>
@@ -890,28 +891,28 @@ export default function TeamDetailsScreen() {
           setSearchResults([]);
         }}
       >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Block Users</Text>
+        <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Block Users</Text>
             <TouchableOpacity onPress={() => {
               setShowBlockModal(false);
               setSearchQuery('');
               setSearchResults([]);
             }}>
-              <Ionicons name="close" size={28} color="#1e293b" />
+              <Ionicons name="close" size={28} color={colors.text} />
             </TouchableOpacity>
           </View>
 
           {/* Blocked Users List */}
           {blockedUsers.length > 0 && (
-            <View style={styles.blockedSection}>
-              <Text style={styles.blockedSectionTitle}>Blocked Users</Text>
+            <View style={[styles.blockedSection, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.blockedSectionTitle, { color: colors.text }]}>Blocked Users</Text>
               <ScrollView style={styles.blockedList}>
                 {blockedUsers.map((blocked) => (
-                  <View key={blocked.userId} style={styles.blockedUserCard}>
+                  <View key={blocked.userId} style={[styles.blockedUserCard, { backgroundColor: colors.cardSecondary, borderColor: colors.border }]}>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.blockedUserName}>{getDisplayName(blocked.user)}</Text>
-                      <Text style={styles.blockedUserUsername}>@{blocked.user?.username || 'unknown'}</Text>
+                      <Text style={[styles.blockedUserName, { color: colors.text }]}>{getDisplayName(blocked.user)}</Text>
+                      <Text style={[styles.blockedUserUsername, { color: colors.textSecondary }]}>@{blocked.user?.username || 'unknown'}</Text>
                     </View>
                     <TouchableOpacity
                       style={styles.unblockButton}
@@ -926,25 +927,25 @@ export default function TeamDetailsScreen() {
           )}
 
           {/* Search to Block */}
-          <View style={styles.searchContainer}>
-            <Ionicons name="search" size={20} color="#64748b" style={styles.searchIcon} />
+          <View style={[styles.searchContainer, { backgroundColor: colors.background }]}>
+            <Ionicons name="search" size={20} color={colors.textSecondary} style={styles.searchIcon} />
             <TextInput
-              style={styles.searchInput}
+              style={[styles.searchInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
               value={searchQuery}
               onChangeText={handleSearchUsers}
               placeholder="Search users to block..."
-              placeholderTextColor="#94a3b8"
+              placeholderTextColor={colors.inputPlaceholder}
             />
           </View>
           <ScrollView style={styles.modalContent}>
             {searchLoading && (
-              <Text style={styles.searchingText}>Searching...</Text>
+              <Text style={[styles.searchingText, { color: colors.textSecondary }]}>Searching...</Text>
             )}
             {searchResults.map((result) => (
-              <View key={result.id} style={styles.searchResultCard}>
+              <View key={result.id} style={[styles.searchResultCard, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.searchResultName}>{getDisplayName(result)}</Text>
-                  <Text style={styles.searchResultUsername}>@{result.username}</Text>
+                  <Text style={[styles.searchResultName, { color: colors.text }]}>{getDisplayName(result)}</Text>
+                  <Text style={[styles.searchResultUsername, { color: colors.textSecondary }]}>@{result.username}</Text>
                 </View>
                 <TouchableOpacity
                   style={styles.blockButton}
@@ -955,7 +956,7 @@ export default function TeamDetailsScreen() {
               </View>
             ))}
             {!searchLoading && searchQuery.length >= 2 && searchResults.length === 0 && (
-              <Text style={styles.noResultsText}>No users found</Text>
+              <Text style={[styles.noResultsText, { color: colors.textSecondary }]}>No users found</Text>
             )}
           </ScrollView>
         </SafeAreaView>
