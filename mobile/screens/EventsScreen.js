@@ -49,6 +49,24 @@ export default function EventsScreen() {
     setLoading(true);
   };
 
+  // Check if event is active (for highlighting) - based on date range
+  const isEventActive = (item) => {
+    if (!item.startDate) return false;
+    
+    const now = new Date();
+    now.setHours(0, 0, 0, 0); // Reset to start of day for date comparison
+    
+    const startDate = new Date(item.startDate);
+    startDate.setHours(0, 0, 0, 0);
+    
+    const endDate = item.endDate ? new Date(item.endDate) : new Date(item.startDate);
+    endDate.setHours(0, 0, 0, 0);
+    
+    // Event is active if current date is within the event date range
+    return now >= startDate && now <= endDate;
+  };
+
+  // Check if LIVE tag should show - based on time range
   const isLiveEvent = (item) => {
     if (!item.startDate || !item.startTime) return false;
     
@@ -64,14 +82,15 @@ export default function EventsScreen() {
       endDateTime = new Date(startDateTime.getTime() + 2 * 60 * 60 * 1000); // 2 hours later
     }
     
+    // LIVE tag only shows if current time is between start and end times
     return now >= startDateTime && now <= endDateTime;
   };
 
   const isPastEvent = (item) => {
     if (!item.startDate) return false;
     
-    // Don't mark live events as past
-    if (isLiveEvent(item)) return false;
+    // Don't mark active events as past
+    if (isEventActive(item)) return false;
     
     const now = new Date();
     
@@ -148,14 +167,15 @@ export default function EventsScreen() {
           const eventDate = item.startDate ? new Date(item.startDate) : null;
           const dateStr = eventDate ? eventDate.toLocaleDateString() : 'Date TBD';
           const timeStr = item.startTime || 'Time TBD';
-          const isLive = isLiveEvent(item);
+          const isActive = isEventActive(item); // For gradient highlighting
+          const isLive = isLiveEvent(item); // For LIVE tag
           const isPast = isPastEvent(item);
           
           const cardContent = (
             <View style={[
               styles.eventCardInner,
               { backgroundColor: colors.card },
-              isLive && styles.liveEventCard,
+              isActive && styles.liveEventCard,
               isPast && { backgroundColor: colors.cardSecondary, opacity: 0.85 }
             ]}>
               <View style={styles.eventHeader}>
@@ -163,14 +183,14 @@ export default function EventsScreen() {
                   styles.eventTitle,
                   { color: colors.text },
                   isPast && { color: colors.textTertiary },
-                  isLive && styles.liveEventText
+                  isActive && styles.liveEventText
                 ]}>{item.name}</Text>
                 <View style={styles.dateContainer}>
                   <Text style={[
                     styles.eventDate,
                     { color: colors.textSecondary },
                     isPast && { color: colors.textTertiary },
-                    isLive && styles.liveEventText
+                    isActive && styles.liveEventText
                   ]}>{dateStr}</Text>
                   {isPast && <Text style={[styles.pastBadge, { color: colors.textTertiary, backgroundColor: colors.border }]}>PAST</Text>}
                   {isLive && <Text style={styles.liveBadge}>LIVE</Text>}
@@ -181,29 +201,29 @@ export default function EventsScreen() {
                 styles.eventTime,
                 { color: colors.textSecondary },
                 isPast && { color: colors.textTertiary },
-                isLive && styles.liveEventText
+                isActive && styles.liveEventText
               ]}>{timeStr}</Text>
               
               {item.location && (
                 <View style={styles.eventDetail}>
-                  <Ionicons name="location" size={14} color={isLive ? "#ffffff" : isPast ? colors.textTertiary : colors.textSecondary} />
+                  <Ionicons name="location" size={14} color={isActive ? "#ffffff" : isPast ? colors.textTertiary : colors.textSecondary} />
                   <Text style={[
                     styles.eventLocation,
                     { color: colors.textSecondary },
                     isPast && { color: colors.textTertiary },
-                    isLive && styles.liveEventText
+                    isActive && styles.liveEventText
                   ]}>{item.location}</Text>
                 </View>
               )}
               
               {item.primaryTeam && (
                 <View style={styles.eventDetail}>
-                  <Ionicons name="people" size={14} color={isLive ? "#ffffff" : isPast ? colors.textTertiary : colors.textSecondary} />
+                  <Ionicons name="people" size={14} color={isActive ? "#ffffff" : isPast ? colors.textTertiary : colors.textSecondary} />
                   <Text style={[
                     styles.eventTeam,
                     { color: colors.textSecondary },
                     isPast && { color: colors.textTertiary },
-                    isLive && styles.liveEventText
+                    isActive && styles.liveEventText
                   ]}>{item.primaryTeam.name}</Text>
                 </View>
               )}
@@ -213,7 +233,7 @@ export default function EventsScreen() {
                   styles.eventDescription,
                   { color: colors.textSecondary },
                   isPast && { color: colors.textTertiary },
-                  isLive && styles.liveEventText
+                  isActive && styles.liveEventText
                 ]} numberOfLines={2}>
                   {item.requirements}
                 </Text>
@@ -224,7 +244,7 @@ export default function EventsScreen() {
                   styles.eventSport,
                   { color: colors.primary, backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff' },
                   isPast && { color: colors.textTertiary, backgroundColor: colors.border },
-                  isLive && styles.liveEventSport
+                  isActive && styles.liveEventSport
                 ]}>{item.sport}</Text>
                 <View style={styles.eventInfo}>
                   {item.cost && parseFloat(item.cost) > 0 && (
@@ -232,7 +252,7 @@ export default function EventsScreen() {
                       styles.eventCost,
                       { color: colors.success, backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#f0fdf4' },
                       isPast && { color: colors.textTertiary, backgroundColor: colors.border },
-                      isLive && styles.liveEventCost
+                      isActive && styles.liveEventCost
                     ]}>£{item.cost}</Text>
                   )}
                   {item.maxParticipants && (
@@ -240,14 +260,14 @@ export default function EventsScreen() {
                       styles.eventCapacity,
                       { color: colors.textSecondary },
                       isPast && { color: colors.textTertiary },
-                      isLive && styles.liveEventText
+                      isActive && styles.liveEventText
                     ]}>
                       Max: {item.maxParticipants}
                     </Text>
                   )}
                   {item.recurringSeriesId && (
                     <View style={styles.recurringBadge}>
-                      <Ionicons name="repeat" size={14} color={isLive ? "#ffffff" : colors.success} />
+                      <Ionicons name="repeat" size={14} color={isActive ? "#ffffff" : colors.success} />
                     </View>
                   )}
                 </View>
@@ -260,7 +280,7 @@ export default function EventsScreen() {
               style={styles.eventCard}
               onPress={() => navigation.navigate('EventDetails', { id: item.id })}
             >
-              {isLive ? (
+              {isActive ? (
                 <LinearGradient
                   colors={['#3b82f6', '#10b981']}
                   start={{ x: 0, y: 0 }}
