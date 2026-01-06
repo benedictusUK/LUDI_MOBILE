@@ -140,13 +140,13 @@ export default function EditEventScreen() {
       const response = await apiRequest(`/api/events/${eventId}/team-members`);
       if (response.ok) {
         const members = await response.json();
-        console.log('[EditEvent] Fetched team members:', members.length);
+        console.log('[EditEvent] Fetched team members:', members.length, members);
         setTeamMembers(members.map(m => ({
           id: m.userId,
-          name: m.firstName && m.lastName 
-            ? `${m.firstName} ${m.lastName}` 
-            : m.username || 'Unknown',
-          username: m.username || '',
+          name: m.user?.firstName && m.user?.lastName 
+            ? `${m.user.firstName} ${m.user.lastName}` 
+            : m.user?.username || 'Unknown',
+          username: m.user?.username || '',
         })));
       }
     } catch (error) {
