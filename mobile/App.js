@@ -197,7 +197,11 @@ export default function App() {
     <ThemeProvider>
       <AuthProvider>
         <NotificationProvider>
-          <StripeProvider publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''}>
+          <StripeProvider 
+            publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''}
+            merchantIdentifier="merchant.com.ludi.app"
+            urlScheme="ludi"
+          >
             <AppContent />
           </StripeProvider>
         </NotificationProvider>
