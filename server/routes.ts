@@ -343,6 +343,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Mobile: Update recurring event (single or future)
+  app.put('/api/events/:id/recurring', verifyAuth, async (req: any, res) => {
+    try {
+      const eventId = req.params.id;
+      const { scope } = req.query; // 'single' or 'future'
+      const userId = req.userId;
+      
+      // Check authorization
+      const existingEvent = await storage.getEvent(eventId);
+      if (!existingEvent) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+      
+      const isEventCreator = existingEvent.createdById === userId;
+      
+      if (!isEventCreator) {
+        const userTeam = await storage.getUserTeam(userId, existingEvent.primaryTeamId);
+        const team = await storage.getTeam(existingEvent.primaryTeamId);
+        if (!userTeam || (!["admin", "captain"].includes(userTeam.role) && team?.ownerId !== userId)) {
+          return res.status(403).json({ message: "Not authorized to edit recurring events" });
+        }
+      }
+      
+      const venueOrganiserId = req.body.venueOrganiserId || (req.body.paymentRequired ? userId : null);
+
+      // Parse and validate the event data
+      const eventData = insertEventSchema.parse({
+        ...req.body,
+        venueOrganiserId,
+        createdById: existingEvent.createdById, // Preserve original creator
+      });
+      
+      // Determine scope - default to 'single' if not specified
+      const updateScope = scope === 'future' ? 'future' : 'single';
+      
+      const updatedEvents = await storage.updateRecurringEvent(eventId, eventData, updateScope);
+      
+      // Send notifications to team members about event changes
+      try {
+        const teamMembers = await storage.getTeamMembers(existingEvent.primaryTeamId);
+        const eventUpdater = await storage.getUserById(userId);
+        
+        const scopeText = updateScope === 'future' ? 'recurring event series' : 'event';
+        
+        for (const member of teamMembers) {
+          if (member.userId !== userId) {
+            await storage.createNotificationIfAllowed({
+              userId: member.userId,
+              title: "Event Updated",
+              message: `${eventUpdater?.firstName || 'Team member'} updated the ${scopeText}: "${existingEvent.name}"`,
+              type: "event_changed",
+              relatedId: eventId
+            });
+          }
+        }
+      } catch (notificationError) {
+        console.error("Error sending event update notifications:", notificationError);
+      }
+      
+      res.json({ 
+        message: `${updatedEvents.length} event(s) updated successfully`,
+        updatedCount: updatedEvents.length,
+        events: updatedEvents 
+      });
+    } catch (error: any) {
+      console.error("Error updating recurring event:", error);
+      
+      if (error.name === 'ZodError') {
+        const firstError = error.errors[0];
+        return res.status(400).json({ 
+          message: firstError.message,
+          field: firstError.path.join('.'),
+          errors: error.errors
+        });
+      }
+      
+      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to update recurring event" });
+    }
+  });
+
   app.get('/api/events/:id/attendance', verifyAuth, async (req: any, res) => {
     try {
       const attendance = await storage.getEventAttendance(req.params.id);
