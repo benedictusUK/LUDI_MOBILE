@@ -70,7 +70,7 @@ class NotificationSocketService {
       };
 
       this.socket.onerror = (error) => {
-        console.error('[NotificationSocket] Error:', error.message);
+        console.error('[NotificationSocket] Error:', error?.message || 'Connection error');
       };
 
     } catch (error) {

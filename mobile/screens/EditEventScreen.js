@@ -107,6 +107,7 @@ export default function EditEventScreen() {
     address: initialEvent?.address || '',
     postcode: initialEvent?.postcode || '',
     teamId: initialEvent?.primaryTeamId || '',
+    secondaryTeamIds: initialEvent?.secondaryTeamIds || [],
     maxParticipants: initialEvent?.maxParticipants?.toString() || '',
     reserveSpots: initialEvent?.reserveSpots?.toString() || '',
     cost: initialEvent?.cost || '',
@@ -120,6 +121,8 @@ export default function EditEventScreen() {
   
   const [teamMembers, setTeamMembers] = useState([]);
   const [showVenueOrganiserPicker, setShowVenueOrganiserPicker] = useState(false);
+  const [showSecondaryTeamPicker, setShowSecondaryTeamPicker] = useState(false);
+  const [tempSecondaryTeamIds, setTempSecondaryTeamIds] = useState([]);
 
   useEffect(() => {
     fetchUserTeams();
@@ -160,6 +163,41 @@ export default function EditEventScreen() {
       }
     } catch (error) {
       console.error('Failed to fetch teams:', error);
+    }
+  };
+
+  // Secondary team helper functions
+  const getTeamName = (teamId) => {
+    const team = teams.find(t => t.id === teamId);
+    return team?.name || 'Unknown Team';
+  };
+
+  const getAvailableSecondaryTeams = () => {
+    return teams.filter(t => t.id !== formData.teamId && !formData.secondaryTeamIds.includes(t.id));
+  };
+
+  const handleRemoveSecondaryTeam = (teamId) => {
+    setFormData({
+      ...formData,
+      secondaryTeamIds: formData.secondaryTeamIds.filter(id => id !== teamId)
+    });
+  };
+
+  const handleOpenSecondaryTeamPicker = () => {
+    setTempSecondaryTeamIds([...formData.secondaryTeamIds]);
+    setShowSecondaryTeamPicker(true);
+  };
+
+  const handleConfirmSecondaryTeams = () => {
+    setFormData({ ...formData, secondaryTeamIds: tempSecondaryTeamIds });
+    setShowSecondaryTeamPicker(false);
+  };
+
+  const toggleSecondaryTeam = (teamId) => {
+    if (tempSecondaryTeamIds.includes(teamId)) {
+      setTempSecondaryTeamIds(tempSecondaryTeamIds.filter(id => id !== teamId));
+    } else {
+      setTempSecondaryTeamIds([...tempSecondaryTeamIds, teamId]);
     }
   };
 
@@ -212,6 +250,8 @@ export default function EditEventScreen() {
         address: formData.address || '',
         postcode: formData.postcode || '',
         primaryTeamId: formData.teamId,
+        // Defensive filter: ensure secondaryTeamIds never contains primary team
+        secondaryTeamIds: (formData.secondaryTeamIds || []).filter(id => id !== formData.teamId),
         maxParticipants: formData.maxParticipants ? parseInt(formData.maxParticipants) : undefined,
         reserveSpots: formData.reserveSpots ? parseInt(formData.reserveSpots) : 0,
         cost: formData.cost || '0.00',
@@ -591,7 +631,7 @@ export default function EditEventScreen() {
 
         {/* Team */}
         <View style={styles.formGroup}>
-          <Text style={[styles.label, { color: colors.text }]}>Team *</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Primary Team *</Text>
           <TouchableOpacity style={[styles.pickerButton, { backgroundColor: colors.inputBackground, borderColor: colors.border }]} onPress={() => setShowTeamPicker(true)}>
             <Text style={[styles.pickerButtonText, { color: colors.text }]}>
               {teams.find(t => t.id === formData.teamId)?.name || 'Select team'}
@@ -599,6 +639,32 @@ export default function EditEventScreen() {
             <Text style={[styles.pickerArrow, { color: colors.textSecondary }]}>▼</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Secondary Teams */}
+        {formData.secondaryTeamIds.length > 0 && (
+          <View style={styles.formGroup}>
+            <Text style={[styles.label, { color: colors.text }]}>Additional Teams</Text>
+            <View style={styles.chipContainer}>
+              {formData.secondaryTeamIds.map((teamId) => (
+                <View key={teamId} style={[styles.chip, { backgroundColor: colors.primaryLight }]}>
+                  <Text style={[styles.chipText, { color: colors.primary }]}>{getTeamName(teamId)}</Text>
+                  <TouchableOpacity onPress={() => handleRemoveSecondaryTeam(teamId)}>
+                    <Text style={[styles.chipRemove, { color: colors.primary }]}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {getAvailableSecondaryTeams().length > 0 && (
+          <TouchableOpacity
+            style={[styles.addMoreButton, { borderColor: colors.primary }]}
+            onPress={handleOpenSecondaryTeamPicker}
+          >
+            <Text style={[styles.addMoreButtonText, { color: colors.primary }]}>+ Add more teams</Text>
+          </TouchableOpacity>
+        )}
 
         {/* Start Date */}
         <View style={styles.formGroup}>
@@ -813,7 +879,12 @@ export default function EditEventScreen() {
         title="Select Team"
         options={teams.map(t => ({ value: t.id, label: t.name }))}
         selectedValue={formData.teamId}
-        onSelect={(value) => setFormData({ ...formData, teamId: value })}
+        onSelect={(value) => setFormData({ 
+          ...formData, 
+          teamId: value,
+          // Remove from secondary teams if selected as primary
+          secondaryTeamIds: formData.secondaryTeamIds.filter(id => id !== value)
+        })}
       />
 
       <PickerModal
@@ -856,6 +927,50 @@ export default function EditEventScreen() {
         onConfirm={(time) => setFormData({ ...formData, endTime: time })}
         initialTime={formData.endTime}
       />
+
+      {/* Secondary Team Picker Modal */}
+      <Modal
+        visible={showSecondaryTeamPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowSecondaryTeamPicker(false)}
+      >
+        <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Select Additional Teams</Text>
+              <TouchableOpacity onPress={() => setShowSecondaryTeamPicker(false)}>
+                <Text style={[styles.modalClose, { color: colors.textSecondary }]}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalScroll}>
+              {getAvailableSecondaryTeams().map((team) => {
+                const isSelected = tempSecondaryTeamIds.includes(team.id);
+                return (
+                  <TouchableOpacity
+                    key={team.id}
+                    style={[styles.modalOption, { borderBottomColor: colors.borderLight }]}
+                    onPress={() => toggleSecondaryTeam(team.id)}
+                  >
+                    <Text style={[styles.modalOptionText, { color: colors.text }]}>{team.name}</Text>
+                    <View style={[styles.checkbox, isSelected && { backgroundColor: colors.primary, borderColor: colors.primary }]}>
+                      {isSelected && <Text style={styles.checkmark}>✓</Text>}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <View style={[styles.modalFooter, { borderTopColor: colors.border }]}>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: colors.primary }]}
+                onPress={handleConfirmSecondaryTeams}
+              >
+                <Text style={styles.modalButtonText}>Confirm</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Venue Organiser Picker Modal */}
       <Modal
@@ -1275,5 +1390,57 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#64748b',
     fontWeight: '500',
+  },
+  chipContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#eff6ff',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    gap: 6,
+  },
+  chipText: {
+    fontSize: 14,
+    color: '#3b82f6',
+    fontWeight: '500',
+  },
+  chipRemove: {
+    fontSize: 14,
+    color: '#3b82f6',
+    fontWeight: '600',
+  },
+  addMoreButton: {
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#3b82f6',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  addMoreButtonText: {
+    fontSize: 14,
+    color: '#3b82f6',
+    fontWeight: '500',
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#d1d5db',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkmark: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
