@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 const formatDateForDisplay = (dateStr) => {
@@ -71,6 +72,7 @@ export default function EditEventScreen() {
   const route = useRoute();
   const { event: initialEvent } = route.params;
   const { apiRequest } = useAuth();
+  const { colors } = useTheme();
   const [loading, setLoading] = useState(false);
   const [teams, setTeams] = useState([]);
   
@@ -219,11 +221,11 @@ export default function EditEventScreen() {
       onRequestClose={onClose}
     >
       <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{title}</Text>
+        <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>{title}</Text>
             <TouchableOpacity onPress={onClose}>
-              <Text style={styles.modalClose}>✕</Text>
+              <Text style={[styles.modalClose, { color: colors.textSecondary }]}>✕</Text>
             </TouchableOpacity>
           </View>
           <ScrollView style={styles.modalScroll}>
@@ -235,16 +237,16 @@ export default function EditEventScreen() {
               return (
                 <TouchableOpacity
                   key={index}
-                  style={[styles.modalOption, isSelected && styles.modalOptionSelected]}
+                  style={[styles.modalOption, { borderBottomColor: colors.borderLight }, isSelected && { backgroundColor: colors.primary + '20' }]}
                   onPress={() => {
                     onSelect(value);
                     onClose();
                   }}
                 >
-                  <Text style={[styles.modalOptionText, isSelected && styles.modalOptionTextSelected]}>
+                  <Text style={[styles.modalOptionText, { color: colors.text }, isSelected && { color: colors.primary, fontWeight: '600' }]}>
                     {label}
                   </Text>
-                  {isSelected && <Text style={styles.modalCheckmark}>✓</Text>}
+                  {isSelected && <Text style={[styles.modalCheckmark, { color: colors.primary }]}>✓</Text>}
                 </TouchableOpacity>
               );
             })}
@@ -281,25 +283,25 @@ export default function EditEventScreen() {
     return (
       <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
         <View style={styles.modalOverlay}>
-          <View style={styles.datePickerModalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{title}</Text>
+          <View style={[styles.datePickerModalContent, { backgroundColor: colors.card }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>{title}</Text>
               <TouchableOpacity onPress={onClose}>
-                <Text style={styles.modalClose}>✕</Text>
+                <Text style={[styles.modalClose, { color: colors.textSecondary }]}>✕</Text>
               </TouchableOpacity>
             </View>
             
             <View style={styles.datePickerContainer}>
               <View style={styles.pickerColumn}>
-                <Text style={styles.pickerLabel}>Day</Text>
+                <Text style={[styles.pickerLabel, { color: colors.textSecondary }]}>Day</Text>
                 <ScrollView style={styles.pickerScroll} showsVerticalScrollIndicator={false}>
                   {days.map(day => (
                     <TouchableOpacity
                       key={day}
-                      style={[styles.pickerItem, localDate.day === day && styles.pickerItemSelected]}
+                      style={[styles.pickerItem, localDate.day === day && { backgroundColor: colors.primary + '20' }]}
                       onPress={() => setLocalDate(prev => ({ ...prev, day }))}
                     >
-                      <Text style={[styles.pickerItemText, localDate.day === day && styles.pickerItemTextSelected]}>
+                      <Text style={[styles.pickerItemText, { color: colors.text }, localDate.day === day && { color: colors.primary, fontWeight: '600' }]}>
                         {day}
                       </Text>
                     </TouchableOpacity>
@@ -308,15 +310,15 @@ export default function EditEventScreen() {
               </View>
 
               <View style={styles.pickerColumn}>
-                <Text style={styles.pickerLabel}>Month</Text>
+                <Text style={[styles.pickerLabel, { color: colors.textSecondary }]}>Month</Text>
                 <ScrollView style={styles.pickerScroll} showsVerticalScrollIndicator={false}>
                   {MONTHS.map(month => (
                     <TouchableOpacity
                       key={month.value}
-                      style={[styles.pickerItem, localDate.month === month.value && styles.pickerItemSelected]}
+                      style={[styles.pickerItem, localDate.month === month.value && { backgroundColor: colors.primary + '20' }]}
                       onPress={() => setLocalDate(prev => ({ ...prev, month: month.value, day: Math.min(prev.day, generateDays(prev.year, month.value).length) }))}
                     >
-                      <Text style={[styles.pickerItemText, localDate.month === month.value && styles.pickerItemTextSelected]}>
+                      <Text style={[styles.pickerItemText, { color: colors.text }, localDate.month === month.value && { color: colors.primary, fontWeight: '600' }]}>
                         {month.label.substring(0, 3)}
                       </Text>
                     </TouchableOpacity>
@@ -325,15 +327,15 @@ export default function EditEventScreen() {
               </View>
 
               <View style={styles.pickerColumn}>
-                <Text style={styles.pickerLabel}>Year</Text>
+                <Text style={[styles.pickerLabel, { color: colors.textSecondary }]}>Year</Text>
                 <ScrollView style={styles.pickerScroll} showsVerticalScrollIndicator={false}>
                   {years.map(year => (
                     <TouchableOpacity
                       key={year}
-                      style={[styles.pickerItem, localDate.year === year && styles.pickerItemSelected]}
+                      style={[styles.pickerItem, localDate.year === year && { backgroundColor: colors.primary + '20' }]}
                       onPress={() => setLocalDate(prev => ({ ...prev, year }))}
                     >
-                      <Text style={[styles.pickerItemText, localDate.year === year && styles.pickerItemTextSelected]}>
+                      <Text style={[styles.pickerItemText, { color: colors.text }, localDate.year === year && { color: colors.primary, fontWeight: '600' }]}>
                         {year}
                       </Text>
                     </TouchableOpacity>
@@ -371,25 +373,25 @@ export default function EditEventScreen() {
     return (
       <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
         <View style={styles.modalOverlay}>
-          <View style={styles.timePickerModalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{title}</Text>
+          <View style={[styles.timePickerModalContent, { backgroundColor: colors.card }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>{title}</Text>
               <TouchableOpacity onPress={onClose}>
-                <Text style={styles.modalClose}>✕</Text>
+                <Text style={[styles.modalClose, { color: colors.textSecondary }]}>✕</Text>
               </TouchableOpacity>
             </View>
             
             <View style={styles.timePickerContainer}>
               <View style={styles.pickerColumn}>
-                <Text style={styles.pickerLabel}>Hour</Text>
+                <Text style={[styles.pickerLabel, { color: colors.textSecondary }]}>Hour</Text>
                 <ScrollView style={styles.pickerScroll} showsVerticalScrollIndicator={false}>
                   {HOURS.map(hour => (
                     <TouchableOpacity
                       key={hour}
-                      style={[styles.pickerItem, localTime.hour === hour && styles.pickerItemSelected]}
+                      style={[styles.pickerItem, localTime.hour === hour && { backgroundColor: colors.primary + '20' }]}
                       onPress={() => setLocalTime(prev => ({ ...prev, hour }))}
                     >
-                      <Text style={[styles.pickerItemText, localTime.hour === hour && styles.pickerItemTextSelected]}>
+                      <Text style={[styles.pickerItemText, { color: colors.text }, localTime.hour === hour && { color: colors.primary, fontWeight: '600' }]}>
                         {hour}
                       </Text>
                     </TouchableOpacity>
@@ -398,15 +400,15 @@ export default function EditEventScreen() {
               </View>
 
               <View style={styles.pickerColumn}>
-                <Text style={styles.pickerLabel}>Minute</Text>
+                <Text style={[styles.pickerLabel, { color: colors.textSecondary }]}>Minute</Text>
                 <ScrollView style={styles.pickerScroll} showsVerticalScrollIndicator={false}>
                   {MINUTES.map(minute => (
                     <TouchableOpacity
                       key={minute}
-                      style={[styles.pickerItem, localTime.minute === minute && styles.pickerItemSelected]}
+                      style={[styles.pickerItem, localTime.minute === minute && { backgroundColor: colors.primary + '20' }]}
                       onPress={() => setLocalTime(prev => ({ ...prev, minute }))}
                     >
-                      <Text style={[styles.pickerItemText, localTime.minute === minute && styles.pickerItemTextSelected]}>
+                      <Text style={[styles.pickerItemText, { color: colors.text }, localTime.minute === minute && { color: colors.primary, fontWeight: '600' }]}>
                         {minute}
                       </Text>
                     </TouchableOpacity>
@@ -432,12 +434,12 @@ export default function EditEventScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.headerContainer}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.headerContainer, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.cancelButtonText}>Cancel</Text>
+          <Text style={[styles.cancelButtonText, { color: colors.textSecondary }]}>Cancel</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Edit Event</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Edit Event</Text>
         <TouchableOpacity 
           style={[styles.saveButton, loading && styles.saveButtonDisabled]} 
           onPress={handleSubmit}
@@ -450,160 +452,168 @@ export default function EditEventScreen() {
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* Event Name */}
         <View style={styles.formGroup}>
-          <Text style={styles.label}>Event Name *</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Event Name *</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]}
             value={formData.name}
             onChangeText={(text) => setFormData({ ...formData, name: text })}
             placeholder="e.g., Sunday Football"
+            placeholderTextColor={colors.inputPlaceholder}
           />
         </View>
 
         {/* Sport */}
         <View style={styles.formGroup}>
-          <Text style={styles.label}>Sport *</Text>
-          <TouchableOpacity style={styles.pickerButton} onPress={() => setShowSportPicker(true)}>
-            <Text style={styles.pickerButtonText}>{formData.sport}</Text>
-            <Text style={styles.pickerArrow}>▼</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Sport *</Text>
+          <TouchableOpacity style={[styles.pickerButton, { backgroundColor: colors.inputBackground, borderColor: colors.border }]} onPress={() => setShowSportPicker(true)}>
+            <Text style={[styles.pickerButtonText, { color: colors.text }]}>{formData.sport}</Text>
+            <Text style={[styles.pickerArrow, { color: colors.textSecondary }]}>▼</Text>
           </TouchableOpacity>
         </View>
 
         {/* Team */}
         <View style={styles.formGroup}>
-          <Text style={styles.label}>Team *</Text>
-          <TouchableOpacity style={styles.pickerButton} onPress={() => setShowTeamPicker(true)}>
-            <Text style={styles.pickerButtonText}>
+          <Text style={[styles.label, { color: colors.text }]}>Team *</Text>
+          <TouchableOpacity style={[styles.pickerButton, { backgroundColor: colors.inputBackground, borderColor: colors.border }]} onPress={() => setShowTeamPicker(true)}>
+            <Text style={[styles.pickerButtonText, { color: colors.text }]}>
               {teams.find(t => t.id === formData.teamId)?.name || 'Select team'}
             </Text>
-            <Text style={styles.pickerArrow}>▼</Text>
+            <Text style={[styles.pickerArrow, { color: colors.textSecondary }]}>▼</Text>
           </TouchableOpacity>
         </View>
 
         {/* Start Date */}
         <View style={styles.formGroup}>
-          <Text style={styles.label}>Start Date *</Text>
-          <TouchableOpacity style={styles.pickerButton} onPress={() => setShowStartDatePicker(true)}>
-            <Text style={styles.pickerButtonText}>{formatDateForDisplay(formData.startDate)}</Text>
-            <Ionicons name="calendar-outline" size={20} color="#64748b" />
+          <Text style={[styles.label, { color: colors.text }]}>Start Date *</Text>
+          <TouchableOpacity style={[styles.pickerButton, { backgroundColor: colors.inputBackground, borderColor: colors.border }]} onPress={() => setShowStartDatePicker(true)}>
+            <Text style={[styles.pickerButtonText, { color: colors.text }]}>{formatDateForDisplay(formData.startDate)}</Text>
+            <Ionicons name="calendar-outline" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
         {/* Start Time */}
         <View style={styles.formGroup}>
-          <Text style={styles.label}>Start Time *</Text>
-          <TouchableOpacity style={styles.pickerButton} onPress={() => setShowStartTimePicker(true)}>
-            <Text style={styles.pickerButtonText}>{formatTimeForDisplay(formData.startTime)}</Text>
-            <Ionicons name="time-outline" size={20} color="#64748b" />
+          <Text style={[styles.label, { color: colors.text }]}>Start Time *</Text>
+          <TouchableOpacity style={[styles.pickerButton, { backgroundColor: colors.inputBackground, borderColor: colors.border }]} onPress={() => setShowStartTimePicker(true)}>
+            <Text style={[styles.pickerButtonText, { color: colors.text }]}>{formatTimeForDisplay(formData.startTime)}</Text>
+            <Ionicons name="time-outline" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
         {/* End Date */}
         <View style={styles.formGroup}>
-          <Text style={styles.label}>End Date</Text>
-          <TouchableOpacity style={styles.pickerButton} onPress={() => setShowEndDatePicker(true)}>
-            <Text style={styles.pickerButtonText}>{formatDateForDisplay(formData.endDate)}</Text>
-            <Ionicons name="calendar-outline" size={20} color="#64748b" />
+          <Text style={[styles.label, { color: colors.text }]}>End Date</Text>
+          <TouchableOpacity style={[styles.pickerButton, { backgroundColor: colors.inputBackground, borderColor: colors.border }]} onPress={() => setShowEndDatePicker(true)}>
+            <Text style={[styles.pickerButtonText, { color: colors.text }]}>{formatDateForDisplay(formData.endDate)}</Text>
+            <Ionicons name="calendar-outline" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
         {/* End Time */}
         <View style={styles.formGroup}>
-          <Text style={styles.label}>End Time</Text>
-          <TouchableOpacity style={styles.pickerButton} onPress={() => setShowEndTimePicker(true)}>
-            <Text style={styles.pickerButtonText}>{formatTimeForDisplay(formData.endTime)}</Text>
-            <Ionicons name="time-outline" size={20} color="#64748b" />
+          <Text style={[styles.label, { color: colors.text }]}>End Time</Text>
+          <TouchableOpacity style={[styles.pickerButton, { backgroundColor: colors.inputBackground, borderColor: colors.border }]} onPress={() => setShowEndTimePicker(true)}>
+            <Text style={[styles.pickerButtonText, { color: colors.text }]}>{formatTimeForDisplay(formData.endTime)}</Text>
+            <Ionicons name="time-outline" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
         {/* Location */}
         <View style={styles.formGroup}>
-          <Text style={styles.label}>Location *</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Location *</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]}
             value={formData.location}
             onChangeText={(text) => setFormData({ ...formData, location: text })}
             placeholder="Venue name"
+            placeholderTextColor={colors.inputPlaceholder}
           />
         </View>
 
         {/* Address */}
         <View style={styles.formGroup}>
-          <Text style={styles.label}>Address</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Address</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]}
             value={formData.address}
             onChangeText={(text) => setFormData({ ...formData, address: text })}
             placeholder="Street address"
+            placeholderTextColor={colors.inputPlaceholder}
           />
         </View>
 
         {/* Postcode */}
         <View style={styles.formGroup}>
-          <Text style={styles.label}>Postcode</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Postcode</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]}
             value={formData.postcode}
             onChangeText={(text) => setFormData({ ...formData, postcode: text })}
             placeholder="e.g., SW1A 1AA"
+            placeholderTextColor={colors.inputPlaceholder}
             autoCapitalize="characters"
           />
         </View>
 
         {/* Gender */}
         <View style={styles.formGroup}>
-          <Text style={styles.label}>Gender</Text>
-          <TouchableOpacity style={styles.pickerButton} onPress={() => setShowGenderPicker(true)}>
-            <Text style={styles.pickerButtonText}>
+          <Text style={[styles.label, { color: colors.text }]}>Gender</Text>
+          <TouchableOpacity style={[styles.pickerButton, { backgroundColor: colors.inputBackground, borderColor: colors.border }]} onPress={() => setShowGenderPicker(true)}>
+            <Text style={[styles.pickerButtonText, { color: colors.text }]}>
               {GENDERS.find(g => g.value === formData.gender)?.label || 'Select'}
             </Text>
-            <Text style={styles.pickerArrow}>▼</Text>
+            <Text style={[styles.pickerArrow, { color: colors.textSecondary }]}>▼</Text>
           </TouchableOpacity>
         </View>
 
         {/* Max Participants */}
         <View style={styles.formGroup}>
-          <Text style={styles.label}>Max Participants</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Max Participants</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]}
             value={formData.maxParticipants}
             onChangeText={(text) => setFormData({ ...formData, maxParticipants: text })}
             placeholder="e.g., 10"
+            placeholderTextColor={colors.inputPlaceholder}
             keyboardType="numeric"
           />
         </View>
 
         {/* Reserve Spots */}
         <View style={styles.formGroup}>
-          <Text style={styles.label}>Reserve Spots</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Reserve Spots</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]}
             value={formData.reserveSpots}
             onChangeText={(text) => setFormData({ ...formData, reserveSpots: text })}
             placeholder="e.g., 2"
+            placeholderTextColor={colors.inputPlaceholder}
             keyboardType="numeric"
           />
         </View>
 
         {/* Cost */}
         <View style={styles.formGroup}>
-          <Text style={styles.label}>Cost (£)</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Cost (£)</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]}
             value={formData.cost}
             onChangeText={(text) => setFormData({ ...formData, cost: text })}
             placeholder="e.g., 10.00"
+            placeholderTextColor={colors.inputPlaceholder}
             keyboardType="decimal-pad"
           />
         </View>
 
         {/* Description */}
         <View style={styles.formGroup}>
-          <Text style={styles.label}>Description *</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Description *</Text>
           <TextInput
-            style={[styles.input, styles.textArea]}
+            style={[styles.input, styles.textArea, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]}
             value={formData.requirements}
             onChangeText={(text) => setFormData({ ...formData, requirements: text })}
             placeholder="Event details, requirements, what to bring, etc."
+            placeholderTextColor={colors.inputPlaceholder}
             multiline
             numberOfLines={4}
             textAlignVertical="top"
@@ -616,8 +626,8 @@ export default function EditEventScreen() {
             style={styles.toggleRow}
             onPress={() => setFormData({ ...formData, paymentRequired: !formData.paymentRequired })}
           >
-            <Text style={styles.label}>Payment Required</Text>
-            <View style={[styles.toggle, formData.paymentRequired && styles.toggleActive]}>
+            <Text style={[styles.label, { color: colors.text }]}>Payment Required</Text>
+            <View style={[styles.toggle, { backgroundColor: colors.border }, formData.paymentRequired && styles.toggleActive]}>
               <View style={[styles.toggleKnob, formData.paymentRequired && styles.toggleKnobActive]} />
             </View>
           </TouchableOpacity>
@@ -626,23 +636,25 @@ export default function EditEventScreen() {
         {formData.paymentRequired && (
           <>
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Max Player Payment (£) *</Text>
+              <Text style={[styles.label, { color: colors.text }]}>Max Player Payment (£) *</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]}
                 value={formData.maxPlayerPayment}
                 onChangeText={(text) => setFormData({ ...formData, maxPlayerPayment: text })}
                 placeholder="e.g., 15.00"
+                placeholderTextColor={colors.inputPlaceholder}
                 keyboardType="decimal-pad"
               />
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Final Venue Cost (£) *</Text>
+              <Text style={[styles.label, { color: colors.text }]}>Final Venue Cost (£) *</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]}
                 value={formData.finalVenueCost}
                 onChangeText={(text) => setFormData({ ...formData, finalVenueCost: text })}
                 placeholder="e.g., 100.00"
+                placeholderTextColor={colors.inputPlaceholder}
                 keyboardType="decimal-pad"
               />
             </View>

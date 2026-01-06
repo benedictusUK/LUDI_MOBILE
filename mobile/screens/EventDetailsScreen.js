@@ -320,13 +320,13 @@ export default function EventDetailsScreen() {
               />
               <SummaryItem 
                 label="Not Attending" 
-                count={attendance.attendees?.filter(a => a.status === 'not_attending').length || 0}
+                count={attendance.filter(a => a.status === 'not_attending').length || 0}
                 color="#ef4444"
                 textColor={colors.text}
               />
               <SummaryItem 
                 label="Maybe" 
-                count={attendance.attendees?.filter(a => a.status === 'maybe').length || 0}
+                count={attendance.filter(a => a.status === 'maybe').length || 0}
                 color="#f59e0b"
                 textColor={colors.text}
               />
