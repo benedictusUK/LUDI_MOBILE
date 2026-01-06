@@ -110,6 +110,7 @@ export interface IStorage {
   suspendRecurringSeries(recurringSeriesId: string, userId: string): Promise<void>;
   resumeRecurringSeries(recurringSeriesId: string, userId: string): Promise<void>;
   deleteRecurringEvent(eventId: string, deleteSeriesAfter?: boolean): Promise<void>;
+  updateRecurringEvent(eventId: string, updates: Partial<InsertEvent>, scope: 'single' | 'future'): Promise<Event[]>;
 
   // Event attendance operations
   recordAttendance(attendance: InsertEventAttendance): Promise<EventAttendance>;
@@ -3302,6 +3303,47 @@ export class DatabaseStorage implements IStorage {
       // Delete only this single event
       await this.deleteEvent(eventId);
     }
+  }
+
+  async updateRecurringEvent(eventId: string, updates: Partial<InsertEvent>, scope: 'single' | 'future'): Promise<Event[]> {
+    const event = await this.getEvent(eventId);
+    if (!event) throw new Error("Event not found");
+
+    const updatedEvents: Event[] = [];
+
+    if (scope === 'single') {
+      // Update only this single event
+      const [updated] = await db
+        .update(events)
+        .set(updates)
+        .where(eq(events.id, eventId))
+        .returning();
+      updatedEvents.push(updated);
+    } else if (scope === 'future' && event.recurringSeriesId) {
+      // Update this event and all future events in the series
+      // We need to filter by date >= this event's date
+      const result = await db
+        .update(events)
+        .set(updates)
+        .where(
+          and(
+            eq(events.recurringSeriesId, event.recurringSeriesId),
+            sql`${events.startDate} >= ${event.startDate}`
+          )
+        )
+        .returning();
+      updatedEvents.push(...result);
+    } else {
+      // No series, just update single event
+      const [updated] = await db
+        .update(events)
+        .set(updates)
+        .where(eq(events.id, eventId))
+        .returning();
+      updatedEvents.push(updated);
+    }
+
+    return updatedEvents;
   }
 
   // Event payment methods for Stripe holds/reserved payments
