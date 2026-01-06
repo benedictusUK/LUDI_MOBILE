@@ -146,9 +146,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.userId;
       
+      // Always set venueOrganiserId to creator - they maintain control over the event
+      const venueOrganiserId = req.body.venueOrganiserId || userId;
+      
       const eventData = insertEventSchema.parse({
         ...req.body,
         createdById: userId,
+        venueOrganiserId,
         // Support both teamId (mobile legacy) and primaryTeamId (current)
         primaryTeamId: req.body.primaryTeamId || req.body.teamId,
       });
@@ -226,7 +230,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      const venueOrganiserId = req.body.venueOrganiserId || (req.body.paymentRequired ? userId : null);
+      // Preserve venueOrganiserId from existing event, or default to creator if not set
+      const venueOrganiserId = req.body.venueOrganiserId || existingEvent.venueOrganiserId || existingEvent.createdById;
 
       // Parse and validate the event data
       const eventData = insertEventSchema.parse({
@@ -366,12 +371,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      const venueOrganiserId = req.body.venueOrganiserId || (req.body.paymentRequired ? userId : undefined);
+      // Preserve venueOrganiserId from existing event, or default to creator if not set
+      const venueOrganiserId = req.body.venueOrganiserId || existingEvent.venueOrganiserId || existingEvent.createdById;
 
-      // Parse and validate the event data - only include venueOrganiserId if it has a value
+      // Parse and validate the event data
       const eventData = insertEventSchema.parse({
         ...req.body,
-        ...(venueOrganiserId && { venueOrganiserId }),
+        venueOrganiserId,
         createdById: existingEvent.createdById, // Preserve original creator
       });
       
@@ -1261,7 +1267,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/events', isAuthenticated, async (req: any, res) => {
     try {
       const userId = (req.user as any).claims.sub;
-      const venueOrganiserId = req.body.venueOrganiserId || (req.body.paymentRequired ? userId : null);
+      // Always set venueOrganiserId to creator - they maintain control over the event
+      const venueOrganiserId = req.body.venueOrganiserId || userId;
 
       // Parse and validate the event data
       const eventData = insertEventSchema.parse({
@@ -2415,7 +2422,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/events/recurring', isAuthenticated, async (req: any, res) => {
     try {
       const userId = (req.user as any).claims.sub;
-      const eventData = { ...req.body, createdById: userId };
+      // Always set venueOrganiserId to creator - they maintain control over the event
+      const venueOrganiserId = req.body.venueOrganiserId || userId;
+      const eventData = { ...req.body, createdById: userId, venueOrganiserId };
       
       // Validate the event data
       const validatedData = insertEventSchema.parse(eventData);
