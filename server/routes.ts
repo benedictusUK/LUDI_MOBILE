@@ -366,12 +366,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      const venueOrganiserId = req.body.venueOrganiserId || (req.body.paymentRequired ? userId : null);
+      const venueOrganiserId = req.body.venueOrganiserId || (req.body.paymentRequired ? userId : undefined);
 
-      // Parse and validate the event data
+      // Parse and validate the event data - only include venueOrganiserId if it has a value
       const eventData = insertEventSchema.parse({
         ...req.body,
-        venueOrganiserId,
+        ...(venueOrganiserId && { venueOrganiserId }),
         createdById: existingEvent.createdById, // Preserve original creator
       });
       
