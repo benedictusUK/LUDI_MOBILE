@@ -271,6 +271,26 @@ export default function ProfileScreen({ navigation }) {
           )}
         </View>
 
+        {/* Payment Methods Section */}
+        <View style={[styles.section, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Payments</Text>
+          <TouchableOpacity
+            style={[styles.themeButton, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}
+            onPress={() => navigation.navigate('PaymentMethods')}
+            data-testid="button-payment-methods"
+          >
+            <View style={styles.themeButtonContent}>
+              <View style={styles.themeButtonLeft}>
+                <Ionicons name="card-outline" size={20} color={colors.icon} />
+                <Text style={[styles.themeButtonLabel, { color: colors.text }]}>Payment Methods</Text>
+              </View>
+              <View style={styles.themeButtonRight}>
+                <Ionicons name="chevron-forward" size={20} color={colors.icon} />
+              </View>
+            </View>
+          </TouchableOpacity>
+        </View>
+
         {/* Appearance Section */}
         <View style={[styles.section, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Appearance</Text>
