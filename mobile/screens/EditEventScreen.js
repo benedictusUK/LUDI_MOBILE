@@ -340,7 +340,7 @@ export default function EditEventScreen() {
               return (
                 <TouchableOpacity
                   key={index}
-                  style={[styles.modalOption, { borderBottomColor: colors.borderLight }, isSelected && { backgroundColor: colors.primary + '20' }]}
+                  style={[styles.modalOption, { borderBottomColor: colors.borderLight }, isSelected && { backgroundColor: colors.selectionBackground }]}
                   onPress={() => {
                     onSelect(value);
                     onClose();
@@ -439,7 +439,7 @@ export default function EditEventScreen() {
                   {days.map(day => (
                     <TouchableOpacity
                       key={day}
-                      style={[styles.pickerItem, localDate.day === day && { backgroundColor: colors.primary + '20' }]}
+                      style={[styles.pickerItem, localDate.day === day && { backgroundColor: colors.selectionBackground }]}
                       onPress={() => setLocalDate(prev => ({ ...prev, day }))}
                     >
                       <Text style={[styles.pickerItemText, { color: colors.text }, localDate.day === day && { color: colors.primary, fontWeight: '600' }]}>
@@ -456,7 +456,7 @@ export default function EditEventScreen() {
                   {MONTHS.map(month => (
                     <TouchableOpacity
                       key={month.value}
-                      style={[styles.pickerItem, localDate.month === month.value && { backgroundColor: colors.primary + '20' }]}
+                      style={[styles.pickerItem, localDate.month === month.value && { backgroundColor: colors.selectionBackground }]}
                       onPress={() => setLocalDate(prev => ({ ...prev, month: month.value, day: Math.min(prev.day, generateDays(prev.year, month.value).length) }))}
                     >
                       <Text style={[styles.pickerItemText, { color: colors.text }, localDate.month === month.value && { color: colors.primary, fontWeight: '600' }]}>
@@ -473,7 +473,7 @@ export default function EditEventScreen() {
                   {years.map(year => (
                     <TouchableOpacity
                       key={year}
-                      style={[styles.pickerItem, localDate.year === year && { backgroundColor: colors.primary + '20' }]}
+                      style={[styles.pickerItem, localDate.year === year && { backgroundColor: colors.selectionBackground }]}
                       onPress={() => setLocalDate(prev => ({ ...prev, year }))}
                     >
                       <Text style={[styles.pickerItemText, { color: colors.text }, localDate.year === year && { color: colors.primary, fontWeight: '600' }]}>
@@ -546,7 +546,7 @@ export default function EditEventScreen() {
                   {HOURS.map(hour => (
                     <TouchableOpacity
                       key={hour}
-                      style={[styles.pickerItem, localTime.hour === hour && { backgroundColor: colors.primary + '20' }]}
+                      style={[styles.pickerItem, localTime.hour === hour && { backgroundColor: colors.selectionBackground }]}
                       onPress={() => setLocalTime(prev => ({ ...prev, hour }))}
                     >
                       <Text style={[styles.pickerItemText, { color: colors.text }, localTime.hour === hour && { color: colors.primary, fontWeight: '600' }]}>
@@ -563,7 +563,7 @@ export default function EditEventScreen() {
                   {MINUTES.map(minute => (
                     <TouchableOpacity
                       key={minute}
-                      style={[styles.pickerItem, localTime.minute === minute && { backgroundColor: colors.primary + '20' }]}
+                      style={[styles.pickerItem, localTime.minute === minute && { backgroundColor: colors.selectionBackground }]}
                       onPress={() => setLocalTime(prev => ({ ...prev, minute }))}
                     >
                       <Text style={[styles.pickerItemText, { color: colors.text }, localTime.minute === minute && { color: colors.primary, fontWeight: '600' }]}>
@@ -989,30 +989,30 @@ export default function EditEventScreen() {
             </View>
             <ScrollView style={styles.modalScroll}>
               <TouchableOpacity
-                style={[styles.modalOption, { borderBottomColor: colors.borderLight }, !formData.venueOrganiserId && styles.modalOptionSelected]}
+                style={[styles.modalOption, { borderBottomColor: colors.borderLight }, !formData.venueOrganiserId && { backgroundColor: colors.selectionBackground }]}
                 onPress={() => {
                   setFormData({ ...formData, venueOrganiserId: '' });
                   setShowVenueOrganiserPicker(false);
                 }}
               >
-                <Text style={[styles.modalOptionText, { color: colors.text }]}>None (no venue organiser)</Text>
-                {!formData.venueOrganiserId && <Text style={styles.modalCheckmark}>✓</Text>}
+                <Text style={[styles.modalOptionText, { color: !formData.venueOrganiserId ? colors.selectionText : colors.text }]}>None (no venue organiser)</Text>
+                {!formData.venueOrganiserId && <Text style={[styles.modalCheckmark, { color: colors.selectionText }]}>✓</Text>}
               </TouchableOpacity>
               {teamMembers.map((member) => {
                 const isSelected = formData.venueOrganiserId === member.id;
                 return (
                   <TouchableOpacity
                     key={member.id}
-                    style={[styles.modalOption, { borderBottomColor: colors.borderLight }, isSelected && styles.modalOptionSelected]}
+                    style={[styles.modalOption, { borderBottomColor: colors.borderLight }, isSelected && { backgroundColor: colors.selectionBackground }]}
                     onPress={() => {
                       setFormData({ ...formData, venueOrganiserId: member.id });
                       setShowVenueOrganiserPicker(false);
                     }}
                   >
-                    <Text style={[styles.modalOptionText, { color: colors.text }, isSelected && { fontWeight: '600' }]}>
+                    <Text style={[styles.modalOptionText, { color: isSelected ? colors.selectionText : colors.text }, isSelected && { fontWeight: '600' }]}>
                       {member.name}
                     </Text>
-                    {isSelected && <Text style={styles.modalCheckmark}>✓</Text>}
+                    {isSelected && <Text style={[styles.modalCheckmark, { color: colors.selectionText }]}>✓</Text>}
                   </TouchableOpacity>
                 );
               })}
@@ -1219,7 +1219,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: '70%',
+    maxHeight: '80%',
+    paddingBottom: 20,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1441,6 +1442,24 @@ const styles = StyleSheet.create({
   checkmark: {
     color: '#ffffff',
     fontSize: 14,
+    fontWeight: '600',
+  },
+  modalFooter: {
+    padding: 16,
+    paddingBottom: 24,
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+  },
+  modalButton: {
+    backgroundColor: '#3b82f6',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
     fontWeight: '600',
   },
 });

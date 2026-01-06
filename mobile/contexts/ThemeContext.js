@@ -92,6 +92,14 @@ export const ThemeProvider = ({ children }) => {
     // Special states
     disabled: isDark ? '#475569' : '#cbd5e1',
     shadow: isDark ? '#000000' : '#000000',
+    
+    // Selection/highlight colors (always blue-tinted for consistency)
+    selectionBackground: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff',
+    selectionText: isDark ? '#60a5fa' : '#3b82f6',
+    overlay: isDark ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.5)',
+    
+    // Primary light variant for chips/badges
+    primaryLight: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff',
   };
 
   const value = {

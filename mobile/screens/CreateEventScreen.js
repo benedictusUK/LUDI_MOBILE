@@ -949,30 +949,30 @@ export default function CreateEventScreen() {
             </View>
             <ScrollView style={styles.modalScroll}>
               <TouchableOpacity
-                style={[styles.modalOption, { borderBottomColor: colors.borderLight }, !formData.venueOrganiserId && styles.modalOptionSelected]}
+                style={[styles.modalOption, { borderBottomColor: colors.borderLight }, !formData.venueOrganiserId && { backgroundColor: colors.selectionBackground }]}
                 onPress={() => {
                   setFormData({ ...formData, venueOrganiserId: '' });
                   setShowVenueOrganiserPicker(false);
                 }}
               >
-                <Text style={[styles.modalOptionText, { color: colors.text }]}>None (no venue organiser)</Text>
-                {!formData.venueOrganiserId && <Text style={styles.modalCheckmark}>✓</Text>}
+                <Text style={[styles.modalOptionText, { color: !formData.venueOrganiserId ? colors.selectionText : colors.text }]}>None (no venue organiser)</Text>
+                {!formData.venueOrganiserId && <Text style={[styles.modalCheckmark, { color: colors.selectionText }]}>✓</Text>}
               </TouchableOpacity>
               {teamMembers.map((member) => {
                 const isSelected = formData.venueOrganiserId === member.id;
                 return (
                   <TouchableOpacity
                     key={member.id}
-                    style={[styles.modalOption, { borderBottomColor: colors.borderLight }, isSelected && styles.modalOptionSelected]}
+                    style={[styles.modalOption, { borderBottomColor: colors.borderLight }, isSelected && { backgroundColor: colors.selectionBackground }]}
                     onPress={() => {
                       setFormData({ ...formData, venueOrganiserId: member.id });
                       setShowVenueOrganiserPicker(false);
                     }}
                   >
-                    <Text style={[styles.modalOptionText, { color: colors.text }, isSelected && { fontWeight: '600' }]}>
+                    <Text style={[styles.modalOptionText, { color: isSelected ? colors.selectionText : colors.text }, isSelected && { fontWeight: '600' }]}>
                       {member.name}
                     </Text>
-                    {isSelected && <Text style={styles.modalCheckmark}>✓</Text>}
+                    {isSelected && <Text style={[styles.modalCheckmark, { color: colors.selectionText }]}>✓</Text>}
                   </TouchableOpacity>
                 );
               })}
@@ -988,12 +988,12 @@ export default function CreateEventScreen() {
         animationType="slide"
         onRequestClose={() => setShowDaysOfWeekPicker(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Days</Text>
+        <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Select Days</Text>
               <TouchableOpacity onPress={() => setShowDaysOfWeekPicker(false)}>
-                <Text style={styles.modalClose}>✕</Text>
+                <Text style={[styles.modalClose, { color: colors.textSecondary }]}>✕</Text>
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.modalScroll}>
@@ -1003,7 +1003,7 @@ export default function CreateEventScreen() {
                 return (
                   <TouchableOpacity
                     key={day.value}
-                    style={[styles.modalOption, isSelected && styles.modalOptionSelected]}
+                    style={[styles.modalOption, { borderBottomColor: colors.borderLight }, isSelected && { backgroundColor: colors.selectionBackground }]}
                     onPress={() => {
                       if (isSelected) {
                         setFormData({
@@ -1018,17 +1018,17 @@ export default function CreateEventScreen() {
                       }
                     }}
                   >
-                    <Text style={[styles.modalOptionText, isSelected && styles.modalOptionTextSelected]}>
+                    <Text style={[styles.modalOptionText, { color: isSelected ? colors.selectionText : colors.text }]}>
                       {day.label}
                     </Text>
-                    {isSelected && <Text style={styles.modalCheckmark}>✓</Text>}
+                    {isSelected && <Text style={[styles.modalCheckmark, { color: colors.selectionText }]}>✓</Text>}
                   </TouchableOpacity>
                 );
               })}
             </ScrollView>
-            <View style={styles.modalFooter}>
+            <View style={[styles.modalFooter, { borderTopColor: colors.border }]}>
               <TouchableOpacity
-                style={styles.modalConfirmButton}
+                style={[styles.modalConfirmButton, { backgroundColor: colors.primary }]}
                 onPress={() => setShowDaysOfWeekPicker(false)}
               >
                 <Text style={styles.modalConfirmButtonText}>
@@ -1347,12 +1347,12 @@ export default function CreateEventScreen() {
         animationType="slide"
         onRequestClose={() => setShowSecondaryTeamPicker(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add Additional Teams</Text>
+        <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Add Additional Teams</Text>
               <TouchableOpacity onPress={() => setShowSecondaryTeamPicker(false)}>
-                <Text style={styles.modalClose}>✕</Text>
+                <Text style={[styles.modalClose, { color: colors.textSecondary }]}>✕</Text>
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.modalScroll}>
@@ -1362,20 +1362,20 @@ export default function CreateEventScreen() {
                 return (
                   <TouchableOpacity
                     key={team.id}
-                    style={[styles.modalOption, isSelected && styles.modalOptionSelected]}
+                    style={[styles.modalOption, { borderBottomColor: colors.borderLight }, isSelected && { backgroundColor: colors.selectionBackground }]}
                     onPress={() => handleToggleSecondaryTeam(team.id)}
                   >
-                    <Text style={[styles.modalOptionText, isSelected && styles.modalOptionTextSelected]}>
+                    <Text style={[styles.modalOptionText, { color: isSelected ? colors.selectionText : colors.text }]}>
                       {team.name}
                     </Text>
-                    {isSelected && <Text style={styles.modalCheckmark}>✓</Text>}
+                    {isSelected && <Text style={[styles.modalCheckmark, { color: colors.selectionText }]}>✓</Text>}
                   </TouchableOpacity>
                 );
               })}
             </ScrollView>
-            <View style={styles.modalFooter}>
+            <View style={[styles.modalFooter, { borderTopColor: colors.border }]}>
               <TouchableOpacity
-                style={styles.modalConfirmButton}
+                style={[styles.modalConfirmButton, { backgroundColor: colors.primary }]}
                 onPress={handleConfirmSecondaryTeams}
               >
                 <Text style={styles.modalConfirmButtonText}>
@@ -1595,7 +1595,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: '70%',
+    maxHeight: '80%',
+    paddingBottom: 20,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1694,9 +1695,9 @@ const styles = StyleSheet.create({
   },
   modalFooter: {
     padding: 16,
+    paddingBottom: 24,
     borderTopWidth: 1,
     borderTopColor: '#e5e7eb',
-    backgroundColor: '#ffffff',
   },
   modalConfirmButton: {
     backgroundColor: '#3b82f6',
