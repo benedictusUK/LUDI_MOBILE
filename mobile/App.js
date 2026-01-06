@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { StripeProvider } from '@stripe/stripe-react-native';
 import Constants from 'expo-constants';
+import { SafeStripeProvider } from './components/SafeStripeProvider';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { NotificationProvider } from './contexts/NotificationContext';
@@ -200,13 +200,13 @@ export default function App() {
     <ThemeProvider>
       <AuthProvider>
         <NotificationProvider>
-          <StripeProvider 
+          <SafeStripeProvider 
             publishableKey={STRIPE_PUBLISHABLE_KEY}
             merchantIdentifier="merchant.com.ludi.app"
             urlScheme="ludi"
           >
             <AppContent />
-          </StripeProvider>
+          </SafeStripeProvider>
         </NotificationProvider>
       </AuthProvider>
     </ThemeProvider>
