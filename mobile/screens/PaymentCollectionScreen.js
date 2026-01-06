@@ -12,11 +12,11 @@ export default function PaymentCollectionScreen() {
   const { apiRequest, user } = useAuth();
   const { colors, isDark } = useTheme();
   
-  const { eventId, eventName, eventCost, eventCreatorId, maxPlayerPayment, venueOrganiserId } = route.params || {};
+  const { eventId, eventName, eventCost, eventCreatorId, maxPlayerPayment, venueOrganiserId, finalVenueCost } = route.params || {};
   
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
-  const [venueCost, setVenueCost] = useState(eventCost || '0');
+  const [venueCost, setVenueCost] = useState(finalVenueCost || eventCost || '0');
   const [selectedAttendees, setSelectedAttendees] = useState([]);
   const [teamMembers, setTeamMembers] = useState([]);
   const [attendance, setAttendance] = useState([]);

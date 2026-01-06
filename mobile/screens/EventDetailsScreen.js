@@ -202,7 +202,10 @@ export default function EventDetailsScreen() {
 
   const handleAttendanceUpdate = async (status) => {
     // Check if payment is required and user is trying to attend without authorisation
-    if (status === 'attending' && event?.paymentRequired && event?.maxPlayerPayment > 0) {
+    // Venue organiser can vote without payment authorisation
+    const isVenueOrganiser = event?.venueOrganiserId === user?.id;
+    
+    if (status === 'attending' && event?.paymentRequired && event?.maxPlayerPayment > 0 && !isVenueOrganiser) {
       // Wait for payment status to load before blocking
       if (paymentStatusLoading) {
         Alert.alert('Please Wait', 'Checking payment status...');
@@ -498,6 +501,7 @@ export default function EventDetailsScreen() {
                   eventCreatorId: event.createdById,
                   maxPlayerPayment: event.maxPlayerPayment,
                   venueOrganiserId: event.venueOrganiserId,
+                  finalVenueCost: event.finalVenueCost,
                 })}
                 data-testid="button-collect-payments"
               >

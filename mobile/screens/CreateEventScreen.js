@@ -187,15 +187,44 @@ export default function CreateEventScreen() {
     paymentRequired: false,
     maxPlayerPayment: '',
     finalVenueCost: '',
+    venueOrganiserId: '',
   });
 
   const [platformCharges, setPlatformCharges] = useState([]);
   const [tempSecondaryTeamIds, setTempSecondaryTeamIds] = useState([]);
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [showVenueOrganiserPicker, setShowVenueOrganiserPicker] = useState(false);
 
   useEffect(() => {
     fetchUserTeams();
     fetchPlatformCharges();
   }, []);
+
+  useEffect(() => {
+    if (formData.teamId) {
+      fetchTeamMembers(formData.teamId);
+    }
+  }, [formData.teamId]);
+
+  const fetchTeamMembers = async (teamId) => {
+    try {
+      const response = await apiRequest(`/api/teams/${teamId}`);
+      if (response.ok) {
+        const team = await response.json();
+        if (team.members) {
+          setTeamMembers(team.members.map(m => ({
+            id: m.userId,
+            name: m.user?.firstName && m.user?.lastName 
+              ? `${m.user.firstName} ${m.user.lastName}` 
+              : m.user?.username || 'Unknown',
+            username: m.user?.username || '',
+          })));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch team members:', error);
+    }
+  };
 
   // Auto-scroll start time picker when it opens
   useEffect(() => {
@@ -386,6 +415,7 @@ export default function CreateEventScreen() {
         paymentRequired: formData.paymentRequired,
         maxPlayerPayment: formData.paymentRequired && formData.maxPlayerPayment ? formData.maxPlayerPayment : undefined,
         finalVenueCost: formData.paymentRequired && formData.finalVenueCost ? formData.finalVenueCost : undefined,
+        venueOrganiserId: formData.paymentRequired && formData.venueOrganiserId ? formData.venueOrganiserId : undefined,
       };
 
       console.log('[CreateEvent] Sending event data:', eventData);
@@ -773,6 +803,21 @@ export default function CreateEventScreen() {
                 keyboardType="decimal-pad"
               />
 
+              <Text style={[styles.label, { color: colors.text }]}>Venue Organiser</Text>
+              <Text style={styles.sublabel}>Person who paid for venue - can vote without payment</Text>
+              <TouchableOpacity
+                style={[styles.pickerButton, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}
+                onPress={() => setShowVenueOrganiserPicker(true)}
+                data-testid="button-venue-organiser-picker"
+              >
+                <Text style={[styles.pickerButtonText, { color: formData.venueOrganiserId ? colors.inputText : colors.inputPlaceholder }]}>
+                  {formData.venueOrganiserId 
+                    ? teamMembers.find(m => m.id === formData.venueOrganiserId)?.name || 'Select organiser'
+                    : 'Select venue organiser (optional)'}
+                </Text>
+                <Ionicons name="chevron-down" size={20} color={colors.icon} />
+              </TouchableOpacity>
+
               {formData.maxPlayerPayment && parseFloat(formData.maxPlayerPayment) > 0 && (
                 <View style={styles.costBreakdown}>
                   <Text style={styles.costBreakdownTitle}>Cost Breakdown per Player</Text>
@@ -869,6 +914,55 @@ export default function CreateEventScreen() {
         selectedValue={formData.recurrenceType}
         onSelect={(value) => setFormData({ ...formData, recurrenceType: value })}
       />
+
+      {/* Venue Organiser Picker Modal */}
+      <Modal
+        visible={showVenueOrganiserPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowVenueOrganiserPicker(false)}
+      >
+        <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Select Venue Organiser</Text>
+              <TouchableOpacity onPress={() => setShowVenueOrganiserPicker(false)}>
+                <Text style={[styles.modalClose, { color: colors.icon }]}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalScroll}>
+              <TouchableOpacity
+                style={[styles.modalOption, { borderBottomColor: colors.borderLight }, !formData.venueOrganiserId && styles.modalOptionSelected]}
+                onPress={() => {
+                  setFormData({ ...formData, venueOrganiserId: '' });
+                  setShowVenueOrganiserPicker(false);
+                }}
+              >
+                <Text style={[styles.modalOptionText, { color: colors.text }]}>None (no venue organiser)</Text>
+                {!formData.venueOrganiserId && <Text style={styles.modalCheckmark}>✓</Text>}
+              </TouchableOpacity>
+              {teamMembers.map((member) => {
+                const isSelected = formData.venueOrganiserId === member.id;
+                return (
+                  <TouchableOpacity
+                    key={member.id}
+                    style={[styles.modalOption, { borderBottomColor: colors.borderLight }, isSelected && styles.modalOptionSelected]}
+                    onPress={() => {
+                      setFormData({ ...formData, venueOrganiserId: member.id });
+                      setShowVenueOrganiserPicker(false);
+                    }}
+                  >
+                    <Text style={[styles.modalOptionText, { color: colors.text }, isSelected && { fontWeight: '600' }]}>
+                      {member.name}
+                    </Text>
+                    {isSelected && <Text style={styles.modalCheckmark}>✓</Text>}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       {/* Days of Week Multi-Select Modal */}
       <Modal
