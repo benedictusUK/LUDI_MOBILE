@@ -2272,6 +2272,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Duplicate audit route removed - using the comprehensive one above
 
+  // Quick test endpoint for development (no auth required) - sends to a specific user
+  app.get('/api/notifications/demo', async (req, res) => {
+    try {
+      const userId = req.query.userId as string;
+      if (!userId) {
+        return res.status(400).json({ message: 'userId query param required' });
+      }
+      
+      const testTypes = ['new_event', 'team_join_request', 'reserve_promotion', 'flare_gun'];
+      const randomType = testTypes[Math.floor(Math.random() * testTypes.length)];
+      
+      const testMessages: Record<string, { title: string; message: string }> = {
+        new_event: { title: 'New Event Created', message: 'Weekend Football match scheduled for Saturday at 2pm!' },
+        team_join_request: { title: 'New Join Request', message: 'Alex wants to join your team "City FC"' },
+        reserve_promotion: { title: "You've Been Promoted!", message: 'You moved from reserve to the main squad!' },
+        flare_gun: { title: 'Flare Alert!', message: '5-a-side at Central Park needs players - kick off in 30 mins!' },
+      };
+      
+      const { title, message } = testMessages[randomType];
+      
+      const notification = await storage.createNotification({
+        userId,
+        type: randomType,
+        title,
+        message,
+        isRead: false,
+      });
+      
+      res.json({ success: true, notification });
+    } catch (error) {
+      console.error("Error creating demo notification:", error);
+      res.status(500).json({ message: "Failed to create demo notification" });
+    }
+  });
+
   // Test endpoint to send a real-time notification to yourself (for development/testing)
   app.post('/api/notifications/test', isAuthenticated, async (req: any, res) => {
     try {
