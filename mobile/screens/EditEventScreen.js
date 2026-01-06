@@ -80,12 +80,16 @@ export default function EditEventScreen() {
   const [showSportPicker, setShowSportPicker] = useState(false);
   const [showTeamPicker, setShowTeamPicker] = useState(false);
   const [showGenderPicker, setShowGenderPicker] = useState(false);
+  const [showRecurringScopeModal, setShowRecurringScopeModal] = useState(false);
   
   // Date/Time picker modal states
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
+  
+  // Check if this is a recurring event
+  const isRecurringEvent = !!initialEvent?.recurringSeriesId;
   
   // Temporary picker values
   const [tempDate, setTempDate] = useState({ year: new Date().getFullYear(), month: new Date().getMonth() + 1, day: new Date().getDate() });
@@ -129,37 +133,41 @@ export default function EditEventScreen() {
     }
   };
 
-  const handleSubmit = async () => {
+  const validateForm = () => {
     if (!formData.name.trim()) {
       Alert.alert('Validation Error', 'Event name is required');
-      return;
+      return false;
     }
 
     if (!formData.sport) {
       Alert.alert('Validation Error', 'Please select a sport');
-      return;
+      return false;
     }
 
     if (!formData.startDate) {
       Alert.alert('Validation Error', 'Start date is required');
-      return;
+      return false;
     }
 
     if (!formData.startTime) {
       Alert.alert('Validation Error', 'Start time is required');
-      return;
+      return false;
     }
 
     if (!formData.location.trim()) {
       Alert.alert('Validation Error', 'Location is required');
-      return;
+      return false;
     }
 
     if (!formData.teamId) {
       Alert.alert('Validation Error', 'Please select a team');
-      return;
+      return false;
     }
 
+    return true;
+  };
+
+  const saveEventWithScope = async (scope = 'single') => {
     try {
       setLoading(true);
       
@@ -184,9 +192,14 @@ export default function EditEventScreen() {
         finalVenueCost: formData.paymentRequired && formData.finalVenueCost ? formData.finalVenueCost : undefined,
       };
 
-      console.log('[EditEvent] Sending update:', eventData);
+      console.log('[EditEvent] Sending update with scope:', scope, eventData);
 
-      const response = await apiRequest(`/api/events/${initialEvent.id}`, {
+      // Use recurring endpoint for recurring events, otherwise use regular endpoint
+      const endpoint = isRecurringEvent 
+        ? `/api/events/${initialEvent.id}/recurring?scope=${scope}`
+        : `/api/events/${initialEvent.id}`;
+
+      const response = await apiRequest(endpoint, {
         method: 'PUT',
         body: JSON.stringify(eventData),
       });
@@ -194,9 +207,15 @@ export default function EditEventScreen() {
       console.log('[EditEvent] Response received:', response.status, 'ok:', response.ok);
 
       if (response.ok) {
+        const result = await response.json();
         console.log('[EditEvent] SUCCESS - showing alert');
         setLoading(false);
-        Alert.alert('Success', 'Event updated successfully!', [
+        
+        const successMessage = isRecurringEvent && scope === 'future'
+          ? `${result.updatedCount || 'All future'} events updated successfully!`
+          : 'Event updated successfully!';
+        
+        Alert.alert('Success', successMessage, [
           { text: 'OK', onPress: () => navigation.goBack() }
         ]);
         return;
@@ -211,6 +230,19 @@ export default function EditEventScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSubmit = async () => {
+    if (!validateForm()) return;
+
+    // If this is a recurring event, show scope selection modal
+    if (isRecurringEvent) {
+      setShowRecurringScopeModal(true);
+      return;
+    }
+
+    // For non-recurring events, save directly
+    await saveEventWithScope('single');
   };
 
   const PickerModal = ({ visible, onClose, title, options, selectedValue, onSelect, valueKey = 'value', labelKey = 'label' }) => (
@@ -778,6 +810,74 @@ export default function EditEventScreen() {
         onConfirm={(time) => setFormData({ ...formData, endTime: time })}
         initialTime={formData.endTime}
       />
+
+      {/* Recurring Event Scope Modal */}
+      <Modal
+        visible={showRecurringScopeModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowRecurringScopeModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.scopeModalContent, { backgroundColor: colors.card }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Edit Recurring Event</Text>
+              <TouchableOpacity onPress={() => setShowRecurringScopeModal(false)}>
+                <Text style={[styles.modalClose, { color: colors.textSecondary }]}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <Text style={[styles.scopeDescription, { color: colors.textSecondary }]}>
+              This is part of a recurring event series. Would you like to apply changes to:
+            </Text>
+            
+            <TouchableOpacity
+              style={[styles.scopeOption, { borderColor: colors.border }]}
+              onPress={() => {
+                setShowRecurringScopeModal(false);
+                saveEventWithScope('single');
+              }}
+            >
+              <View style={styles.scopeOptionContent}>
+                <Ionicons name="calendar-outline" size={24} color={colors.primary} />
+                <View style={styles.scopeOptionText}>
+                  <Text style={[styles.scopeOptionTitle, { color: colors.text }]}>This Event Only</Text>
+                  <Text style={[styles.scopeOptionDesc, { color: colors.textSecondary }]}>
+                    Changes will only apply to this single event
+                  </Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.scopeOption, { borderColor: colors.border }]}
+              onPress={() => {
+                setShowRecurringScopeModal(false);
+                saveEventWithScope('future');
+              }}
+            >
+              <View style={styles.scopeOptionContent}>
+                <Ionicons name="calendar" size={24} color={colors.primary} />
+                <View style={styles.scopeOptionText}>
+                  <Text style={[styles.scopeOptionTitle, { color: colors.text }]}>All Future Events</Text>
+                  <Text style={[styles.scopeOptionDesc, { color: colors.textSecondary }]}>
+                    Changes will apply to this and all future events in the series
+                  </Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.scopeCancelButton, { borderColor: colors.border }]}
+              onPress={() => setShowRecurringScopeModal(false)}
+            >
+              <Text style={[styles.scopeCancelText, { color: colors.textSecondary }]}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1024,5 +1124,61 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  scopeModalContent: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    marginHorizontal: 20,
+    maxWidth: 400,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  scopeDescription: {
+    fontSize: 14,
+    color: '#64748b',
+    textAlign: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    lineHeight: 20,
+  },
+  scopeOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+  },
+  scopeOptionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  scopeOptionText: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  scopeOptionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: 2,
+  },
+  scopeOptionDesc: {
+    fontSize: 13,
+    color: '#64748b',
+  },
+  scopeCancelButton: {
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+    marginTop: 8,
+  },
+  scopeCancelText: {
+    fontSize: 16,
+    color: '#64748b',
+    fontWeight: '500',
   },
 });
