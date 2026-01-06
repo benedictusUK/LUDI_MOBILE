@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   RefreshControl,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
@@ -29,6 +30,8 @@ export default function EventDetailsScreen() {
   const [canManage, setCanManage] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState(null);
+  const [cancellingPayment, setCancellingPayment] = useState(false);
 
   const fetchEventDetails = async () => {
     try {
@@ -48,6 +51,11 @@ export default function EventDetailsScreen() {
         const isAdminOrCaptain = userMembership && ['admin', 'captain'].includes(userMembership.role);
         
         setCanManage(isEventCreator || isTeamOwner || isAdminOrCaptain);
+        
+        // Fetch payment status if event requires payment
+        if (eventData.paymentRequired && eventData.maxPlayerPayment > 0) {
+          fetchPaymentStatus();
+        }
       }
 
       if (attendanceResponse.ok) {
@@ -61,6 +69,53 @@ export default function EventDetailsScreen() {
       setLoading(false);
       setRefreshing(false);
     }
+  };
+
+  const fetchPaymentStatus = async () => {
+    try {
+      const response = await apiRequest(`/api/events/${id}/payment-status`);
+      if (response.ok) {
+        const data = await response.json();
+        setPaymentStatus(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch payment status:', error);
+    }
+  };
+
+  const handleCancelAuthorization = async () => {
+    Alert.alert(
+      'Cancel Payment Authorization',
+      'Are you sure you want to cancel your payment authorization? This will also remove you from the event attendance.',
+      [
+        { text: 'Keep Authorization', style: 'cancel' },
+        {
+          text: 'Cancel Authorization',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setCancellingPayment(true);
+              const response = await apiRequest(`/api/events/${id}/cancel-payment`, {
+                method: 'POST',
+              });
+              
+              if (response.ok) {
+                Alert.alert('Success', 'Payment authorization cancelled');
+                fetchEventDetails();
+              } else {
+                const error = await response.json();
+                Alert.alert('Error', error.message || 'Failed to cancel authorization');
+              }
+            } catch (error) {
+              console.error('Cancel authorization error:', error);
+              Alert.alert('Error', 'Failed to cancel payment authorization');
+            } finally {
+              setCancellingPayment(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   useEffect(() => {
@@ -342,15 +397,82 @@ export default function EventDetailsScreen() {
           </View>
         )}
 
-        {event.cost && event.cost > 0 && (
+        {(event.paymentRequired || (event.cost && parseFloat(event.cost) > 0)) && (
           <View style={[styles.card, { backgroundColor: colors.card }]}>
             <Text style={[styles.cardTitle, { color: colors.text }]}>Payment</Text>
-            <TouchableOpacity 
-              style={styles.paymentButton}
-              onPress={() => navigation.navigate('Payment', { eventId: event.id })}
-            >
-              <Text style={styles.paymentButtonText}>Pay £{event.cost}</Text>
-            </TouchableOpacity>
+            
+            {event.paymentRequired && event.maxPlayerPayment > 0 && (
+              <View style={styles.paymentInfo}>
+                <View style={styles.paymentRow}>
+                  <Text style={[styles.paymentLabel, { color: colors.textSecondary }]}>Max Player Fee:</Text>
+                  <Text style={[styles.paymentValue, { color: colors.text }]}>£{parseFloat(event.maxPlayerPayment).toFixed(2)}</Text>
+                </View>
+              </View>
+            )}
+            
+            {paymentStatus?.hasAuthorization ? (
+              <View style={styles.paymentStatusSection}>
+                <View style={[styles.authorizationBadge, { backgroundColor: isDark ? '#064e3b' : '#d1fae5' }]}>
+                  <Ionicons name="checkmark-circle" size={20} color={isDark ? '#10b981' : '#047857'} />
+                  <Text style={[styles.authorizationText, { color: isDark ? '#10b981' : '#047857' }]}>
+                    Payment Authorized - £{parseFloat(paymentStatus.amount || 0).toFixed(2)}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.cancelAuthButton, { borderColor: '#ef4444' }]}
+                  onPress={handleCancelAuthorization}
+                  disabled={cancellingPayment}
+                  data-testid="button-cancel-authorization"
+                >
+                  {cancellingPayment ? (
+                    <ActivityIndicator size="small" color="#ef4444" />
+                  ) : (
+                    <>
+                      <Ionicons name="close-circle-outline" size={18} color="#ef4444" />
+                      <Text style={styles.cancelAuthText}>Cancel Authorization</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            ) : userAttendance?.status === 'attending' && event.paymentRequired ? (
+              <TouchableOpacity 
+                style={[styles.authorizeButton, { backgroundColor: colors.primary }]}
+                onPress={() => navigation.navigate('PaymentAuthorization', { 
+                  eventId: event.id,
+                  eventName: event.name,
+                  maxPlayerPayment: event.maxPlayerPayment,
+                })}
+                data-testid="button-authorize-payment"
+              >
+                <Ionicons name="card" size={20} color="#fff" />
+                <Text style={styles.authorizeButtonText}>Authorize Payment</Text>
+              </TouchableOpacity>
+            ) : !event.paymentRequired && event.cost > 0 ? (
+              <TouchableOpacity 
+                style={[styles.paymentButton, { backgroundColor: colors.primary }]}
+                onPress={() => navigation.navigate('Payment', { eventId: event.id })}
+              >
+                <Text style={styles.paymentButtonText}>Pay £{event.cost}</Text>
+              </TouchableOpacity>
+            ) : null}
+            
+            {canManage && event.paymentRequired && (
+              <TouchableOpacity 
+                style={[styles.collectPaymentsButton, { backgroundColor: '#10b981' }]}
+                onPress={() => navigation.navigate('PaymentCollection', { 
+                  eventId: event.id,
+                  eventName: event.name,
+                  eventCost: event.cost || '0',
+                  eventCreatorId: event.createdById,
+                  maxPlayerPayment: event.maxPlayerPayment,
+                  venueOrganiserId: event.venueOrganiserId,
+                })}
+                data-testid="button-collect-payments"
+              >
+                <Ionicons name="cash" size={20} color="#fff" />
+                <Text style={styles.collectPaymentsText}>Collect Payments</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
       </ScrollView>
@@ -767,5 +889,77 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#64748b',
     fontWeight: '500',
+  },
+  paymentInfo: {
+    marginBottom: 16,
+  },
+  paymentRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  paymentLabel: {
+    fontSize: 14,
+  },
+  paymentValue: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  paymentStatusSection: {
+    gap: 12,
+  },
+  authorizationBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 10,
+    gap: 8,
+  },
+  authorizationText: {
+    fontSize: 14,
+    fontWeight: '600',
+    flex: 1,
+  },
+  cancelAuthButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 6,
+  },
+  cancelAuthText: {
+    color: '#ef4444',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  authorizeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 14,
+    borderRadius: 10,
+    gap: 8,
+  },
+  authorizeButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  collectPaymentsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 14,
+    borderRadius: 10,
+    marginTop: 12,
+    gap: 8,
+  },
+  collectPaymentsText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

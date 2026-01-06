@@ -21,6 +21,9 @@ import CreateEventScreen from './screens/CreateEventScreen';
 import EditEventScreen from './screens/EditEventScreen';
 import EventDetailsScreen from './screens/EventDetailsScreen';
 import PaymentScreen from './screens/PaymentScreen';
+import PaymentAuthorizationScreen from './screens/PaymentAuthorizationScreen';
+import PaymentMethodsScreen from './screens/PaymentMethodsScreen';
+import PaymentCollectionScreen from './screens/PaymentCollectionScreen';
 import LoadingScreen from './components/LoadingScreen';
 import { usePushNotifications } from './hooks/usePushNotifications';
 import { View, Text, StyleSheet, AppRegistry } from 'react-native';
@@ -179,6 +182,9 @@ function AppContent() {
           <Stack.Screen name="EditEvent" component={EditEventScreen} options={{ headerShown: false }} />
           <Stack.Screen name="EventDetails" component={EventDetailsScreen} options={{ title: 'Event Details' }} />
           <Stack.Screen name="Payment" component={PaymentScreen} options={{ title: 'Payment' }} />
+          <Stack.Screen name="PaymentAuthorization" component={PaymentAuthorizationScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="PaymentMethods" component={PaymentMethodsScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="PaymentCollection" component={PaymentCollectionScreen} options={{ headerShown: false }} />
         </Stack.Navigator>
       </NavigationContainer>
       <NotificationToast />

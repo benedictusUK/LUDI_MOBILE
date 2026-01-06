@@ -581,6 +581,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({
         clientSecret: paymentIntent.client_secret,
+        paymentIntentId: paymentIntent.id,
         totalAmount,
         breakdown: [
           { name: 'Event Fee', amount: baseAmount },
@@ -1747,10 +1748,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user?.claims?.sub;
       const eventId = req.params.id;
-      const { paymentMethodId, amount } = req.body;
+      const { paymentMethodId, amount, paymentIntentId, paymentMethod } = req.body;
       
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Handle wallet payments that already have a payment intent
+      if (paymentMethod === 'wallet' && paymentIntentId) {
+        // Wallet payment already processed through native payment sheet
+        // Just register it in the database
+        const event = await storage.getEvent(eventId);
+        if (!event) {
+          return res.status(404).json({ message: "Event not found" });
+        }
+
+        // Get the customer ID from the Stripe PaymentIntent if the user doesn't have one
+        let stripeCustomerId = '';
+        try {
+          const user = await storage.getUserById(userId);
+          stripeCustomerId = user?.stripeCustomerId || '';
+          
+          // If user doesn't have a customer ID, try to get it from the PaymentIntent
+          if (!stripeCustomerId) {
+            const stripePaymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+            if (stripePaymentIntent.customer && typeof stripePaymentIntent.customer === 'string') {
+              stripeCustomerId = stripePaymentIntent.customer;
+              // Update user with the customer ID for future use
+              await storage.updateUserStripeCustomerId(userId, stripeCustomerId);
+              console.log(`Wallet Payment: Updated user ${userId} with stripeCustomerId ${stripeCustomerId}`);
+            }
+          }
+        } catch (customerError) {
+          console.error("Error fetching Stripe customer ID:", customerError);
+          // Continue without customer ID - we'll use paymentIntentId for tracking
+        }
+
+        // Store payment record
+        const paymentData = insertPaymentSchema.parse({
+          userId,
+          eventId,
+          amount: (amount || 0).toString(),
+          type: 'event_fee',
+          status: 'authorized',
+        });
+        
+        const payment = await storage.createPayment(paymentData);
+        await storage.updatePaymentStatus(payment.id, 'authorized', paymentIntentId);
+        console.log(`Wallet Payment: Created payment record ${payment.id} for intent ${paymentIntentId}`);
+
+        // Create/update event payment record - only if we have either a stripeCustomerId or can create without one
+        try {
+          const existingEventPayment = await storage.getEventPayment(eventId, userId);
+          
+          if (existingEventPayment) {
+            await storage.updateEventPaymentSetup(eventId, userId, {
+              status: 'hold_created',
+              paymentIntentId: paymentIntentId,
+              updatedAt: new Date()
+            });
+          } else if (stripeCustomerId) {
+            // Only create if we have a customer ID
+            await storage.createEventPayment({
+              eventId,
+              userId,
+              stripeCustomerId: stripeCustomerId,
+              paymentIntentId: paymentIntentId,
+              status: 'hold_created'
+            });
+          } else {
+            // For wallet payments without customer ID, we'll create a minimal record
+            // The payment is tracked via the payments table instead
+            console.log(`Wallet Payment: Skipping eventPayment creation (no stripeCustomerId), payment tracked via payments table`);
+          }
+        } catch (eventPaymentError) {
+          console.error("Error creating/updating event payment for wallet:", eventPaymentError);
+          // Continue - the main payment record is already saved
+        }
+
+        return res.json({ 
+          success: true, 
+          paymentIntentId,
+          status: 'authorized',
+          message: 'Wallet payment registered successfully'
+        });
       }
 
       if (!paymentMethodId || !amount) {
