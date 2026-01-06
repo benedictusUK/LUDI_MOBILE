@@ -31,6 +31,7 @@ export default function EventDetailsScreen() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState(null);
+  const [paymentStatusLoading, setPaymentStatusLoading] = useState(false);
   const [cancellingPayment, setCancellingPayment] = useState(false);
 
   const fetchEventDetails = async () => {
@@ -73,6 +74,7 @@ export default function EventDetailsScreen() {
 
   const fetchPaymentStatus = async () => {
     try {
+      setPaymentStatusLoading(true);
       const response = await apiRequest(`/api/events/${id}/payment-status`);
       if (response.ok) {
         const data = await response.json();
@@ -80,17 +82,19 @@ export default function EventDetailsScreen() {
       }
     } catch (error) {
       console.error('Failed to fetch payment status:', error);
+    } finally {
+      setPaymentStatusLoading(false);
     }
   };
 
   const handleCancelAuthorization = async () => {
     Alert.alert(
-      'Cancel Payment Authorization',
-      'Are you sure you want to cancel your payment authorization? This will also remove you from the event attendance.',
+      'Cancel Payment Authorisation',
+      'Are you sure you want to cancel your payment authorisation? This will also remove you from the event attendance.',
       [
-        { text: 'Keep Authorization', style: 'cancel' },
+        { text: 'Keep Authorisation', style: 'cancel' },
         {
-          text: 'Cancel Authorization',
+          text: 'Cancel Authorisation',
           style: 'destructive',
           onPress: async () => {
             try {
@@ -100,15 +104,15 @@ export default function EventDetailsScreen() {
               });
               
               if (response.ok) {
-                Alert.alert('Success', 'Payment authorization cancelled');
+                Alert.alert('Success', 'Payment authorisation cancelled');
                 fetchEventDetails();
               } else {
                 const error = await response.json();
-                Alert.alert('Error', error.message || 'Failed to cancel authorization');
+                Alert.alert('Error', error.message || 'Failed to cancel authorisation');
               }
             } catch (error) {
-              console.error('Cancel authorization error:', error);
-              Alert.alert('Error', 'Failed to cancel payment authorization');
+              console.error('Cancel authorisation error:', error);
+              Alert.alert('Error', 'Failed to cancel payment authorisation');
             } finally {
               setCancellingPayment(false);
             }
@@ -197,6 +201,34 @@ export default function EventDetailsScreen() {
   };
 
   const handleAttendanceUpdate = async (status) => {
+    // Check if payment is required and user is trying to attend without authorisation
+    if (status === 'attending' && event?.paymentRequired && event?.maxPlayerPayment > 0) {
+      // Wait for payment status to load before blocking
+      if (paymentStatusLoading) {
+        Alert.alert('Please Wait', 'Checking payment status...');
+        return;
+      }
+      if (!paymentStatus?.hasAuthorization) {
+        // Redirect to payment authorisation screen
+        Alert.alert(
+          'Payment Required',
+          'This event requires payment authorisation before you can confirm attendance.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { 
+              text: 'Authorise Payment', 
+              onPress: () => navigation.navigate('PaymentAuthorization', {
+                eventId: id,
+                eventName: event.name,
+                maxPlayerPayment: event.maxPlayerPayment,
+              })
+            }
+          ]
+        );
+        return;
+      }
+    }
+
     try {
       const response = await apiRequest(`/api/events/${id}/attendance`, {
         method: 'POST',
@@ -415,7 +447,7 @@ export default function EventDetailsScreen() {
                 <View style={[styles.authorizationBadge, { backgroundColor: isDark ? '#064e3b' : '#d1fae5' }]}>
                   <Ionicons name="checkmark-circle" size={20} color={isDark ? '#10b981' : '#047857'} />
                   <Text style={[styles.authorizationText, { color: isDark ? '#10b981' : '#047857' }]}>
-                    Payment Authorized - £{parseFloat(paymentStatus.amount || 0).toFixed(2)}
+                    Payment Authorised - £{parseFloat(paymentStatus.amount || 0).toFixed(2)}
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -429,7 +461,7 @@ export default function EventDetailsScreen() {
                   ) : (
                     <>
                       <Ionicons name="close-circle-outline" size={18} color="#ef4444" />
-                      <Text style={styles.cancelAuthText}>Cancel Authorization</Text>
+                      <Text style={styles.cancelAuthText}>Cancel Authorisation</Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -445,7 +477,7 @@ export default function EventDetailsScreen() {
                 data-testid="button-authorize-payment"
               >
                 <Ionicons name="card" size={20} color="#fff" />
-                <Text style={styles.authorizeButtonText}>Authorize Payment</Text>
+                <Text style={styles.authorizeButtonText}>Authorise Payment</Text>
               </TouchableOpacity>
             ) : !event.paymentRequired && event.cost > 0 ? (
               <TouchableOpacity 

@@ -99,19 +99,19 @@ export default function PaymentAuthorizationScreen() {
         }
 
         Alert.alert(
-          'Authorization Successful',
+          'Authorisation Successful',
           isFromNotification 
             ? 'Payment processed and attendance confirmed!' 
-            : 'Payment authorized and attendance confirmed!',
+            : 'Payment authorised and attendance confirmed!',
           [{ text: 'OK', onPress: () => navigation.goBack() }]
         );
       } else {
         const error = await response.json();
-        Alert.alert('Authorization Failed', error.message || 'Failed to authorize payment');
+        Alert.alert('Authorisation Failed', error.message || 'Failed to authorise payment');
       }
     } catch (error) {
-      console.error('Authorization error:', error);
-      Alert.alert('Error', 'Failed to process authorization');
+      console.error('Authorisation error:', error);
+      Alert.alert('Error', 'Failed to process authorisation');
     } finally {
       setProcessing(false);
     }
@@ -217,7 +217,7 @@ export default function PaymentAuthorizationScreen() {
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>
-          {isFromNotification ? 'Complete Payment' : 'Authorize Payment'}
+          {isFromNotification ? 'Complete Payment' : 'Authorise Payment'}
         </Text>
         <View style={{ width: 24 }} />
       </View>
@@ -230,7 +230,7 @@ export default function PaymentAuthorizationScreen() {
           </View>
           <View style={styles.infoRow}>
             <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>
-              {isFromNotification ? 'Payment Amount' : 'Authorization Amount'}
+              {isFromNotification ? 'Payment Amount' : 'Authorisation Amount'}
             </Text>
             <View style={[styles.amountBadge, { backgroundColor: isDark ? '#1e3a5f' : '#dbeafe' }]}>
               <Text style={[styles.amountText, { color: isDark ? '#60a5fa' : '#1d4ed8' }]}>
@@ -244,7 +244,7 @@ export default function PaymentAuthorizationScreen() {
           <Ionicons name="checkmark-circle" size={20} color={isDark ? '#60a5fa' : '#2563eb'} />
           <View style={styles.infoBoxContent}>
             <Text style={[styles.infoBoxTitle, { color: isDark ? '#60a5fa' : '#1d4ed8' }]}>
-              {isFromNotification ? 'Payment will be processed immediately' : 'Authorization hold - not a charge'}
+              {isFromNotification ? 'Payment will be processed immediately' : 'Authorisation hold - not a charge'}
             </Text>
             <Text style={[styles.infoBoxText, { color: isDark ? '#93c5fd' : '#3b82f6' }]}>
               {isFromNotification 
@@ -375,7 +375,7 @@ export default function PaymentAuthorizationScreen() {
             <>
               <Ionicons name="card" size={20} color="#fff" />
               <Text style={styles.authorizeButtonText}>
-                {isFromNotification ? 'Pay Now' : 'Authorize Payment'}
+                {isFromNotification ? 'Pay Now' : 'Authorise Payment'}
               </Text>
             </>
           )}

@@ -155,6 +155,13 @@ export default function CreateEventScreen() {
   const [tempDate, setTempDate] = useState({ year: new Date().getFullYear(), month: new Date().getMonth() + 1, day: new Date().getDate() });
   const [tempTime, setTempTime] = useState({ hour: '12', minute: '00' });
   
+  // Scroll refs for time pickers
+  const startHourScrollRef = React.useRef(null);
+  const startMinuteScrollRef = React.useRef(null);
+  const endHourScrollRef = React.useRef(null);
+  const endMinuteScrollRef = React.useRef(null);
+  const ITEM_HEIGHT = 44;
+  
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -189,6 +196,46 @@ export default function CreateEventScreen() {
     fetchUserTeams();
     fetchPlatformCharges();
   }, []);
+
+  // Auto-scroll start time picker when it opens
+  useEffect(() => {
+    if (showStartTimePicker) {
+      const [hour, minute] = formData.startTime.split(':');
+      setTempTime({ hour: hour || '12', minute: minute || '00' });
+      
+      setTimeout(() => {
+        const hourIndex = HOURS.indexOf(hour);
+        const minuteIndex = MINUTES.indexOf(minute);
+        
+        if (startHourScrollRef.current && hourIndex >= 0) {
+          startHourScrollRef.current.scrollTo({ y: hourIndex * ITEM_HEIGHT, animated: false });
+        }
+        if (startMinuteScrollRef.current && minuteIndex >= 0) {
+          startMinuteScrollRef.current.scrollTo({ y: minuteIndex * ITEM_HEIGHT, animated: false });
+        }
+      }, 100);
+    }
+  }, [showStartTimePicker]);
+
+  // Auto-scroll end time picker when it opens
+  useEffect(() => {
+    if (showEndTimePicker) {
+      const [hour, minute] = formData.endTime.split(':');
+      setTempTime({ hour: hour || '12', minute: minute || '00' });
+      
+      setTimeout(() => {
+        const hourIndex = HOURS.indexOf(hour);
+        const minuteIndex = MINUTES.indexOf(minute);
+        
+        if (endHourScrollRef.current && hourIndex >= 0) {
+          endHourScrollRef.current.scrollTo({ y: hourIndex * ITEM_HEIGHT, animated: false });
+        }
+        if (endMinuteScrollRef.current && minuteIndex >= 0) {
+          endMinuteScrollRef.current.scrollTo({ y: minuteIndex * ITEM_HEIGHT, animated: false });
+        }
+      }, 100);
+    }
+  }, [showEndTimePicker]);
 
   const fetchUserTeams = async () => {
     try {
@@ -981,7 +1028,7 @@ export default function CreateEventScreen() {
             <View style={styles.timePickerRow}>
               <View style={styles.timePickerColumn}>
                 <Text style={styles.datePickerLabel}>Hour</Text>
-                <ScrollView style={styles.datePickerScroll}>
+                <ScrollView ref={startHourScrollRef} style={styles.datePickerScroll} showsVerticalScrollIndicator={false}>
                   {HOURS.map((hour) => (
                     <TouchableOpacity
                       key={hour}
@@ -997,7 +1044,7 @@ export default function CreateEventScreen() {
               </View>
               <View style={styles.timePickerColumn}>
                 <Text style={styles.datePickerLabel}>Minute</Text>
-                <ScrollView style={styles.datePickerScroll}>
+                <ScrollView ref={startMinuteScrollRef} style={styles.datePickerScroll} showsVerticalScrollIndicator={false}>
                   {MINUTES.map((minute) => (
                     <TouchableOpacity
                       key={minute}
@@ -1046,7 +1093,7 @@ export default function CreateEventScreen() {
             <View style={styles.timePickerRow}>
               <View style={styles.timePickerColumn}>
                 <Text style={styles.datePickerLabel}>Hour</Text>
-                <ScrollView style={styles.datePickerScroll}>
+                <ScrollView ref={endHourScrollRef} style={styles.datePickerScroll} showsVerticalScrollIndicator={false}>
                   {HOURS.map((hour) => (
                     <TouchableOpacity
                       key={hour}
@@ -1062,7 +1109,7 @@ export default function CreateEventScreen() {
               </View>
               <View style={styles.timePickerColumn}>
                 <Text style={styles.datePickerLabel}>Minute</Text>
-                <ScrollView style={styles.datePickerScroll}>
+                <ScrollView ref={endMinuteScrollRef} style={styles.datePickerScroll} showsVerticalScrollIndicator={false}>
                   {MINUTES.map((minute) => (
                     <TouchableOpacity
                       key={minute}
