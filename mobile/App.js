@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StripeProvider } from '@stripe/stripe-react-native';
+import Constants from 'expo-constants';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { NotificationProvider } from './contexts/NotificationContext';
@@ -29,6 +30,8 @@ import { usePushNotifications } from './hooks/usePushNotifications';
 import { View, Text, StyleSheet, AppRegistry } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const STRIPE_PUBLISHABLE_KEY = Constants.expoConfig?.extra?.stripePublishableKey || process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || '';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -198,7 +201,7 @@ export default function App() {
       <AuthProvider>
         <NotificationProvider>
           <StripeProvider 
-            publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''}
+            publishableKey={STRIPE_PUBLISHABLE_KEY}
             merchantIdentifier="merchant.com.ludi.app"
             urlScheme="ludi"
           >
