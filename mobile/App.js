@@ -5,6 +5,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StripeProvider } from '@stripe/stripe-react-native';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
+import { NotificationProvider } from './contexts/NotificationContext';
+import NotificationToast from './components/NotificationToast';
 import AuthScreen from './screens/AuthScreen';
 import HomeScreen from './screens/HomeScreen';
 import EventsScreen from './screens/EventsScreen';
@@ -166,18 +168,21 @@ function AppContent() {
   }
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator>
-        <Stack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
-        <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="TeamDetails" component={TeamDetailsScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="CreateTeam" component={CreateTeamScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="CreateEvent" component={CreateEventScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="EditEvent" component={EditEventScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="EventDetails" component={EventDetailsScreen} options={{ title: 'Event Details' }} />
-        <Stack.Screen name="Payment" component={PaymentScreen} options={{ title: 'Payment' }} />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <View style={{ flex: 1 }}>
+      <NavigationContainer>
+        <Stack.Navigator>
+          <Stack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
+          <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="TeamDetails" component={TeamDetailsScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="CreateTeam" component={CreateTeamScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="CreateEvent" component={CreateEventScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="EditEvent" component={EditEventScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="EventDetails" component={EventDetailsScreen} options={{ title: 'Event Details' }} />
+          <Stack.Screen name="Payment" component={PaymentScreen} options={{ title: 'Payment' }} />
+        </Stack.Navigator>
+      </NavigationContainer>
+      <NotificationToast />
+    </View>
   );
 }
 
@@ -185,9 +190,11 @@ export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <StripeProvider publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''}>
-          <AppContent />
-        </StripeProvider>
+        <NotificationProvider>
+          <StripeProvider publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''}>
+            <AppContent />
+          </StripeProvider>
+        </NotificationProvider>
       </AuthProvider>
     </ThemeProvider>
   );

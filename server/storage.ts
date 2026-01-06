@@ -50,6 +50,7 @@ import {
 import { db } from "./db";
 import { eq, and, desc, count, sql, or, notInArray, asc, inArray, ne, isNotNull, gte, lte, ilike, not, gt, isNull } from "drizzle-orm";
 import { randomUUID } from "crypto";
+import { notificationWS } from "./websocket";
 
 export interface IStorage {
   // User operations (required for Replit Auth)
@@ -983,6 +984,17 @@ export class DatabaseStorage implements IStorage {
   // Notification operations
   async createNotification(notification: InsertNotification): Promise<Notification> {
     const [newNotification] = await db.insert(notifications).values(notification).returning();
+    
+    notificationWS.sendNotification(newNotification.userId, {
+      id: newNotification.id,
+      type: newNotification.type,
+      title: newNotification.title,
+      message: newNotification.message,
+      relatedId: newNotification.relatedId ?? undefined,
+      metadata: newNotification.metadata ? JSON.parse(newNotification.metadata) : undefined,
+      createdAt: newNotification.createdAt ?? new Date(),
+    });
+    
     return newNotification;
   }
 

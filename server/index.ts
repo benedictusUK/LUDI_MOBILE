@@ -3,6 +3,7 @@ import cors from "cors";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { storage } from "./storage";
+import { notificationWS } from "./websocket";
 
 const app = express();
 
@@ -101,5 +102,7 @@ app.use((req, res, next) => {
   }, () => {
     log(`serving on port ${port}`);
     log("Scheduled recurring events maintenance every hour");
+    
+    notificationWS.initialize(server);
   });
 })();

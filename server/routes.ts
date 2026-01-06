@@ -2272,6 +2272,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Duplicate audit route removed - using the comprehensive one above
 
+  // Test endpoint to send a real-time notification to yourself (for development/testing)
+  app.post('/api/notifications/test', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = (req.user as any).claims.sub;
+      const testTypes = ['new_event', 'team_join_request', 'payment_authorization_required', 'reserve_promotion', 'flare_gun'];
+      const randomType = testTypes[Math.floor(Math.random() * testTypes.length)];
+      
+      const testMessages: Record<string, { title: string; message: string }> = {
+        new_event: { title: 'New Event Created', message: 'A new event "Weekend Football" has been scheduled for Saturday!' },
+        team_join_request: { title: 'New Join Request', message: 'Alex wants to join your team "City FC"' },
+        payment_authorization_required: { title: 'Payment Required', message: 'Please authorize payment of £15 for "Training Session"' },
+        reserve_promotion: { title: "You've Been Promoted!", message: 'Good news! You\'ve been promoted from reserve to the main event.' },
+        flare_gun: { title: 'Flare Alert!', message: 'A nearby game needs players in your area - 5-a-side at Central Park' },
+      };
+      
+      const { title, message } = testMessages[randomType];
+      
+      const notification = await storage.createNotification({
+        userId,
+        type: randomType,
+        title,
+        message,
+        isRead: false,
+      });
+      
+      res.json({ success: true, notification });
+    } catch (error) {
+      console.error("Error creating test notification:", error);
+      res.status(500).json({ message: "Failed to create test notification" });
+    }
+  });
+
   // Notification preferences routes
   app.get('/api/notification-preferences', isAuthenticated, async (req: any, res) => {
     try {
