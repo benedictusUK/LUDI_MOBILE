@@ -201,26 +201,43 @@ export default function CreateEventScreen() {
   }, []);
 
   useEffect(() => {
-    if (formData.teamId) {
-      fetchTeamMembers(formData.teamId);
+    // Fetch members from all selected teams (primary + secondary)
+    const allTeamIds = [formData.teamId, ...formData.secondaryTeamIds].filter(Boolean);
+    if (allTeamIds.length > 0) {
+      fetchAllTeamMembers(allTeamIds);
+    } else {
+      setTeamMembers([]);
     }
-  }, [formData.teamId]);
+  }, [formData.teamId, formData.secondaryTeamIds]);
 
-  const fetchTeamMembers = async (teamId) => {
+  const fetchAllTeamMembers = async (teamIds) => {
     try {
-      const response = await apiRequest(`/api/teams/${teamId}`);
-      if (response.ok) {
-        const team = await response.json();
-        if (team.members) {
-          setTeamMembers(team.members.map(m => ({
-            id: m.userId,
-            name: m.user?.firstName && m.user?.lastName 
-              ? `${m.user.firstName} ${m.user.lastName}` 
-              : m.user?.username || 'Unknown',
-            username: m.user?.username || '',
-          })));
+      const allMembers = [];
+      const seenUserIds = new Set();
+      
+      for (const teamId of teamIds) {
+        const response = await apiRequest(`/api/teams/${teamId}`);
+        if (response.ok) {
+          const team = await response.json();
+          if (team.members) {
+            for (const m of team.members) {
+              // Avoid duplicates if user is in multiple teams
+              if (!seenUserIds.has(m.userId)) {
+                seenUserIds.add(m.userId);
+                allMembers.push({
+                  id: m.userId,
+                  name: m.user?.firstName && m.user?.lastName 
+                    ? `${m.user.firstName} ${m.user.lastName}` 
+                    : m.user?.username || 'Unknown',
+                  username: m.user?.username || '',
+                });
+              }
+            }
+          }
         }
       }
+      console.log('[CreateEvent] Fetched team members:', allMembers.length);
+      setTeamMembers(allMembers);
     } catch (error) {
       console.error('Failed to fetch team members:', error);
     }

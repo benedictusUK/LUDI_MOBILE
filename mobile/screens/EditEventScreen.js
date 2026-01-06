@@ -126,28 +126,28 @@ export default function EditEventScreen() {
   }, []);
 
   useEffect(() => {
-    if (formData.teamId) {
-      fetchTeamMembers(formData.teamId);
+    // Fetch members from all published teams for this event
+    if (initialEvent?.id) {
+      fetchEventTeamMembers(initialEvent.id);
     }
-  }, [formData.teamId]);
+  }, [initialEvent?.id]);
 
-  const fetchTeamMembers = async (teamId) => {
+  const fetchEventTeamMembers = async (eventId) => {
     try {
-      const response = await apiRequest(`/api/teams/${teamId}`);
+      const response = await apiRequest(`/api/events/${eventId}/team-members`);
       if (response.ok) {
-        const team = await response.json();
-        if (team.members) {
-          setTeamMembers(team.members.map(m => ({
-            id: m.userId,
-            name: m.user?.firstName && m.user?.lastName 
-              ? `${m.user.firstName} ${m.user.lastName}` 
-              : m.user?.username || 'Unknown',
-            username: m.user?.username || '',
-          })));
-        }
+        const members = await response.json();
+        console.log('[EditEvent] Fetched team members:', members.length);
+        setTeamMembers(members.map(m => ({
+          id: m.userId,
+          name: m.firstName && m.lastName 
+            ? `${m.firstName} ${m.lastName}` 
+            : m.username || 'Unknown',
+          username: m.username || '',
+        })));
       }
     } catch (error) {
-      console.error('Failed to fetch team members:', error);
+      console.error('Failed to fetch event team members:', error);
     }
   };
 
