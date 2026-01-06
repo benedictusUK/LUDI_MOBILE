@@ -375,8 +375,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdById: existingEvent.createdById, // Preserve original creator
       });
       
-      // Determine scope - default to 'single' if not specified
-      const updateScope = scope === 'future' ? 'future' : 'single';
+      // Determine scope - validate and default to 'single' if not specified or invalid
+      const validScopes = ['single', 'future'];
+      const updateScope: 'single' | 'future' = validScopes.includes(scope as string) ? (scope as 'single' | 'future') : 'single';
       
       const updatedEvents = await storage.updateRecurringEvent(eventId, eventData, updateScope);
       

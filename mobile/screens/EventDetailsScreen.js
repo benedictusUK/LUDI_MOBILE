@@ -363,38 +363,52 @@ export default function EventDetailsScreen() {
         onRequestClose={() => setShowDeleteModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.deleteModalContent}>
-            <Text style={styles.deleteModalTitle}>Delete Recurring Event</Text>
-            <Text style={styles.deleteModalText}>
+          <View style={[styles.deleteModalContent, { backgroundColor: colors.card }]}>
+            <Text style={[styles.deleteModalTitle, { color: colors.text }]}>Delete Recurring Event</Text>
+            <Text style={[styles.deleteModalText, { color: colors.textSecondary }]}>
               This event is part of a recurring series. What would you like to delete?
             </Text>
             
             <TouchableOpacity
-              style={[styles.deleteModalButton, styles.deleteSingleButton]}
+              style={[styles.deleteModalButton, styles.deleteSingleButton, { borderColor: colors.border }]}
               onPress={() => handleDelete(false)}
               disabled={deleting}
             >
-              <Text style={styles.deleteModalButtonText}>
-                {deleting ? 'Deleting...' : 'Delete This Event Only'}
-              </Text>
+              <View style={styles.deleteOptionContent}>
+                <Ionicons name="calendar-outline" size={22} color={colors.error} />
+                <View style={styles.deleteOptionText}>
+                  <Text style={[styles.deleteOptionTitle, { color: colors.text }]}>This Event Only</Text>
+                  <Text style={[styles.deleteOptionDesc, { color: colors.textSecondary }]}>
+                    Only this single event will be deleted
+                  </Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
             </TouchableOpacity>
             
             <TouchableOpacity
-              style={[styles.deleteModalButton, styles.deleteSeriesButton]}
+              style={[styles.deleteModalButton, styles.deleteSeriesButton, { borderColor: colors.border }]}
               onPress={() => handleDelete(true)}
               disabled={deleting}
             >
-              <Text style={styles.deleteModalButtonText}>
-                {deleting ? 'Deleting...' : 'Delete All Remaining Events'}
-              </Text>
+              <View style={styles.deleteOptionContent}>
+                <Ionicons name="calendar" size={22} color={colors.error} />
+                <View style={styles.deleteOptionText}>
+                  <Text style={[styles.deleteOptionTitle, { color: colors.text }]}>All Future Events</Text>
+                  <Text style={[styles.deleteOptionDesc, { color: colors.textSecondary }]}>
+                    This and all future events in the series will be deleted
+                  </Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
             </TouchableOpacity>
             
             <TouchableOpacity
-              style={[styles.deleteModalButton, styles.cancelButton]}
+              style={[styles.deleteModalCancelButton, { borderColor: colors.border }]}
               onPress={() => setShowDeleteModal(false)}
               disabled={deleting}
             >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+              <Text style={[styles.deleteModalCancelText, { color: colors.textSecondary }]}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -690,47 +704,68 @@ const styles = StyleSheet.create({
   deleteModalContent: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
-    padding: 24,
     width: '100%',
-    maxWidth: 320,
+    maxWidth: 360,
   },
   deleteModalTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     color: '#1e293b',
     textAlign: 'center',
-    marginBottom: 12,
+    paddingTop: 20,
+    paddingHorizontal: 20,
   },
   deleteModalText: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#64748b',
     textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    lineHeight: 20,
   },
   deleteModalButton: {
-    padding: 16,
-    borderRadius: 8,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderTopWidth: 1,
   },
   deleteSingleButton: {
-    backgroundColor: '#f59e0b',
+    borderTopColor: '#e2e8f0',
   },
   deleteSeriesButton: {
-    backgroundColor: '#ef4444',
+    borderTopColor: '#e2e8f0',
   },
-  deleteModalButtonText: {
-    color: '#ffffff',
+  deleteOptionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  deleteOptionText: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  deleteOptionTitle: {
     fontSize: 16,
     fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: 2,
   },
-  cancelButton: {
-    backgroundColor: '#f1f5f9',
-  },
-  cancelButtonText: {
+  deleteOptionDesc: {
+    fontSize: 13,
     color: '#64748b',
+  },
+  deleteModalCancelButton: {
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+    marginTop: 8,
+  },
+  deleteModalCancelText: {
     fontSize: 16,
-    fontWeight: '600',
+    color: '#64748b',
+    fontWeight: '500',
   },
 });
