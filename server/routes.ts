@@ -74,6 +74,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Teams API routes (supports both web and mobile)
+  // Get user's pending join requests - must come BEFORE /api/teams/:id route
+  app.get('/api/teams/my-pending-requests', verifyAuth, async (req: any, res) => {
+    try {
+      const userId = req.userId;
+      const pendingRequests = await storage.getUserPendingRequests(userId);
+      res.json(pendingRequests);
+    } catch (error) {
+      console.error("Error fetching user pending requests:", error);
+      res.status(500).json({ message: "Failed to fetch pending requests" });
+    }
+  });
+
   // Search teams - must come BEFORE /api/teams/:id route
   app.get('/api/teams/search', verifyAuth, async (req: any, res) => {
     try {

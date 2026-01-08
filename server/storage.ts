@@ -82,6 +82,7 @@ export interface IStorage {
     totalEvents: number;
   }>;
   getTeamPendingRequests(teamId: string): Promise<(TeamInvitation & { user: User })[]>;
+  getUserPendingRequests(userId: string): Promise<(TeamInvitation & { team: Team })[]>;
   updateTeam(id: string, updates: Partial<InsertTeam>): Promise<Team>;
   updateTeamImage(teamId: string, userId: string, imagePath: string): Promise<void>;
   deleteTeam(id: string): Promise<void>;
@@ -2179,6 +2180,26 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(teamInvitations.invitedAt));
 
     return result.map(r => ({ ...r.invitation, user: r.user }));
+  }
+
+  // Get pending join requests made by a user
+  async getUserPendingRequests(userId: string): Promise<(TeamInvitation & { team: Team })[]> {
+    const result = await db
+      .select({
+        invitation: teamInvitations,
+        team: teams
+      })
+      .from(teamInvitations)
+      .innerJoin(teams, eq(teamInvitations.teamId, teams.id))
+      .where(
+        and(
+          eq(teamInvitations.userId, userId),
+          eq(teamInvitations.status, "pending")
+        )
+      )
+      .orderBy(desc(teamInvitations.invitedAt));
+
+    return result.map(r => ({ ...r.invitation, team: r.team }));
   }
 
   // Leave team functionality

@@ -8,8 +8,12 @@ import HeaderWithNotifications from '../components/HeaderWithNotifications';
 
 export default function TeamsScreen() {
   const [teams, setTeams] = useState([]);
+  const [pendingRequests, setPendingRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [pendingLoading, setPendingLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState('myTeams');
+  const [pendingLoaded, setPendingLoaded] = useState(false);
   const navigation = useNavigation();
   const { apiRequest } = useAuth();
   const { colors, isDark } = useTheme();
@@ -32,14 +36,109 @@ export default function TeamsScreen() {
     }
   };
 
+  const fetchPendingRequests = async () => {
+    if (pendingLoaded && !refreshing) return;
+    
+    setPendingLoading(true);
+    try {
+      const response = await apiRequest('/api/teams/my-pending-requests');
+      if (response.ok) {
+        const data = await response.json();
+        setPendingRequests(data || []);
+        setPendingLoaded(true);
+      } else {
+        Alert.alert('Error', 'Failed to load pending requests');
+      }
+    } catch (error) {
+      console.error('Failed to fetch pending requests:', error);
+      Alert.alert('Error', 'Unable to load pending requests');
+    } finally {
+      setPendingLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchTeams();
   }, []);
 
+  useEffect(() => {
+    if (activeTab === 'pending') {
+      fetchPendingRequests();
+    }
+  }, [activeTab]);
+
   const onRefresh = () => {
     setRefreshing(true);
-    fetchTeams();
+    if (activeTab === 'myTeams') {
+      fetchTeams();
+    } else {
+      setPendingLoaded(false);
+      fetchPendingRequests().finally(() => setRefreshing(false));
+    }
   };
+
+  const renderTeamItem = ({ item }) => (
+    <TouchableOpacity 
+      style={[styles.teamCard, { backgroundColor: colors.card }]}
+      onPress={() => navigation.navigate('TeamDetails', { teamId: item.id })}
+      data-testid={`card-team-${item.id}`}
+    >
+      <View style={styles.teamHeader}>
+        <View style={[styles.teamColor, { backgroundColor: item.color || '#3b82f6' }]} />
+        <View style={styles.teamInfo}>
+          <Text style={[styles.teamName, { color: colors.text }]}>{item.name}</Text>
+          {item.description && (
+            <Text style={[styles.teamDescription, { color: colors.textSecondary }]}>{item.description}</Text>
+          )}
+        </View>
+      </View>
+      
+      <View style={styles.teamFooter}>
+        <View style={styles.sportsContainer}>
+          {item.sports?.slice(0, 3).map((sport, index) => (
+            <Text key={index} style={[styles.sportTag, { color: colors.primary, backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff' }]}>
+              {sport}
+            </Text>
+          ))}
+          {item.sports?.length > 3 && (
+            <Text style={[styles.sportTag, { color: colors.primary, backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff' }]}>+{item.sports.length - 3}</Text>
+          )}
+        </View>
+        
+        <Text style={[styles.memberCount, { color: colors.textSecondary }]}>
+          {item.memberCount || 0} members
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+
+  const renderPendingItem = ({ item }) => (
+    <View 
+      style={[styles.teamCard, { backgroundColor: colors.card }]}
+      data-testid={`card-pending-${item.id}`}
+    >
+      <View style={styles.teamHeader}>
+        <View style={[styles.teamColor, { backgroundColor: item.team?.color || '#f59e0b' }]} />
+        <View style={styles.teamInfo}>
+          <Text style={[styles.teamName, { color: colors.text }]}>{item.team?.name}</Text>
+          {item.team?.description && (
+            <Text style={[styles.teamDescription, { color: colors.textSecondary }]}>{item.team.description}</Text>
+          )}
+        </View>
+      </View>
+      
+      <View style={styles.pendingFooter}>
+        <View style={[styles.pendingBadge, { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.2)' : '#fef3c7' }]}>
+          <Text style={styles.pendingBadgeText}>⏳ Request Pending</Text>
+        </View>
+        {item.invitedAt && (
+          <Text style={[styles.pendingDate, { color: colors.textSecondary }]}>
+            Requested {new Date(item.invitedAt).toLocaleDateString()}
+          </Text>
+        )}
+      </View>
+    </View>
+  );
 
   if (loading) {
     return (
@@ -56,61 +155,95 @@ export default function TeamsScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <HeaderWithNotifications title="Teams" />
       
-      <FlatList
-        contentContainerStyle={styles.list}
-        data={teams}
-        keyExtractor={(item) => String(item.id)}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        renderItem={({ item }) => (
-          <TouchableOpacity 
-            style={[styles.teamCard, { backgroundColor: colors.card }]}
-            onPress={() => navigation.navigate('TeamDetails', { teamId: item.id })}
-          >
-            <View style={styles.teamHeader}>
-              <View style={[styles.teamColor, { backgroundColor: item.color || '#3b82f6' }]} />
-              <View style={styles.teamInfo}>
-                <Text style={[styles.teamName, { color: colors.text }]}>{item.name}</Text>
-                {item.description && (
-                  <Text style={[styles.teamDescription, { color: colors.textSecondary }]}>{item.description}</Text>
-                )}
-              </View>
+      <View style={[styles.tabContainer, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+        <TouchableOpacity
+          style={[
+            styles.tab,
+            activeTab === 'myTeams' && [styles.activeTab, { borderBottomColor: colors.primary }]
+          ]}
+          onPress={() => setActiveTab('myTeams')}
+          data-testid="tab-my-teams"
+        >
+          <Text style={[
+            styles.tabText,
+            { color: activeTab === 'myTeams' ? colors.primary : colors.textSecondary }
+          ]}>
+            My Teams
+          </Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[
+            styles.tab,
+            activeTab === 'pending' && [styles.activeTab, { borderBottomColor: colors.primary }]
+          ]}
+          onPress={() => setActiveTab('pending')}
+          data-testid="tab-pending-requests"
+        >
+          <Text style={[
+            styles.tabText,
+            { color: activeTab === 'pending' ? colors.primary : colors.textSecondary }
+          ]}>
+            Pending Requests
+          </Text>
+          {pendingLoaded && pendingRequests.length > 0 && (
+            <View style={styles.badgeCount}>
+              <Text style={styles.badgeCountText}>{pendingRequests.length}</Text>
             </View>
-            
-            <View style={styles.teamFooter}>
-              <View style={styles.sportsContainer}>
-                {item.sports?.slice(0, 3).map((sport, index) => (
-                  <Text key={index} style={[styles.sportTag, { color: colors.primary, backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff' }]}>
-                    {sport}
-                  </Text>
-                ))}
-                {item.sports?.length > 3 && (
-                  <Text style={[styles.sportTag, { color: colors.primary, backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff' }]}>+{item.sports.length - 3}</Text>
-                )}
-              </View>
-              
-              <Text style={[styles.memberCount, { color: colors.textSecondary }]}>
-                {item.memberCount || 0} members
+          )}
+        </TouchableOpacity>
+      </View>
+      
+      {activeTab === 'myTeams' ? (
+        <FlatList
+          contentContainerStyle={styles.list}
+          data={teams}
+          keyExtractor={(item) => String(item.id)}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          renderItem={renderTeamItem}
+          ListEmptyComponent={
+            <View style={styles.centerContainer}>
+              <Text style={[styles.emptyText, { color: colors.text }]}>No teams yet</Text>
+              <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
+                Create or join a team to start organising events!
               </Text>
             </View>
-          </TouchableOpacity>
-        )}
-        ListEmptyComponent={
-          <View style={styles.centerContainer}>
-            <Text style={[styles.emptyText, { color: colors.text }]}>No teams yet</Text>
-            <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
-              Create or join a team to start organizing events!
-            </Text>
-          </View>
-        }
-      />
+          }
+        />
+      ) : (
+        <FlatList
+          contentContainerStyle={styles.list}
+          data={pendingRequests}
+          keyExtractor={(item) => String(item.id)}
+          refreshControl={
+            <RefreshControl refreshing={refreshing || pendingLoading} onRefresh={onRefresh} />
+          }
+          renderItem={renderPendingItem}
+          ListEmptyComponent={
+            pendingLoading ? (
+              <View style={styles.centerContainer}>
+                <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading pending requests...</Text>
+              </View>
+            ) : (
+              <View style={styles.centerContainer}>
+                <Text style={[styles.emptyText, { color: colors.text }]}>No pending requests</Text>
+                <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
+                  Search for teams and request to join!
+                </Text>
+              </View>
+            )
+          }
+        />
+      )}
       
       <View style={styles.fabStack}>
         <TouchableOpacity
           style={styles.fabSecondary}
           onPress={() => navigation.navigate('TeamSearch')}
           activeOpacity={0.8}
+          data-testid="button-search-teams"
         >
           <View style={[styles.fabSecondaryInner, { backgroundColor: colors.card, borderColor: colors.primary }]}>
             <Text style={[styles.fabSecondaryIcon, { color: colors.primary }]}>🔍</Text>
@@ -121,6 +254,7 @@ export default function TeamsScreen() {
           style={styles.fabContainer}
           onPress={() => navigation.navigate('CreateTeam')}
           activeOpacity={0.8}
+          data-testid="button-create-team"
         >
           <LinearGradient
             colors={['#3b82f6', '#10b981']}
@@ -140,6 +274,41 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  activeTab: {
+    borderBottomWidth: 2,
+  },
+  tabText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  badgeCount: {
+    backgroundColor: '#f59e0b',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+    paddingHorizontal: 6,
+  },
+  badgeCountText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700',
   },
   header: {
     flexDirection: 'row',
@@ -221,6 +390,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  pendingFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  pendingBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  pendingBadgeText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#d97706',
+  },
+  pendingDate: {
+    fontSize: 12,
   },
   sportsContainer: {
     flexDirection: 'row',
