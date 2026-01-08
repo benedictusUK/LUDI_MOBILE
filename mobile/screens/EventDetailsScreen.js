@@ -10,8 +10,11 @@ import {
   RefreshControl,
   Modal,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+
+const flareGunIcon = require('../../attached_assets/IMG_6963_1754302090076.webp');
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -351,7 +354,7 @@ export default function EventDetailsScreen() {
                   onPress={() => setShowFlareModal(true)}
                   data-testid="button-flare-gun"
                 >
-                  <Ionicons name="flame" size={18} color="#ef4444" />
+                  <Image source={flareGunIcon} style={styles.flareGunIconSmall} />
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.editButton, { backgroundColor: colors.primary }]} onPress={handleEdit}>
                   <Ionicons name="create-outline" size={18} color="#ffffff" />
@@ -648,7 +651,7 @@ export default function EventDetailsScreen() {
           <View style={[styles.flareModalContent, { backgroundColor: colors.card }]}>
             <View style={styles.flareModalHeader}>
               <View style={styles.flareModalTitleRow}>
-                <Ionicons name="flame" size={24} color="#ef4444" />
+                <Image source={flareGunIcon} style={styles.flareGunIconLarge} />
                 <Text style={[styles.flareModalTitle, { color: colors.text }]}>Flare Gun</Text>
               </View>
               <TouchableOpacity onPress={() => setShowFlareModal(false)}>
@@ -658,10 +661,10 @@ export default function EventDetailsScreen() {
 
             <View style={styles.flareStatusSection}>
               <Text style={[styles.flareSectionTitle, { color: colors.text }]}>Flare Status</Text>
-              <View style={[styles.flareStatusRow, { backgroundColor: isDark ? 'rgba(0,0,0,0.2)' : '#f8fafc', borderColor: colors.border }]}>
+              <View style={[styles.flareStatusBox, { backgroundColor: isDark ? 'rgba(0,0,0,0.2)' : '#f8fafc', borderColor: colors.border }]}>
                 <View style={styles.flareStatusInfo}>
                   <View style={[styles.flareStatusDot, { backgroundColor: event?.flareStatus === 'active' ? '#ef4444' : colors.textSecondary }]} />
-                  <View>
+                  <View style={styles.flareStatusTextContainer}>
                     <Text style={[styles.flareStatusLabel, { color: colors.text }]}>
                       Event is {event?.flareStatus === 'active' ? 'discoverable' : 'not discoverable'}
                     </Text>
@@ -674,8 +677,8 @@ export default function EventDetailsScreen() {
                 </View>
                 <TouchableOpacity
                   style={[
-                    styles.flareToggleButton,
-                    { backgroundColor: event?.flareStatus === 'active' ? '#fef2f2' : colors.primary }
+                    styles.flareToggleButtonFull,
+                    { backgroundColor: event?.flareStatus === 'active' ? '#fef2f2' : colors.primary, borderColor: event?.flareStatus === 'active' ? '#ef4444' : colors.primary }
                   ]}
                   onPress={handleToggleFlareStatus}
                   disabled={togglingFlareStatus}
@@ -1192,11 +1195,19 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
   },
+  flareStatusBox: {
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
   flareStatusInfo: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    marginBottom: 14,
+  },
+  flareStatusTextContainer: {
     flex: 1,
-    gap: 12,
+    marginLeft: 12,
   },
   flareStatusDot: {
     width: 12,
@@ -1217,6 +1228,22 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     minWidth: 100,
     alignItems: 'center',
+  },
+  flareToggleButtonFull: {
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  flareGunIconSmall: {
+    width: 22,
+    height: 22,
+    resizeMode: 'contain',
+  },
+  flareGunIconLarge: {
+    width: 28,
+    height: 28,
+    resizeMode: 'contain',
   },
   flareToggleText: {
     fontSize: 14,
