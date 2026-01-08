@@ -70,6 +70,42 @@ export default function NotificationsScreen() {
     }
   };
 
+  const markAsUnread = async (notificationId) => {
+    try {
+      const response = await apiRequest(`/api/notifications/${notificationId}/unread`, {
+        method: 'PUT',
+      });
+      if (response.ok) {
+        setNotifications(prev =>
+          prev.map(notification =>
+            notification.id === notificationId
+              ? { ...notification, isRead: false, readAt: null }
+              : notification
+          )
+        );
+      }
+    } catch (error) {
+      console.error('Failed to mark notification as unread:', error);
+    }
+  };
+
+  const handleLongPress = (notification) => {
+    const options = notification.isRead
+      ? [{ text: 'Mark as Unread', onPress: () => markAsUnread(notification.id) }]
+      : [{ text: 'Mark as Read', onPress: () => markAsRead(notification.id) }];
+    
+    Alert.alert(
+      'Notification Options',
+      null,
+      [
+        ...options,
+        { text: 'Delete', onPress: () => deleteNotification(notification.id), style: 'destructive' },
+        { text: 'Cancel', style: 'cancel' },
+      ],
+      { cancelable: true }
+    );
+  };
+
   const deleteNotification = async (notificationId) => {
     try {
       const response = await apiRequest(`/api/notifications/${notificationId}`, {
@@ -398,6 +434,8 @@ export default function NotificationsScreen() {
                 !item.isRead && [styles.unreadCard, { backgroundColor: isDark ? colors.cardSecondary : '#eff6ff' }]
               ]}
               onPress={() => handleNotificationPress(item)}
+              onLongPress={() => handleLongPress(item)}
+              delayLongPress={500}
               activeOpacity={0.7}
             >
               <View style={styles.notificationHeader}>

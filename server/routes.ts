@@ -74,6 +74,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Teams API routes (supports both web and mobile)
+  // Search teams - must come BEFORE /api/teams/:id route
+  app.get('/api/teams/search', verifyAuth, async (req: any, res) => {
+    try {
+      const { q: query } = req.query;
+      const userId = req.userId;
+
+      console.log(`[Team Search] Query: "${query}", User: ${userId}`);
+
+      if (!query || (query as string).trim().length < 2) {
+        return res.status(400).json({ message: "Search query must be at least 2 characters" });
+      }
+
+      const results = await storage.searchTeams((query as string).trim(), userId);
+      console.log(`[Team Search] Found ${results.length} results for query "${query}"`);
+      res.json(results);
+    } catch (error) {
+      console.error("Error searching teams:", error);
+      res.status(500).json({ message: "Failed to search teams" });
+    }
+  });
+
   app.get('/api/teams', verifyAuth, async (req: any, res) => {
     try {
       const userId = req.userId;
@@ -117,6 +138,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching team:', error);
       res.status(500).json({ message: 'Failed to fetch team' });
+    }
+  });
+
+  // Approve join request (mobile compatible)
+  app.post('/api/teams/:id/approve-join/:userId', verifyAuth, async (req: any, res) => {
+    try {
+      const { id: teamId, userId } = req.params;
+      const currentUserId = req.userId;
+      
+      const membership = await storage.approveJoinRequest(teamId, userId, currentUserId);
+      res.json({ message: "Join request approved", membership });
+    } catch (error: any) {
+      console.error("Error approving join request:", error);
+      res.status(400).json({ message: error.message || "Failed to approve join request" });
+    }
+  });
+
+  // Reject join request (mobile compatible)
+  app.post('/api/teams/:id/reject-join/:userId', verifyAuth, async (req: any, res) => {
+    try {
+      const { id: teamId, userId } = req.params;
+      const currentUserId = req.userId;
+      
+      await storage.rejectJoinRequest(teamId, userId, currentUserId);
+      res.json({ message: "Join request rejected" });
+    } catch (error: any) {
+      console.error("Error rejecting join request:", error);
+      res.status(400).json({ message: error.message || "Failed to reject join request" });
     }
   });
 
@@ -474,6 +523,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: 'Notification marked as read' });
     } catch (error) {
       console.error('Error marking notification as read:', error);
+      res.status(500).json({ message: 'Failed to update notification' });
+    }
+  });
+
+  app.put('/api/notifications/:id/unread', verifyAuth, async (req: any, res) => {
+    try {
+      const notificationId = req.params.id;
+      
+      await storage.markNotificationAsUnread(notificationId);
+      res.json({ message: 'Notification marked as unread' });
+    } catch (error) {
+      console.error('Error marking notification as unread:', error);
       res.status(500).json({ message: 'Failed to update notification' });
     }
   });

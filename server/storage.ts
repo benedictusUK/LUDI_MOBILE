@@ -154,6 +154,7 @@ export interface IStorage {
   createNotification(notification: InsertNotification): Promise<Notification>;
   getUserNotifications(userId: string): Promise<Notification[]>;
   markNotificationAsRead(id: string): Promise<void>;
+  markNotificationAsUnread(id: string): Promise<void>;
   markAllNotificationsAsRead(userId: string): Promise<void>;
 
   // Notification preferences
@@ -1061,6 +1062,13 @@ export class DatabaseStorage implements IStorage {
     await db
       .update(notifications)
       .set({ isRead: true })
+      .where(eq(notifications.id, id));
+  }
+
+  async markNotificationAsUnread(id: string): Promise<void> {
+    await db
+      .update(notifications)
+      .set({ isRead: false })
       .where(eq(notifications.id, id));
   }
 
