@@ -10,11 +10,8 @@ import {
   RefreshControl,
   Modal,
   ActivityIndicator,
-  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-
-const flareGunIcon = require('../../attached_assets/IMG_6963_1754302090076.webp');
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -354,7 +351,7 @@ export default function EventDetailsScreen() {
                   onPress={() => setShowFlareModal(true)}
                   data-testid="button-flare-gun"
                 >
-                  <Image source={flareGunIcon} style={styles.flareGunIconSmall} />
+                  <Ionicons name="flame" size={18} color="#ef4444" />
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.editButton, { backgroundColor: colors.primary }]} onPress={handleEdit}>
                   <Ionicons name="create-outline" size={18} color="#ffffff" />
@@ -651,7 +648,7 @@ export default function EventDetailsScreen() {
           <View style={[styles.flareModalContent, { backgroundColor: colors.card }]}>
             <View style={styles.flareModalHeader}>
               <View style={styles.flareModalTitleRow}>
-                <Image source={flareGunIcon} style={styles.flareGunIconLarge} />
+                <Ionicons name="flame" size={24} color="#ef4444" />
                 <Text style={[styles.flareModalTitle, { color: colors.text }]}>Flare Gun</Text>
               </View>
               <TouchableOpacity onPress={() => setShowFlareModal(false)}>
