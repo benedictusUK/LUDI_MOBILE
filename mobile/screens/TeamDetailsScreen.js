@@ -596,6 +596,22 @@ export default function TeamDetailsScreen() {
                   <Text style={styles.actionButtonText}>Block Users</Text>
                 </LinearGradient>
               </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.actionButtonWrapper} 
+                onPress={() => navigation.navigate('BlockedMembers', { teamId: team.id, teamName: team.name })}
+                data-testid="button-view-blocked"
+              >
+                <LinearGradient
+                  colors={['#3b82f6', '#10b981']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.actionButton}
+                >
+                  <Ionicons name="shield-outline" size={20} color="#ffffff" />
+                  <Text style={styles.actionButtonText}>View Blocked</Text>
+                </LinearGradient>
+              </TouchableOpacity>
             </>
           )}
 

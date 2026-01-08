@@ -117,6 +117,7 @@ export default function EditEventScreen() {
     maxPlayerPayment: initialEvent?.maxPlayerPayment || '',
     finalVenueCost: initialEvent?.finalVenueCost || '',
     venueOrganiserId: initialEvent?.venueOrganiserId || '',
+    isPublished: initialEvent?.isPublished ?? true,
   });
   
   const [teamMembers, setTeamMembers] = useState([]);
@@ -261,6 +262,7 @@ export default function EditEventScreen() {
         maxPlayerPayment: formData.paymentRequired && formData.maxPlayerPayment ? formData.maxPlayerPayment : undefined,
         finalVenueCost: formData.paymentRequired && formData.finalVenueCost ? formData.finalVenueCost : undefined,
         venueOrganiserId: formData.paymentRequired && formData.venueOrganiserId ? formData.venueOrganiserId : undefined,
+        isPublished: formData.isPublished,
       };
 
       console.log('[EditEvent] Sending update with scope:', scope, eventData);
@@ -802,6 +804,23 @@ export default function EditEventScreen() {
             numberOfLines={4}
             textAlignVertical="top"
           />
+        </View>
+
+        {/* Publish Event Toggle */}
+        <View style={styles.formGroup}>
+          <TouchableOpacity 
+            style={styles.toggleRow}
+            onPress={() => setFormData({ ...formData, isPublished: !formData.isPublished })}
+            data-testid="toggle-is-published"
+          >
+            <View>
+              <Text style={[styles.label, { color: colors.text }]}>Publish Event</Text>
+              <Text style={[styles.sublabel, { color: colors.textSecondary }]}>Make event visible immediately</Text>
+            </View>
+            <View style={[styles.toggle, { backgroundColor: colors.border }, formData.isPublished && styles.toggleActive]}>
+              <View style={[styles.toggleKnob, formData.isPublished && styles.toggleKnobActive]} />
+            </View>
+          </TouchableOpacity>
         </View>
 
         {/* Payment Required Toggle */}

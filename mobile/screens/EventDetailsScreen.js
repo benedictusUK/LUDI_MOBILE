@@ -33,6 +33,9 @@ export default function EventDetailsScreen() {
   const [paymentStatus, setPaymentStatus] = useState(null);
   const [paymentStatusLoading, setPaymentStatusLoading] = useState(false);
   const [cancellingPayment, setCancellingPayment] = useState(false);
+  const [showFlareModal, setShowFlareModal] = useState(false);
+  const [sendingFlare, setSendingFlare] = useState(false);
+  const [togglingFlareStatus, setTogglingFlareStatus] = useState(false);
 
   const fetchEventDetails = async () => {
     try {
@@ -200,6 +203,61 @@ export default function EventDetailsScreen() {
     }
   };
 
+  const handleSendFlare = async () => {
+    setSendingFlare(true);
+    try {
+      const response = await apiRequest(`/api/events/${id}/flare`, {
+        method: 'POST',
+        body: JSON.stringify({ sport: event.sport }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        Alert.alert(
+          '🚀 Flare Gun Sent!',
+          `Alert sent to ${data.recipientCount} nearby players interested in ${event.sport}`,
+          [{ text: 'OK', onPress: () => setShowFlareModal(false) }]
+        );
+        fetchEventDetails();
+      } else {
+        const error = await response.json();
+        Alert.alert('Error', error.message || 'Failed to send flare gun');
+      }
+    } catch (error) {
+      console.error('Error sending flare:', error);
+      Alert.alert('Error', 'Failed to send flare gun');
+    } finally {
+      setSendingFlare(false);
+    }
+  };
+
+  const handleToggleFlareStatus = async () => {
+    const newStatus = event.flareStatus === 'active' ? 'inactive' : 'active';
+    setTogglingFlareStatus(true);
+    try {
+      const response = await apiRequest(`/api/events/${id}/flare-status`, {
+        method: 'POST',
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (response.ok) {
+        Alert.alert(
+          `Flare ${newStatus === 'active' ? 'Activated' : 'Deactivated'}`,
+          `Event is ${newStatus === 'active' ? 'now discoverable' : 'no longer discoverable'} in Flare Search`
+        );
+        fetchEventDetails();
+      } else {
+        const error = await response.json();
+        Alert.alert('Error', error.message || 'Failed to update flare status');
+      }
+    } catch (error) {
+      console.error('Error toggling flare status:', error);
+      Alert.alert('Error', 'Failed to update flare status');
+    } finally {
+      setTogglingFlareStatus(false);
+    }
+  };
+
   const handleAttendanceUpdate = async (status) => {
     // Check if payment is required and user is trying to attend without authorisation
     // Venue organiser can vote without payment authorisation
@@ -288,6 +346,13 @@ export default function EventDetailsScreen() {
             <Text style={[styles.eventTitle, { color: colors.text }]}>{event.name}</Text>
             {canManage && (
               <View style={styles.actionButtons}>
+                <TouchableOpacity 
+                  style={[styles.flareButton, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.2)' : '#fef2f2', borderColor: '#ef4444' }]} 
+                  onPress={() => setShowFlareModal(true)}
+                  data-testid="button-flare-gun"
+                >
+                  <Ionicons name="flame" size={18} color="#ef4444" />
+                </TouchableOpacity>
                 <TouchableOpacity style={[styles.editButton, { backgroundColor: colors.primary }]} onPress={handleEdit}>
                   <Ionicons name="create-outline" size={18} color="#ffffff" />
                   <Text style={styles.editButtonText}>Edit</Text>
@@ -567,6 +632,91 @@ export default function EventDetailsScreen() {
               disabled={deleting}
             >
               <Text style={[styles.deleteModalCancelText, { color: colors.textSecondary }]}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Flare Gun Modal */}
+      <Modal
+        visible={showFlareModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowFlareModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.flareModalContent, { backgroundColor: colors.card }]}>
+            <View style={styles.flareModalHeader}>
+              <View style={styles.flareModalTitleRow}>
+                <Ionicons name="flame" size={24} color="#ef4444" />
+                <Text style={[styles.flareModalTitle, { color: colors.text }]}>Flare Gun</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowFlareModal(false)}>
+                <Ionicons name="close" size={24} color={colors.icon} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.flareStatusSection}>
+              <Text style={[styles.flareSectionTitle, { color: colors.text }]}>Flare Status</Text>
+              <View style={[styles.flareStatusRow, { backgroundColor: isDark ? 'rgba(0,0,0,0.2)' : '#f8fafc', borderColor: colors.border }]}>
+                <View style={styles.flareStatusInfo}>
+                  <View style={[styles.flareStatusDot, { backgroundColor: event?.flareStatus === 'active' ? '#ef4444' : colors.textSecondary }]} />
+                  <View>
+                    <Text style={[styles.flareStatusLabel, { color: colors.text }]}>
+                      Event is {event?.flareStatus === 'active' ? 'discoverable' : 'not discoverable'}
+                    </Text>
+                    <Text style={[styles.flareStatusDesc, { color: colors.textSecondary }]}>
+                      {event?.flareStatus === 'active' 
+                        ? 'Others can find this event in Flare Search'
+                        : 'Event is hidden from Flare Search'}
+                    </Text>
+                  </View>
+                </View>
+                <TouchableOpacity
+                  style={[
+                    styles.flareToggleButton,
+                    { backgroundColor: event?.flareStatus === 'active' ? '#fef2f2' : colors.primary }
+                  ]}
+                  onPress={handleToggleFlareStatus}
+                  disabled={togglingFlareStatus}
+                >
+                  {togglingFlareStatus ? (
+                    <ActivityIndicator size="small" color={event?.flareStatus === 'active' ? '#ef4444' : '#ffffff'} />
+                  ) : (
+                    <Text style={[styles.flareToggleText, { color: event?.flareStatus === 'active' ? '#ef4444' : '#ffffff' }]}>
+                      {event?.flareStatus === 'active' ? 'Deactivate' : 'Activate'}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.flareSendSection}>
+              <Text style={[styles.flareSectionTitle, { color: colors.text }]}>Send Flare Alert</Text>
+              <Text style={[styles.flareDescription, { color: colors.textSecondary }]}>
+                Notify nearby players interested in {event?.sport} who haven't joined this team yet.
+              </Text>
+              <TouchableOpacity
+                style={[styles.flareSendButton, { backgroundColor: sendingFlare ? colors.disabled : '#ef4444' }]}
+                onPress={handleSendFlare}
+                disabled={sendingFlare}
+              >
+                {sendingFlare ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <>
+                    <Ionicons name="rocket" size={20} color="#ffffff" />
+                    <Text style={styles.flareSendButtonText}>Send Flare Gun</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.flareCloseButton, { borderColor: colors.border }]}
+              onPress={() => setShowFlareModal(false)}
+            >
+              <Text style={[styles.flareCloseButtonText, { color: colors.textSecondary }]}>Close</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -997,5 +1147,110 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  flareButton: {
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginRight: 8,
+  },
+  flareModalContent: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: '80%',
+  },
+  flareModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  flareModalTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  flareModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  flareStatusSection: {
+    marginBottom: 24,
+  },
+  flareSectionTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  flareStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  flareStatusInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+  },
+  flareStatusDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  flareStatusLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  flareStatusDesc: {
+    fontSize: 13,
+  },
+  flareToggleButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    minWidth: 100,
+    alignItems: 'center',
+  },
+  flareToggleText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  flareSendSection: {
+    marginBottom: 24,
+  },
+  flareDescription: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  flareSendButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    borderRadius: 10,
+    gap: 10,
+  },
+  flareSendButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  flareCloseButton: {
+    padding: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  flareCloseButtonText: {
+    fontSize: 15,
+    fontWeight: '500',
   },
 });

@@ -26,6 +26,7 @@ import PaymentScreen from './screens/PaymentScreen';
 import PaymentAuthorizationScreen from './screens/PaymentAuthorizationScreen';
 import PaymentMethodsScreen from './screens/PaymentMethodsScreen';
 import PaymentCollectionScreen from './screens/PaymentCollectionScreen';
+import BlockedMembersScreen from './screens/BlockedMembersScreen';
 import LoadingScreen from './components/LoadingScreen';
 import { usePushNotifications } from './hooks/usePushNotifications';
 import { View, Text, StyleSheet, AppRegistry } from 'react-native';
@@ -190,6 +191,7 @@ function AppContent() {
           <Stack.Screen name="PaymentAuthorization" component={PaymentAuthorizationScreen} options={{ headerShown: false }} />
           <Stack.Screen name="PaymentMethods" component={PaymentMethodsScreen} options={{ headerShown: false }} />
           <Stack.Screen name="PaymentCollection" component={PaymentCollectionScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="BlockedMembers" component={BlockedMembersScreen} options={{ headerShown: false }} />
         </Stack.Navigator>
       </NavigationContainer>
       <NotificationToast />

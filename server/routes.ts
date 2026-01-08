@@ -616,6 +616,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Mobile Flare Gun activation route
+  app.post('/api/events/:id/flare', verifyAuth, async (req: any, res) => {
+    try {
+      const eventId = req.params.id;
+      const userId = req.userId;
+      const { sport } = req.body;
+
+      // Verify user owns/manages this event
+      const event = await storage.getEvent(eventId);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+
+      // Check if user is team owner/admin/captain
+      const userTeams = await storage.getUserTeams(userId);
+      const isAuthorized = userTeams.some(team => 
+        team.id === event.primaryTeamId && ['admin', 'captain'].includes(team.role)
+      ) || event.createdById === userId;
+
+      if (!isAuthorized) {
+        return res.status(403).json({ message: "Not authorized to send flare gun for this event" });
+      }
+
+      // Find nearby users interested in this sport
+      const nearbyUsers = await storage.findNearbyUsers(eventId, sport || event.sport);
+      const userIds = nearbyUsers.map((user: any) => user.id);
+
+      // Activate flare status for this event
+      await storage.activateFlareStatus(eventId, userId);
+
+      // Send notifications
+      let actualRecipientCount = 0;
+      if (userIds.length > 0) {
+        await storage.sendFlareNotifications(eventId, userIds);
+        actualRecipientCount = userIds.length;
+      }
+
+      res.json({ 
+        message: "Flare gun sent successfully", 
+        recipientCount: actualRecipientCount,
+      });
+    } catch (error) {
+      console.error("Error sending flare gun:", error);
+      res.status(500).json({ message: "Failed to send flare gun" });
+    }
+  });
+
+  // Mobile Flare status toggle route
+  app.post('/api/events/:id/flare-status', verifyAuth, async (req: any, res) => {
+    try {
+      const eventId = req.params.id;
+      const userId = req.userId;
+      const { status } = req.body;
+
+      if (!['active', 'inactive'].includes(status)) {
+        return res.status(400).json({ message: "Invalid flare status. Use 'active' or 'inactive'." });
+      }
+
+      // Verify user owns/manages this event
+      const event = await storage.getEvent(eventId);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+
+      // Check if user is team owner/admin/captain
+      const userTeams = await storage.getUserTeams(userId);
+      const isAuthorized = userTeams.some(team => 
+        team.id === event.primaryTeamId && ['admin', 'captain'].includes(team.role)
+      ) || event.createdById === userId;
+
+      if (!isAuthorized) {
+        return res.status(403).json({ message: "Not authorized to update flare status for this event" });
+      }
+
+      if (status === 'active') {
+        await storage.activateFlareStatus(eventId, userId);
+      } else {
+        await storage.deactivateFlareStatus(eventId);
+      }
+
+      res.json({ 
+        message: `Flare status set to ${status}`,
+        eventId,
+        flareStatus: status
+      });
+    } catch (error) {
+      console.error("Error updating flare status:", error);
+      res.status(500).json({ message: "Failed to update flare status" });
+    }
+  });
+
+  // Mobile blocked members route
+  app.get('/api/teams/:id/blocked', verifyAuth, async (req: any, res) => {
+    try {
+      const blockedMembers = await storage.getBlockedMembers(req.params.id);
+      res.json(blockedMembers);
+    } catch (error) {
+      console.error("Error fetching blocked members:", error);
+      res.status(500).json({ message: "Failed to fetch blocked members" });
+    }
+  });
+
   // Mobile Payment API routes
   app.post('/api/payments/create-intent', verifyAuth, async (req: any, res) => {
     try {
