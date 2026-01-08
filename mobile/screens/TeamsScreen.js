@@ -106,20 +106,32 @@ export default function TeamsScreen() {
         }
       />
       
-      <TouchableOpacity
-        style={styles.fabContainer}
-        onPress={() => navigation.navigate('CreateTeam')}
-        activeOpacity={0.8}
-      >
-        <LinearGradient
-          colors={['#3b82f6', '#10b981']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.fab}
+      <View style={styles.fabStack}>
+        <TouchableOpacity
+          style={styles.fabSecondary}
+          onPress={() => navigation.navigate('TeamSearch')}
+          activeOpacity={0.8}
         >
-          <Text style={styles.fabText}>+</Text>
-        </LinearGradient>
-      </TouchableOpacity>
+          <View style={[styles.fabSecondaryInner, { backgroundColor: colors.card, borderColor: colors.primary }]}>
+            <Text style={[styles.fabSecondaryIcon, { color: colors.primary }]}>🔍</Text>
+          </View>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={styles.fabContainer}
+          onPress={() => navigation.navigate('CreateTeam')}
+          activeOpacity={0.8}
+        >
+          <LinearGradient
+            colors={['#3b82f6', '#10b981']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.fab}
+          >
+            <Text style={styles.fabText}>+</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
@@ -244,10 +256,33 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
   },
-  fabContainer: {
+  fabStack: {
     position: 'absolute',
     bottom: 20,
     right: 20,
+    alignItems: 'center',
+  },
+  fabSecondary: {
+    marginBottom: 12,
+    borderRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  fabSecondaryInner: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+  },
+  fabSecondaryIcon: {
+    fontSize: 20,
+  },
+  fabContainer: {
     borderRadius: 28,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },

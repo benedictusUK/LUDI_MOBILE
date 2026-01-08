@@ -408,18 +408,22 @@ export default function TeamDetailsScreen() {
     );
   };
 
-  const handleRequestAction = async (requestId, action) => {
+  const handleRequestAction = async (userId, action) => {
     try {
-      const response = await apiRequest(`/api/teams/${teamId}/join-requests/${requestId}`, {
+      const endpoint = action === 'approve' 
+        ? `/api/teams/${teamId}/approve-join/${userId}`
+        : `/api/teams/${teamId}/reject-join/${userId}`;
+      
+      const response = await apiRequest(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
       });
       if (response.ok) {
-        Alert.alert('Success', `Request ${action}d`);
+        Alert.alert('Success', `Request ${action === 'approve' ? 'approved' : 'rejected'}`);
         fetchTeamDetails();
       } else {
-        Alert.alert('Error', `Failed to ${action} request`);
+        const errorData = await response.json().catch(() => ({}));
+        Alert.alert('Error', errorData.message || `Failed to ${action} request`);
       }
     } catch (error) {
       Alert.alert('Error', `Failed to ${action} request`);
@@ -527,17 +531,17 @@ export default function TeamDetailsScreen() {
             </View>
             {pendingRequests.slice(0, 2).map((request) => (
               <View key={request.id} style={[styles.requestRow, { borderBottomColor: colors.border }]}>
-                <Text style={[styles.requestName, { color: colors.text }]}>{request.username}</Text>
+                <Text style={[styles.requestName, { color: colors.text }]}>{getDisplayName(request.user)}</Text>
                 <View style={styles.requestActions}>
                   <TouchableOpacity
                     style={styles.approveButton}
-                    onPress={() => handleRequestAction(request.id, 'approve')}
+                    onPress={() => handleRequestAction(request.userId, 'approve')}
                   >
                     <Text style={styles.approveText}>Approve</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.rejectButton}
-                    onPress={() => handleRequestAction(request.id, 'reject')}
+                    onPress={() => handleRequestAction(request.userId, 'reject')}
                   >
                     <Text style={styles.rejectText}>Reject</Text>
                   </TouchableOpacity>
@@ -680,15 +684,18 @@ export default function TeamDetailsScreen() {
           <ScrollView style={styles.modalContent}>
             {pendingRequests.map((request) => (
               <View key={request.id} style={[styles.requestCard, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-                <Text style={[styles.requestCardName, { color: colors.text }]}>{request.username}</Text>
+                <Text style={[styles.requestCardName, { color: colors.text }]}>{getDisplayName(request.user)}</Text>
+                {request.user?.username && (
+                  <Text style={[styles.requestCardUsername, { color: colors.textSecondary }]}>@{request.user.username}</Text>
+                )}
                 <Text style={[styles.requestCardDate, { color: colors.textSecondary }]}>
-                  Requested {new Date(request.createdAt).toLocaleDateString()}
+                  Requested {new Date(request.invitedAt).toLocaleDateString()}
                 </Text>
                 <View style={styles.requestCardActions}>
                   <TouchableOpacity
                     style={styles.approveButtonLarge}
                     onPress={() => {
-                      handleRequestAction(request.id, 'approve');
+                      handleRequestAction(request.userId, 'approve');
                       setShowPendingModal(false);
                     }}
                   >
@@ -697,7 +704,7 @@ export default function TeamDetailsScreen() {
                   <TouchableOpacity
                     style={styles.rejectButtonLarge}
                     onPress={() => {
-                      handleRequestAction(request.id, 'reject');
+                      handleRequestAction(request.userId, 'reject');
                       setShowPendingModal(false);
                     }}
                   >
@@ -1334,6 +1341,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#1e293b',
+    marginBottom: 2,
+  },
+  requestCardUsername: {
+    fontSize: 14,
     marginBottom: 4,
   },
   requestCardDate: {

@@ -18,6 +18,7 @@ import SettingsScreen from './screens/SettingsScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import SearchScreen from './screens/SearchScreen';
 import CreateTeamScreen from './screens/CreateTeamScreen';
+import TeamSearchScreen from './screens/TeamSearchScreen';
 import CreateEventScreen from './screens/CreateEventScreen';
 import EditEventScreen from './screens/EditEventScreen';
 import EventDetailsScreen from './screens/EventDetailsScreen';
@@ -181,6 +182,7 @@ function AppContent() {
           <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: false }} />
           <Stack.Screen name="TeamDetails" component={TeamDetailsScreen} options={{ headerShown: false }} />
           <Stack.Screen name="CreateTeam" component={CreateTeamScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="TeamSearch" component={TeamSearchScreen} options={{ headerShown: false }} />
           <Stack.Screen name="CreateEvent" component={CreateEventScreen} options={{ headerShown: false }} />
           <Stack.Screen name="EditEvent" component={EditEventScreen} options={{ headerShown: false }} />
           <Stack.Screen name="EventDetails" component={EventDetailsScreen} options={{ title: 'Event Details' }} />
