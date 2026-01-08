@@ -6,7 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 
-export default function HeaderWithNotifications({ title }) {
+export default function HeaderWithNotifications({ title, showBack = false }) {
   const navigation = useNavigation();
   const { apiRequest } = useAuth();
   const { colors } = useTheme();
@@ -43,14 +43,25 @@ export default function HeaderWithNotifications({ title }) {
 
   return (
     <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-      {title === 'Home' ? (
-        <View style={styles.logoContainer}>
-          <Text style={[styles.logoText, { color: colors.text }]}>LUDI</Text>
-          <Text style={[styles.logoSubtext, { color: colors.primaryGreen }]}>Don't just watch</Text>
-        </View>
-      ) : (
-        <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
-      )}
+      <View style={styles.leftSection}>
+        {showBack && (
+          <TouchableOpacity 
+            onPress={() => navigation.goBack()} 
+            style={styles.backButton}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
+          </TouchableOpacity>
+        )}
+        {title === 'Home' ? (
+          <View style={styles.logoContainer}>
+            <Text style={[styles.logoText, { color: colors.text }]}>LUDI</Text>
+            <Text style={[styles.logoSubtext, { color: colors.primaryGreen }]}>Don't just watch</Text>
+          </View>
+        ) : (
+          <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+        )}
+      </View>
       <TouchableOpacity 
         onPress={handleNotificationsPress} 
         style={styles.notificationButton}
@@ -87,6 +98,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
+  },
+  leftSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  backButton: {
+    padding: 4,
+    marginRight: 8,
   },
   logoContainer: {
     flexDirection: 'column',

@@ -170,7 +170,7 @@ export interface IStorage {
   }>;
 
   // Team search and join operations
-  searchTeams(query: string, userId: string): Promise<(Team & { memberCount: number; isMember: boolean })[]>;
+  searchTeams(query: string, userId: string): Promise<(Team & { memberCount: number; isMember: boolean; hasPendingRequest: boolean })[]>;
   requestToJoinTeam(teamId: string, userId: string): Promise<void>;
   joinTeam(teamId: string, userId: string): Promise<TeamMembership>;
   
@@ -1024,6 +1024,8 @@ export class DatabaseStorage implements IStorage {
       case 'team_invitation':
       case 'team_join_approved':
       case 'team_join_rejected':
+      case 'team_join_request':
+      case 'team_join_request_actioned':
         return preferences.teamInvites ?? true;
       
       case 'payment_reminder':
@@ -1639,7 +1641,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Team search and join operations
-  async searchTeams(query: string, userId: string): Promise<(Team & { memberCount: number; isMember: boolean })[]> {
+  async searchTeams(query: string, userId: string): Promise<(Team & { memberCount: number; isMember: boolean; hasPendingRequest: boolean })[]> {
     const searchResults = await db
       .select({
         id: teams.id,
@@ -1669,16 +1671,29 @@ export class DatabaseStorage implements IStorage {
       .groupBy(teams.id)
       .orderBy(teams.name);
 
-    // Filter out teams that have blocked the user and check membership
+    // Filter out teams that have blocked the user and check membership and pending requests
     const resultsWithMembership = [];
     for (const team of searchResults) {
       // Check if user is blocked by this team
       const isBlocked = await this.isUserBlocked(team.id, userId);
       if (!isBlocked) {
         const membership = await this.getUserTeam(userId, team.id);
+        
+        // Check if user has a pending join request
+        const [pendingRequest] = await db
+          .select()
+          .from(teamInvitations)
+          .where(and(
+            eq(teamInvitations.teamId, team.id),
+            eq(teamInvitations.userId, userId),
+            eq(teamInvitations.status, "pending")
+          ))
+          .limit(1);
+        
         resultsWithMembership.push({
           ...team,
           isMember: !!membership,
+          hasPendingRequest: !!pendingRequest,
         });
       }
     }
@@ -1945,22 +1960,19 @@ export class DatabaseStorage implements IStorage {
     // Add user to team
     const membership = await this.addTeamMember(teamId, userId, "member");
 
-    // Mark the specific join request notification as read
+    // Delete all join request notifications for this user/team (for all admins)
     await db
-      .update(notifications)
-      .set({ 
-        isRead: true,
-        readAt: new Date() 
-      })
+      .delete(notifications)
       .where(and(
         eq(notifications.type, "team_join_request"),
         eq(notifications.relatedId, teamId),
-        eq(notifications.userId, approverId),
         sql`metadata::json->>'requestUserId' = ${userId}`
       ));
 
     // Notify the user that their request was approved
     const user = await this.getUser(userId);
+    const approver = await this.getUser(approverId);
+    
     if (user) {
       await this.createNotificationIfAllowed({
         userId,
@@ -1970,6 +1982,24 @@ export class DatabaseStorage implements IStorage {
         relatedId: teamId,
         isRead: false,
       });
+    }
+
+    // Notify other team admins about the approval
+    const admins = await this.getTeamAdmins(teamId);
+    const approverName = approver ? (approver.firstName || approver.username || 'An admin') : 'An admin';
+    const requesterName = user ? (user.firstName || user.username || 'A user') : 'A user';
+    
+    for (const admin of admins) {
+      if (admin.id !== approverId) {
+        await this.createNotificationIfAllowed({
+          userId: admin.id,
+          type: "team_join_request_actioned",
+          title: "Join Request Approved",
+          message: `${approverName} approved ${requesterName}'s request to join ${team.name}`,
+          relatedId: teamId,
+          isRead: false,
+        });
+      }
     }
 
     return membership;
@@ -1998,22 +2028,19 @@ export class DatabaseStorage implements IStorage {
         eq(teamInvitations.status, "pending")
       ));
 
-    // Mark the specific join request notification as read
+    // Delete all join request notifications for this user/team (for all admins)
     await db
-      .update(notifications)
-      .set({ 
-        isRead: true,
-        readAt: new Date() 
-      })
+      .delete(notifications)
       .where(and(
         eq(notifications.type, "team_join_request"),
         eq(notifications.relatedId, teamId),
-        eq(notifications.userId, rejectedById),
         sql`metadata::json->>'requestUserId' = ${userId}`
       ));
 
     // Notify the user that their request was rejected
     const user = await this.getUser(userId);
+    const rejector = await this.getUser(rejectedById);
+    
     if (user) {
       await this.createNotificationIfAllowed({
         userId,
@@ -2023,6 +2050,24 @@ export class DatabaseStorage implements IStorage {
         relatedId: teamId,
         isRead: false,
       });
+    }
+
+    // Notify other team admins about the rejection
+    const admins = await this.getTeamAdmins(teamId);
+    const rejectorName = rejector ? (rejector.firstName || rejector.username || 'An admin') : 'An admin';
+    const requesterName = user ? (user.firstName || user.username || 'A user') : 'A user';
+    
+    for (const admin of admins) {
+      if (admin.id !== rejectedById) {
+        await this.createNotificationIfAllowed({
+          userId: admin.id,
+          type: "team_join_request_actioned",
+          title: "Join Request Declined",
+          message: `${rejectorName} declined ${requesterName}'s request to join ${team.name}`,
+          relatedId: teamId,
+          isRead: false,
+        });
+      }
     }
   }
 

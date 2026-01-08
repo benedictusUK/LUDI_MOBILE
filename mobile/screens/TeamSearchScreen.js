@@ -71,6 +71,7 @@ export default function TeamSearchScreen() {
     const isMember = item.isMember;
     const isPrivate = item.isPrivate;
     const requiresApproval = item.requiresApproval;
+    const hasPendingRequest = item.hasPendingRequest;
 
     return (
       <TouchableOpacity
@@ -118,6 +119,11 @@ export default function TeamSearchScreen() {
             <View style={[styles.privateBadge, { backgroundColor: isDark ? 'rgba(107, 114, 128, 0.2)' : '#f3f4f6' }]}>
               <Ionicons name="lock-closed" size={16} color={colors.textSecondary} />
               <Text style={[styles.privateBadgeText, { color: colors.textSecondary }]}>Private Team</Text>
+            </View>
+          ) : hasPendingRequest ? (
+            <View style={[styles.pendingBadge, { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.2)' : '#fef3c7' }]}>
+              <Ionicons name="time" size={16} color="#f59e0b" />
+              <Text style={styles.pendingBadgeText}>Request Pending</Text>
             </View>
           ) : (
             <TouchableOpacity
@@ -329,6 +335,19 @@ const styles = StyleSheet.create({
   privateBadgeText: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  pendingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 6,
+  },
+  pendingBadgeText: {
+    color: '#f59e0b',
+    fontSize: 14,
+    fontWeight: '600',
   },
   joinButton: {
     flexDirection: 'row',
