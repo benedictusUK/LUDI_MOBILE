@@ -785,11 +785,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { q: query } = req.query;
       const userId = (req.user as any).claims.sub;
 
+      console.log(`[Team Search] Query: "${query}", User: ${userId}`);
+
       if (!query || query.trim().length < 2) {
         return res.status(400).json({ message: "Search query must be at least 2 characters" });
       }
 
       const results = await storage.searchTeams(query.trim(), userId);
+      console.log(`[Team Search] Found ${results.length} results for query "${query}"`);
       res.json(results);
     } catch (error) {
       console.error("Error searching teams:", error);
