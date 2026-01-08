@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity, RefreshControl, Alert, SafeAreaView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import HeaderWithNotifications from '../components/HeaderWithNotifications';
@@ -246,7 +247,7 @@ export default function TeamsScreen() {
           data-testid="button-search-teams"
         >
           <View style={[styles.fabSecondaryInner, { backgroundColor: colors.card, borderColor: colors.primary }]}>
-            <Text style={[styles.fabSecondaryIcon, { color: colors.primary }]}>🔍</Text>
+            <Ionicons name="search" size={22} color={colors.primary} />
           </View>
         </TouchableOpacity>
         
