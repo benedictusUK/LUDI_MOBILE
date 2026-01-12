@@ -427,6 +427,28 @@ export async function collectPaymentHandler(
       paymentStatus: failedCaptures === 0 ? "captured" : "partial_captured",
     });
 
+    // Check if bank is full and send notification to event creator
+    const paymentSummary = await storage.getEventPaymentSummary(ctx.eventId);
+    if (paymentSummary && parseFloat(paymentSummary.bankTotal) >= parseFloat(paymentSummary.venueCost)) {
+      // Send bank-full notification to event creator
+      const event = await storage.getEvent(ctx.eventId);
+      if (event) {
+        await storage.createNotificationIfAllowed({
+          userId: event.createdById,
+          type: "payment_update",
+          title: "Bank is Full - Ready to Transfer",
+          message: `All payments for "${event.name}" have been collected. You can now transfer £${parseFloat(paymentSummary.expectedPayout).toFixed(2)} to the venue organiser.`,
+          relatedId: ctx.eventId,
+          metadata: JSON.stringify({
+            eventId: ctx.eventId,
+            bankTotal: paymentSummary.bankTotal,
+            venueCost: paymentSummary.venueCost,
+            expectedPayout: paymentSummary.expectedPayout,
+          }),
+        });
+      }
+    }
+
     const totalSelectedAttendees = ctx.attendeeIds ? ctx.attendeeIds.length : 0;
 
     return res.json({

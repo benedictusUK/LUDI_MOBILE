@@ -2131,6 +2131,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Collect payment for past events
   app.post("/api/events/:id/collect-payment", isAuthenticated, collectPaymentHandler);
 
+  // Send payment reminders to unpaid players - Admin/Owner only
+  app.post("/api/events/:id/send-payment-reminders", verifyAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const eventId = req.params.id;
+
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const event = await storage.getEvent(eventId);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+
+      // Check admin access
+      const userTeam = await storage.getUserTeam(userId, event.primaryTeamId);
+      const team = await storage.getTeam(event.primaryTeamId);
+      const isEventCreator = event.createdById === userId;
+
+      if (!isEventCreator && (!userTeam || (!["admin", "captain"].includes(userTeam.role) && team?.ownerId !== userId))) {
+        return res.status(403).json({ message: "Not authorized to send payment reminders" });
+      }
+
+      // Get payment summary to find unpaid players
+      const paymentSummary = await storage.getEventPaymentSummary(eventId);
+      if (!paymentSummary || !paymentSummary.unpaidPlayers || paymentSummary.unpaidPlayers.length === 0) {
+        return res.status(200).json({ message: "No unpaid players to notify", remindersSent: 0 });
+      }
+
+      let remindersSent = 0;
+      for (const unpaidPlayer of paymentSummary.unpaidPlayers) {
+        try {
+          await storage.createNotificationIfAllowed({
+            userId: unpaidPlayer.userId,
+            type: "payment_reminder",
+            title: "Payment Reminder",
+            message: `You have an outstanding payment of £${parseFloat(unpaidPlayer.amountDue).toFixed(2)} for "${event.name}". Please authorise payment to complete your registration.`,
+            relatedId: eventId,
+            metadata: JSON.stringify({
+              eventId,
+              eventName: event.name,
+              amountDue: unpaidPlayer.amountDue,
+              requiresAuth: true,
+            }),
+          });
+          remindersSent++;
+        } catch (error) {
+          console.error(`Failed to send reminder to user ${unpaidPlayer.userId}:`, error);
+        }
+      }
+
+      res.json({
+        message: `Payment reminders sent to ${remindersSent} player(s)`,
+        remindersSent,
+        totalUnpaid: paymentSummary.unpaidPlayers.length,
+      });
+    } catch (error) {
+      console.error("Error sending payment reminders:", error);
+      res.status(500).json({ message: "Failed to send payment reminders" });
+    }
+  });
+
   // Get event audit data (voting and payments) - Admin/Owner access only
   app.get("/api/events/:id/audit", isAuthenticated, async (req: any, res) => {
     try {

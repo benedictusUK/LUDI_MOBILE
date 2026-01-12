@@ -44,6 +44,7 @@ export default function EventDetailsScreen() {
   const [initiatingTransfer, setInitiatingTransfer] = useState(false);
   const [showAuditLog, setShowAuditLog] = useState(false);
   const [auditLog, setAuditLog] = useState([]);
+  const [sendingReminders, setSendingReminders] = useState(false);
 
   const fetchEventDetails = async () => {
     try {
@@ -193,6 +194,28 @@ export default function EventDetailsScreen() {
         },
       ]
     );
+  };
+
+  const handleSendReminders = async () => {
+    setSendingReminders(true);
+    try {
+      const response = await apiRequest(`/api/events/${id}/send-payment-reminders`, {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        Alert.alert('Success', data.message);
+      } else {
+        const error = await response.json();
+        Alert.alert('Error', error.message || 'Failed to send reminders');
+      }
+    } catch (error) {
+      console.error('Failed to send reminders:', error);
+      Alert.alert('Error', 'Failed to send payment reminders');
+    } finally {
+      setSendingReminders(false);
+    }
   };
 
   const isEventInPast = () => {
@@ -808,6 +831,24 @@ export default function EventDetailsScreen() {
                     </View>
                   </View>
                 ))}
+                
+                {/* Send Reminders Button */}
+                {canManage && (
+                  <TouchableOpacity
+                    style={[styles.sendReminderButton, { backgroundColor: '#f59e0b' }]}
+                    onPress={handleSendReminders}
+                    disabled={sendingReminders}
+                  >
+                    {sendingReminders ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <>
+                        <Ionicons name="notifications" size={18} color="#fff" />
+                        <Text style={styles.sendReminderText}>Send Payment Reminders</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
               </View>
             )}
 
@@ -1934,5 +1975,20 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#ffffff',
+  },
+  // Send Reminder Button Styles
+  sendReminderButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 12,
+  },
+  sendReminderText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
