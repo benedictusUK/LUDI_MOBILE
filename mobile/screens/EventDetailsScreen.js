@@ -36,6 +36,14 @@ export default function EventDetailsScreen() {
   const [showFlareModal, setShowFlareModal] = useState(false);
   const [sendingFlare, setSendingFlare] = useState(false);
   const [togglingFlareStatus, setTogglingFlareStatus] = useState(false);
+  const [paymentSummary, setPaymentSummary] = useState(null);
+  const [paymentSummaryLoading, setPaymentSummaryLoading] = useState(false);
+  const [showMarkPaidModal, setShowMarkPaidModal] = useState(false);
+  const [selectedPlayerForPayment, setSelectedPlayerForPayment] = useState(null);
+  const [markingAsPaid, setMarkingAsPaid] = useState(false);
+  const [initiatingTransfer, setInitiatingTransfer] = useState(false);
+  const [showAuditLog, setShowAuditLog] = useState(false);
+  const [auditLog, setAuditLog] = useState([]);
 
   const fetchEventDetails = async () => {
     try {
@@ -90,6 +98,109 @@ export default function EventDetailsScreen() {
     }
   };
 
+  const fetchPaymentSummary = async () => {
+    try {
+      setPaymentSummaryLoading(true);
+      const response = await apiRequest(`/api/events/${id}/payment-summary`);
+      if (response.ok) {
+        const data = await response.json();
+        setPaymentSummary(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch payment summary:', error);
+    } finally {
+      setPaymentSummaryLoading(false);
+    }
+  };
+
+  const fetchAuditLog = async () => {
+    try {
+      const response = await apiRequest(`/api/events/${id}/payment-audits`);
+      if (response.ok) {
+        const data = await response.json();
+        setAuditLog(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch audit log:', error);
+    }
+  };
+
+  const handleMarkAsPaid = async () => {
+    if (!selectedPlayerForPayment) return;
+    
+    setMarkingAsPaid(true);
+    try {
+      const perPlayerShare = paymentSummary?.venueCost && paymentSummary?.paidPlayers?.length + paymentSummary?.unpaidPlayers?.length > 0
+        ? (parseFloat(paymentSummary.venueCost) / (paymentSummary.paidPlayers.length + paymentSummary.unpaidPlayers.length + (paymentSummary.organiserPlayed ? 1 : 0))).toFixed(2)
+        : selectedPlayerForPayment.amountDue;
+
+      const response = await apiRequest(`/api/events/${id}/mark-paid`, {
+        method: 'POST',
+        body: JSON.stringify({
+          userId: selectedPlayerForPayment.userId,
+          amount: perPlayerShare,
+          notes: 'Paid externally (cash/bank transfer)',
+        }),
+      });
+
+      if (response.ok) {
+        Alert.alert('Success', 'Player marked as paid');
+        setShowMarkPaidModal(false);
+        setSelectedPlayerForPayment(null);
+        fetchPaymentSummary();
+      } else {
+        const error = await response.json();
+        Alert.alert('Error', error.message || 'Failed to mark player as paid');
+      }
+    } catch (error) {
+      console.error('Failed to mark as paid:', error);
+      Alert.alert('Error', 'Failed to mark player as paid');
+    } finally {
+      setMarkingAsPaid(false);
+    }
+  };
+
+  const handleTransferFunds = async () => {
+    Alert.alert(
+      'Transfer Funds',
+      `Transfer £${paymentSummary?.expectedPayout} to the venue organiser?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Transfer',
+          onPress: async () => {
+            setInitiatingTransfer(true);
+            try {
+              const response = await apiRequest(`/api/events/${id}/reimburse`, {
+                method: 'POST',
+              });
+
+              if (response.ok) {
+                const data = await response.json();
+                Alert.alert('Success', `£${data.amount} transferred to venue organiser`);
+                fetchPaymentSummary();
+              } else {
+                const error = await response.json();
+                Alert.alert('Error', error.message || 'Failed to transfer funds');
+              }
+            } catch (error) {
+              console.error('Failed to transfer funds:', error);
+              Alert.alert('Error', 'Failed to transfer funds');
+            } finally {
+              setInitiatingTransfer(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const isEventInPast = () => {
+    if (!event) return false;
+    const eventDate = new Date(`${event.startDate}T${event.startTime || '00:00'}`);
+    return eventDate < new Date();
+  };
+
   const handleCancelAuthorization = async () => {
     Alert.alert(
       'Cancel Payment Authorisation',
@@ -128,6 +239,13 @@ export default function EventDetailsScreen() {
   useEffect(() => {
     fetchEventDetails();
   }, [id]);
+
+  // Fetch payment summary for past events with payment required
+  useEffect(() => {
+    if (event && event.paymentRequired && isEventInPast()) {
+      fetchPaymentSummary();
+    }
+  }, [event?.id, event?.paymentRequired]);
 
   useEffect(() => {
     navigation.setOptions({
@@ -576,6 +694,230 @@ export default function EventDetailsScreen() {
             )}
           </View>
         )}
+
+        {/* Payment Summary for Past Events */}
+        {event.paymentRequired && isEventInPast() && paymentSummary && (
+          <View style={[styles.card, { backgroundColor: colors.card }]}>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>Payment Summary</Text>
+            
+            {/* Bank Balance Progress */}
+            <View style={styles.bankSection}>
+              <View style={styles.bankHeader}>
+                <View style={styles.bankInfo}>
+                  <Ionicons name="wallet" size={22} color={colors.primary} />
+                  <Text style={[styles.bankLabel, { color: colors.text }]}>Bank</Text>
+                </View>
+                <Text style={[styles.bankAmount, { color: colors.primary }]}>
+                  £{parseFloat(paymentSummary.bankTotal).toFixed(2)} / £{parseFloat(paymentSummary.venueCost).toFixed(2)}
+                </Text>
+              </View>
+              <View style={[styles.progressBar, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : '#e5e7eb' }]}>
+                <View 
+                  style={[
+                    styles.progressFill, 
+                    { 
+                      width: `${Math.min(100, (parseFloat(paymentSummary.bankTotal) / parseFloat(paymentSummary.venueCost)) * 100)}%`,
+                      backgroundColor: paymentSummary.isReadyToTransfer ? '#10b981' : colors.primary 
+                    }
+                  ]} 
+                />
+              </View>
+              {paymentSummary.isReadyToTransfer && (
+                <View style={[styles.readyBadge, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#d1fae5' }]}>
+                  <Ionicons name="checkmark-circle" size={16} color="#10b981" />
+                  <Text style={[styles.readyText, { color: '#10b981' }]}>Ready to transfer</Text>
+                </View>
+              )}
+            </View>
+
+            {/* Organiser Payout Info */}
+            <View style={[styles.organiserSection, { borderColor: colors.border }]}>
+              <View style={styles.organiserHeader}>
+                <Ionicons name="person-circle" size={20} color={colors.primary} />
+                <Text style={[styles.organiserLabel, { color: colors.text }]}>Venue Organiser</Text>
+              </View>
+              <Text style={[styles.organiserName, { color: colors.textSecondary }]}>
+                {paymentSummary.organiser?.firstName} {paymentSummary.organiser?.lastName}
+                {paymentSummary.organiserPlayed && ' (played)'}
+              </Text>
+              <Text style={[styles.payoutAmount, { color: colors.text }]}>
+                Expected Payout: £{parseFloat(paymentSummary.expectedPayout).toFixed(2)}
+              </Text>
+              {paymentSummary.transferStatus === 'completed' && (
+                <View style={[styles.transferBadge, { backgroundColor: '#d1fae5' }]}>
+                  <Ionicons name="checkmark-circle" size={16} color="#047857" />
+                  <Text style={[styles.transferText, { color: '#047857' }]}>Transferred</Text>
+                </View>
+              )}
+            </View>
+
+            {/* Paid Players Section */}
+            <View style={styles.paymentListSection}>
+              <Text style={[styles.sectionLabel, { color: colors.text }]}>
+                Paid ({paymentSummary.paidPlayers?.length || 0})
+              </Text>
+              {paymentSummary.paidPlayers?.map((player) => (
+                <View key={player.userId} style={[styles.playerRow, { borderColor: colors.border }]}>
+                  <View style={styles.playerInfo}>
+                    <Ionicons name="checkmark-circle" size={18} color="#10b981" />
+                    <Text style={[styles.playerName, { color: colors.text }]}>
+                      {player.user?.firstName} {player.user?.lastName}
+                    </Text>
+                    {player.isManual && (
+                      <View style={[styles.manualBadge, { backgroundColor: isDark ? 'rgba(251, 191, 36, 0.2)' : '#fef3c7' }]}>
+                        <Text style={styles.manualText}>Cash</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={[styles.playerAmount, { color: '#10b981' }]}>
+                    £{parseFloat(player.amount).toFixed(2)}
+                  </Text>
+                </View>
+              ))}
+            </View>
+
+            {/* Unpaid Players Section */}
+            {paymentSummary.unpaidPlayers?.length > 0 && (
+              <View style={styles.paymentListSection}>
+                <Text style={[styles.sectionLabel, { color: colors.text }]}>
+                  Outstanding ({paymentSummary.unpaidPlayers?.length || 0})
+                </Text>
+                {paymentSummary.unpaidPlayers?.map((player) => (
+                  <View key={player.userId} style={[styles.playerRow, { borderColor: colors.border }]}>
+                    <View style={styles.playerInfo}>
+                      <Ionicons name="time" size={18} color="#f59e0b" />
+                      <Text style={[styles.playerName, { color: colors.text }]}>
+                        {player.user?.firstName} {player.user?.lastName}
+                      </Text>
+                    </View>
+                    <View style={styles.unpaidActions}>
+                      <Text style={[styles.playerAmount, { color: '#f59e0b' }]}>
+                        £{parseFloat(player.amountDue).toFixed(2)}
+                      </Text>
+                      {canManage && (
+                        <TouchableOpacity
+                          style={[styles.markPaidBtn, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#d1fae5' }]}
+                          onPress={() => {
+                            setSelectedPlayerForPayment(player);
+                            setShowMarkPaidModal(true);
+                          }}
+                        >
+                          <Text style={styles.markPaidText}>Mark Paid</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* Admin Transfer Button */}
+            {canManage && paymentSummary.isReadyToTransfer && paymentSummary.transferStatus !== 'completed' && (
+              <TouchableOpacity
+                style={[styles.transferButton, { backgroundColor: '#10b981' }]}
+                onPress={handleTransferFunds}
+                disabled={initiatingTransfer || !paymentSummary.organiser?.payoutsEnabled}
+              >
+                {initiatingTransfer ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="arrow-forward-circle" size={22} color="#fff" />
+                    <Text style={styles.transferButtonText}>
+                      Transfer £{parseFloat(paymentSummary.expectedPayout).toFixed(2)} to Organiser
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+
+            {/* Warning if organiser doesn't have payout enabled */}
+            {canManage && paymentSummary.isReadyToTransfer && !paymentSummary.organiser?.payoutsEnabled && (
+              <View style={[styles.warningBox, { backgroundColor: isDark ? 'rgba(251, 191, 36, 0.2)' : '#fef3c7' }]}>
+                <Ionicons name="warning" size={18} color="#f59e0b" />
+                <Text style={[styles.warningText, { color: isDark ? '#fbbf24' : '#92400e' }]}>
+                  Organiser needs to set up their payment account before receiving transfers
+                </Text>
+              </View>
+            )}
+
+            {/* Admin Audit Log Toggle */}
+            {canManage && (
+              <TouchableOpacity
+                style={[styles.auditToggle, { borderColor: colors.border }]}
+                onPress={() => {
+                  setShowAuditLog(!showAuditLog);
+                  if (!showAuditLog && auditLog.length === 0) {
+                    fetchAuditLog();
+                  }
+                }}
+              >
+                <View style={styles.auditToggleContent}>
+                  <Ionicons name="document-text" size={18} color={colors.textSecondary} />
+                  <Text style={[styles.auditToggleText, { color: colors.textSecondary }]}>
+                    Payment Audit Log
+                  </Text>
+                </View>
+                <Ionicons 
+                  name={showAuditLog ? "chevron-up" : "chevron-down"} 
+                  size={18} 
+                  color={colors.textSecondary} 
+                />
+              </TouchableOpacity>
+            )}
+
+            {/* Audit Log Details */}
+            {showAuditLog && (
+              <View style={styles.auditLogSection}>
+                {auditLog.length === 0 ? (
+                  <Text style={[styles.noAuditText, { color: colors.textSecondary }]}>
+                    No payment activity recorded yet
+                  </Text>
+                ) : (
+                  auditLog.map((entry) => (
+                    <View key={entry.id} style={[styles.auditEntry, { borderColor: colors.border }]}>
+                      <View style={styles.auditHeader}>
+                        <Text style={[styles.auditType, { color: colors.text }]}>
+                          {entry.actionType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        </Text>
+                        <Text style={[styles.auditDate, { color: colors.textSecondary }]}>
+                          {new Date(entry.createdAt).toLocaleDateString('en-GB', { 
+                            day: 'numeric', 
+                            month: 'short',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </Text>
+                      </View>
+                      {entry.user && (
+                        <Text style={[styles.auditUser, { color: colors.textSecondary }]}>
+                          Player: {entry.user.firstName} {entry.user.lastName}
+                        </Text>
+                      )}
+                      {entry.netAmount && (
+                        <View style={styles.auditAmounts}>
+                          <Text style={[styles.auditAmount, { color: colors.text }]}>
+                            Net: £{parseFloat(entry.netAmount).toFixed(2)}
+                          </Text>
+                          {entry.ludiFee && parseFloat(entry.ludiFee) > 0 && (
+                            <Text style={[styles.auditFee, { color: colors.textSecondary }]}>
+                              (LUDI: £{parseFloat(entry.ludiFee).toFixed(2)}, Stripe: £{parseFloat(entry.stripeFee || 0).toFixed(2)})
+                            </Text>
+                          )}
+                        </View>
+                      )}
+                      {entry.notes && (
+                        <Text style={[styles.auditNotes, { color: colors.textSecondary }]}>
+                          {entry.notes}
+                        </Text>
+                      )}
+                    </View>
+                  ))
+                )}
+              </View>
+            )}
+          </View>
+        )}
       </ScrollView>
 
       {/* Delete Modal for Recurring Events */}
@@ -718,6 +1060,48 @@ export default function EventDetailsScreen() {
             >
               <Text style={[styles.flareCloseButtonText, { color: colors.textSecondary }]}>Close</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Mark as Paid Modal */}
+      <Modal
+        visible={showMarkPaidModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowMarkPaidModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.markPaidModalContent, { backgroundColor: colors.card }]}>
+            <Text style={[styles.markPaidTitle, { color: colors.text }]}>Mark as Paid</Text>
+            <Text style={[styles.markPaidDescription, { color: colors.textSecondary }]}>
+              Confirm that {selectedPlayerForPayment?.user?.firstName} {selectedPlayerForPayment?.user?.lastName} has paid 
+              £{parseFloat(selectedPlayerForPayment?.amountDue || 0).toFixed(2)} outside of the LUDI platform (e.g., cash or bank transfer).
+            </Text>
+            
+            <View style={styles.markPaidButtons}>
+              <TouchableOpacity
+                style={[styles.markPaidCancelBtn, { borderColor: colors.border }]}
+                onPress={() => {
+                  setShowMarkPaidModal(false);
+                  setSelectedPlayerForPayment(null);
+                }}
+                disabled={markingAsPaid}
+              >
+                <Text style={[styles.markPaidCancelText, { color: colors.textSecondary }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.markPaidConfirmBtn, { backgroundColor: '#10b981' }]}
+                onPress={handleMarkAsPaid}
+                disabled={markingAsPaid}
+              >
+                {markingAsPaid ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.markPaidConfirmText}>Confirm Paid</Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -1276,5 +1660,279 @@ const styles = StyleSheet.create({
   flareCloseButtonText: {
     fontSize: 15,
     fontWeight: '500',
+  },
+  // Payment Summary Styles
+  bankSection: {
+    marginBottom: 20,
+  },
+  bankHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  bankInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  bankLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  bankAmount: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  progressBar: {
+    height: 10,
+    borderRadius: 5,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 5,
+  },
+  readyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    alignSelf: 'flex-start',
+    marginTop: 10,
+  },
+  readyText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  organiserSection: {
+    borderTopWidth: 1,
+    paddingTop: 16,
+    marginBottom: 16,
+  },
+  organiserHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  organiserLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  organiserName: {
+    fontSize: 14,
+    marginBottom: 4,
+    marginLeft: 28,
+  },
+  payoutAmount: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 28,
+  },
+  transferBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    alignSelf: 'flex-start',
+    marginTop: 8,
+    marginLeft: 28,
+  },
+  transferText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  paymentListSection: {
+    marginBottom: 16,
+  },
+  sectionLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 10,
+  },
+  playerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  playerInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  playerName: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  manualBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  manualText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#92400e',
+  },
+  playerAmount: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  unpaidActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  markPaidBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  markPaidText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#047857',
+  },
+  transferButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    padding: 14,
+    borderRadius: 10,
+    marginTop: 10,
+  },
+  transferButtonText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  warningBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 12,
+  },
+  warningText: {
+    fontSize: 13,
+    flex: 1,
+    lineHeight: 18,
+  },
+  auditToggle: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderTopWidth: 1,
+    marginTop: 10,
+  },
+  auditToggleContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  auditToggleText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  auditLogSection: {
+    marginTop: 12,
+  },
+  noAuditText: {
+    fontSize: 14,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    paddingVertical: 20,
+  },
+  auditEntry: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  auditHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  auditType: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  auditDate: {
+    fontSize: 12,
+  },
+  auditUser: {
+    fontSize: 13,
+    marginBottom: 4,
+  },
+  auditAmounts: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  auditAmount: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  auditFee: {
+    fontSize: 12,
+  },
+  auditNotes: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    marginTop: 4,
+  },
+  // Mark Paid Modal Styles
+  markPaidModalContent: {
+    width: '90%',
+    maxWidth: 360,
+    borderRadius: 16,
+    padding: 24,
+  },
+  markPaidTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  markPaidDescription: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  markPaidButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  markPaidCancelBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  markPaidCancelText: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  markPaidConfirmBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  markPaidConfirmText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#ffffff',
   },
 });
