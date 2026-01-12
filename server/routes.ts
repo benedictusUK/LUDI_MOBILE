@@ -1745,7 +1745,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Authorize payment from notification
-  app.post("/api/notifications/:notificationId/authorize-payment", isAuthenticated, async (req: any, res) => {
+  app.post("/api/notifications/:notificationId/authorize-payment", verifyAuth, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
       const notificationId = req.params.notificationId;
@@ -1922,7 +1922,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Authorize payment hold for event attendance
-  app.post("/api/events/:id/authorize-payment", isAuthenticated, async (req: any, res) => {
+  app.post("/api/events/:id/authorize-payment", verifyAuth, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
       const eventId = req.params.id;
@@ -2004,11 +2004,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Continue - the main payment record is already saved
         }
 
+        // Register user as attending after successful payment authorization
+        try {
+          await storage.voteOnEvent(eventId, userId, "attending");
+          console.log(`Wallet Payment: Registered attendance for user ${userId} on event ${eventId}`);
+        } catch (voteError) {
+          console.error("Error registering attendance after wallet payment:", voteError);
+        }
+
         return res.json({ 
           success: true, 
           paymentIntentId,
           status: 'authorized',
-          message: 'Wallet payment registered successfully'
+          message: 'Wallet payment registered and attendance confirmed'
         });
       }
 
@@ -2113,11 +2121,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Continue execution since the main payment was successful
       }
 
+      // Register user as attending after successful payment authorization
+      try {
+        await storage.voteOnEvent(eventId, userId, "attending");
+        console.log(`Authorize Payment: Registered attendance for user ${userId} on event ${eventId}`);
+      } catch (voteError) {
+        console.error("Error registering attendance after payment authorization:", voteError);
+      }
+
       res.json({ 
         success: true, 
         paymentIntentId: paymentIntent.id,
         status: paymentIntent.status,
-        clientSecret: paymentIntent.client_secret 
+        clientSecret: paymentIntent.client_secret,
+        message: 'Payment authorized and attendance confirmed'
       });
     } catch (error: any) {
       console.error("Payment authorization failed:", error);
