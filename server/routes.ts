@@ -3067,24 +3067,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get payment status for current user and event
-  app.get('/api/events/:id/payment-status', isAuthenticated, async (req: any, res) => {
+  app.get('/api/events/:id/payment-status', verifyAuth, async (req: any, res) => {
     try {
       const eventId = req.params.id;
-      const userId = (req.user as any).claims.sub;
+      const userId = req.user?.claims?.sub;
+      
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
       
       const payment = await storage.getEventPaymentByUser(eventId, userId);
       
       if (!payment) {
         return res.json({ 
-          hasPayment: false, 
+          hasPayment: false,
+          hasAuthorization: false,
           status: null,
           setupIntentId: null,
           paymentMethodId: null
         });
       }
 
+      // Check if user has a valid authorization (hold_created status)
+      const hasAuthorization = payment.status === 'hold_created' || payment.status === 'captured';
+
       res.json({
         hasPayment: true,
+        hasAuthorization,
         status: payment.status,
         setupIntentId: payment.setupIntentId,
         paymentMethodId: payment.paymentMethodId,
