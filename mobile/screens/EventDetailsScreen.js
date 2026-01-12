@@ -431,6 +431,32 @@ export default function EventDetailsScreen() {
       }
     }
 
+    // Check if user is currently attending with authorized payment and trying to change vote
+    const currentlyAttending = userAttendance?.status === 'attending';
+    const hasPaymentAuthorization = paymentStatus?.hasAuthorization;
+    const changingFromAttending = currentlyAttending && (status === 'not_attending' || status === 'maybe');
+    
+    if (changingFromAttending && hasPaymentAuthorization && event?.paymentRequired) {
+      // Show confirmation popup warning about payment release
+      Alert.alert(
+        'Release Payment Authorisation?',
+        'Changing your attendance will release your payment authorisation. You will need to authorise payment again if you decide to attend.',
+        [
+          { text: 'Keep Attending', style: 'cancel' },
+          { 
+            text: 'Release & Change Vote', 
+            style: 'destructive',
+            onPress: () => performAttendanceUpdate(status)
+          }
+        ]
+      );
+      return;
+    }
+
+    performAttendanceUpdate(status);
+  };
+
+  const performAttendanceUpdate = async (status) => {
     try {
       const response = await apiRequest(`/api/events/${id}/attendance`, {
         method: 'POST',
@@ -440,6 +466,10 @@ export default function EventDetailsScreen() {
       if (response.ok) {
         // Refresh data after attendance update
         fetchEventDetails();
+        // Also refresh payment status if it was released
+        if (status !== 'attending' && paymentStatus?.hasAuthorization) {
+          fetchPaymentStatus();
+        }
       } else {
         const error = await response.json();
         Alert.alert('Error', error.message || 'Failed to update attendance');
