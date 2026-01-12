@@ -13,6 +13,8 @@ import {
   blockedMembers,
   teamInvitations,
   platformCharges,
+  eventPaymentAudits,
+  eventReimbursements,
   type User,
   type UpsertUser,
   type AuthUser,
@@ -42,6 +44,10 @@ import {
   type UpdateProfile,
   type PlatformCharge,
   type InsertPlatformCharge,
+  type EventPaymentAudit,
+  type InsertEventPaymentAudit,
+  type EventReimbursement,
+  type InsertEventReimbursement,
   flareResponses,
   type FlareResponse,
   type InsertFlareResponse,
@@ -218,6 +224,27 @@ export interface IStorage {
   getPlatformCharges(): Promise<PlatformCharge[]>;
   updatePlatformCharge(id: string, charge: Partial<InsertPlatformCharge>): Promise<PlatformCharge>;
   createPlatformCharge(charge: InsertPlatformCharge): Promise<PlatformCharge>;
+
+  // Event payment audit operations
+  createPaymentAudit(audit: InsertEventPaymentAudit): Promise<EventPaymentAudit>;
+  getEventPaymentAudits(eventId: string): Promise<(EventPaymentAudit & { user?: User; actor?: User })[]>;
+  getEventBankBalance(eventId: string): Promise<string>;
+
+  // Event reimbursement operations
+  createEventReimbursement(reimbursement: InsertEventReimbursement): Promise<EventReimbursement>;
+  getEventReimbursement(eventId: string): Promise<EventReimbursement | undefined>;
+  updateEventReimbursement(eventId: string, updates: Partial<EventReimbursement>): Promise<EventReimbursement>;
+  getEventPaymentSummary(eventId: string): Promise<{
+    paidPlayers: { userId: string; user: User; amount: string; paidAt: Date | null; isManual: boolean }[];
+    unpaidPlayers: { userId: string; user: User; amountDue: string }[];
+    bankTotal: string;
+    venueCost: string;
+    expectedPayout: string;
+    organiserPlayed: boolean;
+    transferStatus: string;
+    isReadyToTransfer: boolean;
+  }>;
+  markPlayerAsPaid(eventId: string, userId: string, actorId: string, amount: string, notes?: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3660,6 +3687,266 @@ export class DatabaseStorage implements IStorage {
       .returning();
 
     return created;
+  }
+
+  // Event payment audit operations
+  async createPaymentAudit(audit: InsertEventPaymentAudit): Promise<EventPaymentAudit> {
+    const [created] = await db
+      .insert(eventPaymentAudits)
+      .values(audit)
+      .returning();
+    return created;
+  }
+
+  async getEventPaymentAudits(eventId: string): Promise<(EventPaymentAudit & { user?: User; actor?: User })[]> {
+    const audits = await db
+      .select()
+      .from(eventPaymentAudits)
+      .where(eq(eventPaymentAudits.eventId, eventId))
+      .orderBy(desc(eventPaymentAudits.createdAt));
+
+    // Fetch user and actor details for each audit
+    const enrichedAudits = await Promise.all(
+      audits.map(async (audit) => {
+        const [user] = audit.userId 
+          ? await db.select().from(users).where(eq(users.id, audit.userId))
+          : [undefined];
+        const [actor] = audit.actorId
+          ? await db.select().from(users).where(eq(users.id, audit.actorId))
+          : [undefined];
+        return { ...audit, user, actor };
+      })
+    );
+
+    return enrichedAudits;
+  }
+
+  async getEventBankBalance(eventId: string): Promise<string> {
+    const result = await db
+      .select({
+        total: sql<string>`COALESCE(SUM(CAST(${eventPaymentAudits.netAmount} AS DECIMAL)), 0)`
+      })
+      .from(eventPaymentAudits)
+      .where(
+        and(
+          eq(eventPaymentAudits.eventId, eventId),
+          inArray(eventPaymentAudits.actionType, ['payment_captured', 'manual_payment_recorded'])
+        )
+      );
+    return result[0]?.total || "0.00";
+  }
+
+  // Event reimbursement operations
+  async createEventReimbursement(reimbursement: InsertEventReimbursement): Promise<EventReimbursement> {
+    const [created] = await db
+      .insert(eventReimbursements)
+      .values(reimbursement)
+      .returning();
+    return created;
+  }
+
+  async getEventReimbursement(eventId: string): Promise<EventReimbursement | undefined> {
+    const [reimbursement] = await db
+      .select()
+      .from(eventReimbursements)
+      .where(eq(eventReimbursements.eventId, eventId));
+    return reimbursement;
+  }
+
+  async updateEventReimbursement(eventId: string, updates: Partial<EventReimbursement>): Promise<EventReimbursement> {
+    const [updated] = await db
+      .update(eventReimbursements)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(eq(eventReimbursements.eventId, eventId))
+      .returning();
+
+    if (!updated) {
+      throw new Error("Event reimbursement record not found");
+    }
+
+    return updated;
+  }
+
+  async getEventPaymentSummary(eventId: string): Promise<{
+    paidPlayers: { userId: string; user: User; amount: string; paidAt: Date | null; isManual: boolean }[];
+    unpaidPlayers: { userId: string; user: User; amountDue: string }[];
+    bankTotal: string;
+    venueCost: string;
+    expectedPayout: string;
+    organiserPlayed: boolean;
+    transferStatus: string;
+    isReadyToTransfer: boolean;
+  }> {
+    const event = await this.getEvent(eventId);
+    if (!event) {
+      throw new Error("Event not found");
+    }
+
+    // Get reimbursement record or calculate defaults
+    let reimbursement = await this.getEventReimbursement(eventId);
+    
+    // Get all attending players
+    const attendance = await db
+      .select()
+      .from(eventAttendance)
+      .leftJoin(users, eq(eventAttendance.userId, users.id))
+      .where(
+        and(
+          eq(eventAttendance.eventId, eventId),
+          inArray(eventAttendance.status, ['attending', 'promoted'])
+        )
+      );
+
+    // Get all event payments (captured or manual)
+    const eventPaymentRecords = await db
+      .select()
+      .from(eventPayments)
+      .leftJoin(users, eq(eventPayments.userId, users.id))
+      .where(eq(eventPayments.eventId, eventId));
+
+    // Get manual payments from audit log
+    const manualPayments = await db
+      .select()
+      .from(eventPaymentAudits)
+      .where(
+        and(
+          eq(eventPaymentAudits.eventId, eventId),
+          eq(eventPaymentAudits.actionType, 'manual_payment_recorded')
+        )
+      );
+
+    const manualPaymentUserIds = new Set(manualPayments.map(p => p.userId));
+
+    // Calculate venue cost and per-player share
+    const venueCost = parseFloat(event.finalVenueCost || event.cost || "0");
+    const attendingCount = attendance.length;
+    const perPlayerShare = attendingCount > 0 ? venueCost / attendingCount : 0;
+
+    // Check if organiser is in the attendees
+    const organiserId = event.createdById;
+    const organiserPlayed = attendance.some(a => a.event_attendance.userId === organiserId);
+
+    // Expected payout: venue cost minus organiser's share if they played
+    const expectedPayout = organiserPlayed 
+      ? Math.max(0, venueCost - perPlayerShare)
+      : venueCost;
+
+    // Build paid players list
+    const paidPlayers: { userId: string; user: User; amount: string; paidAt: Date | null; isManual: boolean }[] = [];
+    const unpaidPlayers: { userId: string; user: User; amountDue: string }[] = [];
+
+    for (const record of attendance) {
+      if (!record.users) continue;
+      
+      const userId = record.event_attendance.userId;
+      const eventPayment = eventPaymentRecords.find(ep => ep.event_payments.userId === userId);
+      const isManual = manualPaymentUserIds.has(userId);
+      
+      // Check if paid via Stripe or manually
+      if (eventPayment?.event_payments.status === 'captured' || isManual) {
+        const amount = eventPayment?.event_payments.finalAmount || perPlayerShare.toFixed(2);
+        const paidAt = eventPayment?.event_payments.capturedAt || null;
+        paidPlayers.push({
+          userId,
+          user: record.users,
+          amount: amount.toString(),
+          paidAt,
+          isManual
+        });
+      } else if (userId !== organiserId) {
+        // Organisers don't need to pay themselves, only add to unpaid if not organiser
+        unpaidPlayers.push({
+          userId,
+          user: record.users,
+          amountDue: perPlayerShare.toFixed(2)
+        });
+      }
+    }
+
+    // Get bank balance
+    const bankTotal = await this.getEventBankBalance(eventId);
+
+    // Determine if ready to transfer
+    const bankBalance = parseFloat(bankTotal);
+    const playersRequired = organiserPlayed ? attendingCount - 1 : attendingCount; // Organiser doesn't pay if they played
+    const isReadyToTransfer = unpaidPlayers.length === 0 && 
+                              paidPlayers.length >= playersRequired &&
+                              bankBalance >= expectedPayout;
+
+    // Update reimbursement record if it doesn't exist
+    if (!reimbursement && event.paymentRequired) {
+      reimbursement = await this.createEventReimbursement({
+        eventId,
+        organiserId,
+        organiserPlayed,
+        venueCost: venueCost.toFixed(2),
+        perPlayerShare: perPlayerShare.toFixed(2),
+        expectedPayout: expectedPayout.toFixed(2),
+        netCollected: bankTotal,
+        playersRequired,
+        playersPaid: paidPlayers.length,
+        transferStatus: isReadyToTransfer ? 'ready' : 'pending',
+      });
+    } else if (reimbursement) {
+      // Update existing record with latest counts
+      await this.updateEventReimbursement(eventId, {
+        netCollected: bankTotal,
+        playersPaid: paidPlayers.length,
+        transferStatus: isReadyToTransfer && reimbursement.transferStatus === 'pending' ? 'ready' : reimbursement.transferStatus,
+      });
+    }
+
+    return {
+      paidPlayers,
+      unpaidPlayers,
+      bankTotal,
+      venueCost: venueCost.toFixed(2),
+      expectedPayout: expectedPayout.toFixed(2),
+      organiserPlayed,
+      transferStatus: reimbursement?.transferStatus || 'pending',
+      isReadyToTransfer,
+    };
+  }
+
+  async markPlayerAsPaid(eventId: string, userId: string, actorId: string, amount: string, notes?: string): Promise<void> {
+    // Get current bank balance for calculating new balance
+    const currentBalance = await this.getEventBankBalance(eventId);
+    const newBalance = (parseFloat(currentBalance) + parseFloat(amount)).toFixed(2);
+
+    // Create audit record for manual payment
+    await this.createPaymentAudit({
+      eventId,
+      userId,
+      actorId,
+      actionType: 'manual_payment_recorded',
+      grossAmount: amount,
+      ludiFee: "0.00",
+      stripeFee: "0.00",
+      netAmount: amount, // Manual payments have no fees
+      balanceAfter: newBalance,
+      notes: notes || `Manually marked as paid by admin`,
+    });
+
+    // Update or create event payment record
+    const existingPayment = await this.getEventPayment(eventId, userId);
+    if (existingPayment) {
+      await this.updateEventPaymentCapture(eventId, userId, {
+        status: 'captured',
+        finalAmount: amount,
+        capturedAt: new Date(),
+      });
+    } else {
+      await this.createEventPayment({
+        eventId,
+        userId,
+        status: 'captured',
+        finalAmount: amount,
+        capturedAt: new Date(),
+      });
+    }
   }
 }
 
