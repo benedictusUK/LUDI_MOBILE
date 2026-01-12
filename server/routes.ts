@@ -3081,6 +3081,238 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get comprehensive payment summary for an event (for past events)
+  app.get('/api/events/:id/payment-summary', isAuthenticated, async (req: any, res) => {
+    try {
+      const eventId = req.params.id;
+      const userId = (req.user as any).claims.sub;
+
+      const event = await storage.getEvent(eventId);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+
+      // Get payment summary
+      const summary = await storage.getEventPaymentSummary(eventId);
+
+      // Check if user is admin (to include audit log)
+      const userTeams = await storage.getUserTeams(userId);
+      const isAdmin = userTeams.some(team => 
+        team.id === event.primaryTeamId && ['admin', 'captain'].includes(team.role)
+      ) || event.createdById === userId;
+
+      // Get organiser info
+      const organiser = await storage.getUserById(event.createdById);
+
+      res.json({
+        ...summary,
+        organiser: organiser ? {
+          id: organiser.id,
+          firstName: organiser.firstName,
+          lastName: organiser.lastName,
+          username: organiser.username,
+          hasStripeAccount: !!organiser.stripeAccountId,
+          payoutsEnabled: organiser.payoutsEnabled
+        } : null,
+        isAdmin
+      });
+    } catch (error) {
+      console.error("Error fetching payment summary:", error);
+      res.status(500).json({ message: "Failed to fetch payment summary" });
+    }
+  });
+
+  // Get payment audit log (admin only)
+  app.get('/api/events/:id/payment-audits', isAuthenticated, async (req: any, res) => {
+    try {
+      const eventId = req.params.id;
+      const userId = (req.user as any).claims.sub;
+
+      const event = await storage.getEvent(eventId);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+
+      // Check admin access
+      const userTeams = await storage.getUserTeams(userId);
+      const isAdmin = userTeams.some(team => 
+        team.id === event.primaryTeamId && ['admin', 'captain'].includes(team.role)
+      ) || event.createdById === userId;
+
+      if (!isAdmin) {
+        return res.status(403).json({ message: "Admin access required to view audit log" });
+      }
+
+      const audits = await storage.getEventPaymentAudits(eventId);
+      res.json(audits);
+    } catch (error) {
+      console.error("Error fetching payment audits:", error);
+      res.status(500).json({ message: "Failed to fetch payment audits" });
+    }
+  });
+
+  // Mark player as paid (admin only - for external payments)
+  app.post('/api/events/:id/mark-paid', isAuthenticated, async (req: any, res) => {
+    try {
+      const eventId = req.params.id;
+      const actorId = (req.user as any).claims.sub;
+      const { userId, amount, notes } = req.body;
+
+      if (!userId || !amount) {
+        return res.status(400).json({ message: "User ID and amount are required" });
+      }
+
+      const event = await storage.getEvent(eventId);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+
+      // Check admin access
+      const userTeams = await storage.getUserTeams(actorId);
+      const isAdmin = userTeams.some(team => 
+        team.id === event.primaryTeamId && ['admin', 'captain'].includes(team.role)
+      ) || event.createdById === actorId;
+
+      if (!isAdmin) {
+        return res.status(403).json({ message: "Admin access required to mark payments" });
+      }
+
+      await storage.markPlayerAsPaid(eventId, userId, actorId, amount, notes);
+
+      // Update reimbursement record
+      const summary = await storage.getEventPaymentSummary(eventId);
+
+      res.json({ 
+        message: "Player marked as paid successfully",
+        summary
+      });
+    } catch (error) {
+      console.error("Error marking player as paid:", error);
+      res.status(500).json({ message: "Failed to mark player as paid" });
+    }
+  });
+
+  // Initiate transfer to venue organiser (admin only)
+  app.post('/api/events/:id/reimburse', isAuthenticated, async (req: any, res) => {
+    try {
+      const eventId = req.params.id;
+      const actorId = (req.user as any).claims.sub;
+
+      const event = await storage.getEvent(eventId);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+
+      // Check admin access
+      const userTeams = await storage.getUserTeams(actorId);
+      const isAdmin = userTeams.some(team => 
+        team.id === event.primaryTeamId && ['admin', 'captain'].includes(team.role)
+      ) || event.createdById === actorId;
+
+      if (!isAdmin) {
+        return res.status(403).json({ message: "Admin access required to initiate transfer" });
+      }
+
+      // Get payment summary to check if ready
+      const summary = await storage.getEventPaymentSummary(eventId);
+      
+      if (!summary.isReadyToTransfer) {
+        return res.status(400).json({ 
+          message: "Not all payments have been collected. Cannot initiate transfer yet.",
+          unpaidCount: summary.unpaidPlayers.length
+        });
+      }
+
+      // Get organiser's Stripe account
+      const organiser = await storage.getUserById(event.createdById);
+      if (!organiser?.stripeAccountId || !organiser.payoutsEnabled) {
+        return res.status(400).json({ 
+          message: "Venue organiser has not set up their Stripe account for payouts" 
+        });
+      }
+
+      const reimbursement = await storage.getEventReimbursement(eventId);
+      if (reimbursement?.transferStatus === 'completed') {
+        return res.status(400).json({ message: "Transfer has already been completed" });
+      }
+
+      // Calculate transfer amount (capped at expected payout/venue cost)
+      const transferAmount = parseFloat(summary.expectedPayout);
+      const transferAmountCents = Math.round(transferAmount * 100);
+
+      // Create Stripe transfer
+      const transfer = await stripe.transfers.create({
+        amount: transferAmountCents,
+        currency: 'gbp',
+        destination: organiser.stripeAccountId,
+        metadata: {
+          eventId,
+          organiserId: organiser.id,
+          type: 'venue_reimbursement'
+        }
+      });
+
+      // Update reimbursement record
+      await storage.updateEventReimbursement(eventId, {
+        transferStatus: 'completed',
+        stripeTransferId: transfer.id,
+        transferAmount: transferAmount.toFixed(2),
+        transferredAt: new Date(),
+      });
+
+      // Create audit log entry
+      await storage.createPaymentAudit({
+        eventId,
+        userId: organiser.id,
+        actorId,
+        actionType: 'transfer_completed',
+        grossAmount: transferAmount.toFixed(2),
+        ludiFee: "0.00",
+        stripeFee: "0.00",
+        netAmount: transferAmount.toFixed(2),
+        balanceAfter: "0.00", // Bank emptied after transfer
+        stripeTransferId: transfer.id,
+        notes: `Transfer to venue organiser completed`,
+      });
+
+      // Send notification to organiser
+      await storage.createNotification({
+        userId: organiser.id,
+        title: "Payment Received",
+        message: `You have received £${transferAmount.toFixed(2)} for venue costs from ${event.name}`,
+        type: "payment",
+        relatedId: eventId,
+      });
+
+      res.json({ 
+        message: "Transfer completed successfully",
+        transferId: transfer.id,
+        amount: transferAmount.toFixed(2)
+      });
+    } catch (error: any) {
+      console.error("Error initiating transfer:", error);
+      
+      // Log failed transfer attempt
+      const eventId = req.params.id;
+      const event = await storage.getEvent(eventId);
+      if (event) {
+        await storage.updateEventReimbursement(eventId, {
+          transferStatus: 'failed',
+          transferError: error.message,
+        });
+
+        await storage.createPaymentAudit({
+          eventId,
+          actorId: (req.user as any).claims.sub,
+          actionType: 'transfer_failed',
+          notes: `Transfer failed: ${error.message}`,
+        });
+      }
+
+      res.status(500).json({ message: "Failed to initiate transfer", error: error.message });
+    }
+  });
+
   // Flare gun routes - for advertising events to nearby users
   app.post('/api/events/:id/flare', isAuthenticated, async (req: any, res) => {
     try {
