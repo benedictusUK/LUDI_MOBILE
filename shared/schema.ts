@@ -730,11 +730,76 @@ export const platformCharges = pgTable("platform_charges", {
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });
 
+// Event payment audit log for tracking all payment transactions
+export const eventPaymentAudits = pgTable("event_payment_audits", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  eventId: varchar("event_id").notNull().references(() => events.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }), // user who made the payment (null for system actions)
+  actorId: varchar("actor_id").references(() => users.id, { onDelete: "set null" }), // user who triggered the action (admin)
+  actionType: varchar("action_type", { 
+    enum: ["payment_authorized", "payment_captured", "payment_refunded", "payment_failed", "manual_payment_recorded", "transfer_initiated", "transfer_completed", "transfer_failed"] 
+  }).notNull(),
+  grossAmount: decimal("gross_amount", { precision: 10, scale: 2 }), // total amount before fees
+  ludiFee: decimal("ludi_fee", { precision: 10, scale: 2 }), // LUDI platform fee
+  stripeFee: decimal("stripe_fee", { precision: 10, scale: 2 }), // Stripe processing fee
+  netAmount: decimal("net_amount", { precision: 10, scale: 2 }), // amount after fees (what goes to bank)
+  balanceAfter: decimal("balance_after", { precision: 10, scale: 2 }), // running bank balance after this transaction
+  stripePaymentIntentId: varchar("stripe_payment_intent_id"),
+  stripeTransferId: varchar("stripe_transfer_id"),
+  metadata: text("metadata"), // JSON for additional data
+  notes: text("notes"), // admin notes for manual payments
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Event reimbursements tracking for venue organiser payouts
+export const eventReimbursements = pgTable("event_reimbursements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  eventId: varchar("event_id").notNull().references(() => events.id, { onDelete: "cascade" }),
+  organiserId: varchar("organiser_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  organiserPlayed: boolean("organiser_played").default(false), // whether organiser was an attendee
+  venueCost: decimal("venue_cost", { precision: 10, scale: 2 }).notNull(), // total venue cost
+  perPlayerShare: decimal("per_player_share", { precision: 10, scale: 2 }).notNull(), // cost per player
+  expectedPayout: decimal("expected_payout", { precision: 10, scale: 2 }).notNull(), // venue cost minus organiser share if they played
+  netCollected: decimal("net_collected", { precision: 10, scale: 2 }).default("0.00"), // total collected (fees excluded)
+  playersRequired: integer("players_required").notNull(), // number of players who need to pay
+  playersPaid: integer("players_paid").default(0), // number who have paid
+  transferStatus: varchar("transfer_status", { 
+    enum: ["pending", "ready", "initiated", "completed", "failed"] 
+  }).default("pending"),
+  stripeTransferId: varchar("stripe_transfer_id"),
+  transferAmount: decimal("transfer_amount", { precision: 10, scale: 2 }), // actual amount transferred
+  transferredAt: timestamp("transferred_at"),
+  transferError: text("transfer_error"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  unique().on(table.eventId) // one reimbursement record per event
+]);
+
 export type PlatformCharge = typeof platformCharges.$inferSelect;
 export type InsertPlatformCharge = typeof platformCharges.$inferInsert;
 
 export const insertPlatformChargeSchema = createInsertSchema(platformCharges);
 export const platformChargeSchema = insertPlatformChargeSchema.omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Event Payment Audit types
+export type EventPaymentAudit = typeof eventPaymentAudits.$inferSelect;
+export type InsertEventPaymentAudit = typeof eventPaymentAudits.$inferInsert;
+
+export const insertEventPaymentAuditSchema = createInsertSchema(eventPaymentAudits).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Event Reimbursement types
+export type EventReimbursement = typeof eventReimbursements.$inferSelect;
+export type InsertEventReimbursement = typeof eventReimbursements.$inferInsert;
+
+export const insertEventReimbursementSchema = createInsertSchema(eventReimbursements).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
