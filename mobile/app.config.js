@@ -20,7 +20,8 @@ export default {
       }
     },
     plugins: [
-      "expo-apple-authentication"
+      "expo-apple-authentication",
+      "expo-secure-store"
     ],
     scheme: "ludi-mobile",
     extra: {
