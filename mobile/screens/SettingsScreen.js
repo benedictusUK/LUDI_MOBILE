@@ -7,7 +7,7 @@ import { useNavigation } from '@react-navigation/native';
 
 export default function SettingsScreen() {
   const { colors, isDark, themeMode, setThemeMode } = useTheme();
-  const { logout } = useAuth();
+  const { signOut } = useAuth();
   const navigation = useNavigation();
 
   const handleLogout = () => {
@@ -16,7 +16,7 @@ export default function SettingsScreen() {
       'Are you sure you want to log out?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Log Out', style: 'destructive', onPress: logout },
+        { text: 'Log Out', style: 'destructive', onPress: signOut },
       ]
     );
   };

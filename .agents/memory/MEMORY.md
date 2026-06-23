@@ -1,0 +1,3 @@
+- [Mobile auth token storage](mobile-auth-storage.md) — tokens must use SecureStore (expo-secure-store), not AsyncStorage; both are installed
+- [Mobile verifyAuth middleware](mobile-verifyauth.md) — ALL mobile-accessible API endpoints must use verifyAuth, not isAuthenticated
+- [Mobile notification badge pattern](mobile-notification-badge.md) — badge count lives in NotificationContext; screens sync it via updateUnreadCount on fetch/read/delete

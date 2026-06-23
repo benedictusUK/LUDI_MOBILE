@@ -45,6 +45,7 @@ export default function EventDetailsScreen() {
   const [showAuditLog, setShowAuditLog] = useState(false);
   const [auditLog, setAuditLog] = useState([]);
   const [sendingReminders, setSendingReminders] = useState(false);
+  const [updatingAttendance, setUpdatingAttendance] = useState(false);
 
   const fetchEventDetails = async () => {
     try {
@@ -457,6 +458,7 @@ export default function EventDetailsScreen() {
   };
 
   const performAttendanceUpdate = async (status) => {
+    setUpdatingAttendance(true);
     try {
       const response = await apiRequest(`/api/events/${id}/attendance`, {
         method: 'POST',
@@ -464,9 +466,7 @@ export default function EventDetailsScreen() {
       });
 
       if (response.ok) {
-        // Refresh data after attendance update
         fetchEventDetails();
-        // Also refresh payment status if it was released
         if (status !== 'attending' && paymentStatus?.hasAuthorization) {
           fetchPaymentStatus();
         }
@@ -477,13 +477,16 @@ export default function EventDetailsScreen() {
     } catch (error) {
       console.error('Failed to update attendance:', error);
       Alert.alert('Error', 'Failed to update attendance');
+    } finally {
+      setUpdatingAttendance(false);
     }
   };
 
   if (loading) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
-        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading event...</Text>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.textSecondary, marginTop: 12 }]}>Loading event...</Text>
       </View>
     );
   }
@@ -573,65 +576,75 @@ export default function EventDetailsScreen() {
 
         <View style={[styles.attendanceCard, { backgroundColor: colors.card }]}>
           <Text style={[styles.cardTitle, { color: colors.text }]}>Your Attendance</Text>
-          <View style={styles.attendanceButtons}>
-            <TouchableOpacity
-              style={[
-                styles.attendanceButton,
-                styles.attendingButton,
-                userAttendance?.status === 'attending' && styles.attendanceButtonActive
-              ]}
-              onPress={() => handleAttendanceUpdate('attending')}
-            >
-              <Ionicons 
-                name="checkmark-circle" 
-                size={18} 
-                color={userAttendance?.status === 'attending' ? "#ffffff" : "#10b981"} 
-              />
-              <Text style={[
-                styles.attendanceButtonText,
-                userAttendance?.status === 'attending' && styles.attendanceButtonTextActive
-              ]}>
-                Can Attend
-              </Text>
-            </TouchableOpacity>
+          {updatingAttendance ? (
+            <View style={{ paddingVertical: 24, alignItems: 'center' }}>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={[styles.attendanceButtonText, { color: colors.textSecondary, marginTop: 8 }]}>Updating...</Text>
+            </View>
+          ) : (
+            <View style={styles.attendanceButtons}>
+              <TouchableOpacity
+                style={[
+                  styles.attendanceButton,
+                  styles.attendingButton,
+                  userAttendance?.status === 'attending' && styles.attendanceButtonActive
+                ]}
+                onPress={() => handleAttendanceUpdate('attending')}
+                disabled={updatingAttendance}
+              >
+                <Ionicons
+                  name="checkmark-circle"
+                  size={18}
+                  color={userAttendance?.status === 'attending' ? "#ffffff" : "#10b981"}
+                />
+                <Text style={[
+                  styles.attendanceButtonText,
+                  userAttendance?.status === 'attending' && styles.attendanceButtonTextActive
+                ]}>
+                  Can Attend
+                </Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[
-                styles.attendanceButton,
-                styles.notAttendingButton,
-                userAttendance?.status === 'not_attending' && styles.attendanceButtonActive
-              ]}
-              onPress={() => handleAttendanceUpdate('not_attending')}
-            >
-              <Ionicons 
-                name="close-circle" 
-                size={18} 
-                color={userAttendance?.status === 'not_attending' ? "#ffffff" : "#ef4444"} 
-              />
-              <Text style={[
-                styles.attendanceButtonText,
-                userAttendance?.status === 'not_attending' && styles.attendanceButtonTextActive
-              ]}>
-                Can't Attend
-              </Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.attendanceButton,
+                  styles.notAttendingButton,
+                  userAttendance?.status === 'not_attending' && styles.attendanceButtonActive
+                ]}
+                onPress={() => handleAttendanceUpdate('not_attending')}
+                disabled={updatingAttendance}
+              >
+                <Ionicons
+                  name="close-circle"
+                  size={18}
+                  color={userAttendance?.status === 'not_attending' ? "#ffffff" : "#ef4444"}
+                />
+                <Text style={[
+                  styles.attendanceButtonText,
+                  userAttendance?.status === 'not_attending' && styles.attendanceButtonTextActive
+                ]}>
+                  Can't Attend
+                </Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[
-                styles.attendanceButton,
-                styles.maybeButton,
-                userAttendance?.status === 'maybe' && styles.attendanceButtonActive
-              ]}
-              onPress={() => handleAttendanceUpdate('maybe')}
-            >
-              <Text style={[
-                styles.attendanceButtonText,
-                userAttendance?.status === 'maybe' && styles.attendanceButtonTextActive
-              ]}>
-                ? Maybe
-              </Text>
-            </TouchableOpacity>
-          </View>
+              <TouchableOpacity
+                style={[
+                  styles.attendanceButton,
+                  styles.maybeButton,
+                  userAttendance?.status === 'maybe' && styles.attendanceButtonActive
+                ]}
+                onPress={() => handleAttendanceUpdate('maybe')}
+                disabled={updatingAttendance}
+              >
+                <Text style={[
+                  styles.attendanceButtonText,
+                  userAttendance?.status === 'maybe' && styles.attendanceButtonTextActive
+                ]}>
+                  ? Maybe
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         {attendance && (

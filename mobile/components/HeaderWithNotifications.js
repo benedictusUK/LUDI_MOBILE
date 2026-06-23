@@ -1,43 +1,36 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useNotifications } from '../contexts/NotificationContext';
 
 export default function HeaderWithNotifications({ title, showBack = false }) {
   const navigation = useNavigation();
   const { apiRequest } = useAuth();
   const { colors } = useTheme();
-  const [unreadCount, setUnreadCount] = useState(0);
+  const { unreadCount, updateUnreadCount } = useNotifications();
 
   useEffect(() => {
-    fetchUnreadCount();
-    
-    // Refresh unread count when screen comes into focus
-    const unsubscribe = navigation.addListener('focus', () => {
-      fetchUnreadCount();
-    });
-    
-    return unsubscribe;
-  }, [navigation]);
+    fetchInitialCount();
+  }, []);
 
-  const fetchUnreadCount = async () => {
+  const fetchInitialCount = async () => {
     try {
       const response = await apiRequest('/api/notifications');
       if (response.ok) {
         const data = await response.json();
         const unread = data.filter(n => !n.isRead).length;
-        setUnreadCount(unread);
+        updateUnreadCount(unread);
       }
     } catch (error) {
-      console.error('Failed to fetch unread notifications count:', error);
+      // Silently fail — badge count is non-critical
     }
   };
 
   const handleNotificationsPress = () => {
-    // Navigate to Notifications at the root stack level
     navigation.getParent()?.navigate('Notifications');
   };
 
@@ -45,8 +38,8 @@ export default function HeaderWithNotifications({ title, showBack = false }) {
     <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
       <View style={styles.leftSection}>
         {showBack && (
-          <TouchableOpacity 
-            onPress={() => navigation.goBack()} 
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
             style={styles.backButton}
             activeOpacity={0.7}
           >
@@ -62,8 +55,8 @@ export default function HeaderWithNotifications({ title, showBack = false }) {
           <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
         )}
       </View>
-      <TouchableOpacity 
-        onPress={handleNotificationsPress} 
+      <TouchableOpacity
+        onPress={handleNotificationsPress}
         style={styles.notificationButton}
         activeOpacity={0.7}
       >

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 
 const AuthContext = createContext({});
 
@@ -13,6 +13,9 @@ export const useAuth = () => {
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
 
+const TOKEN_KEY = 'userToken';
+const USER_ID_KEY = 'userId';
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -24,39 +27,28 @@ export function AuthProvider({ children }) {
 
   const checkAuthState = async () => {
     try {
-      console.log('[AuthContext] Checking auth state...');
-      const storedToken = await AsyncStorage.getItem('userToken');
-      const storedUserId = await AsyncStorage.getItem('userId');
+      const storedToken = await SecureStore.getItemAsync(TOKEN_KEY);
+      const storedUserId = await SecureStore.getItemAsync(USER_ID_KEY);
 
       if (storedToken && storedUserId) {
-        console.log('[AuthContext] Found stored token, verifying...');
         setToken(storedToken);
-        
-        // Verify token is still valid and get user data
+
         const response = await fetch(`${API_BASE_URL}/api/auth/user`, {
           headers: {
             'Authorization': `Bearer ${storedToken}`
           }
         });
 
-        console.log('[AuthContext] Token verification response:', response.status);
-
         if (response.ok) {
           const userData = await response.json();
-          console.log('[AuthContext] User authenticated:', userData.id);
           setUser(userData);
         } else {
-          // Token is invalid, clear storage
-          console.log('[AuthContext] Token invalid, clearing storage');
           await signOut();
         }
-      } else {
-        console.log('[AuthContext] No stored token found');
       }
     } catch (error) {
       console.error('[AuthContext] Error checking auth state:', error);
     } finally {
-      console.log('[AuthContext] Setting isLoading to false');
       setIsLoading(false);
     }
   };
@@ -65,8 +57,8 @@ export function AuthProvider({ children }) {
     try {
       setUser(userData);
       setToken(authToken);
-      await AsyncStorage.setItem('userToken', authToken);
-      await AsyncStorage.setItem('userId', userData.id);
+      await SecureStore.setItemAsync(TOKEN_KEY, authToken);
+      await SecureStore.setItemAsync(USER_ID_KEY, userData.id);
     } catch (error) {
       console.error('Error signing in:', error);
       throw error;
@@ -77,8 +69,8 @@ export function AuthProvider({ children }) {
     try {
       setUser(null);
       setToken(null);
-      await AsyncStorage.removeItem('userToken');
-      await AsyncStorage.removeItem('userId');
+      await SecureStore.deleteItemAsync(TOKEN_KEY);
+      await SecureStore.deleteItemAsync(USER_ID_KEY);
     } catch (error) {
       console.error('Error signing out:', error);
     }
@@ -88,11 +80,10 @@ export function AuthProvider({ children }) {
     setUser(prev => ({ ...prev, ...updatedUserData }));
   };
 
-  // API request helper with authentication
   const apiRequest = async (endpoint, options = {}) => {
     const url = `${API_BASE_URL}${endpoint}`;
     const method = options.method || 'GET';
-    
+
     const headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
@@ -103,40 +94,26 @@ export function AuthProvider({ children }) {
       headers.Authorization = `Bearer ${token}`;
     }
 
-    console.log('[apiRequest] Making request:', method, url);
-    console.log('[apiRequest] Headers:', JSON.stringify(headers));
-    if (options.body) {
-      console.log('[apiRequest] Body length:', options.body.length);
-    }
-
     try {
-      // Add timeout to prevent hanging requests
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
-        console.log('[apiRequest] Timeout triggered for:', endpoint);
         controller.abort();
-      }, 30000); // 30 second timeout
+      }, 30000);
 
       const fetchOptions = {
         method,
         headers,
         signal: controller.signal,
       };
-      
-      // Only add body for non-GET requests
+
       if (options.body && method !== 'GET') {
         fetchOptions.body = options.body;
       }
 
-      console.log('[apiRequest] Calling fetch...');
       const response = await fetch(url, fetchOptions);
-
       clearTimeout(timeoutId);
 
-      console.log('[apiRequest] Response received, status:', response.status);
-
       if (response.status === 401) {
-        // Token expired or invalid
         await signOut();
         throw new Error('Authentication required');
       }
@@ -144,10 +121,8 @@ export function AuthProvider({ children }) {
       return response;
     } catch (error) {
       if (error.name === 'AbortError') {
-        console.error('[apiRequest] Request timeout after 30s:', endpoint);
         throw new Error('Request timeout - please check your internet connection');
       }
-      console.error('[apiRequest] Request failed:', error.message, error.name);
       throw error;
     }
   };
@@ -158,6 +133,7 @@ export function AuthProvider({ children }) {
     isLoading,
     signIn,
     signOut,
+    logout: signOut,
     updateUser,
     apiRequest,
     isAuthenticated: !!user,

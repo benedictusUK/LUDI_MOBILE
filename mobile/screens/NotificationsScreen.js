@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useNotifications } from '../contexts/NotificationContext';
 import { useNavigation } from '@react-navigation/native';
 
 export default function NotificationsScreen() {
@@ -22,6 +23,7 @@ export default function NotificationsScreen() {
   const [processingIds, setProcessingIds] = useState(new Set());
   const { apiRequest } = useAuth();
   const { colors, isDark } = useTheme();
+  const { updateUnreadCount } = useNotifications();
   const navigation = useNavigation();
 
   const fetchNotifications = async () => {
@@ -30,6 +32,8 @@ export default function NotificationsScreen() {
       if (response.ok) {
         const data = await response.json();
         setNotifications(data || []);
+        const unread = (data || []).filter(n => !n.isRead).length;
+        updateUnreadCount(unread);
       } else {
         Alert.alert('Error', 'Failed to load notifications');
       }
@@ -57,13 +61,16 @@ export default function NotificationsScreen() {
         method: 'PUT',
       });
       if (response.ok) {
-        setNotifications(prev =>
-          prev.map(notification =>
+        setNotifications(prev => {
+          const updated = prev.map(notification =>
             notification.id === notificationId
               ? { ...notification, isRead: true, readAt: new Date().toISOString() }
               : notification
-          )
-        );
+          );
+          const unread = updated.filter(n => !n.isRead).length;
+          updateUnreadCount(unread);
+          return updated;
+        });
       }
     } catch (error) {
       console.error('Failed to mark notification as read:', error);
@@ -76,13 +83,16 @@ export default function NotificationsScreen() {
         method: 'PUT',
       });
       if (response.ok) {
-        setNotifications(prev =>
-          prev.map(notification =>
+        setNotifications(prev => {
+          const updated = prev.map(notification =>
             notification.id === notificationId
               ? { ...notification, isRead: false, readAt: null }
               : notification
-          )
-        );
+          );
+          const unread = updated.filter(n => !n.isRead).length;
+          updateUnreadCount(unread);
+          return updated;
+        });
       }
     } catch (error) {
       console.error('Failed to mark notification as unread:', error);
@@ -134,6 +144,7 @@ export default function NotificationsScreen() {
             readAt: new Date().toISOString(),
           }))
         );
+        updateUnreadCount(0);
       }
     } catch (error) {
       console.error('Failed to mark all notifications as read:', error);

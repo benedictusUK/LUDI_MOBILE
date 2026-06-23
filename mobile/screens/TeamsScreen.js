@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, RefreshControl, Alert, SafeAreaView } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, RefreshControl, Alert, SafeAreaView, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -37,9 +37,9 @@ export default function TeamsScreen() {
     }
   };
 
-  const fetchPendingRequests = async () => {
-    if (pendingLoaded && !refreshing) return;
-    
+  const fetchPendingRequests = async (force = false) => {
+    if (pendingLoaded && !force) return;
+
     setPendingLoading(true);
     try {
       const response = await apiRequest('/api/teams/my-pending-requests');
@@ -73,8 +73,7 @@ export default function TeamsScreen() {
     if (activeTab === 'myTeams') {
       fetchTeams();
     } else {
-      setPendingLoaded(false);
-      fetchPendingRequests().finally(() => setRefreshing(false));
+      fetchPendingRequests(true).finally(() => setRefreshing(false));
     }
   };
 
@@ -145,8 +144,9 @@ export default function TeamsScreen() {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <HeaderWithNotifications title="Teams" />
-        <View style={styles.centerContainer}>
-          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading teams...</Text>
+        <View style={[styles.centerContainer, { backgroundColor: colors.background }]}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.loadingText, { color: colors.textSecondary, marginTop: 12 }]}>Loading teams...</Text>
         </View>
       </SafeAreaView>
     );
