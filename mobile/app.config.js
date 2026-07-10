@@ -21,7 +21,15 @@ export default {
     },
     plugins: [
       "expo-apple-authentication",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "@stripe/stripe-react-native",
+        {
+          merchantIdentifier: "merchant.com.ludi.mobile",
+          enableGooglePay: false
+        }
+      ],
+      "expo-web-browser"
     ],
     scheme: "ludi-mobile",
     extra: {
