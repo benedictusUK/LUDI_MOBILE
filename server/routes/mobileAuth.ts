@@ -1,7 +1,7 @@
 import { Router } from "express";
 import jwt from "jsonwebtoken";
 import { storage } from "../storage";
-import { verifyAppleToken } from "../oauthProviders";
+import { verifyAppleMobileToken } from "../oauthProviders";
 
 // Extend session interface to include mobile redirect URI
 declare module 'express-session' {
@@ -188,25 +188,33 @@ router.post('/apple', async (req, res) => {
   try {
     const { identity_token, user_info } = req.body;
 
-    if (!identity_token) {
+    if (typeof identity_token !== 'string' || !identity_token) {
       return res.status(400).json({ message: 'Apple identity token required' });
     }
 
-    // Verify Apple token
-    const applePayload = jwt.decode(identity_token) as any;
-    
-    // Apple only provides email on first sign-in, so we only require the user ID (sub)
-    if (!applePayload || !applePayload.sub) {
-      return res.status(400).json({ message: 'Invalid Apple identity token' });
+    let applePayload;
+    try {
+      applePayload = await verifyAppleMobileToken(identity_token);
+    } catch (error) {
+      console.error('Apple identity token verification failed:', error);
+      return res.status(401).json({ message: 'Invalid or expired Apple identity token' });
     }
 
-    // Try to get email from token first, then from user_info
-    // Email may be null on repeat sign-ins - that's OK
-    const email = applePayload.email || user_info?.email || null;
+    // Apple may omit email on subsequent sign-ins. Never trust email supplied
+    // by the client; an existing account already has its verified address.
+    const userId = `apple_${applePayload.sub}`;
+    const existingUser = await storage.getUserById(userId);
+    const email = applePayload.email || existingUser?.email || null;
+
+    if (!email) {
+      return res.status(400).json({
+        message: 'Apple did not provide an email address for this account',
+      });
+    }
 
     // Create or update user
     const userData = {
-      id: `apple_${applePayload.sub}`,
+      id: userId,
       email: email,
       firstName: user_info?.fullName?.givenName || undefined,
       lastName: user_info?.fullName?.familyName || undefined,

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -24,7 +24,24 @@ const GOOGLE_ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_I
 
 export default function AuthScreen({ onAuthSuccess }) {
   const [isLoading, setIsLoading] = useState(false);
+  const [isAppleAvailable, setIsAppleAvailable] = useState(null);
   const { signIn } = useAuth();
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+
+    let mounted = true;
+    AppleAuthentication.isAvailableAsync()
+      .then((available) => {
+        if (mounted) setIsAppleAvailable(available);
+      })
+      .catch((error) => {
+        console.error('Apple Sign-In availability check failed:', error);
+        if (mounted) setIsAppleAvailable(false);
+      });
+
+    return () => { mounted = false; };
+  }, []);
 
   // Handle Google Sign In - currently not supported in Expo Go
   const handleGoogleSignIn = async () => {
@@ -99,6 +116,7 @@ export default function AuthScreen({ onAuthSuccess }) {
   };
 
   const handleAppleSignIn = async () => {
+    if (isLoading || !isAppleAvailable) return;
     try {
       setIsLoading(true);
       
@@ -108,6 +126,10 @@ export default function AuthScreen({ onAuthSuccess }) {
           AppleAuthentication.AppleAuthenticationScope.EMAIL,
         ],
       });
+
+      if (!credential.identityToken) {
+        throw new Error('Apple did not return an identity token. Please try again.');
+      }
 
       const response = await fetch(`${API_BASE_URL}/api/auth/mobile/apple`, {
         method: 'POST',
@@ -137,7 +159,7 @@ export default function AuthScreen({ onAuthSuccess }) {
         return;
       }
       console.error('Apple auth error:', error);
-      Alert.alert('Authentication Error', 'Unable to sign in with Apple');
+      Alert.alert('Apple Sign-In Failed', error.message || 'Unable to sign in with Apple');
     } finally {
       setIsLoading(false);
     }
@@ -220,14 +242,20 @@ export default function AuthScreen({ onAuthSuccess }) {
             <Text style={[styles.authButtonText, styles.googleButtonText]}>Continue with Google (Limited)</Text>
           </TouchableOpacity>
 
-          {/* Apple Sign In */}
-          <AppleAuthentication.AppleAuthenticationButton
-            buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
-            buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-            cornerRadius={8}
-            style={styles.appleButton}
-            onPress={handleAppleSignIn}
-          />
+          {Platform.OS === 'ios' && isAppleAvailable && (
+            <AppleAuthentication.AppleAuthenticationButton
+              buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+              cornerRadius={8}
+              style={styles.appleButton}
+              onPress={handleAppleSignIn}
+            />
+          )}
+          {Platform.OS === 'ios' && isAppleAvailable === false && (
+            <Text style={styles.appleUnavailableText}>
+              Apple Sign-In is unavailable on this device. If you use Expo Go, update it to the latest version.
+            </Text>
+          )}
         </View>
 
         <Text style={styles.termsText}>
@@ -305,6 +333,11 @@ const styles = StyleSheet.create({
   },
   appleButton: {
     height: 50,
+  },
+  appleUnavailableText: {
+    fontSize: 13,
+    color: '#64748b',
+    textAlign: 'center',
   },
   termsText: {
     textAlign: 'center',
