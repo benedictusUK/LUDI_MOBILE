@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "LUDI"
+description = "The existing LUDI website for sports events, teams, payments, profiles, and community connections."
+version = "1.0.0"
+id = "artifacts/ludi-web"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21729
+
+[services.development]
+run = "pnpm --filter @workspace/ludi-web run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/ludi-web", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/ludi-web/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21729"
+BASE_PATH = "/"
