@@ -6,6 +6,7 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { collectPaymentHandler } from "./routes/payments";
 import mobileAuthRoutes, { verifyMobileToken, verifyAuth } from "./routes/mobileAuth";
+import { isAllowedMobileRedirect } from "./mobileRedirect";
 import { 
   insertTeamSchema, 
   insertEventSchema, 
@@ -37,10 +38,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Mobile-specific Replit auth endpoints
   app.get('/api/mobile/login', (req, res) => {
-    const redirectUri = req.query.redirect_uri as string;
-    if (redirectUri) {
-      req.session.mobileRedirectUri = redirectUri;
+    const redirectUri = req.query.redirect_uri;
+    if (!isAllowedMobileRedirect(redirectUri)) {
+      res.status(400).json({ message: 'Invalid mobile redirect URI' });
+      return;
     }
+    req.session.mobileRedirectUri = redirectUri;
     res.redirect('/api/login');
   });
 

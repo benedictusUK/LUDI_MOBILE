@@ -1,6 +1,7 @@
-- [Expo Go iOS sign-in](expo-go-ios-sign-in.md) — current iOS Expo Go requires CLI and phone signed into the same Expo account.
+- [Expo Go iOS sign-in](expo-go-ios-sign-in.md) — use Replit's managed Preview on your phone sign-in, not manual Expo CLI login.
 - [Expo tunnel process lifecycle](expo-tunnel-processes.md) — workflow stops can leave old Metro and ngrok descendants alive; check process groups before diagnosing a tunnel.
 - [Post-merge dependency installs](post-merge-dependencies.md) — clean installs can expose firewall-blocked transitive packages in an unrelated lockfile.
 - [Apple Sign-In in Expo Go](apple-sign-in-expo-go.md) — older Expo Go builds can omit the native module; development tokens use Expo Go's shared audience.
 - [Replit App Store publishing](replit-app-store-publishing.md) — guided publishing needs a registered mobile artifact; an Expo folder and workflow alone are not enough.
 - [Live-app migration scope](live-app-migration-scope.md) — preserve the legacy API and frontend fetch layer during structural moves; defer API-client rewrites.
+- [Legacy Expo navigation](legacy-expo-navigation.md) — preserving React Navigation in an Expo 57 artifact requires removing the starter Router and pointing the bundle entry at the legacy root.

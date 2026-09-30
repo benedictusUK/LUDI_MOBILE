@@ -2,6 +2,7 @@ import { Router } from "express";
 import jwt from "jsonwebtoken";
 import { storage } from "../storage";
 import { verifyAppleMobileToken } from "../oauthProviders";
+import { isAllowedMobileRedirect } from "../mobileRedirect";
 
 // Extend session interface to include mobile redirect URI
 declare module 'express-session' {
@@ -238,10 +239,10 @@ router.post('/apple', async (req, res) => {
 
 // Replit OAuth redirect for mobile
 router.get('/replit/login', (req, res) => {
-  const redirectUri = req.query.redirect_uri as string;
+  const redirectUri = req.query.redirect_uri;
   
-  if (!redirectUri) {
-    return res.status(400).json({ message: 'Redirect URI required' });
+  if (!isAllowedMobileRedirect(redirectUri)) {
+    return res.status(400).json({ message: 'Invalid mobile redirect URI' });
   }
 
   // Store the mobile redirect URI in session
@@ -255,6 +256,9 @@ router.get('/replit/login', (req, res) => {
 router.get('/replit/callback', async (req, res) => {
   const user = req.user as any;
   const mobileRedirectUri = req.session?.mobileRedirectUri;
+  if (mobileRedirectUri && !isAllowedMobileRedirect(mobileRedirectUri)) {
+    return res.status(400).json({ message: 'Invalid mobile redirect URI' });
+  }
 
   if (!user || !user.claims) {
     const error = mobileRedirectUri ? 

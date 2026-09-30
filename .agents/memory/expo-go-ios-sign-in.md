@@ -7,4 +7,4 @@ For current iOS Expo Go, both the Expo CLI that starts the project and the Expo 
 
 **Why:** Expo announced this requirement in September 2026. A live tunnel, successful manifest, and successful bundle do not guarantee an iPhone can open the project if either session is missing or mismatched.
 
-**How to apply:** When diagnosing an iOS Expo Go loading problem, verify CLI login with `expo whoami`, ask the user to update Expo Go and sign in there with that same account, then use the current QR code/tunnel address rather than an older saved link. Never request their credentials.
+**How to apply:** Use Replit's **Preview on your phone** managed Expo sign-in instructions. The artifact's development workflow signs the CLI in through `create-launch` when a managed session is available; never suggest manual `expo login`, EAS login, or signing into a managed private account directly. If the panel has no managed sign-in steps, explain that the managed flow is unavailable in this session. Use the current QR code, not an older saved link. Never request credentials.

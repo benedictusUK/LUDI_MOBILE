@@ -8,6 +8,7 @@ import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 import { setupGoogleOAuth, setupOAuthRoutes } from "./oauthProviders";
+import { isAllowedMobileRedirect } from "./mobileRedirect";
 
 if (!process.env.REPLIT_DOMAINS) {
   throw new Error("Environment variable REPLIT_DOMAINS not provided");
@@ -114,12 +115,34 @@ export async function setupAuth(app: Express) {
     })(req, res, next);
   });
 
-  app.get("/api/callback", (req, res, next) => {
-    passport.authenticate(`replitauth:${req.hostname}`, {
-      successReturnToOrRedirect: "/",
-      failureRedirect: "/api/login",
-    })(req, res, next);
-  });
+  app.get(
+    "/api/callback",
+    (req, res, next) => {
+      passport.authenticate(`replitauth:${req.hostname}`, {
+        failureRedirect: "/api/login",
+      })(req, res, next);
+    },
+    async (req, res, next) => {
+      const redirectUri = req.session.mobileRedirectUri;
+      if (!redirectUri) return res.redirect("/");
+      delete req.session.mobileRedirectUri;
+      if (!isAllowedMobileRedirect(redirectUri)) {
+        return res.status(400).json({ message: "Invalid mobile redirect URI" });
+      }
+      try {
+        const userId = (req.user as any)?.claims?.sub;
+        const user = userId && await storage.getUserById(userId);
+        if (!user) return res.status(401).json({ message: "Mobile sign-in failed" });
+        const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "30d" });
+        const destination = new URL(redirectUri);
+        destination.searchParams.set("token", token);
+        destination.searchParams.set("user_id", user.id);
+        res.redirect(destination.href);
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
 
   app.get("/api/logout", (req, res) => {
     req.logout(() => {

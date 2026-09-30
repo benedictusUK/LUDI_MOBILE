@@ -1,0 +1,24 @@
+kind = "mobile"
+previewPath = "/ludi-mobile/"
+title = "LUDI Mobile"
+description = "LUDI's existing iOS and Android companion app for events, teams, payments, notifications, and sign-in."
+version = "1.0.0"
+id = "artifacts/ludi-mobile"
+router = "expo-domain"
+
+[[services]]
+name = "expo"
+ensurePreviewReachable = "/status"
+paths = [ "/ludi-mobile/" ]
+localPort = 22570
+
+[services.development]
+run = "pnpm --filter @workspace/ludi-mobile run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/ludi-mobile", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/ludi-mobile", "run", "serve" ]
+
+[services.env]
+PORT = "22570"
+BASE_PATH = "/ludi-mobile/"

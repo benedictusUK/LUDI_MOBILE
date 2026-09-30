@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "LUDI Mobile",
+    "slug": "ludi-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "ludi-mobile",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ludi.mobile",
+      "usesAppleSignIn": true,
+      "entitlements": {
+        "com.apple.developer.applesignin": ["Default"]
+      }
+    },
+    "android": {
+      "package": "com.ludi.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#3b82f6"
+      }
+    },
+    "web": {
+      "favicon": "./assets/images/icon.png"
+    },
+    "plugins": [
+      "expo-apple-authentication",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#3b82f6"
+        }
+      ],
+      "expo-font",
+      "expo-secure-store",
+      "expo-status-bar",
+      [
+        "@stripe/stripe-react-native",
+        {
+          "merchantIdentifier": "merchant.com.ludi.mobile",
+          "enableGooglePay": false
+        }
+      ],
+      "expo-web-browser"
+    ]
+  }
+}
