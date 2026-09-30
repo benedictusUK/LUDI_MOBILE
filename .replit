@@ -77,3 +77,7 @@ integrations = ["javascript_stripe:1.0.0", "javascript_log_in_with_replit:1.0.0"
 
 [userenv.shared]
 GOOGLE_CLIENT_ID = "183560854708-ilojsa6hhgav90kfltr7r33nlr4bas19.apps.googleusercontent.com"
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 180000

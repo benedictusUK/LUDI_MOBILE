@@ -1,2 +1,3 @@
 - [Expo Go iOS sign-in](expo-go-ios-sign-in.md) — current iOS Expo Go requires CLI and phone signed into the same Expo account.
 - [Expo tunnel process lifecycle](expo-tunnel-processes.md) — workflow stops can leave old Metro and ngrok descendants alive; check process groups before diagnosing a tunnel.
+- [Post-merge dependency installs](post-merge-dependencies.md) — clean installs can expose firewall-blocked transitive packages in an unrelated lockfile.
