@@ -47,7 +47,7 @@ export default function AuthScreen({ onAuthSuccess }) {
   const handleGoogleSignIn = async () => {
     Alert.alert(
       'Google Sign-In Not Available',
-      'Google OAuth has technical limitations in Expo Go. Please use:\n\n• Replit Sign-In\n• Apple Sign-In (on iOS)\n\nGoogle Sign-In will be available when the app is published as a standalone app.',
+      'Google OAuth has technical limitations in Expo Go. Please use:\n\n• Replit Sign-In\n• Apple Sign-In (if available on iOS)\n\nGoogle Sign-In will be available when the app is published as a standalone app.',
       [{ text: 'OK' }]
     );
   };
@@ -154,7 +154,7 @@ export default function AuthScreen({ onAuthSuccess }) {
         Alert.alert('Authentication Failed', data.message || 'Please try again');
       }
     } catch (error) {
-      if (error.code === 'ERR_CANCELED') {
+      if (error.code === 'ERR_REQUEST_CANCELED' || error.code === 'ERR_CANCELED') {
         // User canceled the sign-in flow
         return;
       }
@@ -253,7 +253,7 @@ export default function AuthScreen({ onAuthSuccess }) {
           )}
           {Platform.OS === 'ios' && isAppleAvailable === false && (
             <Text style={styles.appleUnavailableText}>
-              Apple Sign-In is unavailable on this device. If you use Expo Go, update it to the latest version.
+              Apple Sign-In is unavailable in this iOS app. If Expo Go is up to date, it may not include the native Apple module. An iOS development build with Apple Sign-In enabled is needed to test it reliably.
             </Text>
           )}
         </View>
