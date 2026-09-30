@@ -36,5 +36,8 @@
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
     "react-native-webview": "13.16.1"
+  },
+  "overrides": {
+    "shell-quote": "1.11.0"
   }
 }
