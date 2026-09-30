@@ -21,7 +21,9 @@ export default {
     },
     plugins: [
       "expo-apple-authentication",
+      "expo-font",
       "expo-secure-store",
+      "expo-status-bar",
       [
         "@stripe/stripe-react-native",
         {
