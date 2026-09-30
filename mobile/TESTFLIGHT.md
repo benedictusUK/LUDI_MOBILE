@@ -1,58 +1,40 @@
-# Test Apple Sign-In on an iPhone and in TestFlight
+# App Store and TestFlight publishing on Replit
 
-The `internal` profile builds a standalone iPhone app for direct installation.
-Unlike Expo Go, it includes the native Apple Sign-In module and uses LUDI's
-`com.ludi.mobile` identifier. It also exercises the same Apple entitlement as
-the `testflight` profile. It is not a developer-client build: it runs its bundled
-JavaScript without a Metro server, making the sign-in test closer to TestFlight.
+Replit's **Start publishing to the App Store** button uses the guided Launch
+wizard in the Project Editor. It does **not** use `eas-cli` from the Replit
+shell. `mobile/eas.json` is an Expo build profile for external EAS use, not
+the way to start Replit's publishing wizard.
 
-## Before either build
+## Project prerequisite
 
-1. An Expo account and a paid Apple Developer Program membership are required
-   for signing and installing an iOS build on a physical device.
-2. In `mobile/`, sign in with `npx eas-cli login`, then run
-   `npx eas-cli init`. This creates or links an Expo project. Because this app
-   uses a dynamic `app.config.js`, EAS may ask you to add the resulting UUID
-   yourself as `extra.eas.projectId` in that file; do not use the app slug in
-   its place. The previous placeholder ID was removed because it cannot
-   identify an EAS project.
-3. In the linked Expo project's **Environment variables**, set
-   `EXPO_PUBLIC_API_URL` to the HTTPS origin of the LUDI backend for both the
-   **development** and **production** environments. These are EAS environments,
-   separate from Replit environment variables. A TestFlight binary embeds this
-   URL at build time: do not use `localhost` or a temporary development address
-   for the production environment. The backend must be reachable from the
-   iPhone, with `/api/auth/mobile/apple` available.
-4. Make sure the Apple Developer team owns the `com.ludi.mobile` bundle
-   identifier. EAS Build can enable the Sign in with Apple capability while
-   configuring iOS signing. Keep `ios.usesAppleSignIn` and the
-   `expo-apple-authentication` plugin in `app.config.js`.
+The existing Expo app currently lives in `mobile/` and runs through the
+`Expo Mobile` workflow. It is **not registered as a mobile artifact** in this
+legacy web project. A folder and workflow alone do not provide a mobile
+artifact for Replit's App Store publishing flow. Moving the existing web
+and mobile apps into a supported multi-artifact project structure is a
+separate migration; do not start it without confirming its scope and
+checking that both apps still run afterward.
 
-## Test without TestFlight
+## Once the mobile app is registered
 
-From `mobile/`, register the iPhone with `npx eas-cli device:create`, then run:
+1. Ensure the web backend is published and publicly reachable over HTTPS.
+   The App Store build must call that stable backend, not `localhost` or a
+   temporary Replit development address. Configure the mobile build's
+   `EXPO_PUBLIC_API_URL` accordingly before building.
+2. In the Project Editor on replit.com, open **Publishing** and select
+   **Start publishing to the App Store**. Choose or link the Expo project,
+   connect the Apple Developer Program account, select the Apple app, and
+   complete signing in the Launch wizard.
+3. Verify the intended bundle identifier is `com.ludi.mobile` and owned by
+   that Apple team before the first build. The bundle ID becomes permanent
+   for this Replit project's App Store publishing flow after first publish.
+   `ios.usesAppleSignIn` and the `expo-apple-authentication` plugin must
+   remain enabled in `app.config.js`.
+4. Launch the build to App Store Connect, then install it with TestFlight.
+   Check Apple Sign-In on an iPhone both the first time and on repeat
+   sign-in, when Apple may omit name and email. Do not submit for App Review
+   until the actual signed TestFlight build works.
 
-```sh
-npx eas-cli build --platform ios --profile internal
-```
-
-Install the resulting internal-distribution build on the registered iPhone and
-try Continue with Apple. This build uses ad hoc signing and cannot be uploaded
-to TestFlight. Check both a first sign-in and a repeat sign-in; Apple may omit
-the name and email on repeat sign-ins.
-
-## TestFlight
-
-Once a stable HTTPS backend is available in the production EAS environment:
-
-```sh
-npx eas-cli build --platform ios --profile testflight
-npx eas-cli submit --platform ios --latest
-```
-
-The `testflight` profile uses store distribution and a new iOS build number.
-After Apple processes the upload, install it using TestFlight and check Apple
-Sign-In against the backend again. App Store Connect access, signing, and
-Apple's processing are required; configuring the profiles alone does not prove
-a signed build or a device sign-in succeeds. Do not publish the app until the
-TestFlight sign-in has actually passed.
+A paid Apple Developer Program membership is required. The local Expo
+configuration and JavaScript export can be checked before this process,
+but neither proves a signed TestFlight build or a real Apple sign-in works.
