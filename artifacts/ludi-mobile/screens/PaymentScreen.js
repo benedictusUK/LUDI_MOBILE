@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Alert,
   ScrollView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useStripe } from '../lib/stripe';
@@ -59,13 +60,9 @@ export default function PaymentScreen({ route }) {
           merchantDisplayName: 'LUDI Sports',
           paymentIntentClientSecret: clientSecret,
           style: 'alwaysDark',
-          googlePay: {
-            merchantCountryCode: 'GB',
-            testEnv: true,
-          },
-          applePay: {
-            merchantCountryCode: 'GB',
-          },
+          ...(Platform.OS === 'android' ? {
+            googlePay: { merchantCountryCode: 'GB', testEnv: true },
+          } : {}),
         });
 
         if (!error) {

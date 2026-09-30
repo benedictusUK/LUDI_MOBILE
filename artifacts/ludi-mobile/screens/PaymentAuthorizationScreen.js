@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useStripe } from '../lib/stripe';
 import { useAuth } from '../contexts/AuthContext';
@@ -117,7 +117,7 @@ export default function PaymentAuthorizationScreen() {
     }
   };
 
-  const handlePayWithApplePay = async () => {
+  const handlePayWithGooglePay = async () => {
     try {
       setProcessing(true);
 
@@ -138,7 +138,6 @@ export default function PaymentAuthorizationScreen() {
       const { error: initError } = await initPaymentSheet({
         merchantDisplayName: 'LUDI Sports',
         paymentIntentClientSecret: clientSecret,
-        applePay: { merchantCountryCode: 'GB' },
         googlePay: { merchantCountryCode: 'GB', testEnv: true },
       });
 
@@ -186,7 +185,7 @@ export default function PaymentAuthorizationScreen() {
         [{ text: 'OK', onPress: () => navigation.goBack() }]
       );
     } catch (error) {
-      console.error('Apple Pay error:', error);
+      console.error('Google Pay error:', error);
       Alert.alert('Error', error.message || 'Failed to process payment');
     } finally {
       setProcessing(false);
@@ -296,28 +295,7 @@ export default function PaymentAuthorizationScreen() {
           </TouchableOpacity>
         ))}
 
-        <TouchableOpacity
-          style={[
-            styles.paymentMethodItem,
-            { 
-              backgroundColor: colors.card,
-              borderColor: selectedMethod === 'apple-pay' ? colors.primary : colors.border,
-              borderWidth: selectedMethod === 'apple-pay' ? 2 : 1,
-            }
-          ]}
-          onPress={() => setSelectedMethod('apple-pay')}
-          data-testid="payment-method-apple-pay"
-        >
-          <View style={styles.radioOuter}>
-            {selectedMethod === 'apple-pay' && (
-              <View style={[styles.radioInner, { backgroundColor: colors.primary }]} />
-            )}
-          </View>
-          <Ionicons name="phone-portrait" size={24} color={colors.textSecondary} />
-          <Text style={[styles.methodName, { color: colors.text }]}>Apple Pay</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
+        {Platform.OS === 'android' && <TouchableOpacity
           style={[
             styles.paymentMethodItem,
             { 
@@ -336,14 +314,16 @@ export default function PaymentAuthorizationScreen() {
           </View>
           <Ionicons name="wallet" size={24} color={colors.textSecondary} />
           <Text style={[styles.methodName, { color: colors.text }]}>Google Pay</Text>
-        </TouchableOpacity>
+        </TouchableOpacity>}
 
         {paymentMethods.length === 0 && (
           <View style={[styles.emptyState, { backgroundColor: colors.card }]}>
             <Ionicons name="card-outline" size={48} color={colors.textSecondary} />
             <Text style={[styles.emptyTitle, { color: colors.text }]}>No saved cards</Text>
             <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-              Use Apple Pay or Google Pay, or add a card in Settings.
+              {Platform.OS === 'android'
+                ? 'Use Google Pay or add a card in Settings.'
+                : 'Add a card in Settings to continue.'}
             </Text>
           </View>
         )}
@@ -363,8 +343,8 @@ export default function PaymentAuthorizationScreen() {
             { backgroundColor: colors.primary },
             (!selectedMethod || processing) && styles.disabledButton
           ]}
-          onPress={selectedMethod === 'apple-pay' || selectedMethod === 'google-pay' 
-            ? handlePayWithApplePay 
+          onPress={selectedMethod === 'google-pay'
+            ? handlePayWithGooglePay
             : handleAuthorizePayment}
           disabled={!selectedMethod || processing}
           data-testid="button-authorize-payment"

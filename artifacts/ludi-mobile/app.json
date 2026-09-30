@@ -38,7 +38,7 @@
       [
         "@stripe/stripe-react-native",
         {
-          "merchantIdentifier": "merchant.com.ludi.mobile",
+          "merchantIdentifier": [],
           "enableGooglePay": false
         }
       ],

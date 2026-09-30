@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useStripe } from '../lib/stripe';
 import { useAuth } from '../contexts/AuthContext';
@@ -55,8 +55,9 @@ export default function PaymentMethodsScreen() {
       const { error: initError } = await initPaymentSheet({
         merchantDisplayName: 'LUDI Sports',
         setupIntentClientSecret: clientSecret,
-        applePay: { merchantCountryCode: 'GB' },
-        googlePay: { merchantCountryCode: 'GB', testEnv: true },
+        ...(Platform.OS === 'android' ? {
+          googlePay: { merchantCountryCode: 'GB', testEnv: true },
+        } : {}),
       });
 
       if (initError) {

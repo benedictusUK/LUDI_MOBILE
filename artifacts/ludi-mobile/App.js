@@ -210,7 +210,6 @@ export default function App() {
             <NotificationProvider>
               <SafeStripeProvider
                 publishableKey={STRIPE_PUBLISHABLE_KEY}
-                merchantIdentifier="merchant.com.ludi.mobile"
                 urlScheme="ludi-mobile"
               >
                 <AppContent />

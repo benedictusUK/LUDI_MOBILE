@@ -13,7 +13,7 @@ try {
   console.log('Stripe native module not available:', e.message);
 }
 
-export function SafeStripeProvider({ children, publishableKey, merchantIdentifier, urlScheme }) {
+export function SafeStripeProvider({ children, publishableKey, urlScheme }) {
   if (!stripeAvailable || !StripeProviderComponent) {
     return <>{children}</>;
   }
@@ -21,7 +21,6 @@ export function SafeStripeProvider({ children, publishableKey, merchantIdentifie
   return (
     <StripeProviderComponent
       publishableKey={publishableKey}
-      merchantIdentifier={merchantIdentifier}
       urlScheme={urlScheme}
     >
       {children}
