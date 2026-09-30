@@ -35,9 +35,6 @@ export default {
     ],
     scheme: "ludi-mobile",
     extra: {
-      eas: {
-        projectId: "ludi-mobile"
-      },
       stripePublishableKey: process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || process.env.STRIPE_PUBLISHABLE_KEY || ''
     }
   }
