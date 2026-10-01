@@ -18,11 +18,12 @@
     "android": {
       "package": "com.ludi.mobile",
       "adaptiveIcon": {
-        "backgroundColor": "#3b82f6"
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#0f172a"
       }
     },
     "web": {
-      "favicon": "./assets/images/icon.png"
+      "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
       "expo-apple-authentication",

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -47,10 +47,13 @@ export default function HeaderWithNotifications({ title, showBack = false }) {
           </TouchableOpacity>
         )}
         {title === 'Home' ? (
-          <View style={styles.logoContainer}>
-            <Text style={[styles.logoText, { color: colors.text }]}>LUDI</Text>
-            <Text style={[styles.logoSubtext, { color: colors.primaryGreen }]}>Don't just watch</Text>
-          </View>
+          <Image
+            source={require('../assets/images/ludi-brand-logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+            accessibilityLabel="LUDI logo"
+            testID="signed-in-header-logo"
+          />
         ) : (
           <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
         )}
@@ -101,20 +104,10 @@ const styles = StyleSheet.create({
     padding: 4,
     marginRight: 8,
   },
-  logoContainer: {
-    flexDirection: 'column',
-  },
-  logoText: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#1e293b',
-    letterSpacing: 1,
-  },
-  logoSubtext: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: '#10b981',
-    marginTop: -3,
+  logo: {
+    width: 104,
+    height: 72,
+    borderRadius: 4,
   },
   title: {
     fontSize: 24,

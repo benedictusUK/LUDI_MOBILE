@@ -13,25 +13,16 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { API_BASE_URL } from '../lib/apiConfig';
 import { signInWithGoogle } from '../lib/googleSignIn';
-
-// Login-scoped palette, sampled from the helmet artwork.
-const palette = {
-  background: '#08090B',
-  surface: '#14151A',
-  border: '#2E2A20',
-  gold: '#D9A441',
-  goldDeep: '#B8862B',
-  text: '#F3E9D2',
-  muted: '#A39C8A',
-  onGold: '#14100A',
-};
 
 export default function AuthScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [isAppleAvailable, setIsAppleAvailable] = useState(null);
   const { signIn } = useAuth();
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
 
   useEffect(() => {
     if (Platform.OS !== 'ios') return;
@@ -127,14 +118,12 @@ export default function AuthScreen() {
       >
         <View style={styles.header}>
           <Image
-            source={require('../assets/images/ludi-login-logo.png')}
+            source={require('../assets/images/ludi-brand-logo.png')}
             style={styles.logo}
             resizeMode="contain"
-            accessibilityLabel="LUDI Spartan helmet logo"
+            accessibilityLabel="LUDI logo"
             testID="auth-logo"
           />
-          <Text style={styles.title} accessibilityRole="header">LUDI</Text>
-          <View style={styles.rule} />
           <Text style={styles.subtitle}>Don't just watch.</Text>
         </View>
 
@@ -149,7 +138,7 @@ export default function AuthScreen() {
             testID="google-sign-in-button"
           >
             {isLoading ? (
-              <ActivityIndicator color={palette.onGold} testID="auth-loading-indicator" />
+              <ActivityIndicator color={colors.buttonText} testID="auth-loading-indicator" />
             ) : (
               <Text style={styles.googleButtonText}>Continue with Google</Text>
             )}
@@ -185,10 +174,10 @@ export default function AuthScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: palette.background,
+    backgroundColor: colors.background,
   },
   content: {
     flexGrow: 1,
@@ -204,26 +193,15 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   logo: {
-    width: 220,
-    height: 220,
-    marginBottom: 4,
-  },
-  title: {
-    fontSize: 44,
-    fontWeight: '800',
-    letterSpacing: 12,
-    paddingLeft: 12,
-    color: palette.gold,
-  },
-  rule: {
-    width: 48,
-    height: 2,
-    backgroundColor: palette.goldDeep,
-    marginVertical: 14,
+    width: '100%',
+    maxWidth: 320,
+    height: 240,
+    marginBottom: 20,
+    borderRadius: 12,
   },
   subtitle: {
     fontSize: 17,
-    color: palette.text,
+    color: colors.text,
     fontWeight: '500',
     letterSpacing: 1,
   },
@@ -237,12 +215,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   googleButton: {
-    backgroundColor: palette.gold,
+    backgroundColor: colors.primary,
   },
   googleButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: palette.onGold,
+    color: colors.buttonText,
   },
   disabledButton: {
     opacity: 0.6,
@@ -256,14 +234,14 @@ const styles = StyleSheet.create({
   },
   appleUnavailableText: {
     fontSize: 13,
-    color: palette.muted,
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 18,
   },
   termsText: {
     textAlign: 'center',
     fontSize: 12,
-    color: palette.muted,
+    color: colors.textSecondary,
     marginTop: 28,
     lineHeight: 17,
   },
