@@ -55,26 +55,7 @@ export function setupGoogleOAuth() {
   }));
 }
 
-// Apple OAuth verification function
-export async function verifyAppleMobileToken(idToken: string) {
-  // Native builds use LUDI's bundle identifier. Expo Go signs in under its own
-  // bundle identifier, which must never be accepted by the published server.
-  const audiences = [process.env.APPLE_MOBILE_CLIENT_ID || "com.ludi.mobile"];
-  if (process.env.NODE_ENV !== "production") {
-    audiences.push("host.exp.Exponent");
-  }
-
-  const { sub, email } = await appleSignin.verifyIdToken(idToken, {
-    audience: audiences,
-    ignoreExpiration: false,
-  });
-
-  if (!sub) {
-    throw new Error("Apple identity token has no subject");
-  }
-
-  return { sub, email: typeof email === "string" ? email : null };
-}
+export { verifyAppleMobileToken } from "./appleMobileAuth";
 
 export async function verifyAppleToken(idToken: string) {
   try {

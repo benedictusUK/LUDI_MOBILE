@@ -1,6 +1,6 @@
 ---
-name: Apple Sign-In in Expo Go
-description: Native-module availability and token audience differ between Expo Go and standalone iOS builds.
+name: Apple Sign-In environments
+description: Native-module availability and Apple token audiences differ between Expo Go, local builds, and Expo Launch.
 ---
 
 Apple Sign-In in Expo Go depends on the Expo Go iOS binary, not just the JavaScript package. An early SDK 57 Expo Go build omitted the native Apple module. In SDK 57 the iOS native module's `isAvailableAsync()` returns true whenever it is linked; a false result on a supported physical iPhone therefore strongly indicates an absent module (unless the check threw an error), not an old iOS version or necessarily an outdated App Store installation.
@@ -16,3 +16,11 @@ For pre-TestFlight Apple Sign-In validation, prefer a standalone internally dist
 **Why:** Internal standalone builds include the app's own Apple Sign-In entitlement and bundle identifier while running bundled JavaScript, so they test the native sign-in flow closer to TestFlight without adding a development-launcher dependency.
 
 **How to apply:** Use internal/ad hoc signing for physical-device testing and separate store signing for TestFlight; an internal-distribution binary cannot be uploaded to TestFlight. Both require the correct native capabilities and a reachable backend. Neither configuration guarantees success without an actual signed build and device sign-in.
+
+## Expo Launch signing identity
+
+Do not assume the static Expo bundle identifier is the identifier used by the managed App Store build. Validate the server's Apple audience allowlist against the App ID in Expo Launch's signing logs as well as any intentional local-build identity.
+
+**Why:** LUDI's managed archive used a different App ID from its static Expo configuration. Face ID succeeded on the signed phone app, but the live server rejected the resulting token with `jwt audience invalid` because it trusted only the local-build identifier.
+
+**How to apply:** Keep an explicit allowlist of LUDI's verified native App IDs, retain Apple signature/issuer/expiration checks, and keep Expo Go's shared audience development-only. When only server-side audience configuration changes, republish the hosted backend; the already installed iOS app does not need another binary build.
