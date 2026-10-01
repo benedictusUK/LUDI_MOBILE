@@ -1,13 +1,33 @@
 import { Router } from "express";
 import jwt from "jsonwebtoken";
+import passport from "passport";
 import { storage } from "../storage";
 import { verifyAppleMobileToken } from "../oauthProviders";
-import { isAllowedMobileRedirect } from "../mobileRedirect";
+import {
+  getGoogleMobileCallbackUrl,
+  isAllowedGoogleMobileRedirect,
+  isAllowedMobileRedirect,
+} from "../mobileRedirect";
+import {
+  createGoogleMobileHandoff,
+  isValidGooglePkceChallenge,
+  verifyGoogleMobileHandoff,
+} from "../googleMobileHandoff";
+import { getNormalMobileTokenUserId } from "../mobileToken";
+
+interface GoogleMobileLoginAttempt {
+  redirectUri: string;
+  codeChallenge: string;
+  appState: string;
+  callbackUrl: string;
+  createdAt: number;
+}
 
 // Extend session interface to include mobile redirect URI
 declare module 'express-session' {
   interface SessionData {
     mobileRedirectUri?: string;
+    googleMobileLogin?: GoogleMobileLoginAttempt;
   }
 }
 
@@ -21,6 +41,35 @@ function generateToken(userId: string) {
   return jwt.sign({ userId }, JWT_SECRET, { expiresIn: '30d' });
 }
 
+const GOOGLE_MOBILE_LOGIN_TTL_MS = 5 * 60 * 1000;
+const GOOGLE_MOBILE_APP_STATE_PATTERN = /^[A-Za-z0-9_-]{16,128}$/;
+
+function queryString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+function redirectGoogleMobileError(
+  res: any,
+  attempt: GoogleMobileLoginAttempt | undefined,
+  error: string,
+) {
+  if (!attempt || !isAllowedGoogleMobileRedirect(attempt.redirectUri)) {
+    return res.status(400).json({ message: "Google sign-in could not be completed" });
+  }
+  const destination = new URL(attempt.redirectUri);
+  destination.searchParams.set("error", error);
+  if (GOOGLE_MOBILE_APP_STATE_PATTERN.test(attempt.appState)) {
+    destination.searchParams.set("state", attempt.appState);
+  }
+  return res.redirect(destination.href);
+}
+
+router.get('/google/config', (_req, res) => {
+  return res.json({
+    enabled: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+  });
+});
+
 // Middleware to verify JWT token for mobile requests
 export function verifyMobileToken(req: any, res: any, next: any) {
   const authHeader = req.headers.authorization;
@@ -31,8 +80,11 @@ export function verifyMobileToken(req: any, res: any, next: any) {
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
-    req.userId = decoded.userId;
+    const userId = getNormalMobileTokenUserId(jwt.verify(token, JWT_SECRET));
+    if (!userId) {
+      return res.status(401).json({ message: 'Invalid or expired token' });
+    }
+    req.userId = userId;
     next();
   } catch (error) {
     return res.status(401).json({ message: 'Invalid or expired token' });
@@ -47,8 +99,11 @@ export function verifyAuth(req: any, res: any, next: any) {
   
   if (token) {
     try {
-      const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
-      req.userId = decoded.userId;
+      const userId = getNormalMobileTokenUserId(jwt.verify(token, JWT_SECRET));
+      if (!userId) {
+        throw new Error("Invalid application token");
+      }
+      req.userId = userId;
       return next();
     } catch (error) {
       // Invalid token, fall through to session check
@@ -65,123 +120,182 @@ export function verifyAuth(req: any, res: any, next: any) {
   return res.status(401).json({ message: 'Unauthorized' });
 }
 
-// Google OAuth code exchange for mobile
-router.post('/google/exchange', async (req, res) => {
-  try {
-    const { code, redirect_uri } = req.body;
-
-    if (!code) {
-      return res.status(400).json({ message: 'Authorization code required' });
-    }
-
-    // Use the redirect_uri from the request, or fall back to Expo proxy
-    const redirectUri = redirect_uri || 'https://auth.expo.io/@anonymous/ludi-mobile';
-
-    console.log('Google code exchange - code:', code.substring(0, 20) + '...');
-    console.log('Google code exchange - redirect_uri:', redirectUri);
-
-    // Exchange code for access token
-    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        code,
-        client_id: process.env.GOOGLE_CLIENT_ID || '',
-        client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
-        redirect_uri: redirectUri,
-        grant_type: 'authorization_code',
-      }),
+// Browser-based Google OAuth keeps all app redirect and PKCE inputs in the
+// server-side session. Passport's Google strategy independently verifies its
+// OAuth state parameter before this callback is reached.
+router.get('/google/start', (req, res, next) => {
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    return res.status(503).json({
+      message: "Google browser sign-in is unavailable until GOOGLE_CLIENT_SECRET is configured",
     });
+  }
 
-    if (!tokenResponse.ok) {
-      const error = await tokenResponse.text();
-      console.error('Google token exchange error:', error);
-      return res.status(400).json({ message: 'Failed to exchange authorization code', error });
+  const redirectUri = queryString(req.query.redirect_uri);
+  const codeChallenge = queryString(req.query.code_challenge);
+  const appState = queryString(req.query.state);
+  if (
+    !isAllowedGoogleMobileRedirect(redirectUri) ||
+    !isValidGooglePkceChallenge(codeChallenge) ||
+    !appState ||
+    !GOOGLE_MOBILE_APP_STATE_PATTERN.test(appState)
+  ) {
+    return res.status(400).json({ message: "Invalid Google sign-in parameters" });
+  }
+
+  const callbackUrl = getGoogleMobileCallbackUrl(req);
+  if (!callbackUrl) {
+    return res.status(503).json({
+      message: "Google browser sign-in callback URL is not configured for a trusted HTTPS origin",
+    });
+  }
+
+  const attempt: GoogleMobileLoginAttempt = {
+    redirectUri,
+    codeChallenge,
+    appState,
+    callbackUrl,
+    createdAt: Date.now(),
+  };
+  req.session.googleMobileLogin = attempt;
+
+  return passport.authenticate('google', {
+    scope: ['profile', 'email'],
+    callbackURL: callbackUrl,
+  } as any)(req, res, next);
+});
+
+router.get('/google/callback', (req, res, next) => {
+  const attempt = req.session?.googleMobileLogin;
+  if (req.session) delete req.session.googleMobileLogin;
+  if (!attempt || !isAllowedGoogleMobileRedirect(attempt.redirectUri)) {
+    return res.status(400).json({ message: "Google sign-in session is missing or invalid" });
+  }
+
+  const appState = GOOGLE_MOBILE_APP_STATE_PATTERN.test(attempt.appState)
+    ? attempt.appState
+    : "";
+  const safeAttempt = { ...attempt, appState };
+  const attemptAge = Date.now() - attempt.createdAt;
+  if (
+    !appState ||
+    !Number.isFinite(attempt.createdAt) ||
+    attemptAge > GOOGLE_MOBILE_LOGIN_TTL_MS ||
+    attemptAge < -30_000 ||
+    !isValidGooglePkceChallenge(attempt.codeChallenge) ||
+    !getGoogleMobileCallbackUrlFromStoredValue(attempt.callbackUrl)
+  ) {
+    return redirectGoogleMobileError(res, safeAttempt, "auth_expired");
+  }
+
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    return redirectGoogleMobileError(res, safeAttempt, "google_unavailable");
+  }
+
+  return passport.authenticate(
+    'google',
+    {
+      callbackURL: attempt.callbackUrl,
+      session: false,
+    } as any,
+    async (error: unknown, authenticatedUser: any) => {
+      if (error || authenticatedUser?.provider !== "google") {
+        const isCancellation = queryString(req.query.error) === "access_denied";
+        return redirectGoogleMobileError(
+          res,
+          safeAttempt,
+          isCancellation ? "cancelled" : "auth_failed",
+        );
+      }
+
+      const subject = authenticatedUser?.claims?.sub;
+      if (typeof subject !== "string" || !subject) {
+        return redirectGoogleMobileError(res, safeAttempt, "auth_failed");
+      }
+
+      try {
+        const user = await storage.getUserById(subject);
+        if (!user) {
+          return redirectGoogleMobileError(res, safeAttempt, "auth_failed");
+        }
+        const ticket = createGoogleMobileHandoff(
+          subject,
+          attempt.codeChallenge,
+          JWT_SECRET,
+        );
+        const destination = new URL(attempt.redirectUri);
+        destination.searchParams.set("ticket", ticket);
+        destination.searchParams.set("state", appState);
+        return res.redirect(destination.href);
+      } catch {
+        return redirectGoogleMobileError(res, safeAttempt, "server_error");
+      }
+    },
+  )(req, res, next);
+});
+
+function getGoogleMobileCallbackUrlFromStoredValue(value: string): string | undefined {
+  if (typeof value !== "string") return undefined;
+  try {
+    const url = new URL(value);
+    if (
+      url.protocol !== "https:" ||
+      url.pathname !== "/api/auth/mobile/google/callback" ||
+      url.search ||
+      url.hash ||
+      !isAllowedGoogleMobileRedirect(
+        `${url.origin}/auth/google/callback`,
+      )
+    ) {
+      return undefined;
     }
+    return `${url.origin}${url.pathname}`;
+  } catch {
+    return undefined;
+  }
+}
 
-    const tokenData = await tokenResponse.json();
-    const accessToken = tokenData.access_token;
+router.post('/google/complete', async (req, res) => {
+  const ticket = req.body?.ticket;
+  const codeVerifier = req.body?.code_verifier;
+  if (typeof ticket !== "string" || typeof codeVerifier !== "string") {
+    return res.status(400).json({
+      message: "Google handoff ticket and PKCE code verifier are required",
+    });
+  }
 
-    console.log('Successfully got access token from Google');
+  const subject = verifyGoogleMobileHandoff(ticket, codeVerifier, JWT_SECRET);
+  if (!subject) {
+    return res.status(401).json({ message: "Invalid or expired Google handoff ticket" });
+  }
 
-    // Get user info from Google
-    const userInfoResponse = await fetch(
-      `https://www.googleapis.com/oauth2/v2/userinfo?access_token=${accessToken}`
-    );
-
-    if (!userInfoResponse.ok) {
-      console.error('Failed to get user info from Google');
-      return res.status(400).json({ message: 'Failed to get user info from Google' });
+  try {
+    const user = await storage.getUserById(subject);
+    if (!user) {
+      return res.status(401).json({ message: "Google account is no longer available" });
     }
-
-    const userInfo = await userInfoResponse.json();
-    console.log('Got user info from Google:', userInfo.email);
-
-    // Create or update user
-    const userData = {
-      id: `google_${userInfo.id}`,
-      email: userInfo.email,
-      firstName: userInfo.given_name || null,
-      lastName: userInfo.family_name || null,
-      profileImageUrl: userInfo.picture || null,
-      authProvider: 'google' as const,
-    };
-
-    const user = await storage.upsertAuthUser(userData);
-    const token = generateToken(user.id);
-
-    console.log('Created/updated user and generated JWT token');
-
-    res.json({
+    return res.json({
       success: true,
-      token,
+      token: generateToken(user.id),
       user,
     });
-  } catch (error) {
-    console.error('Mobile Google code exchange error:', error);
-    res.status(500).json({ message: 'Authentication failed' });
+  } catch {
+    return res.status(500).json({ message: "Google sign-in could not be completed" });
   }
 });
 
-// Google OAuth direct token for mobile (legacy support)
-router.post('/google', async (req, res) => {
-  try {
-    const { access_token, user_info } = req.body;
+// Retired legacy Google code exchange; browser OAuth with PKCE is supported.
+router.post('/google/exchange', (_req, res) => {
+  return res.status(410).json({
+    message: 'Use the supported browser-based Google sign-in',
+  });
+});
 
-    if (!access_token || !user_info) {
-      return res.status(400).json({ message: 'Access token and user info required' });
-    }
-
-    // Verify the access token with Google (optional additional security)
-    const googleResponse = await fetch(`https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=${access_token}`);
-    if (!googleResponse.ok) {
-      return res.status(400).json({ message: 'Invalid Google access token' });
-    }
-
-    // Create or update user
-    const userData = {
-      id: `google_${user_info.id}`,
-      email: user_info.email,
-      firstName: user_info.given_name || null,
-      lastName: user_info.family_name || null,
-      profileImageUrl: user_info.picture || null,
-      authProvider: 'google' as const,
-    };
-
-    const user = await storage.upsertAuthUser(userData);
-    const token = generateToken(user.id);
-
-    res.json({
-      success: true,
-      token,
-      user,
-    });
-  } catch (error) {
-    console.error('Mobile Google auth error:', error);
-    res.status(500).json({ message: 'Authentication failed' });
-  }
+// Retired legacy client-profile Google sign-in; identity must come from the
+// provider-authenticated browser flow.
+router.post('/google', (_req, res) => {
+  return res.status(410).json({
+    message: 'Use the supported browser-based Google sign-in',
+  });
 });
 
 // Apple OAuth for mobile

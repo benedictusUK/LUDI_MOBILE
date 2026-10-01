@@ -2,26 +2,33 @@ import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   TouchableOpacity,
+  ActivityIndicator,
+  ScrollView,
   Alert,
-  Platform
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as AuthSession from 'expo-auth-session';
-import * as WebBrowser from 'expo-web-browser';
 import * as AppleAuthentication from 'expo-apple-authentication';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../contexts/AuthContext';
 import { API_BASE_URL } from '../lib/apiConfig';
+import { signInWithGoogle } from '../lib/googleSignIn';
 
-WebBrowser.maybeCompleteAuthSession();
+// Login-scoped palette, sampled from the helmet artwork.
+const palette = {
+  background: '#08090B',
+  surface: '#14151A',
+  border: '#2E2A20',
+  gold: '#D9A441',
+  goldDeep: '#B8862B',
+  text: '#F3E9D2',
+  muted: '#A39C8A',
+  onGold: '#14100A',
+};
 
-// Google OAuth configuration
-const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
-const GOOGLE_ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
-
-export default function AuthScreen({ onAuthSuccess }) {
+export default function AuthScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [isAppleAvailable, setIsAppleAvailable] = useState(null);
   const { signIn } = useAuth();
@@ -42,75 +49,21 @@ export default function AuthScreen({ onAuthSuccess }) {
     return () => { mounted = false; };
   }, []);
 
-  // Handle Google Sign In - currently not supported in Expo Go
   const handleGoogleSignIn = async () => {
-    Alert.alert(
-      'Google Sign-In Not Available',
-      'Google OAuth has technical limitations in Expo Go. Please use:\n\n• Replit Sign-In\n• Apple Sign-In (if available on iOS)\n\nGoogle Sign-In will be available when the app is published as a standalone app.',
-      [{ text: 'OK' }]
-    );
-  };
-
-  const handleGoogleCodeExchange = async (code, redirectUri) => {
+    if (isLoading) return;
+    setIsLoading(true);
     try {
-      // Send code to backend to exchange for token and user info
-      const response = await fetch(`${API_BASE_URL}/api/auth/mobile/google/exchange`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ code, redirect_uri: redirectUri }),
-      });
-
-      const data = await response.json();
-      
-      if (response.ok) {
-        await signIn(data.user, data.token);
-      } else {
-        console.error('Code exchange failed:', data);
-        Alert.alert('Authentication Failed', data.message || 'Please try again');
-      }
-    } catch (error) {
-      console.error('Code exchange error:', error);
-      Alert.alert('Authentication Error', 'Unable to complete sign in');
-    }
-  };
-
-  const handleGoogleAuthSuccess = async (accessToken) => {
-    try {
-      // Get user info from Google
-      const userInfoResponse = await fetch(
-        `https://www.googleapis.com/oauth2/v2/userinfo?access_token=${accessToken}`
-      );
-      
-      if (!userInfoResponse.ok) {
-        throw new Error('Failed to fetch user info from Google');
-      }
-      
-      const userInfo = await userInfoResponse.json();
-
-      // Send to our backend to create/update user
-      const backendResponse = await fetch(`${API_BASE_URL}/api/auth/mobile/google`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          access_token: accessToken,
-          user_info: userInfo
-        }),
-      });
-
-      const data = await backendResponse.json();
-      
-      if (backendResponse.ok) {
-        await signIn(data.user, data.token);
-      } else {
-        Alert.alert('Authentication Failed', data.message || 'Please try again');
-      }
+      const result = await signInWithGoogle();
+      if (!result) return; // cancelled
+      await signIn(result.user, result.token);
     } catch (error) {
       console.error('Google auth error:', error);
-      Alert.alert('Authentication Error', 'Unable to complete sign in');
+      Alert.alert(
+        'Google Sign-In Failed',
+        error?.message || 'We could not sign you in with Google. Please try again.'
+      );
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -118,7 +71,7 @@ export default function AuthScreen({ onAuthSuccess }) {
     if (isLoading || !isAppleAvailable) return;
     try {
       setIsLoading(true);
-      
+
       const credential = await AppleAuthentication.signInAsync({
         requestedScopes: [
           AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
@@ -132,29 +85,25 @@ export default function AuthScreen({ onAuthSuccess }) {
 
       const response = await fetch(`${API_BASE_URL}/api/auth/mobile/apple`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           identity_token: credential.identityToken,
           user_info: {
             email: credential.email,
-            fullName: credential.fullName
-          }
+            fullName: credential.fullName,
+          },
         }),
       });
 
       const data = await response.json();
-      
+
       if (response.ok) {
-        // Use signIn from AuthContext to properly update auth state
         await signIn(data.user, data.token);
       } else {
         Alert.alert('Authentication Failed', data.message || 'Please try again');
       }
     } catch (error) {
       if (error.code === 'ERR_REQUEST_CANCELED' || error.code === 'ERR_CANCELED') {
-        // User canceled the sign-in flow
         return;
       }
       console.error('Apple auth error:', error);
@@ -164,94 +113,65 @@ export default function AuthScreen({ onAuthSuccess }) {
     }
   };
 
-  const handleReplitSignIn = async () => {
-    try {
-      setIsLoading(true);
-      
-      // Open web browser for Replit OAuth
-      const redirectUri = AuthSession.makeRedirectUri({
-        scheme: 'ludi-mobile',
-        path: 'auth/replit/callback',
-        // Expo Go still generates its exp:// URL; standalone builds use this
-        // exact deep link, with no hostname, to match the server allowlist.
-        native: 'ludi-mobile:///auth/replit/callback',
-      });
-      
-      const authUrl = `${API_BASE_URL}/api/mobile/login?redirect_uri=${encodeURIComponent(redirectUri)}`;
-      
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
-
-      if (result.type === 'success' && result.url) {
-        const url = new URL(result.url);
-        const token = url.searchParams.get('token');
-        const userId = url.searchParams.get('user_id');
-        
-        if (token && userId) {
-          // Fetch user data
-          const userResponse = await fetch(`${API_BASE_URL}/api/auth/user`, {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
-          
-          if (userResponse.ok) {
-            const userData = await userResponse.json();
-            // Use signIn from AuthContext to properly update auth state
-            await signIn(userData, token);
-          }
-        } else {
-          Alert.alert('Authentication Failed', 'Unable to complete sign in');
-        }
-      }
-    } catch (error) {
-      console.error('Replit auth error:', error);
-      Alert.alert('Authentication Error', 'Unable to sign in with Replit');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const isWeb = Platform.OS === 'web';
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
+    <SafeAreaView style={styles.container} testID="auth-screen">
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          isWeb && { paddingTop: 67, paddingBottom: 34 },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.header}>
-          <View style={styles.logoContainer}>
-            <Text style={styles.logoEmoji}>🏆</Text>
-          </View>
-          <Text style={styles.title}>Welcome to LUDI</Text>
-          <Text style={styles.subtitle}>Connect, Play, Compete</Text>
+          <Image
+            source={require('../assets/images/ludi-login-logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+            accessibilityLabel="LUDI Spartan helmet logo"
+            testID="auth-logo"
+          />
+          <Text style={styles.title} accessibilityRole="header">LUDI</Text>
+          <View style={styles.rule} />
+          <Text style={styles.subtitle}>Don't just watch.</Text>
         </View>
 
         <View style={styles.authButtons}>
-          {/* Replit Sign In */}
           <TouchableOpacity
-            style={[styles.authButton, styles.replitButton]}
-            onPress={handleReplitSignIn}
-            disabled={isLoading}
-          >
-            <Text style={styles.authButtonText}>Continue with Replit</Text>
-          </TouchableOpacity>
-
-          {/* Google Sign In - Disabled in Expo Go */}
-          <TouchableOpacity
-            style={[styles.authButton, styles.googleButton, styles.disabledButton]}
+            style={[styles.authButton, styles.googleButton, isLoading && styles.disabledButton]}
             onPress={handleGoogleSignIn}
             disabled={isLoading}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Continue with Google"
+            testID="google-sign-in-button"
           >
-            <Text style={[styles.authButtonText, styles.googleButtonText]}>Continue with Google (Limited)</Text>
+            {isLoading ? (
+              <ActivityIndicator color={palette.onGold} testID="auth-loading-indicator" />
+            ) : (
+              <Text style={styles.googleButtonText}>Continue with Google</Text>
+            )}
           </TouchableOpacity>
 
           {Platform.OS === 'ios' && isAppleAvailable && (
-            <AppleAuthentication.AppleAuthenticationButton
-              buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
-              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-              cornerRadius={8}
-              style={styles.appleButton}
-              onPress={handleAppleSignIn}
-            />
+            <View
+              style={[styles.appleWrap, isLoading && styles.disabledButton]}
+              pointerEvents={isLoading ? 'none' : 'auto'}
+            >
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+                cornerRadius={12}
+                style={styles.appleButton}
+                onPress={handleAppleSignIn}
+                testID="apple-sign-in-button"
+              />
+            </View>
           )}
           {Platform.OS === 'ios' && isAppleAvailable === false && (
-            <Text style={styles.appleUnavailableText}>
+            <Text style={styles.appleUnavailableText} testID="apple-unavailable-text">
               Apple Sign-In is unavailable in this iOS app. If Expo Go is up to date, it may not include the native Apple module. An iOS development build with Apple Sign-In enabled is needed to test it reliably.
             </Text>
           )}
@@ -260,7 +180,7 @@ export default function AuthScreen({ onAuthSuccess }) {
         <Text style={styles.termsText}>
           By continuing, you agree to our Terms of Service and Privacy Policy
         </Text>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -268,81 +188,83 @@ export default function AuthScreen({ onAuthSuccess }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: palette.background,
   },
   content: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: 24,
+    paddingVertical: 16,
+    width: '100%',
+    maxWidth: 480,
+    alignSelf: 'center',
   },
   header: {
     alignItems: 'center',
-    marginBottom: 48,
+    marginBottom: 32,
   },
-  logoContainer: {
-    width: 80,
-    height: 80,
-    marginBottom: 16,
-    borderRadius: 16,
-    backgroundColor: '#10b981',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  logoEmoji: {
-    fontSize: 40,
+  logo: {
+    width: 220,
+    height: 220,
+    marginBottom: 4,
   },
   title: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#1e293b',
-    marginBottom: 8,
+    fontSize: 44,
+    fontWeight: '800',
+    letterSpacing: 12,
+    paddingLeft: 12,
+    color: palette.gold,
+  },
+  rule: {
+    width: 48,
+    height: 2,
+    backgroundColor: palette.goldDeep,
+    marginVertical: 14,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#64748b',
+    fontSize: 17,
+    color: palette.text,
     fontWeight: '500',
+    letterSpacing: 1,
   },
   authButtons: {
-    gap: 16,
+    gap: 14,
   },
   authButton: {
-    height: 50,
-    borderRadius: 8,
+    height: 52,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  replitButton: {
-    backgroundColor: '#10b981',
-  },
   googleButton: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-  },
-  authButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
+    backgroundColor: palette.gold,
   },
   googleButtonText: {
-    color: '#374151',
+    fontSize: 16,
+    fontWeight: '700',
+    color: palette.onGold,
   },
   disabledButton: {
     opacity: 0.6,
   },
+  appleWrap: {
+    borderRadius: 12,
+  },
   appleButton: {
-    height: 50,
+    height: 52,
+    width: '100%',
   },
   appleUnavailableText: {
     fontSize: 13,
-    color: '#64748b',
+    color: palette.muted,
     textAlign: 'center',
+    lineHeight: 18,
   },
   termsText: {
     textAlign: 'center',
     fontSize: 12,
-    color: '#6b7280',
-    marginTop: 24,
-    lineHeight: 16,
+    color: palette.muted,
+    marginTop: 28,
+    lineHeight: 17,
   },
 });

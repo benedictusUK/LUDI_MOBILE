@@ -24,8 +24,84 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /auth/mobile/google/config:
+    get:
+      operationId: getGoogleMobileSignInConfig
+      tags: [auth]
+      summary: Check browser Google sign-in availability
+      description: Indicates whether Google browser sign-in is configured without exposing provider credentials.
+      responses:
+        "200":
+          description: Google sign-in readiness
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  enabled:
+                    type: boolean
+                required: [enabled]
+  /auth/mobile/google/complete:
+    post:
+      operationId: completeGoogleMobileSignIn
+      tags: [auth]
+      summary: Complete a PKCE-bound Google mobile sign-in
+      description: Exchanges a short-lived browser handoff ticket and its PKCE verifier for a normal LUDI mobile JWT.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoogleMobileSignInRequest"
+      responses:
+        "200":
+          description: Google mobile sign-in completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  token:
+                    type: string
+                    description: Normal long-lived LUDI mobile application JWT.
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      email:
+                        type: [string, "null"]
+                      firstName:
+                        type: [string, "null"]
+                      lastName:
+                        type: [string, "null"]
+                      profileImageUrl:
+                        type: [string, "null"]
+                    required: [id]
+                    additionalProperties: true
+                required: [success, token, user]
+        "400":
+          description: Missing ticket or verifier
+        "401":
+          description: Invalid, expired, or PKCE-mismatched handoff ticket
 components:
   schemas:
+    GoogleMobileSignInRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        ticket:
+          type: string
+          minLength: 1
+        code_verifier:
+          type: string
+          minLength: 43
+          maxLength: 128
+      required: [ticket, code_verifier]
     HealthStatus:
       type: object
       properties:

@@ -9,6 +9,7 @@ import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 import { setupGoogleOAuth, setupOAuthRoutes } from "./oauthProviders";
 import { isAllowedMobileRedirect } from "./mobileRedirect";
+import { getNormalMobileTokenUserId } from "./mobileToken";
 
 if (!process.env.REPLIT_DOMAINS) {
   throw new Error("Environment variable REPLIT_DOMAINS not provided");
@@ -167,10 +168,13 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
   
   if (token) {
     try {
-      const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
-      (req as any).userId = decoded.userId;
+      const userId = getNormalMobileTokenUserId(jwt.verify(token, JWT_SECRET));
+      if (!userId) {
+        throw new Error("Invalid application token");
+      }
+      (req as any).userId = userId;
       // Also set req.user for compatibility with existing code
-      (req as any).user = { claims: { sub: decoded.userId } };
+      (req as any).user = { claims: { sub: userId } };
       return next();
     } catch (error) {
       // Invalid JWT token, fall through to session check

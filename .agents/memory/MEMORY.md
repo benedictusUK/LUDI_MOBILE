@@ -6,3 +6,4 @@
 - [Live-app migration scope](live-app-migration-scope.md) — preserve the legacy API and frontend fetch layer during structural moves; defer API-client rewrites.
 - [Legacy Expo navigation](legacy-expo-navigation.md) — preserving React Navigation in an Expo 57 artifact requires removing the starter Router and pointing the bundle entry at the legacy root.
 - [Apple Pay publishing prerequisite](apple-pay-publishing.md) — keep iOS card-only until the Apple Developer App ID and provisioning profile include the Merchant ID capability.
+- [Google mobile sign-in](google-mobile-sign-in.md) — retain existing backend identities; use a browser OAuth flow and a short-lived PKCE-bound app handoff.
