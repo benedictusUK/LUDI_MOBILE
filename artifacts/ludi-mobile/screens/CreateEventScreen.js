@@ -133,6 +133,7 @@ export default function CreateEventScreen() {
   const navigation = useNavigation();
   const { apiRequest } = useAuth();
   const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
   const [loading, setLoading] = useState(false);
   const [teams, setTeams] = useState([]);
   
@@ -508,19 +509,22 @@ export default function CreateEventScreen() {
               return (
                 <TouchableOpacity
                   key={index}
-                  style={[styles.modalOption, { borderBottomColor: colors.borderLight }, isSelected && { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff' }]}
+                  style={[styles.modalOption, { borderBottomColor: colors.borderLight }, isSelected && { backgroundColor: colors.selectionBackground }]}
                   onPress={() => {
                     onSelect(value);
                     onClose();
                   }}
                 >
-                  <Text style={[styles.modalOptionText, { color: isSelected ? colors.primary : colors.text }, isSelected && { fontWeight: '600' }]}>
+                  <Text style={[styles.modalOptionText, { color: isSelected ? colors.selectionText : colors.text }, isSelected && { fontWeight: '600' }]}>
                     {label}
                   </Text>
                   {isSelected && <Text style={[styles.modalCheckmark, { color: colors.primary }]}>✓</Text>}
                 </TouchableOpacity>
               );
             })}
+            {options.length === 0 && (
+              <Text style={[styles.emptyState, { color: colors.textSecondary }]}>No options available</Text>
+            )}
           </ScrollView>
         </View>
       </View>
@@ -583,13 +587,13 @@ export default function CreateEventScreen() {
 
           {formData.secondaryTeamIds.length > 0 && (
             <View style={styles.secondaryTeamsContainer}>
-              <Text style={styles.secondaryTeamsLabel}>Additional Teams</Text>
+              <Text style={[styles.secondaryTeamsLabel, { color: colors.textSecondary }]}>Additional Teams</Text>
               <View style={styles.chipContainer}>
                 {formData.secondaryTeamIds.map((teamId) => (
-                  <View key={teamId} style={styles.chip}>
-                    <Text style={styles.chipText}>{getTeamName(teamId)}</Text>
+                  <View key={teamId} style={[styles.chip, { backgroundColor: colors.primaryLight, borderColor: colors.inputBorder }]}>
+                    <Text style={[styles.chipText, { color: colors.selectionText }]}>{getTeamName(teamId)}</Text>
                     <TouchableOpacity onPress={() => handleRemoveSecondaryTeam(teamId)}>
-                      <Text style={styles.chipRemove}>✕</Text>
+                      <Text style={[styles.chipRemove, { color: colors.selectionText }]}>✕</Text>
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -602,56 +606,56 @@ export default function CreateEventScreen() {
               style={styles.addMoreButton}
               onPress={handleOpenSecondaryTeamPicker}
             >
-              <Text style={styles.addMoreButtonText}>+ Add more teams</Text>
+              <Text style={[styles.addMoreButtonText, { color: colors.primary }]}>+ Add more teams</Text>
             </TouchableOpacity>
           )}
 
           <Text style={[styles.label, { color: colors.text }]}>Gender Restriction *</Text>
           <TouchableOpacity
-            style={styles.pickerButton}
+            style={[styles.pickerButton, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}
             onPress={() => setShowGenderPicker(true)}
           >
-            <Text style={styles.pickerButtonText}>{getGenderLabel()}</Text>
-            <Text style={styles.pickerArrow}>▼</Text>
+            <Text style={[styles.pickerButtonText, { color: colors.inputText }]}>{getGenderLabel()}</Text>
+            <Text style={[styles.pickerArrow, { color: colors.icon }]}>▼</Text>
           </TouchableOpacity>
 
           <Text style={[styles.label, { color: colors.text }]}>Start Date *</Text>
           <TouchableOpacity
-            style={styles.pickerButton}
+            style={[styles.pickerButton, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}
             onPress={() => {
               const [year, month, day] = formData.startDate.split('-').map(Number);
               setTempDate({ year, month, day });
               setShowStartDatePicker(true);
             }}
           >
-            <Text style={styles.pickerButtonText}>{formatDateForDisplay(formData.startDate)}</Text>
-            <Ionicons name="calendar-outline" size={20} color="#64748b" />
+            <Text style={[styles.pickerButtonText, { color: colors.inputText }]}>{formatDateForDisplay(formData.startDate)}</Text>
+            <Ionicons name="calendar-outline" size={20} color={colors.icon} />
           </TouchableOpacity>
 
           <Text style={[styles.label, { color: colors.text }]}>Start Time *</Text>
           <TouchableOpacity
-            style={styles.pickerButton}
+            style={[styles.pickerButton, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}
             onPress={() => {
               const [hour, minute] = formData.startTime.split(':');
               setTempTime({ hour, minute: MINUTES.includes(minute) ? minute : '00' });
               setShowStartTimePicker(true);
             }}
           >
-            <Text style={styles.pickerButtonText}>{formatTimeForDisplay(formData.startTime)}</Text>
-            <Ionicons name="time-outline" size={20} color="#64748b" />
+            <Text style={[styles.pickerButtonText, { color: colors.inputText }]}>{formatTimeForDisplay(formData.startTime)}</Text>
+            <Ionicons name="time-outline" size={20} color={colors.icon} />
           </TouchableOpacity>
 
           <Text style={[styles.label, { color: colors.text }]}>End Time</Text>
           <TouchableOpacity
-            style={styles.pickerButton}
+            style={[styles.pickerButton, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}
             onPress={() => {
               const [hour, minute] = formData.endTime.split(':');
               setTempTime({ hour, minute: MINUTES.includes(minute) ? minute : '00' });
               setShowEndTimePicker(true);
             }}
           >
-            <Text style={styles.pickerButtonText}>{formatTimeForDisplay(formData.endTime)}</Text>
-            <Ionicons name="time-outline" size={20} color="#64748b" />
+            <Text style={[styles.pickerButtonText, { color: colors.inputText }]}>{formatTimeForDisplay(formData.endTime)}</Text>
+            <Ionicons name="time-outline" size={20} color={colors.icon} />
           </TouchableOpacity>
 
           <Text style={[styles.label, { color: colors.text }]}>Location *</Text>
@@ -660,6 +664,7 @@ export default function CreateEventScreen() {
             value={formData.location}
             onChangeText={(text) => setFormData({ ...formData, location: text })}
             placeholder="Enter location"
+            placeholderTextColor={colors.inputPlaceholder}
           />
 
           <Text style={[styles.label, { color: colors.text }]}>Address</Text>
@@ -668,6 +673,7 @@ export default function CreateEventScreen() {
             value={formData.address}
             onChangeText={(text) => setFormData({ ...formData, address: text })}
             placeholder="Full address"
+            placeholderTextColor={colors.inputPlaceholder}
           />
 
           <Text style={[styles.label, { color: colors.text }]}>Postcode</Text>
@@ -676,15 +682,16 @@ export default function CreateEventScreen() {
             value={formData.postcode}
             onChangeText={(text) => setFormData({ ...formData, postcode: text })}
             placeholder="Enter postcode"
+            placeholderTextColor={colors.inputPlaceholder}
           />
 
           <Text style={[styles.label, { color: colors.text }]}>Recurrence</Text>
           <TouchableOpacity
-            style={styles.pickerButton}
+            style={[styles.pickerButton, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}
             onPress={() => setShowRecurrencePicker(true)}
           >
-            <Text style={styles.pickerButtonText}>{getRecurrenceLabel()}</Text>
-            <Text style={styles.pickerArrow}>▼</Text>
+            <Text style={[styles.pickerButtonText, { color: colors.inputText }]}>{getRecurrenceLabel()}</Text>
+            <Text style={[styles.pickerArrow, { color: colors.icon }]}>▼</Text>
           </TouchableOpacity>
 
           {/* Days of Week Picker - shown only for Weekly recurrence */}
@@ -692,15 +699,15 @@ export default function CreateEventScreen() {
             <>
               <Text style={[styles.label, { color: colors.text }]}>Days of Week *</Text>
               <TouchableOpacity
-                style={styles.pickerButton}
+                style={[styles.pickerButton, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}
                 onPress={() => setShowDaysOfWeekPicker(true)}
               >
-                <Text style={styles.pickerButtonText}>
+                <Text style={[styles.pickerButtonText, { color: colors.inputText }]}>
                   {formData.recurrenceDaysOfWeek.length > 0 
                     ? formData.recurrenceDaysOfWeek.map(d => d.charAt(0).toUpperCase() + d.slice(1, 3)).join(', ')
                     : 'Select days'}
                 </Text>
-                <Text style={styles.pickerArrow}>▼</Text>
+                <Text style={[styles.pickerArrow, { color: colors.icon }]}>▼</Text>
               </TouchableOpacity>
             </>
           )}
@@ -710,7 +717,7 @@ export default function CreateEventScreen() {
             <>
               <Text style={[styles.label, { color: colors.text }]}>Recurrence End Date (Optional)</Text>
               <TouchableOpacity
-                style={styles.pickerButton}
+                style={[styles.pickerButton, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}
                 onPress={() => {
                   if (formData.recurrenceEndDate) {
                     const [year, month, day] = formData.recurrenceEndDate.split('-').map(Number);
@@ -728,12 +735,12 @@ export default function CreateEventScreen() {
                   setShowRecurrenceEndDatePicker(true);
                 }}
               >
-                <Text style={styles.pickerButtonText}>
+                <Text style={[styles.pickerButtonText, { color: formData.recurrenceEndDate ? colors.inputText : colors.inputPlaceholder }]}>
                   {formData.recurrenceEndDate ? formatDateForDisplay(formData.recurrenceEndDate) : 'No end date (auto 5 events)'}
                 </Text>
-                <Text style={styles.pickerArrow}>📅</Text>
+                <Ionicons name="calendar-outline" size={20} color={colors.icon} />
               </TouchableOpacity>
-              <Text style={styles.sublabel}>
+              <Text style={[styles.sublabel, { color: colors.textSecondary }]}>
                 Leave empty to auto-create up to 5 future events
               </Text>
             </>
@@ -745,6 +752,7 @@ export default function CreateEventScreen() {
             value={formData.maxParticipants}
             onChangeText={(text) => setFormData({ ...formData, maxParticipants: text })}
             placeholder="Leave empty for no limit"
+            placeholderTextColor={colors.inputPlaceholder}
             keyboardType="numeric"
           />
 
@@ -754,6 +762,7 @@ export default function CreateEventScreen() {
             value={formData.reserveSpots}
             onChangeText={(text) => setFormData({ ...formData, reserveSpots: text })}
             placeholder="0"
+            placeholderTextColor={colors.inputPlaceholder}
             keyboardType="numeric"
           />
 
@@ -763,6 +772,7 @@ export default function CreateEventScreen() {
             value={formData.cost}
             onChangeText={(text) => setFormData({ ...formData, cost: text })}
             placeholder="0.00"
+            placeholderTextColor={colors.inputPlaceholder}
             keyboardType="decimal-pad"
           />
 
@@ -772,6 +782,7 @@ export default function CreateEventScreen() {
             value={formData.requirements}
             onChangeText={(text) => setFormData({ ...formData, requirements: text })}
             placeholder="Enter event description"
+            placeholderTextColor={colors.inputPlaceholder}
             multiline
             numberOfLines={3}
           />
@@ -807,6 +818,7 @@ export default function CreateEventScreen() {
                 value={formData.maxPlayerPayment}
                 onChangeText={(text) => setFormData({ ...formData, maxPlayerPayment: text })}
                 placeholder="20.00"
+                placeholderTextColor={colors.inputPlaceholder}
                 keyboardType="decimal-pad"
               />
 
@@ -817,6 +829,7 @@ export default function CreateEventScreen() {
                 value={formData.finalVenueCost}
                 onChangeText={(text) => setFormData({ ...formData, finalVenueCost: text })}
                 placeholder="100.00"
+                placeholderTextColor={colors.inputPlaceholder}
                 keyboardType="decimal-pad"
               />
 
@@ -958,6 +971,9 @@ export default function CreateEventScreen() {
                 <Text style={[styles.modalOptionText, { color: !formData.venueOrganiserId ? colors.selectionText : colors.text }]}>None (no venue organiser)</Text>
                 {!formData.venueOrganiserId && <Text style={[styles.modalCheckmark, { color: colors.selectionText }]}>✓</Text>}
               </TouchableOpacity>
+              {teamMembers.length === 0 && (
+                <Text style={[styles.emptyState, { color: colors.textSecondary }]}>No team members available</Text>
+              )}
               {teamMembers.map((member) => {
                 const isSelected = formData.venueOrganiserId === member.id;
                 return (
@@ -1390,10 +1406,10 @@ export default function CreateEventScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors, isDark) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -1401,22 +1417,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.card,
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    borderBottomColor: colors.border,
   },
   backButton: {
     padding: 8,
   },
   backButtonText: {
     fontSize: 16,
-    color: '#3b82f6',
+    color: colors.primary,
     fontWeight: '500',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1e293b',
+    color: colors.text,
   },
   placeholder: {
     width: 60,
@@ -1430,17 +1446,19 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#374151',
+    color: colors.text,
     marginTop: 16,
     marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: colors.inputBorder,
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.inputBackground,
+    color: colors.inputText,
+    ...(Platform.OS === 'web' ? { colorScheme: isDark ? 'dark' : 'light' } : {}),
   },
   textArea: {
     height: 80,
@@ -1451,28 +1469,28 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: colors.inputBorder,
     borderRadius: 8,
     padding: 12,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.inputBackground,
   },
   pickerButtonText: {
     fontSize: 16,
-    color: '#1e293b',
+    color: colors.inputText,
   },
   pickerArrow: {
     fontSize: 12,
-    color: '#6b7280',
+    color: colors.icon,
   },
   optionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.card,
     padding: 16,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: colors.border,
     marginTop: 16,
   },
   optionLeft: {
@@ -1481,36 +1499,36 @@ const styles = StyleSheet.create({
   optionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1e293b',
+    color: colors.text,
     marginBottom: 2,
   },
   optionSubtitle: {
     fontSize: 14,
-    color: '#6b7280',
+    color: colors.textSecondary,
   },
   toggle: {
     width: 48,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#d1d5db',
+    backgroundColor: colors.disabled,
     justifyContent: 'center',
     paddingHorizontal: 2,
   },
   toggleActive: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: colors.primary,
   },
   toggleThumb: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.buttonText,
     alignSelf: 'flex-start',
   },
   toggleThumbActive: {
     alignSelf: 'flex-end',
   },
   submitButton: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: colors.primary,
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
@@ -1518,42 +1536,42 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   submitButtonDisabled: {
-    backgroundColor: '#9ca3af',
+    backgroundColor: colors.disabled,
   },
   submitButtonText: {
-    color: '#ffffff',
+    color: colors.buttonText,
     fontSize: 16,
     fontWeight: '600',
   },
   sublabel: {
     fontSize: 12,
-    color: '#6b7280',
+    color: colors.textSecondary,
     marginBottom: 8,
     marginTop: -4,
   },
   sectionDivider: {
     height: 1,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: colors.border,
     marginVertical: 24,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1e293b',
+    color: colors.text,
     marginBottom: 16,
   },
   costBreakdown: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: colors.cardSecondary,
     borderRadius: 8,
     padding: 16,
     marginTop: 16,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: colors.border,
   },
   costBreakdownTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1e293b',
+    color: colors.text,
     marginBottom: 12,
   },
   costBreakdownRow: {
@@ -1563,36 +1581,36 @@ const styles = StyleSheet.create({
   },
   costBreakdownLabel: {
     fontSize: 14,
-    color: '#6b7280',
+    color: colors.textSecondary,
   },
   costBreakdownValue: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#1e293b',
+    color: colors.text,
   },
   costBreakdownTotal: {
     borderTopWidth: 1,
-    borderTopColor: '#d1d5db',
+    borderTopColor: colors.border,
     marginTop: 8,
     paddingTop: 12,
   },
   costBreakdownTotalLabel: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#1e293b',
+    color: colors.text,
   },
   costBreakdownTotalValue: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#3b82f6',
+    color: colors.primary,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: colors.overlay,
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.card,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '80%',
@@ -1604,19 +1622,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: colors.border,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1e293b',
+    color: colors.text,
   },
   modalClose: {
     fontSize: 24,
-    color: '#6b7280',
+    color: colors.icon,
   },
   modalScroll: {
     maxHeight: 400,
+  },
+  emptyState: {
+    paddingHorizontal: 16,
+    paddingVertical: 18,
+    fontSize: 14,
+    textAlign: 'center',
   },
   modalOption: {
     flexDirection: 'row',
@@ -1624,22 +1648,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: colors.borderLight,
   },
   modalOptionSelected: {
-    backgroundColor: '#eff6ff',
+    backgroundColor: colors.selectionBackground,
   },
   modalOptionText: {
     fontSize: 16,
-    color: '#1e293b',
+    color: colors.text,
   },
   modalOptionTextSelected: {
-    color: '#3b82f6',
+    color: colors.selectionText,
     fontWeight: '600',
   },
   modalCheckmark: {
     fontSize: 18,
-    color: '#3b82f6',
+    color: colors.selectionText,
     fontWeight: 'bold',
   },
   secondaryTeamsContainer: {
@@ -1647,7 +1671,7 @@ const styles = StyleSheet.create({
   },
   secondaryTeamsLabel: {
     fontSize: 13,
-    color: '#6b7280',
+    color: colors.textSecondary,
     marginBottom: 8,
     fontWeight: '500',
   },
@@ -1659,9 +1683,9 @@ const styles = StyleSheet.create({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#eff6ff',
+    backgroundColor: colors.primaryLight,
     borderWidth: 1,
-    borderColor: '#bfdbfe',
+    borderColor: colors.inputBorder,
     borderRadius: 16,
     paddingVertical: 6,
     paddingHorizontal: 12,
@@ -1670,12 +1694,12 @@ const styles = StyleSheet.create({
   },
   chipText: {
     fontSize: 14,
-    color: '#1e40af',
+    color: colors.selectionText,
     marginRight: 6,
   },
   chipRemove: {
     fontSize: 16,
-    color: '#3b82f6',
+    color: colors.selectionText,
     fontWeight: 'bold',
   },
   addMoreButton: {
@@ -1683,36 +1707,36 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderWidth: 1,
-    borderColor: '#3b82f6',
+    borderColor: colors.primary,
     borderRadius: 8,
     borderStyle: 'dashed',
     alignItems: 'center',
   },
   addMoreButtonText: {
     fontSize: 14,
-    color: '#3b82f6',
+    color: colors.primary,
     fontWeight: '600',
   },
   modalFooter: {
     padding: 16,
     paddingBottom: 24,
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    borderTopColor: colors.border,
   },
   modalConfirmButton: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: colors.primary,
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
   },
   modalConfirmButtonText: {
-    color: '#ffffff',
+    color: colors.buttonText,
     fontSize: 16,
     fontWeight: '600',
   },
   // Date/Time Picker Styles
   datePickerContent: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.card,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '60%',
@@ -1730,7 +1754,7 @@ const styles = StyleSheet.create({
   datePickerLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6b7280',
+    color: colors.textSecondary,
     marginBottom: 8,
   },
   datePickerScroll: {
@@ -1745,14 +1769,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   datePickerItemSelected: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: colors.primary,
   },
   datePickerItemText: {
     fontSize: 16,
-    color: '#1e293b',
+    color: colors.inputText,
   },
   datePickerItemTextSelected: {
-    color: '#ffffff',
+    color: colors.buttonText,
     fontWeight: '600',
   },
   timePickerRow: {
@@ -1769,21 +1793,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-    backgroundColor: '#ffffff',
+    borderTopColor: colors.border,
+    backgroundColor: colors.card,
     gap: 12,
   },
   clearDateButton: {
     flex: 1,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.buttonSecondary,
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: colors.inputBorder,
   },
   clearDateButtonText: {
-    color: '#374151',
+    color: colors.buttonSecondaryText,
     fontSize: 14,
     fontWeight: '600',
   },

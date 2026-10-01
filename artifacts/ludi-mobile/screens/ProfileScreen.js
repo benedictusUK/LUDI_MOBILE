@@ -423,9 +423,9 @@ export default function ProfileScreen({ navigation }) {
         <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
           <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
             <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-              <Text style={styles.modalTitle}>Select Theme</Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Select Theme</Text>
               <TouchableOpacity onPress={() => setShowThemePicker(false)}>
-                <Ionicons name="close" size={24} color="#64748b" />
+                <Ionicons name="close" size={24} color={colors.icon} />
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.modalScroll}>
@@ -439,19 +439,23 @@ export default function ProfileScreen({ navigation }) {
                 return (
                   <TouchableOpacity
                     key={index}
-                    style={[styles.modalOption, isSelected && styles.modalOptionSelected]}
+                    style={[
+                      styles.modalOption,
+                      { borderBottomColor: colors.borderLight },
+                      isSelected && { backgroundColor: colors.selectionBackground },
+                    ]}
                     onPress={() => {
                       changeTheme(option.value);
                       setShowThemePicker(false);
                     }}
                   >
                     <View style={styles.themeOption}>
-                      <Ionicons name={option.icon} size={20} color={isSelected ? "#3b82f6" : "#64748b"} />
-                      <Text style={[styles.modalOptionText, isSelected && styles.modalOptionTextSelected]}>
+                      <Ionicons name={option.icon} size={20} color={isSelected ? colors.selectionText : colors.icon} />
+                      <Text style={[styles.modalOptionText, { color: isSelected ? colors.selectionText : colors.text }]}>
                         {option.label}
                       </Text>
                     </View>
-                    {isSelected && <Ionicons name="checkmark" size={20} color="#3b82f6" />}
+                    {isSelected && <Ionicons name="checkmark" size={20} color={colors.selectionText} />}
                   </TouchableOpacity>
                 );
               })}

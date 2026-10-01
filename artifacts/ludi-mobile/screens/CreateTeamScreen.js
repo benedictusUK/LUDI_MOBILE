@@ -63,7 +63,8 @@ const GENDERS = [
 export default function CreateTeamScreen() {
   const navigation = useNavigation();
   const { apiRequest } = useAuth();
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const [loading, setLoading] = useState(false);
   const [showGenderPicker, setShowGenderPicker] = useState(false);
   
@@ -129,55 +130,56 @@ export default function CreateTeamScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={[styles.backButtonText, { color: colors.primary }]}>← Back</Text>
+          <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Create Team</Text>
+        <Text style={styles.headerTitle}>Create Team</Text>
         <View style={styles.placeholder} />
       </View>
 
       <ScrollView style={styles.scrollView}>
         <View style={styles.form}>
-          <Text style={[styles.label, { color: colors.text }]}>Team Name *</Text>
+          <Text style={styles.label}>Team Name *</Text>
           <TextInput
-            style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
+            style={styles.input}
             value={formData.name}
             onChangeText={(text) => setFormData({ ...formData, name: text })}
             placeholder="Enter team name"
             placeholderTextColor={colors.inputPlaceholder}
+            selectionColor={colors.primary}
             maxLength={50}
           />
 
-          <Text style={[styles.label, { color: colors.text }]}>Description</Text>
+          <Text style={styles.label}>Description</Text>
           <TextInput
-            style={[styles.input, styles.textArea, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
+            style={[styles.input, styles.textArea]}
             value={formData.description}
             onChangeText={(text) => setFormData({ ...formData, description: text })}
             placeholder="Tell others about your team"
             placeholderTextColor={colors.inputPlaceholder}
+            selectionColor={colors.primary}
             multiline
             numberOfLines={3}
             maxLength={200}
           />
 
-          <Text style={[styles.label, { color: colors.text }]}>Sports *</Text>
-          <Text style={[styles.sublabel, { color: colors.textSecondary }]}>Select all sports your team plays</Text>
+          <Text style={styles.label}>Sports *</Text>
+          <Text style={styles.sublabel}>Select all sports your team plays</Text>
           <View style={styles.sportsGrid}>
             {SPORTS.map((sport) => (
               <TouchableOpacity
                 key={sport}
                 style={[
                   styles.sportChip,
-                  { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder },
-                  formData.sports.includes(sport) && { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff', borderColor: colors.primary }
+                  formData.sports.includes(sport) && styles.sportChipSelected,
                 ]}
                 onPress={() => handleSportToggle(sport)}
               >
                 <Text style={[
                   styles.sportChipText,
-                  { color: formData.sports.includes(sport) ? colors.primary : colors.text }
+                  formData.sports.includes(sport) && styles.sportChipTextSelected,
                 ]}>
                   {sport}
                 </Text>
@@ -185,7 +187,7 @@ export default function CreateTeamScreen() {
             ))}
           </View>
 
-          <Text style={[styles.label, { color: colors.text }]}>Team Color</Text>
+          <Text style={styles.label}>Team Color</Text>
           <View style={styles.colorGrid}>
             {TEAM_COLORS.map((color) => (
               <TouchableOpacity
@@ -193,32 +195,36 @@ export default function CreateTeamScreen() {
                 style={[
                   styles.colorChip,
                   { backgroundColor: color },
-                  formData.color === color && styles.colorChipSelected
+                  formData.color === color && {
+                    borderColor: colors.text,
+                    borderWidth: 3,
+                  }
                 ]}
                 onPress={() => setFormData({ ...formData, color })}
               />
             ))}
           </View>
 
-          <Text style={[styles.label, { color: colors.text }]}>Max Players</Text>
+          <Text style={styles.label}>Max Players</Text>
           <TextInput
-            style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
+            style={styles.input}
             value={formData.maxPlayers}
             onChangeText={(text) => setFormData({ ...formData, maxPlayers: text })}
             placeholder="Leave empty for no limit"
             placeholderTextColor={colors.inputPlaceholder}
+            selectionColor={colors.primary}
             keyboardType="numeric"
           />
 
-          <Text style={[styles.label, { color: colors.text }]}>Gender Preference</Text>
+          <Text style={styles.label}>Gender Preference</Text>
           <TouchableOpacity
-            style={[styles.pickerButton, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}
+            style={styles.pickerButton}
             onPress={() => setShowGenderPicker(true)}
           >
-            <Text style={[styles.pickerButtonText, { color: colors.inputText }]}>
+            <Text style={styles.pickerButtonText}>
               {GENDERS.find(g => g.value === formData.gender)?.label || 'Select gender'}
             </Text>
-            <Text style={[styles.pickerArrow, { color: colors.icon }]}>▼</Text>
+            <Text style={styles.pickerArrow}>▼</Text>
           </TouchableOpacity>
 
           <View style={styles.optionsContainer}>
@@ -227,15 +233,14 @@ export default function CreateTeamScreen() {
               onPress={() => setFormData({ ...formData, isPrivate: !formData.isPrivate })}
             >
               <View style={styles.optionLeft}>
-                <Text style={[styles.optionTitle, { color: colors.text }]}>Private Team</Text>
-                <Text style={[styles.optionSubtitle, { color: colors.textSecondary }]}>
+                <Text style={styles.optionTitle}>Private Team</Text>
+                <Text style={styles.optionSubtitle}>
                   Only visible to invited members
                 </Text>
               </View>
               <View style={[
                 styles.toggle,
-                { backgroundColor: colors.inputBackground },
-                formData.isPrivate && { backgroundColor: colors.primary }
+                { backgroundColor: formData.isPrivate ? colors.primary : colors.disabled }
               ]}>
                 <View style={[
                   styles.toggleThumb,
@@ -249,15 +254,14 @@ export default function CreateTeamScreen() {
               onPress={() => setFormData({ ...formData, requiresApproval: !formData.requiresApproval })}
             >
               <View style={styles.optionLeft}>
-                <Text style={[styles.optionTitle, { color: colors.text }]}>Require Approval</Text>
-                <Text style={[styles.optionSubtitle, { color: colors.textSecondary }]}>
+                <Text style={styles.optionTitle}>Require Approval</Text>
+                <Text style={styles.optionSubtitle}>
                   Review join requests before accepting
                 </Text>
               </View>
               <View style={[
                 styles.toggle,
-                { backgroundColor: colors.inputBackground },
-                formData.requiresApproval && { backgroundColor: colors.primary }
+                { backgroundColor: formData.requiresApproval ? colors.primary : colors.disabled }
               ]}>
                 <View style={[
                   styles.toggleThumb,
@@ -272,7 +276,10 @@ export default function CreateTeamScreen() {
             onPress={handleSubmit}
             disabled={loading}
           >
-            <Text style={styles.submitButtonText}>
+            <Text style={[
+              styles.submitButtonText,
+              loading && styles.submitButtonDisabledText,
+            ]}>
               {loading ? 'Creating Team...' : 'Create Team'}
             </Text>
           </TouchableOpacity>
@@ -285,12 +292,12 @@ export default function CreateTeamScreen() {
         animationType="slide"
         onRequestClose={() => setShowGenderPicker(false)}
       >
-        <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
-          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
-            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>Gender Preference</Text>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Gender Preference</Text>
               <TouchableOpacity onPress={() => setShowGenderPicker(false)}>
-                <Text style={[styles.modalClose, { color: colors.icon }]}>✕</Text>
+                <Text style={styles.modalClose}>✕</Text>
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.modalScroll}>
@@ -300,16 +307,22 @@ export default function CreateTeamScreen() {
                 return (
                   <TouchableOpacity
                     key={index}
-                    style={[styles.modalOption, { borderBottomColor: colors.borderLight }, isSelected && { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff' }]}
+                    style={[
+                      styles.modalOption,
+                      isSelected && styles.modalOptionSelected,
+                    ]}
                     onPress={() => {
                       setFormData({ ...formData, gender: option.value });
                       setShowGenderPicker(false);
                     }}
                   >
-                    <Text style={[styles.modalOptionText, { color: isSelected ? colors.primary : colors.text }, isSelected && { fontWeight: '600' }]}>
+                    <Text style={[
+                      styles.modalOptionText,
+                      isSelected && styles.modalOptionTextSelected,
+                    ]}>
                       {option.label}
                     </Text>
-                    {isSelected && <Text style={[styles.modalCheckmark, { color: colors.primary }]}>✓</Text>}
+                    {isSelected && <Text style={styles.modalCheckmark}>✓</Text>}
                   </TouchableOpacity>
                 );
               })}
@@ -321,10 +334,10 @@ export default function CreateTeamScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -332,22 +345,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.card,
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    borderBottomColor: colors.border,
   },
   backButton: {
     padding: 8,
   },
   backButtonText: {
     fontSize: 16,
-    color: '#3b82f6',
+    color: colors.primary,
     fontWeight: '500',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1e293b',
+    color: colors.text,
   },
   placeholder: {
     width: 60,
@@ -362,21 +375,22 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#374151',
+    color: colors.text,
     marginBottom: 4,
   },
   sublabel: {
     fontSize: 14,
-    color: '#6b7280',
+    color: colors.textSecondary,
     marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: colors.inputBorder,
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.inputBackground,
+    color: colors.inputText,
   },
   textArea: {
     height: 80,
@@ -391,21 +405,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 16,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: colors.inputBackground,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: colors.inputBorder,
   },
   sportChipSelected: {
-    backgroundColor: '#3b82f6',
-    borderColor: '#3b82f6',
+    backgroundColor: colors.selectionBackground,
+    borderColor: colors.primary,
   },
   sportChipText: {
     fontSize: 14,
-    color: '#64748b',
+    color: colors.text,
     fontWeight: '500',
   },
   sportChipTextSelected: {
-    color: '#ffffff',
+    color: colors.selectionText,
   },
   colorGrid: {
     flexDirection: 'row',
@@ -419,27 +433,23 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'transparent',
   },
-  colorChipSelected: {
-    borderColor: '#1e293b',
-    borderWidth: 3,
-  },
   pickerButton: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: colors.inputBorder,
     borderRadius: 8,
     padding: 12,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.inputBackground,
   },
   pickerButtonText: {
     fontSize: 16,
-    color: '#1e293b',
+    color: colors.inputText,
   },
   pickerArrow: {
     fontSize: 12,
-    color: '#6b7280',
+    color: colors.icon,
   },
   optionsContainer: {
     gap: 16,
@@ -448,11 +458,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.card,
     padding: 16,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: colors.border,
   },
   optionLeft: {
     flex: 1,
@@ -460,56 +470,56 @@ const styles = StyleSheet.create({
   optionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1e293b',
+    color: colors.text,
     marginBottom: 2,
   },
   optionSubtitle: {
     fontSize: 14,
-    color: '#6b7280',
+    color: colors.textSecondary,
   },
   toggle: {
     width: 48,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#d1d5db',
+    backgroundColor: colors.disabled,
     justifyContent: 'center',
     paddingHorizontal: 2,
-  },
-  toggleActive: {
-    backgroundColor: '#3b82f6',
   },
   toggleThumb: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.buttonText,
     alignSelf: 'flex-start',
   },
   toggleThumbActive: {
     alignSelf: 'flex-end',
   },
   submitButton: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: colors.primary,
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
     marginTop: 8,
   },
   submitButtonDisabled: {
-    backgroundColor: '#9ca3af',
+    backgroundColor: colors.disabled,
   },
   submitButtonText: {
-    color: '#ffffff',
+    color: colors.buttonText,
     fontSize: 16,
     fontWeight: '600',
   },
+  submitButtonDisabledText: {
+    color: colors.buttonSecondaryText,
+  },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: colors.overlay,
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.card,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '70%',
@@ -520,16 +530,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: colors.border,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1e293b',
+    color: colors.text,
   },
   modalClose: {
     fontSize: 24,
-    color: '#6b7280',
+    color: colors.icon,
   },
   modalScroll: {
     maxHeight: 400,
@@ -540,22 +550,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: colors.borderLight,
   },
   modalOptionSelected: {
-    backgroundColor: '#eff6ff',
+    backgroundColor: colors.selectionBackground,
   },
   modalOptionText: {
     fontSize: 16,
-    color: '#1e293b',
+    color: colors.text,
   },
   modalOptionTextSelected: {
-    color: '#3b82f6',
+    color: colors.selectionText,
     fontWeight: '600',
   },
   modalCheckmark: {
     fontSize: 18,
-    color: '#3b82f6',
+    color: colors.selectionText,
     fontWeight: 'bold',
   },
 });

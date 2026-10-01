@@ -14,7 +14,8 @@ export const useTheme = () => {
 
 export const ThemeProvider = ({ children }) => {
   const systemColorScheme = useColorScheme();
-  const [themeMode, setThemeMode] = useState('system'); // 'light', 'dark', or 'system'
+  // Default to dark; a previously saved light/dark/system choice still wins.
+  const [themeMode, setThemeMode] = useState('dark'); // 'light', 'dark', or 'system'
   const [loading, setLoading] = useState(true);
 
   // Determine the actual theme to use
@@ -78,7 +79,7 @@ export const ThemeProvider = ({ children }) => {
     inputBackground: isDark ? '#1e293b' : '#ffffff',
     inputBorder: isDark ? '#334155' : '#e2e8f0',
     inputText: isDark ? '#f1f5f9' : '#1e293b',
-    inputPlaceholder: isDark ? '#64748b' : '#94a3b8',
+    inputPlaceholder: isDark ? '#94a3b8' : '#64748b',
     
     // Button colors
     buttonText: '#ffffff',
