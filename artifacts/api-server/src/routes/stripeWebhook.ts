@@ -91,7 +91,9 @@ async function updatePaymentIntentState(paymentIntent: Stripe.PaymentIntent) {
       .returning({ id: eventPayments.id });
 
     const transferId = expandableId(charge?.transfer);
-    if (eventPayment && transferId && paymentIntent.transfer_data?.destination) {
+    // An earlier authorization event may arrive after the charge was captured.
+    // Do not reserve the unique transfer receipt with its uncaptured amount.
+    if (paymentIntent.status === "succeeded" && eventPayment && transferId && paymentIntent.transfer_data?.destination) {
       const destination = typeof paymentIntent.transfer_data.destination === "string"
         ? paymentIntent.transfer_data.destination
         : paymentIntent.transfer_data.destination.id;

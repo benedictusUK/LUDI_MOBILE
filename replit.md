@@ -10,6 +10,7 @@ _Replace the heading above with the project's name, and this line with one sente
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run migrate` — apply checked-in SQL migrations with an advisory lock
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
+- `pnpm --filter @workspace/api-server exec node --test src/routes/stripeWebhook.integration.test.mjs` — webhook signature/status/accounting regression checks using temporary development database tables; all fixtures are rolled back, with no Stripe API calls
 - Required env:
   - `DATABASE_URL` — Postgres connection string
   - `STRIPE_SECRET_KEY` — server-only Stripe API secret
