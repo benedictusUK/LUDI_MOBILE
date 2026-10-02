@@ -112,7 +112,10 @@ async function paymentRow(event, userId = memberId) {
 async function checkTransfer(piId, expectedAmount) {
   const pi = await stripe.paymentIntents.retrieve(piId);
   const ch = await stripe.charges.retrieve(pi.latest_charge);
-  assert.equal(ch.amount, expectedAmount);
+  // Charge.amount retains the original authorization after partial capture.
+  // Verify the captured money, not the authorization ceiling.
+  assert.equal(pi.amount_received, expectedAmount);
+  assert.equal(ch.amount_captured, expectedAmount);
   assert.equal(ch.captured, true);
   const tr = await stripe.transfers.retrieve(typeof ch.transfer === "string" ? ch.transfer : ch.transfer.id);
   const fee = Math.round(expectedAmount * x.platformFeeBasisPoints / 10000);
@@ -149,10 +152,20 @@ try {
       external_account: { object: "bank_account", country: "GB", currency: "gbp", routing_number: "108800", account_number: "00012345" },
       tos_acceptance: { date: Math.floor(Date.now() / 1000), ip: "127.0.0.1" },
     }, { idempotencyKey: runId });
-    for (let n = 0; n < 10 && (!account.charges_enabled || !account.payouts_enabled); n++) {
+    for (let n = 0; n < 60 && (!account.charges_enabled || !account.payouts_enabled); n++) {
       await sleep(1000);
       account = await stripe.accounts.retrieve(account.id);
+      if (account.requirements.currently_due.length && !account.requirements.pending_verification.length) break;
     }
+    console.log("Organizer capability status", JSON.stringify({
+      chargesEnabled: account.charges_enabled, payoutsEnabled: account.payouts_enabled,
+      capabilities: account.capabilities, requirements: {
+        disabledReason: account.requirements.disabled_reason,
+        currentlyDue: account.requirements.currently_due,
+        pendingVerification: account.requirements.pending_verification,
+        errors: account.requirements.errors,
+      },
+    }));
     assert.equal(account.charges_enabled, true, `Charges disabled; required fields: ${account.requirements.currently_due.join(", ")}`);
     assert.equal(account.payouts_enabled, true, `Payouts disabled; required fields: ${account.requirements.currently_due.join(", ")}`);
   });
