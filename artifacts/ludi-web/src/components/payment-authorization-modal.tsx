@@ -18,6 +18,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { AlertTriangle, CreditCard, Check, Smartphone, Wallet } from "lucide-react";
+import { loadStripe } from "@stripe/stripe-js";
+
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
 
 interface PaymentAuthorizationModalProps {
   isOpen: boolean;
@@ -64,26 +67,52 @@ export default function PaymentAuthorizationModal({
 
   const authorizePaymentMutation = useMutation({
     mutationFn: async () => {
-      if (isFromNotification && notificationId) {
-        // For notification-based payments, use direct notification authorization endpoint
-        // This will capture payment immediately and handle voting automatically
-        return await apiRequest("POST", `/api/notifications/${notificationId}/authorize-payment`, {
-          paymentMethodId: selectedPaymentMethod,
+      const endpoint = isFromNotification && notificationId
+        ? `/api/notifications/${notificationId}/authorize-payment`
+        : `/api/events/${event.id}/authorize-payment`;
+      const body = { paymentMethodId: selectedPaymentMethod };
+      const performAuthorization = () => fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(body),
+      });
+
+      let response = await performAuthorization();
+      if (response.status === 409) {
+        const action = await response.json();
+        if (!action.requiresAction || !action.clientSecret) {
+          throw new Error(action.message || "Payment authorization failed");
+        }
+        const stripe = await stripePromise;
+        if (!stripe) throw new Error("Stripe is unavailable");
+        const confirmation = await stripe.confirmCardPayment(action.clientSecret);
+        const expectedStatus = isFromNotification ? "succeeded" : "requires_capture";
+        if (confirmation.error || confirmation.paymentIntent?.status !== expectedStatus) {
+          throw new Error(confirmation.error?.message || "Card authentication was not completed");
+        }
+        response = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            paymentIntentId: confirmation.paymentIntent.id,
+            paymentMethod: isFromNotification ? "finalize" : "wallet",
+          }),
         });
-      } else {
-        // Regular voting flow - create authorization hold first, then vote
-        const response = await apiRequest("POST", `/api/events/${event.id}/authorize-payment`, {
-          paymentMethodId: selectedPaymentMethod,
-          amount: maxPlayerPayment,
-        });
-        
-        // Then update attendance status
+      }
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Payment authorization failed");
+      }
+
+      if (!isFromNotification) {
         await apiRequest("POST", `/api/events/${event.id}/vote`, {
           status: "attending"
         });
-        
-        return response;
       }
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });

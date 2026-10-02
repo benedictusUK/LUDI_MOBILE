@@ -100,9 +100,7 @@ export default function PaymentCollectionScreen() {
       const response = await apiRequest(`/api/events/${eventId}/collect-payment`, {
         method: 'POST',
         body: JSON.stringify({
-          organiserId: selectedOrganiserId,
           venueCost,
-          attendeeIds: selectedAttendees,
         }),
       });
 

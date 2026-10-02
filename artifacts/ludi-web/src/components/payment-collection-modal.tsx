@@ -93,8 +93,8 @@ export function PaymentCollectionModal({
 
   // Fetch organiser Connect status
   const { data: organiserStatus = {}, isLoading: loadingStatus } = useQuery<OrganiserStatus>({
-    queryKey: ["/api/connect/status", selectedOrganiserId],
-    enabled: isOpen && !!selectedOrganiserId,
+    queryKey: [`/api/events/${eventId}/organiser-payout-status`],
+    enabled: isOpen,
   });
 
   // Initialize selected attendees with those who voted to attend
@@ -110,14 +110,10 @@ export function PaymentCollectionModal({
   const collectPaymentMutation = useMutation({
     mutationFn: async (data: {
       eventId: string;
-      organiserId: string;
       venueCost: string;
-      attendeeIds: string[];
     }) => {
       const response = await apiRequest("POST", `/api/events/${data.eventId}/collect-payment`, {
-        organiserId: data.organiserId,
         venueCost: data.venueCost,
-        attendeeIds: data.attendeeIds,
       });
       return response.json();
     },
@@ -140,35 +136,6 @@ export function PaymentCollectionModal({
     },
   });
 
-  const createConnectAccountMutation = useMutation({
-    mutationFn: async (userId: string) => {
-      const response = await apiRequest("POST", "/api/connect/create-account", { userId });
-      return response.json();
-    },
-    onSuccess: (data) => {
-      // Open the onboarding link in a new tab
-      window.open(data.url, "_blank");
-      toast({
-        title: "Connect Account Setup",
-        description: "Please complete the setup in the new tab, then return here.",
-      });
-      // Refetch status after a delay
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["/api/connect/status", selectedOrganiserId] });
-      }, 2000);
-    },
-    onError: (error: unknown) => {
-      const message = error instanceof Error ? error.message : "Failed to start Connect account setup";
-      const isConnectNotEnabled = message.includes("signed up for Connect");
-      toast({
-        title: "Setup Failed",
-        description: isConnectNotEnabled
-          ? "Stripe Connect is not enabled for this account. Please contact support to enable Connect functionality."
-          : message,
-        variant: "destructive",
-      });
-    },
-  });
   const perPersonCost = calculatePerPersonCost(venueCost, selectedAttendees.length, platformCharges);
   const baseCostPerPerson = parseFloat(venueCost || "0") / (selectedAttendees.length || 1);
   const costBreakdown = calculateTotalAmount(baseCostPerPerson, platformCharges);
@@ -215,14 +182,9 @@ export function PaymentCollectionModal({
       return;
     }
 
-    // Allow payment collection even without Connect setup for now
-    // The platform will collect payments and organiser reimbursement can be handled manually
-
     collectPaymentMutation.mutate({ 
       eventId, 
-      organiserId: selectedOrganiserId,
       venueCost,
-      attendeeIds: selectedAttendees
     });
   };
 
@@ -516,24 +478,11 @@ export function PaymentCollectionModal({
               {!loadingStatus && !organiserStatus?.payoutsEnabled && (
                 <div className="space-y-2">
                   <p className="text-xs text-neutral-600">
-                    This organiser needs to set up their payout account to receive payments.
+                    This organiser must sign in to LUDI and complete Stripe payout setup before payments can be collected.
                   </p>
                   <div className="text-xs text-amber-600 bg-amber-50 p-2 rounded border border-amber-200">
-                    <strong>Note:</strong> For now, you can collect payments without organiser setup. 
-                    The venue organiser will need to be reimbursed manually outside the platform.
+                    LUDI does not collect participant funds for manual reimbursement outside Stripe Connect.
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => createConnectAccountMutation.mutate(selectedOrganiserId)}
-                    disabled={createConnectAccountMutation.isPending}
-                    className="w-full"
-                  >
-                    {createConnectAccountMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : null}
-                    Try Set Up Payout Account
-                  </Button>
                 </div>
               )}
             </div>
@@ -553,7 +502,8 @@ export function PaymentCollectionModal({
               !selectedOrganiserId ||
               !venueCost ||
               parseFloat(venueCost) <= 0 ||
-              selectedAttendees.length === 0
+              selectedAttendees.length === 0 ||
+              !organiserStatus?.payoutsEnabled
             }
             className="flex-1"
             style={{ backgroundColor: "#10b981", borderColor: "#10b981" }}
