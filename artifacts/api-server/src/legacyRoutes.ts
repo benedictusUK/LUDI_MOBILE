@@ -1,12 +1,13 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import Stripe from "stripe";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { collectPaymentHandler } from "./routes/payments";
 import mobileAuthRoutes, { verifyMobileToken, verifyAuth } from "./routes/mobileAuth";
 import { isAllowedMobileRedirect } from "./mobileRedirect";
+import { calculatePercentageFeeMinor, decimalToMinorUnits } from "./payments/money";
+import { platformFeeBasisPoints, stripe } from "./payments/stripeClient";
 import { 
   insertTeamSchema, 
   insertEventSchema, 
@@ -18,20 +19,19 @@ import {
 } from "@workspace/db";
 import { z } from "zod";
 
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
-}
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Simple test endpoint for debugging POST requests (no auth required)
-  app.post('/api/test-post', (req, res) => {
-    console.log('[TEST] POST request received:', JSON.stringify(req.body).substring(0, 100));
-    res.json({ success: true, received: true, bodyKeys: Object.keys(req.body || {}) });
-  });
-
   // Auth middleware
   await setupAuth(app);
+
+  // Block legacy financial endpoints that trusted client amounts or created a
+  // second transfer after capture. They remain below temporarily for data-flow
+  // reference while callers migrate to the server-authoritative event flow.
+  app.post('/api/create-payment-intent', verifyAuth, (_req, res) =>
+    res.status(410).json({ message: "This payment flow has been retired" }));
+  app.post('/api/payments/capture', verifyAuth, (_req, res) =>
+    res.status(410).json({ message: "Use event completion to collect payments" }));
+  app.post('/api/events/:id/reimburse', verifyAuth, (_req, res) =>
+    res.status(410).json({ message: "Organiser funds are allocated through Stripe Connect" }));
 
   // Mobile authentication routes
   app.use('/api/auth/mobile', mobileAuthRoutes);
@@ -724,11 +724,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Mobile Payment API routes
   app.post('/api/payments/create-intent', verifyAuth, async (req: any, res) => {
     try {
-      const { eventId, amount } = req.body;
+      const { eventId } = req.body;
       const userId = req.userId;
 
-      if (!eventId || !amount) {
-        return res.status(400).json({ message: 'Event ID and amount are required' });
+      if (!eventId) {
+        return res.status(400).json({ message: 'Event ID is required' });
       }
 
       // Get event details to validate
@@ -737,34 +737,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Event not found' });
       }
 
-      // Calculate fees and total
-      const baseAmount = parseFloat(amount);
-      const platformFee = Math.max(0.30, baseAmount * 0.029); // 2.9% + 30p minimum
-      const totalAmount = baseAmount + platformFee;
+      if (!event.paymentRequired || !event.maxPlayerPayment) {
+        return res.status(400).json({ message: 'Event does not have a payment authorization amount' });
+      }
+
+      const organiserId = event.venueOrganiserId || event.createdById;
+      const organiser = await storage.getUserById(organiserId);
+      if (!organiser?.stripeAccountId || !organiser.payoutsEnabled) {
+        return res.status(409).json({ message: 'The organiser must finish payout setup before accepting payments' });
+      }
+
+      const user = await storage.getUserById(userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      let customerId = user.stripeCustomerId;
+      if (!customerId) {
+        const customer = await stripe.customers.create({
+          email: user.email,
+          metadata: { ludiUserId: userId },
+        }, {
+          idempotencyKey: `customer:${userId}`,
+        });
+        customerId = customer.id;
+        await storage.updateUserStripeCustomerId(userId, customerId);
+      }
+
+      // The amount and fee are derived exclusively from server-owned event
+      // configuration. The client cannot select either value or the recipient.
+      const amountMinor = decimalToMinorUnits(event.maxPlayerPayment);
+      const platformFeeMinor = calculatePercentageFeeMinor(amountMinor, platformFeeBasisPoints);
+      const authorizationRecord = await storage.getEventPayment(eventId, userId);
+      if (authorizationRecord?.status === 'hold_created') {
+        return res.status(409).json({ message: 'Payment is already authorized for this event' });
+      }
+      const authorizationAttempt = authorizationRecord?.updatedAt?.getTime() ?? "initial";
 
       // Create Stripe payment intent
       const paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(totalAmount * 100), // Convert to pence
+        amount: amountMinor,
         currency: 'gbp',
-        automatic_payment_methods: {
-          enabled: true,
+        customer: customerId,
+        capture_method: 'manual',
+        payment_method_types: ['card'],
+        application_fee_amount: platformFeeMinor,
+        transfer_data: {
+          destination: organiser.stripeAccountId,
         },
+        on_behalf_of: organiser.stripeAccountId,
         metadata: {
-          eventId,
-          userId,
-          baseAmount: baseAmount.toString(),
-          platformFee: platformFee.toString(),
+          ludiEventId: eventId,
+          ludiParticipantId: userId,
+          ludiOrganiserId: organiserId,
+          ludiPaymentFlow: 'flexible_authorization',
         },
+      }, {
+        idempotencyKey: `event-wallet-authorization:${eventId}:${userId}:${authorizationAttempt}`,
       });
 
       res.json({
         clientSecret: paymentIntent.client_secret,
         paymentIntentId: paymentIntent.id,
-        totalAmount,
-        breakdown: [
-          { name: 'Event Fee', amount: baseAmount },
-          { name: 'Platform Fee', amount: platformFee },
-        ],
+        amountMinor,
+        currency: 'gbp',
       });
     } catch (error) {
       console.error('Error creating payment intent:', error);
@@ -1750,15 +1786,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Authorize payment from notification
   app.post("/api/notifications/:notificationId/authorize-payment", verifyAuth, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
+      const userId = req.userId;
       const notificationId = req.params.notificationId;
-      const { paymentMethodId } = req.body;
+      const { paymentMethodId, paymentIntentId, paymentMethod: paymentAction } = req.body;
       
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
 
-      if (!paymentMethodId) {
+      const isFinalization = paymentAction === "finalize" && typeof paymentIntentId === "string";
+      if (!paymentMethodId && !isFinalization) {
         return res.status(400).json({ message: "Payment method is required" });
       }
 
@@ -1798,7 +1835,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const isEventInPast = eventEndTime < now;
-      console.log(`Event ${eventId} is ${isEventInPast ? 'in the past' : 'in the future'}, using ${isEventInPast ? 'immediate capture' : 'authorization hold'}`);
+      if (!isEventInPast) {
+        return res.status(409).json({ message: "This payment request is not ready for collection" });
+      }
 
       // Get user and verify they have a Stripe customer ID
       const user = await storage.getUserById(userId);
@@ -1806,72 +1845,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "User has no payment methods set up" });
       }
 
-      // Determine if this should be immediate payment or authorization hold
-      const shouldCaptureImmediately = isEventInPast || notificationId; // Capture for past events OR notification-based payments
-      
-      let paymentIntentData: any = {
-        amount: Math.round(parseFloat(amount) * 100), // Convert to cents
-        currency: "gbp",
-        customer: user.stripeCustomerId,
-        capture_method: 'manual', // Always use manual capture for flexibility
-        metadata: {
-          eventId,
-          userId,
-          type: shouldCaptureImmediately ? 'event_payment' : 'event_authorization',
-          notificationId: notificationId || '',
-          isNotificationPayment: notificationId ? 'true' : 'false'
-        },
-      };
-
-      // Handle specific payment methods
-      if (paymentMethodId === 'apple-pay' || paymentMethodId === 'google-pay') {
-        // For Apple Pay and Google Pay, don't set automatic_payment_methods
-        paymentIntentData.payment_method_types = [paymentMethodId === 'apple-pay' ? 'apple_pay' : 'google_pay'];
-        paymentIntentData.confirm = true;
-        paymentIntentData.return_url = `${req.protocol}://${req.get('host')}/events/${eventId}`;
-      } else if (paymentMethodId === 'paypal') {
-        paymentIntentData.payment_method_types = ['paypal'];
-        paymentIntentData.confirm = true;
-        paymentIntentData.return_url = `${req.protocol}://${req.get('host')}/events/${eventId}`;
-      } else if (paymentMethodId === 'new-card') {
-        paymentIntentData.payment_method_types = ['card'];
-        paymentIntentData.automatic_payment_methods = {
-          enabled: true,
-          allow_redirects: 'never'
-        };
-        paymentIntentData.confirm = true;
-        paymentIntentData.return_url = `${req.protocol}://${req.get('host')}/events/${eventId}`;
-      } else {
-        // Use existing saved payment method
-        paymentIntentData.payment_method = paymentMethodId;
-        paymentIntentData.confirm = true;
-        paymentIntentData.return_url = `${req.protocol}://${req.get('host')}/events/${eventId}`;
+      const organiserId = event.venueOrganiserId || event.createdById;
+      const organiser = await storage.getUserById(organiserId);
+      if (!organiser?.stripeAccountId || !organiser.payoutsEnabled) {
+        return res.status(409).json({ message: "The organiser cannot receive payments" });
       }
 
-      // Create payment intent
-      let paymentIntent = await stripe.paymentIntents.create(paymentIntentData);
+      const amountMinor = decimalToMinorUnits(String(amount));
+      let paymentIntent;
+      if (isFinalization) {
+        paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+      } else {
+        const paymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
+        const paymentMethodCustomer = typeof paymentMethod.customer === 'string'
+          ? paymentMethod.customer
+          : paymentMethod.customer?.id;
+        if (paymentMethod.type !== 'card' || paymentMethodCustomer !== user.stripeCustomerId) {
+          return res.status(403).json({ message: "Payment method does not belong to the authenticated user" });
+        }
+        paymentIntent = await stripe.paymentIntents.create({
+          amount: amountMinor,
+          currency: "gbp",
+          customer: user.stripeCustomerId,
+          payment_method: paymentMethodId,
+          confirm: true,
+          off_session: true,
+          capture_method: 'automatic',
+          application_fee_amount: calculatePercentageFeeMinor(amountMinor, platformFeeBasisPoints),
+          transfer_data: { destination: organiser.stripeAccountId },
+          on_behalf_of: organiser.stripeAccountId,
+          metadata: {
+            ludiEventId: eventId,
+            ludiParticipantId: userId,
+            ludiOrganiserId: organiserId,
+            ludiNotificationId: notificationId,
+            ludiPaymentFlow: 'post_event_recovery',
+          },
+        }, { idempotencyKey: `notification-payment:${notificationId}:${paymentMethodId}` });
+      }
 
-      // Immediately capture for notification-based payments or past events
-      if (shouldCaptureImmediately && paymentIntent.status === 'requires_capture') {
-        console.log(`Immediately capturing payment: ${notificationId ? 'notification-based' : 'past event'} payment for event ${eventId}`);
-        paymentIntent = await stripe.paymentIntents.capture(paymentIntent.id);
+      const intentCustomer = typeof paymentIntent.customer === "string"
+        ? paymentIntent.customer
+        : paymentIntent.customer?.id;
+      const intentDestination = typeof paymentIntent.transfer_data?.destination === "string"
+        ? paymentIntent.transfer_data.destination
+        : paymentIntent.transfer_data?.destination?.id;
+      if (
+        paymentIntent.metadata.ludiEventId !== eventId ||
+        paymentIntent.metadata.ludiParticipantId !== userId ||
+        paymentIntent.metadata.ludiOrganiserId !== organiserId ||
+        paymentIntent.metadata.ludiNotificationId !== notificationId ||
+        intentCustomer !== user.stripeCustomerId ||
+        intentDestination !== organiser.stripeAccountId ||
+        paymentIntent.amount !== amountMinor ||
+        paymentIntent.currency !== "gbp"
+      ) {
+        return res.status(409).json({ message: "Payment could not be verified" });
+      }
+
+      if (paymentIntent.status !== 'succeeded') {
+        return res.status(409).json({
+          message: "Payment requires additional card authentication",
+          requiresAction: paymentIntent.status === 'requires_action',
+          clientSecret: paymentIntent.status === 'requires_action' ? paymentIntent.client_secret : undefined,
+          status: paymentIntent.status,
+        });
       }
 
       // Store payment record with appropriate status
-      const paymentStatus = shouldCaptureImmediately ? 'captured' : 'authorized';
-      const paymentData = insertPaymentSchema.parse({
-        userId,
-        eventId,
-        amount: amount.toString(),
-        type: 'event_fee',
-        status: paymentStatus,
-      });
-      
-      const payment = await storage.createPayment(paymentData);
-      await storage.updatePaymentStatus(payment.id, paymentStatus, paymentIntent.id);
+      const paymentStatus = 'captured';
+      const existingPayment = (await storage.getEventPayments(eventId)).find(
+        payment => payment.userId === userId && payment.stripePaymentIntentId === paymentIntent.id
+      );
+      if (!existingPayment) {
+        const paymentData = insertPaymentSchema.parse({
+          userId,
+          eventId,
+          amount: amount.toString(),
+          type: 'event_fee',
+          status: paymentStatus,
+        });
+        const payment = await storage.createPayment(paymentData);
+        await storage.updatePaymentStatus(payment.id, paymentStatus, paymentIntent.id);
+      }
 
       // Create/update event payment record with appropriate status
-      const eventPaymentStatus = shouldCaptureImmediately ? 'captured' : 'hold_created';
+      const eventPaymentStatus = 'captured';
       try {
         const existingEventPayment = await storage.getEventPayment(eventId, userId);
         
@@ -1879,6 +1938,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await storage.updateEventPaymentSetup(eventId, userId, {
             status: eventPaymentStatus,
             paymentIntentId: paymentIntent.id,
+            finalAmount: amount.toString(),
+            capturedAt: new Date(),
             updatedAt: new Date()
           });
         } else {
@@ -1887,7 +1948,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             userId,
             stripeCustomerId: user.stripeCustomerId,
             paymentIntentId: paymentIntent.id,
-            status: eventPaymentStatus
+            status: eventPaymentStatus,
+            finalAmount: amount.toString(),
+            capturedAt: new Date(),
           });
         }
       } catch (eventPaymentError) {
@@ -1907,19 +1970,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({
         success: true,
-        message: shouldCaptureImmediately 
-          ? "Payment captured successfully and attendance confirmed" 
-          : "Payment authorized and attendance confirmed",
+        message: "Payment captured successfully and attendance confirmed",
         paymentIntentId: paymentIntent.id,
         clientSecret: paymentIntent.client_secret,
-        paymentStatus: shouldCaptureImmediately ? 'captured' : 'authorized'
+        paymentStatus: 'captured'
       });
 
     } catch (error: any) {
       console.error("Payment authorization from notification failed:", error);
       res.status(500).json({ 
-        message: "Failed to authorize payment", 
-        details: error.message 
+        message: "Failed to authorize payment"
       });
     }
   });
@@ -1927,9 +1987,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Authorize payment hold for event attendance
   app.post("/api/events/:id/authorize-payment", verifyAuth, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
+      const userId = req.userId;
       const eventId = req.params.id;
-      const { paymentMethodId, amount, paymentIntentId, paymentMethod } = req.body;
+      const { paymentMethodId, paymentIntentId, paymentMethod } = req.body;
       
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -1937,46 +1997,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Handle wallet payments that already have a payment intent
       if (paymentMethod === 'wallet' && paymentIntentId) {
-        // Wallet payment already processed through native payment sheet
-        // Just register it in the database
         const event = await storage.getEvent(eventId);
         if (!event) {
           return res.status(404).json({ message: "Event not found" });
         }
 
-        // Get the customer ID from the Stripe PaymentIntent if the user doesn't have one
-        let stripeCustomerId = '';
-        try {
-          const user = await storage.getUserById(userId);
-          stripeCustomerId = user?.stripeCustomerId || '';
-          
-          // If user doesn't have a customer ID, try to get it from the PaymentIntent
-          if (!stripeCustomerId) {
-            const stripePaymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-            if (stripePaymentIntent.customer && typeof stripePaymentIntent.customer === 'string') {
-              stripeCustomerId = stripePaymentIntent.customer;
-              // Update user with the customer ID for future use
-              await storage.updateUserStripeCustomerId(userId, stripeCustomerId);
-              console.log(`Wallet Payment: Updated user ${userId} with stripeCustomerId ${stripeCustomerId}`);
-            }
-          }
-        } catch (customerError) {
-          console.error("Error fetching Stripe customer ID:", customerError);
-          // Continue without customer ID - we'll use paymentIntentId for tracking
+        if (!event.paymentRequired || !event.maxPlayerPayment) {
+          return res.status(400).json({ message: "Event does not require payment authorization" });
         }
 
-        // Store payment record
-        const paymentData = insertPaymentSchema.parse({
-          userId,
-          eventId,
-          amount: (amount || 0).toString(),
-          type: 'event_fee',
-          status: 'authorized',
-        });
-        
-        const payment = await storage.createPayment(paymentData);
-        await storage.updatePaymentStatus(payment.id, 'authorized', paymentIntentId);
-        console.log(`Wallet Payment: Created payment record ${payment.id} for intent ${paymentIntentId}`);
+        const user = await storage.getUserById(userId);
+        if (!user?.stripeCustomerId) {
+          return res.status(400).json({ message: "User has no Stripe customer" });
+        }
+
+        const organiserId = event.venueOrganiserId || event.createdById;
+        const organiser = await storage.getUserById(organiserId);
+        if (!organiser?.stripeAccountId || !organiser.payoutsEnabled) {
+          return res.status(409).json({ message: "The organiser cannot receive payments" });
+        }
+
+        const stripePaymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+        const intentCustomerId = typeof stripePaymentIntent.customer === 'string'
+          ? stripePaymentIntent.customer
+          : stripePaymentIntent.customer?.id;
+        const destinationId = typeof stripePaymentIntent.transfer_data?.destination === 'string'
+          ? stripePaymentIntent.transfer_data.destination
+          : stripePaymentIntent.transfer_data?.destination?.id;
+        const expectedAmountMinor = decimalToMinorUnits(event.maxPlayerPayment);
+
+        if (
+          stripePaymentIntent.metadata.ludiEventId !== eventId ||
+          stripePaymentIntent.metadata.ludiParticipantId !== userId ||
+          stripePaymentIntent.metadata.ludiOrganiserId !== organiserId ||
+          intentCustomerId !== user.stripeCustomerId ||
+          destinationId !== organiser.stripeAccountId ||
+          stripePaymentIntent.amount !== expectedAmountMinor ||
+          stripePaymentIntent.currency !== 'gbp' ||
+          stripePaymentIntent.capture_method !== 'manual' ||
+          stripePaymentIntent.status !== 'requires_capture'
+        ) {
+          return res.status(409).json({ message: "Payment authorization could not be verified" });
+        }
+
+        const stripeCustomerId = user.stripeCustomerId;
+
+        const existingPayment = (await storage.getEventPayments(eventId)).find(
+          payment => payment.userId === userId && payment.stripePaymentIntentId === paymentIntentId
+        );
+        if (!existingPayment) {
+          const paymentData = insertPaymentSchema.parse({
+            userId,
+            eventId,
+            amount: event.maxPlayerPayment,
+            type: 'event_fee',
+            status: 'authorized',
+          });
+          const payment = await storage.createPayment(paymentData);
+          await storage.updatePaymentStatus(payment.id, 'authorized', paymentIntentId);
+          console.log(`Wallet Payment: Created payment record ${payment.id} for intent ${paymentIntentId}`);
+        }
 
         // Create/update event payment record - only if we have either a stripeCustomerId or can create without one
         try {
@@ -2023,8 +2103,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      if (!paymentMethodId || !amount) {
-        return res.status(400).json({ message: "Payment method ID and amount are required" });
+      if (!paymentMethodId) {
+        return res.status(400).json({ message: "Payment method ID is required" });
       }
 
       // Get user and verify they have a Stripe customer ID
@@ -2039,61 +2119,111 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Event not found" });
       }
 
-      if (!event.paymentRequired) {
+      if (!event.paymentRequired || !event.maxPlayerPayment) {
         return res.status(400).json({ message: "Event does not require payment" });
       }
 
-      // Handle different payment method types
+      const organiserId = event.venueOrganiserId || event.createdById;
+      const organiser = await storage.getUserById(organiserId);
+      if (!organiser?.stripeAccountId || !organiser.payoutsEnabled) {
+        return res.status(409).json({ message: "The organiser must finish payout setup before accepting payments" });
+      }
+
+      const paymentMethodRecord = await stripe.paymentMethods.retrieve(paymentMethodId);
+      const paymentMethodCustomer = typeof paymentMethodRecord.customer === 'string'
+        ? paymentMethodRecord.customer
+        : paymentMethodRecord.customer?.id;
+      if (paymentMethodRecord.type !== 'card' || paymentMethodCustomer !== user.stripeCustomerId) {
+        return res.status(403).json({ message: "Payment method does not belong to the authenticated user" });
+      }
+
+      const amountMinor = decimalToMinorUnits(event.maxPlayerPayment);
+      const platformFeeMinor = calculatePercentageFeeMinor(amountMinor, platformFeeBasisPoints);
+      const authorizationRecord = await storage.getEventPayment(eventId, userId);
+      if (authorizationRecord?.status === 'hold_created' && authorizationRecord.paymentIntentId) {
+        const existingIntent = await stripe.paymentIntents.retrieve(authorizationRecord.paymentIntentId);
+        if (existingIntent.status === 'requires_capture') {
+          return res.json({
+            success: true,
+            paymentIntentId: existingIntent.id,
+            status: existingIntent.status,
+            message: 'Payment is already authorized and attendance confirmed',
+          });
+        }
+      }
+      const authorizationAttempt = authorizationRecord?.updatedAt?.getTime() ?? "initial";
+
+      // Create a destination charge authorization using only server-owned
+      // amount, fee, participant, and organiser values.
       let paymentIntentData: any = {
-        amount: Math.round(parseFloat(amount) * 100), // Convert to cents
+        amount: amountMinor,
         currency: "gbp",
         customer: user.stripeCustomerId,
         capture_method: 'manual', // This creates an authorization hold
+        application_fee_amount: platformFeeMinor,
+        transfer_data: { destination: organiser.stripeAccountId },
+        on_behalf_of: organiser.stripeAccountId,
         metadata: {
-          eventId,
-          userId,
-          type: 'event_authorization'
+          ludiEventId: eventId,
+          ludiParticipantId: userId,
+          ludiOrganiserId: organiserId,
+          ludiPaymentFlow: 'flexible_authorization',
         },
       };
 
-      // Handle specific payment methods
-      if (paymentMethodId === 'apple-pay' || paymentMethodId === 'google-pay') {
-        // For Apple Pay and Google Pay, don't set automatic_payment_methods
-        paymentIntentData.payment_method_types = [paymentMethodId === 'apple-pay' ? 'apple_pay' : 'google_pay'];
-        paymentIntentData.confirm = true;
-        paymentIntentData.return_url = `${req.protocol}://${req.get('host')}/events/${eventId}`;
-      } else if (paymentMethodId === 'paypal') {
-        paymentIntentData.payment_method_types = ['paypal'];
-        paymentIntentData.confirm = true;
-        paymentIntentData.return_url = `${req.protocol}://${req.get('host')}/events/${eventId}`;
-      } else if (paymentMethodId === 'new-card') {
-        paymentIntentData.payment_method_types = ['card'];
-        paymentIntentData.automatic_payment_methods = {
-          enabled: true,
-          allow_redirects: 'never'
-        };
-      } else {
-        // Use existing saved payment method
-        paymentIntentData.payment_method = paymentMethodId;
-        paymentIntentData.confirm = true;
-        paymentIntentData.return_url = `${req.protocol}://${req.get('host')}/events/${eventId}`;
-      }
+      paymentIntentData.payment_method = paymentMethodId;
+      paymentIntentData.confirm = true;
+      paymentIntentData.off_session = true;
 
       // Create payment intent with authorization hold
-      const paymentIntent = await stripe.paymentIntents.create(paymentIntentData);
-
-      // Store payment record (create new one for each authorization attempt)
-      const paymentData = insertPaymentSchema.parse({
-        userId,
-        eventId,
-        amount: amount.toString(),
-        type: 'event_fee',
-        status: 'authorized',
+      const paymentIntent = await stripe.paymentIntents.create(paymentIntentData, {
+        idempotencyKey: `event-saved-authorization:${eventId}:${userId}:${authorizationAttempt}`,
       });
-      
-      const payment = await storage.createPayment(paymentData);
-      await storage.updatePaymentStatus(payment.id, 'authorized', paymentIntent.id);
-      console.log(`Authorize Payment: Created new payment record ${payment.id} with intent ${paymentIntent.id}`);
+
+      if (paymentIntent.status !== 'requires_capture') {
+        if (paymentIntent.status !== 'requires_action') {
+          if (authorizationRecord) {
+            await storage.updateEventPaymentSetup(eventId, userId, {
+              paymentIntentId: paymentIntent.id,
+              paymentIntentStatus: paymentIntent.status,
+              status: 'setup_complete',
+              updatedAt: new Date(),
+            });
+          } else {
+            await storage.createEventPayment({
+              eventId,
+              userId,
+              stripeCustomerId: user.stripeCustomerId,
+              paymentMethodId,
+              paymentIntentId: paymentIntent.id,
+              paymentIntentStatus: paymentIntent.status,
+              status: 'setup_complete',
+            });
+          }
+        }
+        return res.status(409).json({
+          message: "Payment authorization requires additional action",
+          requiresAction: paymentIntent.status === 'requires_action',
+          clientSecret: paymentIntent.status === 'requires_action' ? paymentIntent.client_secret : undefined,
+          status: paymentIntent.status,
+        });
+      }
+
+      const existingPayment = (await storage.getEventPayments(eventId)).find(
+        payment => payment.userId === userId && payment.stripePaymentIntentId === paymentIntent.id
+      );
+      if (!existingPayment) {
+        const paymentData = insertPaymentSchema.parse({
+          userId,
+          eventId,
+          amount: event.maxPlayerPayment,
+          type: 'event_fee',
+          status: 'authorized',
+        });
+        const payment = await storage.createPayment(paymentData);
+        await storage.updatePaymentStatus(payment.id, 'authorized', paymentIntent.id);
+        console.log(`Authorize Payment: Created new payment record ${payment.id} with intent ${paymentIntent.id}`);
+      }
 
       // Also create/update the event payment record for voting logic
       try {
@@ -2149,7 +2279,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Collect payment for past events
-  app.post("/api/events/:id/collect-payment", isAuthenticated, collectPaymentHandler);
+  app.post("/api/events/:id/collect-payment", verifyAuth, collectPaymentHandler);
 
   // Send payment reminders to unpaid players - Admin/Owner only
   app.post("/api/events/:id/send-payment-reminders", verifyAuth, async (req: any, res) => {
@@ -2311,13 +2441,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Stripe Connect routes
-  app.post('/api/connect/create-account', isAuthenticated, async (req: any, res) => {
+  app.post('/api/connect/create-account', verifyAuth, async (req: any, res) => {
     try {
-      const { userId } = req.body;
-      const currentUserId = req.user?.claims?.sub;
+      const userId = req.userId;
       
-      if (!userId || !currentUserId) {
-        return res.status(400).json({ message: "User ID required" });
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      if (req.body?.userId && req.body.userId !== userId) {
+        return res.status(403).json({ message: "You can only configure your own payout account" });
       }
 
       // Check if user already has a Connect account
@@ -2330,14 +2462,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "User already has a Connect account set up" });
       }
 
+      const publicBaseUrl = process.env.PUBLIC_APP_URL;
+      if (!publicBaseUrl) {
+        return res.status(503).json({ message: "Connect onboarding is not configured" });
+      }
+
       // Create Stripe Connect account
-      const account = await stripe.accounts.create({
-        type: 'express',
-        capabilities: {
-          transfers: { requested: true },
-        },
-        business_type: 'individual',
-      });
+      const account = user.stripeAccountId
+        ? await stripe.accounts.retrieve(user.stripeAccountId)
+        : await stripe.accounts.create({
+            type: 'express',
+            country: 'GB',
+            capabilities: {
+              card_payments: { requested: true },
+              transfers: { requested: true },
+            },
+            metadata: { ludiUserId: userId },
+          }, {
+            idempotencyKey: `connect-account:${userId}`,
+          });
 
       // Update user with Connect account ID
       await storage.updateUserStripeAccountInfo(userId, account.id, false);
@@ -2345,21 +2488,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create account link for onboarding
       const accountLink = await stripe.accountLinks.create({
         account: account.id,
-        refresh_url: `${req.protocol}://${req.get('host')}/settings`,
-        return_url: `${req.protocol}://${req.get('host')}/settings?connect=success`,
+        refresh_url: `${publicBaseUrl.replace(/\/$/, '')}/settings?connect=refresh`,
+        return_url: `${publicBaseUrl.replace(/\/$/, '')}/settings?connect=success`,
         type: 'account_onboarding',
       });
 
       res.json({ url: accountLink.url });
     } catch (error: any) {
       console.error("Error creating Connect account:", error);
-      res.status(500).json({ message: error.message || "Failed to create Connect account" });
+      res.status(500).json({ message: "Failed to create Connect account" });
     }
   });
 
-  app.get('/api/connect/status/:userId', isAuthenticated, async (req: any, res) => {
+  app.get('/api/connect/status/:userId', verifyAuth, async (req: any, res) => {
     try {
       const { userId } = req.params;
+      if (userId !== req.userId) {
+        return res.status(403).json({ message: "Not authorized to view this payout account" });
+      }
       
       const user = await storage.getUserById(userId);
       if (!user || !user.stripeAccountId) {
@@ -2383,11 +2529,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         hasAccount: true,
         payoutsEnabled,
         requiresOnboarding: !payoutsEnabled,
-        accountId: user.stripeAccountId
       });
     } catch (error: any) {
       console.error("Error checking Connect status:", error);
       res.status(500).json({ message: "Failed to check Connect status" });
+    }
+  });
+
+  app.get('/api/events/:id/organiser-payout-status', verifyAuth, async (req: any, res) => {
+    try {
+      const event = await storage.getEvent(req.params.id);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+      const membership = await storage.getUserTeam(req.userId, event.primaryTeamId);
+      const team = await storage.getTeam(event.primaryTeamId);
+      const canManage = event.createdById === req.userId || team?.ownerId === req.userId ||
+        !!membership && ["admin", "captain"].includes(membership.role);
+      if (!canManage) {
+        return res.status(403).json({ message: "Not authorized to view payout readiness" });
+      }
+
+      const organiserId = event.venueOrganiserId || event.createdById;
+      const organiser = await storage.getUserById(organiserId);
+      return res.json({
+        hasAccount: !!organiser?.stripeAccountId,
+        payoutsEnabled: !!organiser?.payoutsEnabled,
+        requiresOnboarding: !organiser?.payoutsEnabled,
+      });
+    } catch (error) {
+      console.error("Error checking event organiser payout status:", error);
+      return res.status(500).json({ message: "Failed to check payout readiness" });
     }
   });
 
@@ -2979,44 +3151,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Payment routes
-  app.post('/api/create-payment-intent', isAuthenticated, async (req: any, res) => {
-    try {
-      const { amount, eventId, type = 'event_fee' } = req.body;
-      const userId = (req.user as any).claims.sub;
-
-      // Create payment record
-      const paymentData = insertPaymentSchema.parse({
-        userId,
-        eventId,
-        amount: amount.toString(),
-        type,
-        status: 'pending',
-      });
-      
-      const payment = await storage.createPayment(paymentData);
-
-      // Create Stripe payment intent
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(parseFloat(amount) * 100), // Convert to cents
-        currency: "gbp",
-        metadata: {
-          paymentId: payment.id,
-          userId,
-          eventId: eventId || '',
-          type,
-        },
-      });
-
-      // Update payment with Stripe intent ID
-      await storage.updatePaymentStatus(payment.id, 'pending', paymentIntent.id);
-
-      res.json({ clientSecret: paymentIntent.client_secret, paymentId: payment.id });
-    } catch (error: any) {
-      console.error("Error creating payment intent:", error);
-      res.status(500).json({ message: "Error creating payment intent: " + error.message });
-    }
-  });
+  // Legacy amount-based PaymentIntent creation was removed.
 
   app.get('/api/payments', isAuthenticated, async (req: any, res) => {
     try {
@@ -3281,127 +3416,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error marking player as paid:", error);
       res.status(500).json({ message: "Failed to mark player as paid" });
-    }
-  });
-
-  // Initiate transfer to venue organiser (admin only)
-  app.post('/api/events/:id/reimburse', isAuthenticated, async (req: any, res) => {
-    try {
-      const eventId = req.params.id;
-      const actorId = (req.user as any).claims.sub;
-
-      const event = await storage.getEvent(eventId);
-      if (!event) {
-        return res.status(404).json({ message: "Event not found" });
-      }
-
-      // Check admin access
-      const userTeams = await storage.getUserTeams(actorId);
-      const isAdmin = userTeams.some(team => 
-        team.id === event.primaryTeamId && ['admin', 'captain'].includes(team.role)
-      ) || event.createdById === actorId;
-
-      if (!isAdmin) {
-        return res.status(403).json({ message: "Admin access required to initiate transfer" });
-      }
-
-      // Get payment summary to check if ready
-      const summary = await storage.getEventPaymentSummary(eventId);
-      
-      if (!summary.isReadyToTransfer) {
-        return res.status(400).json({ 
-          message: "Not all payments have been collected. Cannot initiate transfer yet.",
-          unpaidCount: summary.unpaidPlayers.length
-        });
-      }
-
-      // Get organiser's Stripe account
-      const organiser = await storage.getUserById(event.createdById);
-      if (!organiser?.stripeAccountId || !organiser.payoutsEnabled) {
-        return res.status(400).json({ 
-          message: "Venue organiser has not set up their Stripe account for payouts" 
-        });
-      }
-
-      const reimbursement = await storage.getEventReimbursement(eventId);
-      if (reimbursement?.transferStatus === 'completed') {
-        return res.status(400).json({ message: "Transfer has already been completed" });
-      }
-
-      // Calculate transfer amount (capped at expected payout/venue cost)
-      const transferAmount = parseFloat(summary.expectedPayout);
-      const transferAmountCents = Math.round(transferAmount * 100);
-
-      // Create Stripe transfer
-      const transfer = await stripe.transfers.create({
-        amount: transferAmountCents,
-        currency: 'gbp',
-        destination: organiser.stripeAccountId,
-        metadata: {
-          eventId,
-          organiserId: organiser.id,
-          type: 'venue_reimbursement'
-        }
-      });
-
-      // Update reimbursement record
-      await storage.updateEventReimbursement(eventId, {
-        transferStatus: 'completed',
-        stripeTransferId: transfer.id,
-        transferAmount: transferAmount.toFixed(2),
-        transferredAt: new Date(),
-      });
-
-      // Create audit log entry
-      await storage.createPaymentAudit({
-        eventId,
-        userId: organiser.id,
-        actorId,
-        actionType: 'transfer_completed',
-        grossAmount: transferAmount.toFixed(2),
-        ludiFee: "0.00",
-        stripeFee: "0.00",
-        netAmount: transferAmount.toFixed(2),
-        balanceAfter: "0.00", // Bank emptied after transfer
-        stripeTransferId: transfer.id,
-        notes: `Transfer to venue organiser completed`,
-      });
-
-      // Send notification to organiser
-      await storage.createNotification({
-        userId: organiser.id,
-        title: "Payment Received",
-        message: `You have received £${transferAmount.toFixed(2)} for venue costs from ${event.name}`,
-        type: "payment",
-        relatedId: eventId,
-      });
-
-      res.json({ 
-        message: "Transfer completed successfully",
-        transferId: transfer.id,
-        amount: transferAmount.toFixed(2)
-      });
-    } catch (error: any) {
-      console.error("Error initiating transfer:", error);
-      
-      // Log failed transfer attempt
-      const eventId = req.params.id;
-      const event = await storage.getEvent(eventId);
-      if (event) {
-        await storage.updateEventReimbursement(eventId, {
-          transferStatus: 'failed',
-          transferError: error.message,
-        });
-
-        await storage.createPaymentAudit({
-          eventId,
-          actorId: (req.user as any).claims.sub,
-          actionType: 'transfer_failed',
-          notes: `Transfer failed: ${error.message}`,
-        });
-      }
-
-      res.status(500).json({ message: "Failed to initiate transfer", error: error.message });
     }
   });
 
@@ -3736,62 +3750,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Capture payment post-event (partial or full)
-  app.post('/api/payments/capture', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = (req.user as any).claims.sub;
-      const { eventId, finalAmount } = req.body;
-
-      if (!eventId || !finalAmount) {
-        return res.status(400).json({ error: "Event ID and final amount are required" });
-      }
-
-      // Check user has admin permissions for this event
-      const userRole = await storage.getUserEventRole(userId, eventId);
-      if (!userRole || !['owner', 'admin', 'captain'].includes(userRole)) {
-        return res.status(403).json({ error: "Insufficient permissions" });
-      }
-
-      // Get all attendees with payment holds
-      const attendees = await storage.getEventAttendeesWithPayments(eventId);
-      const results = [];
-
-      for (const attendee of attendees) {
-        if (attendee.eventPayment && attendee.eventPayment.paymentIntentId && attendee.eventPayment.status === 'hold_created') {
-          try {
-            const captureAmount = Math.round(parseFloat(finalAmount) * 100); // Convert to cents
-            
-            const paymentIntent = await stripe.paymentIntents.capture(
-              attendee.eventPayment.paymentIntentId,
-              { amount_to_capture: captureAmount }
-            );
-
-            // Update payment record
-            await storage.updateEventPaymentCapture(eventId, attendee.userId, {
-              paymentIntentStatus: paymentIntent.status,
-              finalAmount: finalAmount,
-              status: 'captured',
-              capturedAt: new Date()
-            });
-
-            results.push({ userId: attendee.userId, success: true });
-          } catch (error: any) {
-            console.error(`Capture failed for user ${attendee.userId}:`, error);
-            results.push({ userId: attendee.userId, success: false, error: error.message });
-          }
-        }
-      }
-
-      // Update event payment status
-      await storage.updateEventPaymentStatus(eventId, 'captured');
-
-      res.json({ results, totalProcessed: results.length });
-    } catch (error: any) {
-      console.error('Capture payments error:', error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
   // Cancel payment hold (when user unvotes)
   app.post('/api/payments/cancel-hold', isAuthenticated, async (req: any, res) => {
     try {
@@ -3997,41 +3955,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Get payments error:', error);
       res.status(500).json({ error: error.message });
     }
-  });
-
-  // Stripe webhook (for handling payment confirmations)
-  app.post('/api/stripe/webhook', async (req, res) => {
-    const sig = req.headers['stripe-signature'];
-    let event;
-
-    try {
-      event = stripe.webhooks.constructEvent(req.body, sig!, process.env.STRIPE_WEBHOOK_SECRET!);
-    } catch (err: any) {
-      console.log(`Webhook signature verification failed.`, err.message);
-      return res.status(400).send(`Webhook Error: ${err.message}`);
-    }
-
-    // Handle the event
-    switch (event.type) {
-      case 'payment_intent.succeeded':
-        const paymentIntent = event.data.object;
-        const paymentId = paymentIntent.metadata.paymentId;
-        if (paymentId) {
-          await storage.updatePaymentStatus(paymentId, 'paid', paymentIntent.id);
-        }
-        break;
-      case 'payment_intent.payment_failed':
-        const failedPayment = event.data.object;
-        const failedPaymentId = failedPayment.metadata.paymentId;
-        if (failedPaymentId) {
-          await storage.updatePaymentStatus(failedPaymentId, 'failed');
-        }
-        break;
-      default:
-        console.log(`Unhandled event type ${event.type}`);
-    }
-
-    res.json({ received: true });
   });
 
   // Platform charges management routes (public endpoint - no auth required)

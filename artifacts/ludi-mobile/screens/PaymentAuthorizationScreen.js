@@ -9,7 +9,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 export default function PaymentAuthorizationScreen() {
   const route = useRoute();
   const navigation = useNavigation();
-  const { initPaymentSheet, presentPaymentSheet } = useStripe();
+  const { initPaymentSheet, presentPaymentSheet, handleNextAction } = useStripe();
   const { apiRequest } = useAuth();
   const { colors, isDark } = useTheme();
   
@@ -84,8 +84,28 @@ export default function PaymentAuthorizationScreen() {
         body: JSON.stringify(body),
       });
 
-      if (response.ok) {
-        const data = await response.json();
+      let finalResponse = response;
+      if (response.status === 409) {
+        const action = await response.json();
+        if (!action.requiresAction || !action.clientSecret) {
+          throw new Error(action.message || 'Payment authorization failed');
+        }
+        const { error, paymentIntent } = await handleNextAction(action.clientSecret);
+        const expectedStatus = isFromNotification ? 'Succeeded' : 'RequiresCapture';
+        if (error || paymentIntent?.status !== expectedStatus) {
+          throw new Error(error?.message || 'Card authentication was not completed');
+        }
+        finalResponse = await apiRequest(endpoint, {
+          method: 'POST',
+          body: JSON.stringify({
+            paymentIntentId: paymentIntent.id,
+            paymentMethod: isFromNotification ? 'finalize' : 'wallet',
+          }),
+        });
+      }
+
+      if (finalResponse.ok) {
+        const data = await finalResponse.json();
         
         if (!isFromNotification) {
           const voteResponse = await apiRequest(`/api/events/${eventId}/vote`, {
@@ -106,7 +126,7 @@ export default function PaymentAuthorizationScreen() {
           [{ text: 'OK', onPress: () => navigation.goBack() }]
         );
       } else {
-        const error = await response.json();
+        const error = await finalResponse.json();
         Alert.alert('Authorisation Failed', error.message || 'Failed to authorise payment');
       }
     } catch (error) {
