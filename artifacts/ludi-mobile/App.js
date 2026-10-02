@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -6,6 +6,7 @@ import { SafeStripeProvider } from './components/SafeStripeProvider';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { NotificationProvider } from './contexts/NotificationContext';
+import { DashboardDataProvider, useDashboardData } from './contexts/DashboardDataContext';
 import NotificationToast from './components/NotificationToast';
 import AuthScreen from './screens/AuthScreen';
 import HomeScreen from './screens/HomeScreen';
@@ -28,7 +29,7 @@ import PaymentCollectionScreen from './screens/PaymentCollectionScreen';
 import BlockedMembersScreen from './screens/BlockedMembersScreen';
 import LoadingScreen from './components/LoadingScreen';
 import { usePushNotifications } from './hooks/usePushNotifications';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { registerRootComponent } from 'expo';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -136,6 +137,7 @@ function MainTabs() {
 
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
+  const { isReady: dashboardReady, error: dashboardError, reload } = useDashboardData();
   const { colors, loading: themeLoading } = useTheme();
   const [showLogoReveal, setShowLogoReveal] = useState(false);
   const [hasShownReveal, setHasShownReveal] = useState(false);
@@ -154,11 +156,11 @@ function AppContent() {
     }
   }, [isAuthenticated, isLoading]);
 
-  const handleLogoRevealComplete = () => {
+  const handleLogoRevealComplete = useCallback(() => {
     setShowLogoReveal(false);
     setHasShownReveal(true);
     AsyncStorage.setItem('ludi-logo-revealed', 'true');
-  };
+  }, []);
 
   if (isLoading || themeLoading) {
     return (
@@ -175,6 +177,22 @@ function AppContent() {
   // Show logo reveal animation on first app load
   if (showLogoReveal && !hasShownReveal) {
     return <LoadingScreen onComplete={handleLogoRevealComplete} />;
+  }
+
+  if (!dashboardReady) {
+    return (
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background, padding: 24 }]}>
+        <Text style={[styles.loadingText, { color: colors.text, textAlign: 'center' }]}>
+          {dashboardError || 'Loading your events…'}
+        </Text>
+        {dashboardError && (
+          <TouchableOpacity accessibilityRole="button" onPress={() => reload().catch(() => {})}
+            style={{ backgroundColor: colors.primary, padding: 14, borderRadius: 8, marginTop: 20 }}>
+            <Text style={{ color: '#fff' }}>Try again</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
   }
 
   return (
@@ -212,7 +230,9 @@ export default function App() {
                 publishableKey={STRIPE_PUBLISHABLE_KEY}
                 urlScheme="ludi-mobile"
               >
-                <AppContent />
+                <DashboardDataProvider>
+                  <AppContent />
+                </DashboardDataProvider>
               </SafeStripeProvider>
             </NotificationProvider>
           </AuthProvider>

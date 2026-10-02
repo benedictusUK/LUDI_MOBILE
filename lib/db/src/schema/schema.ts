@@ -108,7 +108,9 @@ export const teamMemberships = pgTable("team_memberships", {
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   role: varchar("role", { length: 50 }).notNull().default("member"), // member, captain, coach, admin
   joinedAt: timestamp("joined_at").defaultNow(),
-});
+}, (table) => [
+  index("team_memberships_user_team_idx").on(table.userId, table.teamId),
+]);
 
 // Blocked members table
 export const blockedMembers = pgTable("blocked_members", {
@@ -205,7 +207,9 @@ export const eventTeams = pgTable("event_teams", {
   teamId: varchar("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
   status: varchar("status", { length: 50 }).default("invited"), // invited, accepted, declined
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [
+  index("event_teams_event_team_idx").on(table.eventId, table.teamId),
+]);
 
 // Event attendance tracking
 export const eventAttendance = pgTable("event_attendance", {

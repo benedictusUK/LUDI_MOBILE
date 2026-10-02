@@ -19,37 +19,42 @@ import Settings from "@/pages/settings";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
-  const [showLogoReveal, setShowLogoReveal] = useState(true);
-  const [hasShownReveal, setHasShownReveal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showInitialLoader, setShowInitialLoader] = useState(true);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  const [minimumLoadElapsed, setMinimumLoadElapsed] = useState(false);
+  const [startupAttempt, setStartupAttempt] = useState(0);
 
   // Get user data when authenticated
-  const { data: user } = useQuery({
+  const userQuery = useQuery({
     queryKey: ["/api/auth/user"],
     enabled: isAuthenticated && !isLoading,
   });
 
   // Preload dashboard data when authenticated
-  const { data: dashboardStats } = useQuery({
+  const dashboardQuery = useQuery({
     queryKey: ["/api/dashboard/stats"],
     enabled: isAuthenticated && !isLoading,
   });
 
-  const { data: teams } = useQuery({
+  const teamsQuery = useQuery({
     queryKey: ["/api/teams"],
     enabled: isAuthenticated && !isLoading,
   });
 
-  const { data: events } = useQuery({
+  const eventsQuery = useQuery({
     queryKey: ["/api/events"],
     enabled: isAuthenticated && !isLoading,
   });
+  const user = userQuery.data;
+  const teams = teamsQuery.data;
+  const startupQueries = [userQuery, dashboardQuery, teamsQuery, eventsQuery];
+  const startupPending = startupQueries.some(query => query.isPending);
+  const startupFailed = startupQueries.some(query => query.isError && !query.data);
 
   // Preload team details for quick navigation
   useEffect(() => {
-    if (isAuthenticated && !isLoading && teams) {
+    if (isAuthenticated && !isLoading && initialLoadComplete && !startupFailed && teams) {
       // Preload team members and details for all user's teams during app startup
       (teams as any[]).forEach((team: any) => {
         queryClient.prefetchQuery({
@@ -62,74 +67,61 @@ function Router() {
         });
       });
     }
-  }, [isAuthenticated, isLoading, teams]);
+  }, [isAuthenticated, isLoading, teams, initialLoadComplete, startupFailed]);
 
   // Handle initial loading sequence
   useEffect(() => {
-    if (isAuthenticated && !isLoading) {
-      // Show LUDI loader for minimum duration to preload data
-      const minLoadTime = 4000; // 4 seconds minimum to allow full animation including underline
-      const startTime = Date.now();
-      
-      const checkDataLoaded = () => {
-        const dataLoaded = user && dashboardStats && teams && events;
-        const elapsedTime = Date.now() - startTime;
-        
-        if (dataLoaded && elapsedTime >= minLoadTime) {
-          setShowInitialLoader(false);
-          setInitialLoadComplete(true);
-          
-          // Check if we should show logo reveal
-          const hasSeenReveal = sessionStorage.getItem('ludi-logo-revealed');
-          if (!hasSeenReveal) {
-            setShowLogoReveal(true);
-            setHasShownReveal(false);
-          } else {
-            setShowLogoReveal(false);
-            setHasShownReveal(true);
-          }
-        } else {
-          // Check again in 100ms
-          setTimeout(checkDataLoaded, 100);
-        }
-      };
-      
-      checkDataLoaded();
-    }
-  }, [isAuthenticated, isLoading, user, dashboardStats, teams, events]);
+    setMinimumLoadElapsed(false);
+    setShowInitialLoader(true);
+    setInitialLoadComplete(false);
+    if (!isAuthenticated || isLoading) return;
+    // One minimum animation period, not a new timer after every query resolves.
+    const timer = setTimeout(() => setMinimumLoadElapsed(true), 4000);
+    return () => clearTimeout(timer);
+  }, [isAuthenticated, isLoading, startupAttempt]);
 
-  const handleLogoRevealComplete = () => {
-    // Add a small delay to ensure the animation completes fully
-    setTimeout(() => {
-      setShowLogoReveal(false);
-      setHasShownReveal(true);
+  useEffect(() => {
+    if (isAuthenticated && !isLoading && minimumLoadElapsed && !startupPending) {
+      setShowInitialLoader(false);
+      setInitialLoadComplete(true);
+      // The initial loader has already played the logo animation. Do not play
+      // a second reveal and add another four seconds before showing Home.
       sessionStorage.setItem('ludi-logo-revealed', 'true');
-    }, 500); // Half second delay to ensure animation completes
-  };
-
-  // Show logo reveal after initial loading is complete
-  const shouldShowReveal = isAuthenticated && !isLoading && initialLoadComplete && showLogoReveal && !hasShownReveal;
+    }
+  }, [isAuthenticated, isLoading, minimumLoadElapsed, startupPending]);
 
   // Check if profile needs to be completed
   const isProfileIncomplete = user && (!(user as any).username || !(user as any).dateOfBirth || !(user as any).postcode);
 
   // Show profile completion modal after logo reveal is complete
   useEffect(() => {
-    if (isAuthenticated && !isLoading && hasShownReveal && isProfileIncomplete) {
+    if (isAuthenticated && !isLoading && initialLoadComplete && !startupFailed && isProfileIncomplete) {
       setShowProfileModal(true);
     }
-  }, [isAuthenticated, isLoading, hasShownReveal, isProfileIncomplete]);
+  }, [isAuthenticated, isLoading, initialLoadComplete, isProfileIncomplete, startupFailed]);
+
+  if (isAuthenticated && initialLoadComplete && startupFailed) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-background p-6">
+        <div role="alert" className="max-w-md space-y-4 text-center text-foreground">
+          <h1 className="text-xl font-semibold">We couldn’t load your events</h1>
+          <p className="text-muted-foreground">Your data hasn’t been deleted. Please try again.</p>
+          <button className="rounded-md bg-primary px-5 py-3 text-primary-foreground" onClick={() => {
+            setStartupAttempt(attempt => attempt + 1);
+            startupQueries.forEach(query => { void query.refetch(); });
+          }}>Try again</button>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <>
       {/* Show LUDI loader during initial data loading */}
       {isAuthenticated && !isLoading && showInitialLoader && (
-        <LogoReveal onComplete={() => {}} skipAnimation={false} />
+        <LogoReveal holdUntilReady />
       )}
 
-      {shouldShowReveal && (
-        <LogoReveal onComplete={handleLogoRevealComplete} />
-      )}
       
       {/* Profile completion modal */}
       <ProfileCompletionModal
@@ -141,18 +133,6 @@ function Router() {
       <Switch>
         {isLoading || !isAuthenticated ? (
           <Route path="/" component={Landing} />
-        ) : initialLoadComplete && hasShownReveal ? (
-          <>
-            <Route path="/" component={Home} />
-            <Route path="/events/new" component={Events} />
-            <Route path="/events/:id" component={EventDetails} />
-            <Route path="/events" component={Events} />
-            <Route path="/flare-search" component={FlareSearch} />
-            <Route path="/teams" component={Teams} />
-            <Route path="/teams/:id" component={Teams} />
-            <Route path="/notifications" component={Notifications} />
-            <Route path="/settings" component={Settings} />
-          </>
         ) : isAuthenticated && !isLoading ? (
           <>
             <Route path="/" component={Home} />

@@ -28,17 +28,24 @@ export const getQueryFn: <T>(options: {
   on401: UnauthorizedBehavior;
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
-  async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
-      credentials: "include",
-    });
-
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
+  async ({ queryKey, signal }) => {
+    const controller = new AbortController();
+    const cancel = () => controller.abort();
+    const timeout = setTimeout(cancel, 15000);
+    signal.addEventListener("abort", cancel, { once: true });
+    if (signal.aborted) cancel();
+    try {
+      const res = await fetch(queryKey.join("/") as string, {
+        credentials: "include",
+        signal: controller.signal,
+      });
+      if (unauthorizedBehavior === "returnNull" && res.status === 401) return null;
+      await throwIfResNotOk(res);
+      return await res.json();
+    } finally {
+      clearTimeout(timeout);
+      signal.removeEventListener("abort", cancel);
     }
-
-    await throwIfResNotOk(res);
-    return await res.json();
   };
 
 export const queryClient = new QueryClient({

@@ -4,9 +4,10 @@ import { motion, AnimatePresence } from "framer-motion";
 interface LogoRevealProps {
   onComplete?: () => void;
   skipAnimation?: boolean;
+  holdUntilReady?: boolean;
 }
 
-export default function LogoReveal({ onComplete, skipAnimation = false }: LogoRevealProps) {
+export default function LogoReveal({ onComplete, skipAnimation = false, holdUntilReady = false }: LogoRevealProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [isComplete, setIsComplete] = useState(skipAnimation);
 
@@ -28,7 +29,7 @@ export default function LogoReveal({ onComplete, skipAnimation = false }: LogoRe
     return () => clearTimeout(timer);
   }, [currentStep, onComplete, skipAnimation]);
 
-  if (isComplete) return null;
+  if (isComplete && !holdUntilReady) return null;
 
   return (
     <motion.div

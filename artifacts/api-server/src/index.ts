@@ -24,15 +24,20 @@ async function start() {
     logger.info({ port }, "Server listening");
     notificationWS.initialize(server);
   });
+  let maintenanceRunning = false;
   const checkExpiredRecurringEvents = async () => {
+    if (maintenanceRunning) return;
+    maintenanceRunning = true;
     try {
       await storage.checkExpiredRecurringEvents();
     } catch (err) {
       logger.error({ err }, "Recurring events maintenance failed");
+    } finally {
+      maintenanceRunning = false;
     }
   };
   setTimeout(checkExpiredRecurringEvents, 10000);
-  setInterval(checkExpiredRecurringEvents, 86400000);
+  setInterval(checkExpiredRecurringEvents, 5 * 60 * 1000);
 }
 
 start().catch((err) => {

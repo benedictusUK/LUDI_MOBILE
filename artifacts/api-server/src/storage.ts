@@ -57,6 +57,7 @@ import { db } from "./db";
 import { eq, and, desc, count, sql, or, notInArray, asc, inArray, ne, isNotNull, gte, lte, ilike, not, gt, isNull } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { notificationWS } from "./websocket";
+import { queryUserEvents } from "./queries/userEvents";
 
 export interface IStorage {
   // User operations (required for Replit Auth)
@@ -741,6 +742,7 @@ export class DatabaseStorage implements IStorage {
 
     const maintenanceTriggered: string[] = [];
 
+    const checkedSeries = new Set<string>();
     for (const eventInfo of expiredRecurringEvents) {
       if (eventInfo.recurringSeriesId) {
         // Calculate the actual end datetime of the event
@@ -750,7 +752,8 @@ export class DatabaseStorage implements IStorage {
         const eventEndDateTime = new Date(`${eventEndDate}T${eventEndTime}:00`);
         
         // Check if this event has expired (end datetime has passed)
-        if (eventEndDateTime <= now) {
+        if (eventEndDateTime <= now && !checkedSeries.has(eventInfo.recurringSeriesId)) {
+          checkedSeries.add(eventInfo.recurringSeriesId);
           const result = await this.checkAndMaintainRecurringEventSeries(eventInfo.recurringSeriesId);
           if (result.maintained && !maintenanceTriggered.includes(eventInfo.recurringSeriesId)) {
             maintenanceTriggered.push(eventInfo.recurringSeriesId);
@@ -770,139 +773,7 @@ export class DatabaseStorage implements IStorage {
     teamId?: string,
     votingStatus: string = 'all'
   ): Promise<any> {
-    // Fetch all events first, then filter by end time in JavaScript
-    // includePast=true means ONLY past events, includePast=false means ONLY future events
-    const dateCondition = undefined; // Remove SQL filtering for now
-    
-    // Get events where user's team is the primary team
-    const primaryTeamEvents = await db
-      .select({ 
-        event: events,
-        primaryTeam: teams,
-        userAttendance: eventAttendance
-      })
-      .from(events)
-      .innerJoin(teams, eq(events.primaryTeamId, teams.id))
-      .innerJoin(teamMemberships, eq(events.primaryTeamId, teamMemberships.teamId))
-      .leftJoin(eventAttendance, and(
-        eq(eventAttendance.eventId, events.id),
-        eq(eventAttendance.userId, userId)
-      ))
-      .where(eq(teamMemberships.userId, userId));
-
-    // Get events where user's team is a secondary team
-    const secondaryTeamEvents = await db
-      .select({ 
-        event: events,
-        primaryTeam: teams,
-        userAttendance: eventAttendance
-      })
-      .from(events)
-      .innerJoin(teams, eq(events.primaryTeamId, teams.id))
-      .innerJoin(eventTeams, eq(events.id, eventTeams.eventId))
-      .innerJoin(teamMemberships, eq(eventTeams.teamId, teamMemberships.teamId))
-      .leftJoin(eventAttendance, and(
-        eq(eventAttendance.eventId, events.id),
-        eq(eventAttendance.userId, userId)
-      ))
-      .where(eq(teamMemberships.userId, userId));
-
-    // Get events that user has individually followed
-    const followedEvents = await db
-      .select({ 
-        event: events,
-        primaryTeam: teams,
-        userAttendance: eventAttendance
-      })
-      .from(userEvents)
-      .innerJoin(events, eq(userEvents.eventId, events.id))
-      .innerJoin(teams, eq(events.primaryTeamId, teams.id))
-      .leftJoin(eventAttendance, and(
-        eq(eventAttendance.eventId, events.id),
-        eq(eventAttendance.userId, userId)
-      ))
-      .where(eq(userEvents.userId, userId));
-
-    // Combine and deduplicate events
-    const allEvents = [...primaryTeamEvents, ...secondaryTeamEvents, ...followedEvents];
-    const uniqueEvents = allEvents.filter((eventData, index, self) => 
-      index === self.findIndex(e => e.event.id === eventData.event.id)
-    );
-
-    // Filter by actual event end time and trigger auto-generation
-    const now = new Date();
-    let filteredEvents = uniqueEvents.filter(eventData => {
-      const event = eventData.event;
-      
-      // Calculate actual event end time
-      let eventEndTime: Date;
-      if (event.endDate && event.endTime) {
-        eventEndTime = new Date(`${event.endDate} ${event.endTime}`);
-      } else if (event.startDate && event.endTime) {
-        eventEndTime = new Date(`${event.startDate} ${event.endTime}`);
-      } else {
-        // Fallback to end of start date if no end time specified
-        eventEndTime = new Date(event.startDate || '');
-        eventEndTime.setHours(23, 59, 59);
-      }
-      
-      const isPastEvent = eventEndTime <= now;
-      
-      // If event just became past and has a recurring series, trigger auto-generation
-      if (isPastEvent && event.recurringSeriesId && event.recurrenceType !== 'none') {
-        // Run auto-generation in the background (don't await to avoid blocking)
-        this.autoGenerateNextRecurringEvent(event.recurringSeriesId).catch(console.error);
-      }
-      
-      // If includePast=true, show ONLY past events
-      // If includePast=false, show ONLY future events
-      return includePast ? isPastEvent : !isPastEvent;
-    });
-
-    // Apply team filter if provided
-    if (teamId) {
-      filteredEvents = filteredEvents.filter(eventData => eventData.event.primaryTeamId === teamId);
-    }
-
-    // Calculate counts before applying voting status filter
-    const totalCount = filteredEvents.length;
-    const attendanceCounts = {
-      attending: filteredEvents.filter(e => e.userAttendance?.status === 'attending').length,
-      not_attending: filteredEvents.filter(e => e.userAttendance?.status === 'not_attending').length,
-      not_voted: filteredEvents.filter(e => !e.userAttendance || e.userAttendance.status === null).length,
-    };
-
-    // Apply voting status filter for events to return
-    if (votingStatus && votingStatus !== 'all') {
-      filteredEvents = filteredEvents.filter(eventData => {
-        const status = eventData.userAttendance?.status ?? 'not_voted';
-        return status === votingStatus;
-      });
-    }
-
-    // Sort events: if showing past events, show most recent first; otherwise show next events first
-    filteredEvents.sort((a, b) => {
-      const aDateTime = new Date(`${a.event.startDate || ''} ${a.event.startTime || '00:00'}`).getTime();
-      const bDateTime = new Date(`${b.event.startDate || ''} ${b.event.startTime || '00:00'}`).getTime();
-      
-      return includePast ? bDateTime - aDateTime : aDateTime - bDateTime;
-    });
-
-    // Apply pagination
-    const startIndex = (page - 1) * limit;
-    const endIndex = startIndex + limit;
-    const paginatedEvents = filteredEvents.slice(startIndex, endIndex);
-
-    // Return events with primary team data and user attendance along with counts
-    return {
-      events: paginatedEvents.map(result => ({
-        ...result.event,
-        primaryTeam: result.primaryTeam,
-        userAttendance: result.userAttendance,
-      })),
-      totalCount,
-      attendanceCounts,
-    };
+    return queryUserEvents(db, userId, includePast, page, limit, teamId, votingStatus);
   }
 
   async getTeamEvents(teamId: string): Promise<any[]> {

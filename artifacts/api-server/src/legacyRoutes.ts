@@ -195,9 +195,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const teamId = req.query.teamId as string | undefined;
       const votingStatus = (req.query.votingStatus as string) || 'all';
       
-      // Check for expired recurring events and trigger maintenance if needed
-      await storage.checkExpiredRecurringEvents();
-      
+      // Recurring maintenance runs in the background, never on the list's critical path.
       const events = await storage.getUserEvents(userId, includePast, page, limit, teamId, votingStatus);
       res.json(events);
     } catch (error) {
@@ -1574,9 +1572,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const teamId = req.query.teamId as string | undefined;
       const votingStatus = (req.query.votingStatus as string) || 'all';
       
-      // Check for expired recurring events and trigger maintenance if needed
-      await storage.checkExpiredRecurringEvents();
-      
+      // Recurring maintenance runs in the background, never on the list's critical path.
       const events = await storage.getUserEvents(userId, includePast, page, limit, teamId, votingStatus);
       res.json(events);
     } catch (error) {

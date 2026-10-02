@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { 
   View, 
   Text, 
@@ -14,66 +14,27 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 import HeaderWithNotifications from '../components/HeaderWithNotifications';
+import { useDashboardData } from '../contexts/DashboardDataContext';
+import { useNotifications } from '../contexts/NotificationContext';
 
 export default function HomeScreen() {
-  const { user, apiRequest } = useAuth();
+  const { user } = useAuth();
   const { colors, isDark } = useTheme();
   const navigation = useNavigation();
-  const [dashboardData, setDashboardData] = useState({
-    upcomingEvents: [],
-    recentTeams: [],
-    stats: { eventsCount: 0, teamsCount: 0, notificationsCount: 0 }
-  });
-  const [loading, setLoading] = useState(true);
+  const { data, loading, error: dashboardError, reload } = useDashboardData();
+  const { unreadCount } = useNotifications();
+  const dashboardData = { ...data, stats: { ...data.stats, notificationsCount: unreadCount } };
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchDashboardData = async () => {
     try {
-      // Fetch recent events, teams, and notifications
-      const [eventsResponse, teamsResponse, notificationsResponse] = await Promise.all([
-        apiRequest('/api/events?limit=3'),
-        apiRequest('/api/teams'),
-        apiRequest('/api/notifications')
-      ]);
-
-      if (eventsResponse.ok && teamsResponse.ok) {
-        const eventsData = await eventsResponse.json();
-        const teamsData = await teamsResponse.json();
-        
-        // Events API returns {events: [...], totalCount: n} while teams returns array directly
-        const eventsList = eventsData.events || [];
-        const totalEventsCount = eventsData.totalCount || eventsList.length;
-        const teamsList = Array.isArray(teamsData) ? teamsData : [];
-        
-        // Get unread notifications count
-        let unreadNotificationsCount = 0;
-        if (notificationsResponse.ok) {
-          const notificationsData = await notificationsResponse.json();
-          const notificationsList = Array.isArray(notificationsData) ? notificationsData : [];
-          unreadNotificationsCount = notificationsList.filter(n => !n.isRead).length;
-        }
-        
-        setDashboardData({
-          upcomingEvents: eventsList.slice(0, 3),
-          recentTeams: teamsList.slice(0, 3),
-          stats: {
-            eventsCount: totalEventsCount,
-            teamsCount: teamsList.length,
-            notificationsCount: unreadNotificationsCount
-          }
-        });
-      }
+      await reload();
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
     } finally {
-      setLoading(false);
       setRefreshing(false);
     }
   };
-
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -122,6 +83,11 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <HeaderWithNotifications title="Home" />
+      {dashboardError && (
+        <TouchableOpacity accessibilityRole="button" onPress={onRefresh} style={{ padding: 16 }}>
+          <Text style={{ color: colors.error }}>{dashboardError} Tap to retry.</Text>
+        </TouchableOpacity>
+      )}
       <ScrollView 
         style={styles.scrollView}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}

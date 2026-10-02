@@ -8,3 +8,4 @@
 - [Apple Pay publishing prerequisite](apple-pay-publishing.md) — keep iOS card-only until the Apple Developer App ID and provisioning profile include the Merchant ID capability.
 - [Google mobile sign-in](google-mobile-sign-in.md) — retain existing backend identities; use a browser OAuth flow and a short-lived PKCE-bound app handoff.
 - [Stripe test sandbox](stripe-test-sandbox.md) — LUDI has a dedicated Stripe sandbox for monitoring its tests.
+- [Database query results](database-query-results.md) — development DDL can succeed despite an output-formatting error; inspect effects before retrying.
