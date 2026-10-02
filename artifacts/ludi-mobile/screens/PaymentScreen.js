@@ -37,6 +37,11 @@ export default function PaymentScreen({ route }) {
       if (eventResponse.ok) {
         const eventData = await eventResponse.json();
         setEvent(eventData);
+        if (eventData.paymentRequired) {
+          // Policy-based events use the policy-aware authorisation flow
+          navigation.replace('PaymentAuthorization', { eventId, eventName: eventData.name });
+          return;
+        }
       }
 
       // Create payment intent
@@ -72,8 +77,11 @@ export default function PaymentScreen({ route }) {
           Alert.alert('Error', 'Failed to initialize payment');
         }
       } else {
-        const error = await paymentResponse.json();
-        Alert.alert('Error', error.message || 'Failed to create payment');
+        const error = await paymentResponse.json().catch(() => ({}));
+        Alert.alert('Payment unavailable', error.details || error.message || 'Failed to create payment', [
+          { text: 'Retry', onPress: initializePayment },
+          { text: 'Close', style: 'cancel' },
+        ]);
       }
     } catch (error) {
       console.error('Payment initialization error:', error);
@@ -100,7 +108,7 @@ export default function PaymentScreen({ route }) {
 
           if (attendanceResponse.ok) {
             Alert.alert(
-              'Payment Successful! 🎉',
+              'Payment Successful',
               'Your payment has been processed and attendance confirmed.',
               [
                 {

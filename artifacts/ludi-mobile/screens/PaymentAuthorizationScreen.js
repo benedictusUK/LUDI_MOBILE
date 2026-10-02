@@ -21,6 +21,12 @@ export default function PaymentAuthorizationScreen() {
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [selectedMethod, setSelectedMethod] = useState(null);
   const [event, setEvent] = useState(null);
+  const [quote, setQuote] = useState(null);
+  const [quoteError, setQuoteError] = useState(false);
+  const policy = quote?.paymentPolicy && quote.paymentPolicy !== 'none' ? quote.paymentPolicy : 'flexible_post_event';
+  const isFixed = !!quote?.isRecovery || policy === 'fixed_immediate' || policy === 'fixed_threshold';
+  const displayAmount = quote?.amountMinor != null ? quote.amountMinor / 100 : parseFloat(maxPlayerPayment || 0);
+  const blocked = quote ? quote.canPay === false : false;
 
   useEffect(() => {
     loadPaymentData();
@@ -30,10 +36,18 @@ export default function PaymentAuthorizationScreen() {
     try {
       setLoading(true);
 
-      const [eventRes, methodsRes] = await Promise.all([
+      setQuoteError(false);
+      const [eventRes, methodsRes, quoteRes] = await Promise.all([
         apiRequest(`/api/events/${eventId}`),
         apiRequest('/api/payment-methods'),
+        apiRequest(`/api/events/${eventId}/payment-policy${isFromNotification && notificationId ? `?notificationId=${encodeURIComponent(notificationId)}` : ''}`),
       ]);
+
+      if (quoteRes.ok) {
+        setQuote(await quoteRes.json());
+      } else {
+        setQuoteError(true);
+      }
 
       if (eventRes.ok) {
         const eventData = await eventRes.json();
@@ -76,7 +90,7 @@ export default function PaymentAuthorizationScreen() {
         body = { paymentMethodId: selectedMethod };
       } else {
         endpoint = `/api/events/${eventId}/authorize-payment`;
-        body = { paymentMethodId: selectedMethod, amount: maxPlayerPayment };
+        body = { paymentMethodId: selectedMethod };
       }
 
       const response = await apiRequest(endpoint, {
@@ -91,8 +105,7 @@ export default function PaymentAuthorizationScreen() {
           throw new Error(action.message || 'Payment authorization failed');
         }
         const { error, paymentIntent } = await handleNextAction(action.clientSecret);
-        const expectedStatus = isFromNotification ? 'Succeeded' : 'RequiresCapture';
-        if (error || paymentIntent?.status !== expectedStatus) {
+        if (error || !['Succeeded', 'RequiresCapture'].includes(paymentIntent?.status)) {
           throw new Error(error?.message || 'Card authentication was not completed');
         }
         finalResponse = await apiRequest(endpoint, {
@@ -145,7 +158,7 @@ export default function PaymentAuthorizationScreen() {
         method: 'POST',
         body: JSON.stringify({
           eventId,
-          amount: maxPlayerPayment,
+          ...(isFromNotification && notificationId ? { notificationId } : {}),
         }),
       });
 
@@ -180,13 +193,13 @@ export default function PaymentAuthorizationScreen() {
         method: 'POST',
         body: JSON.stringify({
           paymentIntentId,
-          amount: maxPlayerPayment,
           paymentMethod: 'wallet',
         }),
       });
 
       if (!authorizeResponse.ok) {
-        console.warn('Failed to register wallet payment with backend');
+        const err = await authorizeResponse.json().catch(() => ({}));
+        throw new Error(err.message || 'Failed to register wallet payment. Please retry.');
       }
 
       // Update attendance status
@@ -249,26 +262,39 @@ export default function PaymentAuthorizationScreen() {
           </View>
           <View style={styles.infoRow}>
             <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>
-              {isFromNotification ? 'Payment Amount' : 'Authorisation Amount'}
+              {isFromNotification || isFixed ? 'Payment Amount (GBP)' : 'Authorisation Cap (GBP)'}
             </Text>
             <View style={[styles.amountBadge, { backgroundColor: isDark ? '#1e3a5f' : '#dbeafe' }]}>
               <Text style={[styles.amountText, { color: isDark ? '#60a5fa' : '#1d4ed8' }]}>
-                £{parseFloat(maxPlayerPayment || 0).toFixed(2)}
+                £{displayAmount.toFixed(2)} GBP
               </Text>
             </View>
           </View>
         </View>
 
+        {quoteError && (
+          <TouchableOpacity onPress={loadPaymentData}>
+            <Text style={{ color: colors.error || '#ef4444', marginBottom: 12 }}>Could not load the payment amount. Tap to retry.</Text>
+          </TouchableOpacity>
+        )}
+        {blocked && (
+          <Text style={{ color: '#b45309', marginBottom: 12 }}>{quote?.reason || 'Payment is not available right now.'}</Text>
+        )}
+
         <View style={[styles.infoBox, { backgroundColor: isDark ? '#1e3a5f' : '#dbeafe', borderColor: isDark ? '#3b82f6' : '#93c5fd' }]}>
           <Ionicons name="checkmark-circle" size={20} color={isDark ? '#60a5fa' : '#2563eb'} />
           <View style={styles.infoBoxContent}>
             <Text style={[styles.infoBoxTitle, { color: isDark ? '#60a5fa' : '#1d4ed8' }]}>
-              {isFromNotification ? 'Payment will be processed immediately' : 'Authorisation hold - not a charge'}
+              {isFromNotification ? 'Payment will be processed immediately' : isFixed ? 'Charged upfront' : 'Authorisation hold - not a charge'}
             </Text>
             <Text style={[styles.infoBoxText, { color: isDark ? '#93c5fd' : '#3b82f6' }]}>
               {isFromNotification 
                 ? 'This payment confirms your attendance for the event.'
-                : "We'll authorize this amount. Final charges occur after the event."}
+                : isFixed
+                  ? (policy === 'fixed_threshold'
+                    ? `Fees are included in the price. If fewer than ${quote?.minimumPaidParticipants ?? 'the minimum'} people have paid by the deadline, you are refunded in full.`
+                    : 'Fees are included in the price. You can withdraw for a full refund before the deadline.')
+                  : "We'll authorise up to this cap. You are charged the actual cost after the event."}
             </Text>
           </View>
         </View>
@@ -366,7 +392,7 @@ export default function PaymentAuthorizationScreen() {
           onPress={selectedMethod === 'google-pay'
             ? handlePayWithGooglePay
             : handleAuthorizePayment}
-          disabled={!selectedMethod || processing}
+          disabled={!selectedMethod || processing || blocked || quoteError}
           data-testid="button-authorize-payment"
         >
           {processing ? (

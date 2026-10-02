@@ -4,6 +4,7 @@ import { storage } from "../storage";
 import { calculatePercentageFeeMinor, decimalToMinorUnits } from "../payments/money";
 import { platformFeeBasisPoints, stripe } from "../payments/stripeClient";
 import { allocateEvenlyMinor, needsLegacyTransfer } from "../payments/settlement";
+import { effectivePaymentPolicy, paymentWindow, eventEndAt } from "@workspace/db";
 
 interface CollectPaymentRequestBody {
   venueCost?: string;
@@ -82,6 +83,12 @@ export async function validateCollectPaymentRequest(
   if (!event) {
     throw new HttpError(404, "Event not found");
   }
+  if (effectivePaymentPolicy(event) !== "flexible_post_event") {
+    throw new HttpError(409, "Fixed-price events collect payments at registration, not after the event");
+  }
+  if (new Date() >= paymentWindow(event).completion) {
+    throw new HttpError(409, "The event settlement deadline has passed");
+  }
 
   const userTeam = await storage.getUserTeam(userId, event.primaryTeamId);
   const team = await storage.getTeam(event.primaryTeamId);
@@ -108,6 +115,7 @@ export async function validateCollectPaymentRequest(
     eventEndTime.setHours(23, 59, 59);
   }
 
+  eventEndTime = eventEndAt(event);
   if (eventEndTime >= now) {
     throw new HttpError(400, "Can only collect payments for past events");
   }
@@ -395,6 +403,7 @@ export async function collectPaymentHandler(
 ): Promise<Response | void> {
   try {
     const ctx = await validateCollectPaymentRequest(req);
+    await storage.updateEvent(ctx.eventId, { finalVenueCost: ctx.finalVenueCost.toFixed(2) });
 
     const attendeeIds = ctx.attendeeIds || [];
     const organizerIncluded = attendeeIds.includes(ctx.organiserId || "");
@@ -459,6 +468,16 @@ export async function collectPaymentHandler(
       authorizedPayments.map(payment => payment.id),
     );
 
+    // Check the live card-network expiry, not an assumed seven-day hold.
+    for (const payment of authorizedPayments) {
+      const intent = await stripe.paymentIntents.retrieve(payment.stripePaymentIntentId!);
+      if (intent.status !== "requires_capture") throw new HttpError(409, "A participant authorization is no longer available for capture");
+      if (intent.latest_charge) {
+        const charge = await stripe.charges.retrieve(typeof intent.latest_charge === "string" ? intent.latest_charge : intent.latest_charge.id);
+        const expiry = charge.payment_method_details?.card?.capture_before;
+        if (expiry && expiry * 1000 <= Date.now()) throw new HttpError(409, "A participant authorization has expired");
+      }
+    }
     const { captureResults, totalCaptured, failedCaptures, totalNetAmount } = await captureAuthorizedPayments(
       ctx.eventId,
       authorizedPayments,

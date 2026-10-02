@@ -16,6 +16,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
 import { relations } from "drizzle-orm";
+import { paymentTimestampSchema, paymentPolicies } from "./eventPaymentPolicy";
 
 // Sports constants including Team Social for non-sporting events
 export const SPORTS = [
@@ -702,7 +703,7 @@ export const insertEventSchema = createInsertSchema(events).omit({
   sport: z.string().min(1, "Sport selection is required"),
   startDate: z.string().min(1, "Start date is required"),
   startTime: z.string().min(1, "Start time is required").regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, "Start time must be in HH:MM format (24-hour)"),
-  endTime: z.string().optional().transform((val) => val || null).refine((val) => !val || /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(val), "End time must be in HH:MM format (24-hour)"),
+  endTime: z.string().nullable().optional().transform((val) => val || null).refine((val) => !val || /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(val), "End time must be in HH:MM format (24-hour)"),
   location: z.string().min(1, "Location is required"),
   gender: z.enum(["male", "female", "mixed"]).default("mixed"),
   primaryTeamId: z.string().min(1, "Team selection is required"),
@@ -711,7 +712,7 @@ export const insertEventSchema = createInsertSchema(events).omit({
     if (typeof val === 'number') return val.toString();
     return val || "0.00";
   }),
-  endDate: z.string().optional().transform((val) => val || null),
+  endDate: z.string().nullable().optional().transform((val) => val || null),
   requirements: z.string().min(1, "Description is required"),
   maxParticipants: z.union([z.string(), z.number(), z.null()]).optional().transform((val) => {
     if (val === "" || val === null || val === undefined) return null;
@@ -723,17 +724,24 @@ export const insertEventSchema = createInsertSchema(events).omit({
   }).refine((val) => val >= 0, "Reserve spots cannot be negative"),
   // Recurring event fields
   recurrenceType: z.enum(["none", "daily", "weekly", "monthly"]).default("none"),
-  recurrenceEndDate: z.string().optional().transform((val) => val || null),
+  recurrenceEndDate: z.string().nullable().optional().transform((val) => val || null),
   recurrenceDaysOfWeek: z.array(z.string()).default([]),
   recurringSeriesId: z.string().optional(),
   isRecurringSuspended: z.boolean().default(false),
   // Payment fields
   paymentRequired: z.boolean().default(false),
-  maxPlayerPayment: z.union([z.string(), z.number()]).optional().transform((val) => {
+  paymentPolicy: z.enum(paymentPolicies).optional(),
+  currency: z.literal("gbp").optional(),
+  fixedPriceMinor: z.number().int().min(50).max(99_999_999).nullable().optional(),
+  minimumPaidParticipants: z.number().int().positive().nullable().optional(),
+  paymentDeadlineAt: paymentTimestampSchema,
+  authorizationOpensAt: paymentTimestampSchema,
+  completionDueAt: paymentTimestampSchema,
+  maxPlayerPayment: z.union([z.string(), z.number()]).nullable().optional().transform((val) => {
     if (typeof val === 'number') return val.toString();
     return val || null;
   }),
-  finalVenueCost: z.union([z.string(), z.number()]).optional().transform((val) => {
+  finalVenueCost: z.union([z.string(), z.number()]).nullable().optional().transform((val) => {
     if (typeof val === 'number') return val.toString();
     return val || null;
   }),
@@ -741,7 +749,7 @@ export const insertEventSchema = createInsertSchema(events).omit({
   paymentCollectionInitiated: z.boolean().default(false),
   paymentCollectionInitiatedAt: z.date().optional(),
   paymentCollectionInitiatedBy: z.string().optional(),
-  venueOrganiserId: z.string().optional().transform(val => val || null),
+  venueOrganiserId: z.string().nullable().optional().transform(val => val || null),
 });
 
 export const insertEventAttendanceSchema = createInsertSchema(eventAttendance).omit({

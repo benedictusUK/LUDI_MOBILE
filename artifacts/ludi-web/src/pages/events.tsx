@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "@/lib/apiError";
 import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
@@ -416,7 +417,10 @@ export default function Events() {
         method: "DELETE",
         credentials: "include",
       });
-      if (!response.ok) throw new Error("Failed to delete event");
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`${response.status}: ${text}`);
+      }
       return response.json();
     },
     onSuccess: () => {
@@ -439,8 +443,8 @@ export default function Events() {
         return;
       }
       toast({
-        title: "Error",
-        description: "Failed to delete event",
+        title: "Cannot delete event",
+        description: apiErrorMessage(error, "Failed to delete event"),
         variant: "destructive",
       });
     },

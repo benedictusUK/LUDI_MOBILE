@@ -16,6 +16,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 import { calculateTotalAmount } from '../lib/paymentUtils';
+import PaymentPolicyFields from '../components/PaymentPolicyFields';
+import { defaultPolicyFields, validatePolicy, buildPolicyPayload, parseLocalText } from '../lib/paymentPolicy';
 
 // Helper functions for date/time
 const formatDateForDisplay = (dateStr) => {
@@ -189,6 +191,7 @@ export default function CreateEventScreen() {
     maxPlayerPayment: '',
     finalVenueCost: '',
     venueOrganiserId: '',
+    ...defaultPolicyFields,
   });
 
   const [platformCharges, setPlatformCharges] = useState([]);
@@ -387,14 +390,14 @@ export default function CreateEventScreen() {
       return;
     }
 
-    if (formData.paymentRequired && !formData.maxPlayerPayment) {
-      Alert.alert('Validation Error', 'Max player payment is required when payment is enabled');
-      return;
-    }
-
-    if (formData.paymentRequired && !formData.finalVenueCost) {
-      Alert.alert('Validation Error', 'Final venue cost is required when payment is enabled');
-      return;
+    {
+      const st = new Date(`${formData.startDate}T${formData.startTime}`);
+      const en = new Date(`${formData.endDate || formData.startDate}T${formData.endTime || formData.startTime}`);
+      const policyError = validatePolicy(formData, st, en);
+      if (policyError) {
+        Alert.alert('Payment Settings', policyError);
+        return;
+      }
     }
 
     // Validate recurrence fields
@@ -430,9 +433,7 @@ export default function CreateEventScreen() {
         recurrenceEndDate: formData.recurrenceEndDate || undefined,
         recurrenceDaysOfWeek: formData.recurrenceDaysOfWeek,
         isPublished: formData.isPublished,
-        paymentRequired: formData.paymentRequired,
-        maxPlayerPayment: formData.paymentRequired && formData.maxPlayerPayment ? formData.maxPlayerPayment : undefined,
-        finalVenueCost: formData.paymentRequired && formData.finalVenueCost ? formData.finalVenueCost : undefined,
+        ...buildPolicyPayload(formData),
         venueOrganiserId: formData.paymentRequired && formData.venueOrganiserId ? formData.venueOrganiserId : undefined,
       };
 
@@ -469,11 +470,11 @@ export default function CreateEventScreen() {
         }, 100);
         return;
       } else {
-        const error = await response.json();
+        const error = await response.json().catch(() => ({}));
         console.error('[CreateEvent] Server error:', error);
         setLoading(false);
         setTimeout(() => {
-          Alert.alert('Error', error.message || 'Failed to create event');
+          Alert.alert('Could not save event', error.details || error.message || 'Failed to create event');
         }, 100);
       }
     } catch (error) {
@@ -812,26 +813,7 @@ export default function CreateEventScreen() {
 
           {formData.paymentRequired && (
             <>
-              <Text style={[styles.label, { color: colors.text }]}>Max Player Payment (£) *</Text>
-              <TextInput
-                style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
-                value={formData.maxPlayerPayment}
-                onChangeText={(text) => setFormData({ ...formData, maxPlayerPayment: text })}
-                placeholder="20.00"
-                placeholderTextColor={colors.inputPlaceholder}
-                keyboardType="decimal-pad"
-              />
-
-              <Text style={[styles.label, { color: colors.text }]}>Final Venue Cost (£)</Text>
-              <Text style={styles.sublabel}>Actual venue cost to be covered (optional)</Text>
-              <TextInput
-                style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
-                value={formData.finalVenueCost}
-                onChangeText={(text) => setFormData({ ...formData, finalVenueCost: text })}
-                placeholder="100.00"
-                placeholderTextColor={colors.inputPlaceholder}
-                keyboardType="decimal-pad"
-              />
+              <PaymentPolicyFields formData={formData} setFormData={setFormData} colors={colors} />
 
               <Text style={[styles.label, { color: colors.text }]}>Venue Organiser</Text>
               <Text style={styles.sublabel}>Person who paid for venue - can vote without payment</Text>

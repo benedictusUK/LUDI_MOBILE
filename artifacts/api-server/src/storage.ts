@@ -8,6 +8,7 @@ import {
   eventAttendance,
   payments,
   eventPayments,
+  recurringPaymentSettings,
   notificationPreferences,
   activityLogs,
   blockedMembers,
@@ -15,6 +16,7 @@ import {
   platformCharges,
   eventPaymentAudits,
   eventReimbursements,
+  updateProfileSchema,
   type User,
   type UpsertUser,
   type AuthUser,
@@ -448,10 +450,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUserProfile(userId: string, profileData: UpdateProfile): Promise<User> {
+    // Mobile callers historically pass raw profile JSON. Never let profile
+    // editing replace Stripe customer/account IDs or other server-owned fields.
+    const editable = new Set(Object.keys(updateProfileSchema.shape));
+    const safeProfile = Object.fromEntries(Object.entries(profileData).filter(([key]) => editable.has(key)));
     const [user] = await db
       .update(users)
       .set({
-        ...profileData,
+        ...safeProfile,
         updatedAt: new Date(),
       })
       .where(eq(users.id, userId))
@@ -2887,6 +2893,7 @@ export class DatabaseStorage implements IStorage {
       if (shouldCreateEvent) {
         const eventData: InsertEvent = {
           ...parentEvent,
+          ...recurringPaymentSettings(parentEvent, currentDate.toISOString().split('T')[0]),
           startDate: currentDate.toISOString().split('T')[0],
           endDate: parentEvent.endDate ? 
             new Date(new Date(parentEvent.endDate).getTime() + (currentDate.getTime() - new Date(parentEvent.startDate).getTime())).toISOString().split('T')[0] : 
@@ -2982,9 +2989,10 @@ export class DatabaseStorage implements IStorage {
         reserveSpots: templateEvent.reserveSpots || 0,
         recurringSeriesId: recurringSeriesId,
         paymentRequired: templateEvent.paymentRequired || false,
+        ...recurringPaymentSettings(templateEvent, nextEventDate.toISOString().split('T')[0]),
         maxPlayerPayment: templateEvent.maxPlayerPayment || null,
         finalVenueCost: templateEvent.finalVenueCost || null,
-        paymentStatus: templateEvent.paymentStatus || "none",
+        paymentStatus: "none",
         paymentCollectionInitiated: false,
         paymentCollectionInitiatedAt: undefined,
         paymentCollectionInitiatedBy: undefined,
@@ -3088,9 +3096,10 @@ export class DatabaseStorage implements IStorage {
         maxParticipants: firstEvent.maxParticipants || null,
         reserveSpots: firstEvent.reserveSpots || 0,
         paymentRequired: firstEvent.paymentRequired || false,
+        ...recurringPaymentSettings(firstEvent, nextEventDate.toISOString().split('T')[0]),
         maxPlayerPayment: firstEvent.maxPlayerPayment || null,
         finalVenueCost: firstEvent.finalVenueCost || null,
-        paymentStatus: firstEvent.paymentStatus || "none",
+        paymentStatus: "none",
         paymentCollectionInitiated: false,
         paymentCollectionInitiatedAt: undefined,
         paymentCollectionInitiatedBy: undefined,
@@ -3196,14 +3205,15 @@ export class DatabaseStorage implements IStorage {
           postcode: series.postcode || null,
           maxParticipants: series.maxParticipants || null,
           reserveSpots: series.reserveSpots || 0,
-          paymentRequired: (series as any).paymentRequired || false,
-          maxPlayerPayment: (series as any).maxPlayerPayment || null,
-          finalVenueCost: (series as any).finalVenueCost || null,
+          paymentRequired: latestEvent[0].paymentRequired || false,
+          ...recurringPaymentSettings(latestEvent[0], latestEvent[0].startDate),
+          maxPlayerPayment: latestEvent[0].maxPlayerPayment || null,
+          finalVenueCost: latestEvent[0].finalVenueCost || null,
           paymentStatus: (series as any).paymentStatus || "none",
         paymentCollectionInitiated: false,
         paymentCollectionInitiatedAt: undefined,
         paymentCollectionInitiatedBy: undefined,
-        venueOrganiserId: (series as any).venueOrganiserId || null
+          venueOrganiserId: latestEvent[0].venueOrganiserId || latestEvent[0].createdById
         };
 
         // Generate new events to maintain 2 weeks ahead (reduced from 4)

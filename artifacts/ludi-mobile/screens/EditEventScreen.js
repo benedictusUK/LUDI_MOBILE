@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import PaymentPolicyFields from '../components/PaymentPolicyFields';
+import { policyFieldsFromEvent, validatePolicy, buildPolicyPayload } from '../lib/paymentPolicy';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -116,6 +118,7 @@ export default function EditEventScreen() {
     paymentRequired: initialEvent?.paymentRequired || false,
     maxPlayerPayment: initialEvent?.maxPlayerPayment || '',
     finalVenueCost: initialEvent?.finalVenueCost || '',
+    ...policyFieldsFromEvent(initialEvent),
     venueOrganiserId: initialEvent?.venueOrganiserId || '',
     isPublished: initialEvent?.isPublished ?? true,
   });
@@ -233,6 +236,14 @@ export default function EditEventScreen() {
       return false;
     }
 
+    const st = new Date(`${formData.startDate}T${formData.startTime}`);
+    const en = new Date(`${formData.endDate || formData.startDate}T${formData.endTime || formData.startTime}`);
+    const policyError = validatePolicy(formData, st, en);
+    if (policyError) {
+      Alert.alert('Payment Settings', policyError);
+      return false;
+    }
+
     return true;
   };
 
@@ -258,9 +269,7 @@ export default function EditEventScreen() {
         cost: formData.cost || '0.00',
         requirements: formData.requirements || '',
         gender: formData.gender,
-        paymentRequired: formData.paymentRequired,
-        maxPlayerPayment: formData.paymentRequired && formData.maxPlayerPayment ? formData.maxPlayerPayment : undefined,
-        finalVenueCost: formData.paymentRequired && formData.finalVenueCost ? formData.finalVenueCost : undefined,
+        ...buildPolicyPayload(formData),
         venueOrganiserId: formData.paymentRequired && formData.venueOrganiserId ? formData.venueOrganiserId : undefined,
         isPublished: formData.isPublished,
       };
@@ -293,9 +302,9 @@ export default function EditEventScreen() {
         ]);
         return;
       } else {
-        const error = await response.json();
+        const error = await response.json().catch(() => ({}));
         console.error('[EditEvent] Server error:', error);
-        Alert.alert('Error', error.message || 'Failed to update event');
+        Alert.alert('Could not save event', error.details || error.message || 'Failed to update event');
       }
     } catch (error) {
       console.error('[EditEvent] Error:', error.message, error);
@@ -839,27 +848,7 @@ export default function EditEventScreen() {
         {formData.paymentRequired && (
           <>
             <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: colors.text }]}>Max Player Payment (£) *</Text>
-              <TextInput
-                style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]}
-                value={formData.maxPlayerPayment}
-                onChangeText={(text) => setFormData({ ...formData, maxPlayerPayment: text })}
-                placeholder="e.g., 15.00"
-                placeholderTextColor={colors.inputPlaceholder}
-                keyboardType="decimal-pad"
-              />
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: colors.text }]}>Final Venue Cost (£) *</Text>
-              <TextInput
-                style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]}
-                value={formData.finalVenueCost}
-                onChangeText={(text) => setFormData({ ...formData, finalVenueCost: text })}
-                placeholder="e.g., 100.00"
-                placeholderTextColor={colors.inputPlaceholder}
-                keyboardType="decimal-pad"
-              />
+              <PaymentPolicyFields formData={formData} setFormData={setFormData} colors={colors} />
 
               <Text style={[styles.label, { color: colors.text }]}>Venue Organiser</Text>
               <Text style={[styles.sublabel, { color: colors.textSecondary }]}>Person who paid for venue - can vote without payment</Text>

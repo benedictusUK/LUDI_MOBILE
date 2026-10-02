@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "@/lib/apiError";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute } from "wouter";
 import { useScrollToTop } from "@/hooks/useScrollToTop";
@@ -93,9 +94,23 @@ export default function EventDetails() {
   // Fetch payment status for events that require payment
   const { data: paymentStatus } = useQuery({
     queryKey: ["/api/events", eventId, "payment-status"],
-    enabled: !!eventId && !!event && !!(event as any)?.cost && parseFloat((event as any).cost) > 0,
+    enabled: !!eventId && !!event && (!!(event as any)?.paymentRequired || (!!(event as any)?.cost && parseFloat((event as any).cost) > 0)),
     staleTime: 30000, // Cache for 30 seconds
   });
+
+  const { data: paymentQuote } = useQuery<any>({
+    queryKey: ["/api/events", eventId, "payment-policy"],
+    enabled: !!eventId && !!event && !!(event as any)?.paymentRequired,
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+  });
+  const policyMode: string =
+    paymentQuote?.paymentPolicy && paymentQuote.paymentPolicy !== "none"
+      ? paymentQuote.paymentPolicy
+      : (event as any)?.paymentPolicy && (event as any).paymentPolicy !== "none"
+        ? (event as any).paymentPolicy
+        : "flexible_post_event";
+  const isFixedPolicy = policyMode === "fixed_immediate" || policyMode === "fixed_threshold";
 
   // Vote mutation with payment authorization handling
   const voteMutation = useMutation({
@@ -197,6 +212,8 @@ export default function EventDetails() {
       queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "activity"] });
       queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "capacity"] });
       queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "reserves"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "payment-status"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "payment-policy"] });
     },
   });
 
@@ -207,7 +224,10 @@ export default function EventDetails() {
         method: "DELETE",
         credentials: "include",
       });
-      if (!response.ok) throw new Error("Failed to unvote");
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`${response.status}: ${text}`);
+      }
       return response.json();
     },
     onMutate: async () => {
@@ -232,13 +252,23 @@ export default function EventDetails() {
       if (context?.previousAttendance) {
         queryClient.setQueryData(["/api/events", eventId, "attendance"], context.previousAttendance);
       }
+      toast({
+        title: "Could not remove your vote",
+        description: apiErrorMessage(err, "Failed to unvote. Please try again."),
+        variant: "destructive",
+      });
     },
     onSuccess: (data) => {
       // Show success message for unvoting from paid events
-      if (eventData?.paymentRequired && data?.paymentReleased) {
+      if (eventData?.paymentRequired && data?.refundStatus) {
+        toast({
+          title: "Payment refund",
+          description: data.message || `Your refund is ${String(data.refundStatus).replace(/_/g, " ")}.`,
+        });
+      } else if (eventData?.paymentRequired && data?.paymentReleased) {
         toast({
           title: "Payment Authorization Released",
-          description: `Your payment hold of up to £${parseFloat(eventData.maxPlayerPayment || '0').toFixed(2)} has been cancelled. You will not be charged.`,
+          description: `${isFixedPolicy ? 'Your fixed payment withdrawal has been processed; any refund follows the event policy.' : 'Your payment hold of up to £' + parseFloat(eventData.maxPlayerPayment || '0').toFixed(2) + ' has been cancelled. You will not be charged.'}`,
         });
       } else {
         toast({
@@ -255,6 +285,7 @@ export default function EventDetails() {
       queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "capacity"] });
       queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "reserves"] });
       queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "payment-status"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "payment-policy"] });
     },
   });
 
@@ -406,9 +437,11 @@ export default function EventDetails() {
                     <p className="text-neutral-900">{(event as any).sport}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-neutral-600">Cost</label>
+                    <label className="text-sm font-medium text-neutral-600">{(event as any).paymentRequired ? isFixedPolicy ? "Price per player" : "Maximum per player" : "Cost"}</label>
                     <p className="text-neutral-900">
-                      {(!(event as any).cost || parseFloat((event as any).cost) === 0) ? "Free" : `£${parseFloat((event as any).cost).toFixed(2)}`}
+                      {(event as any).paymentRequired
+                        ? `£${(isFixedPolicy ? Number((event as any).fixedPriceMinor || 0) / 100 : Number((event as any).maxPlayerPayment || 0)).toFixed(2)} GBP`
+                        : (!(event as any).cost || parseFloat((event as any).cost) === 0) ? "Free" : `£${parseFloat((event as any).cost).toFixed(2)}`}
                     </p>
                   </div>
                   {(event as any).endDate && (
@@ -425,6 +458,27 @@ export default function EventDetails() {
                   )}
                 </div>
                 
+                {(event as any).paymentRequired && (
+                  <div className="rounded-lg border border-neutral-200 p-3 text-sm" data-testid="text-payment-policy">
+                    <div className="font-medium text-neutral-800">
+                      {isFixedPolicy
+                        ? `Fixed price: £${(paymentQuote?.amountMinor != null ? paymentQuote.amountMinor / 100 : parseFloat((event as any).maxPlayerPayment || "0")).toFixed(2)} GBP`
+                        : `Flexible: hold up to £${parseFloat((event as any).maxPlayerPayment || "0").toFixed(2)} GBP`}
+                    </div>
+                    <p className="text-neutral-600 mt-1">
+                      {policyMode === "fixed_immediate" && "Charged upfront when you join. Fees are included. Full refund if you withdraw before the deadline."}
+                      {policyMode === "fixed_threshold" && `Charged upfront. Refunded if fewer than ${paymentQuote?.minimumPaidParticipants ?? "the minimum"} people have paid by the deadline.`}
+                      {!isFixedPolicy && "A cap is authorised now and the actual cost is settled after the event."}
+                    </p>
+                    {paymentQuote?.paymentDeadlineAt && (
+                      <p className="text-neutral-600 mt-1">Payment deadline: {new Date(paymentQuote.paymentDeadlineAt).toLocaleString()}</p>
+                    )}
+                    {paymentQuote && paymentQuote.canPay === false && paymentQuote.reason && (
+                      <p className="text-amber-700 mt-1">{paymentQuote.reason}</p>
+                    )}
+                  </div>
+                )}
+
                 {(event as any).requirements && (
                   <div>
                     <label className="text-sm font-medium text-neutral-600">Description</label>
@@ -528,7 +582,32 @@ export default function EventDetails() {
                   </div>
 
                   {/* Payment Section - Shows when user has voted to attend and event has cost */}
-                  {userAttendance?.status === "attending" && eventData.cost && parseFloat(eventData.cost) > 0 && (user as any)?.id !== eventData.venueOrganiserId && (
+                  {userAttendance?.status === "attending" && eventData.paymentRequired && (user as any)?.id !== eventData.venueOrganiserId && (
+                    <div className="p-4 border rounded-lg" data-testid="card-fixed-payment">
+                      {(paymentStatus as any)?.hasAuthorization ? (
+                        <div className="text-green-800">
+                          <div className="font-medium">{isFixedPolicy ? "Paid" : (paymentStatus as any)?.status === "captured" ? "Settled" : "Authorized up to"} £{((paymentStatus as any)?.status === "captured" && (paymentStatus as any)?.paymentRecord?.capturedAmountMinor != null ? (paymentStatus as any).paymentRecord.capturedAmountMinor / 100 : paymentQuote?.amountMinor != null ? paymentQuote.amountMinor / 100 : parseFloat(eventData.maxPlayerPayment || "0")).toFixed(2)} GBP</div>
+                          <p className="text-sm text-neutral-600 mt-1">
+                            {!isFixedPolicy ? "The actual venue share is settled after the event, within the agreed cap and settlement deadline." : policyMode === "fixed_threshold"
+                              ? `Refunded automatically if fewer than ${paymentQuote?.minimumPaidParticipants ?? "the minimum"} people have paid by the deadline.`
+                              : "You can withdraw for a full refund before the payment deadline. Refunds may show as processing for a few days."}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="text-sm text-neutral-700">
+                            Your place is not confirmed until you {isFixedPolicy ? "pay" : "authorize up to"} £{(paymentQuote?.amountMinor != null ? paymentQuote.amountMinor / 100 : parseFloat(eventData.maxPlayerPayment || "0")).toFixed(2)} GBP.
+                            {paymentQuote?.canPay === false && paymentQuote?.reason && <span className="block text-amber-700">{paymentQuote.reason}</span>}
+                          </div>
+                          <Button onClick={() => setPaymentAuthModal(true)} disabled={paymentQuote?.canPay === false} data-testid="button-pay-fixed">
+                            Pay now
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {userAttendance?.status === "attending" && !eventData.paymentRequired && eventData.cost && parseFloat(eventData.cost) > 0 && (user as any)?.id !== eventData.venueOrganiserId && (
                     <EventPayment
                       eventId={eventId!}
                       eventName={eventData.name}
@@ -549,7 +628,7 @@ export default function EventDetails() {
                       <div className="flex items-center gap-2">
                         <div className="text-amber-600 font-medium">Payment Authorization Required</div>
                         <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-300">
-                          Up to £{parseFloat(eventData.maxPlayerPayment).toFixed(2)}
+                          {isFixedPolicy ? "" : "Up to "}£{parseFloat(eventData.maxPlayerPayment).toFixed(2)} GBP
                         </Badge>
                       </div>
                       <p className="text-sm text-amber-700 mt-1">
@@ -561,6 +640,7 @@ export default function EventDetails() {
                   {/* Collect Payment Button for Past Events (Admin Only) */}
                   {eventData && isEventPast(eventData) && 
                    eventData.cost && parseFloat(eventData.cost) > 0 && 
+                   !isFixedPolicy &&
                    !eventData.paymentCollectionInitiated &&
                    user && eventData.primaryTeam && (
                      eventData.primaryTeam.ownerId === (user as any).id || 

@@ -46,6 +46,22 @@ export default function PaymentAuthorizationModal({
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("");
 
+  const { data: quote, isError: quoteError, refetch: refetchQuote } = useQuery<any>({
+    queryKey: ["/api/events", event.id, "payment-policy", notificationId || ""],
+    queryFn: async () => {
+      const response = await apiRequest("GET", `/api/events/${event.id}/payment-policy${isFromNotification && notificationId ? `?notificationId=${encodeURIComponent(notificationId)}` : ""}`);
+      return response.json();
+    },
+    enabled: isOpen && !!event?.id,
+    staleTime: 30_000,
+    refetchInterval: isOpen ? 30_000 : false,
+  });
+  const policy: string = quote?.paymentPolicy && quote.paymentPolicy !== "none" ? quote.paymentPolicy : "flexible_post_event";
+  const isFixed = !!quote?.isRecovery || policy === "fixed_immediate" || policy === "fixed_threshold";
+  const displayAmount: number = quote?.amountMinor != null ? quote.amountMinor / 100 : maxPlayerPayment;
+  const blocked = !quote || quote.canPay === false;
+  maxPlayerPayment = displayAmount;
+
   // Fetch user's saved payment methods
   const { data: paymentMethods = [] } = useQuery({
     queryKey: ["/api/payment-methods"],
@@ -87,8 +103,8 @@ export default function PaymentAuthorizationModal({
         const stripe = await stripePromise;
         if (!stripe) throw new Error("Stripe is unavailable");
         const confirmation = await stripe.confirmCardPayment(action.clientSecret);
-        const expectedStatus = isFromNotification ? "succeeded" : "requires_capture";
-        if (confirmation.error || confirmation.paymentIntent?.status !== expectedStatus) {
+        const okStatuses = ["succeeded", "requires_capture"];
+        if (confirmation.error || !okStatuses.includes(confirmation.paymentIntent?.status || "")) {
           throw new Error(confirmation.error?.message || "Card authentication was not completed");
         }
         response = await fetch(endpoint, {
@@ -118,6 +134,10 @@ export default function PaymentAuthorizationModal({
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
       queryClient.invalidateQueries({ queryKey: ["/api/events", event.id] });
       queryClient.invalidateQueries({ queryKey: ["/api/events", event.id, "attendance"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/events", event.id, "payment-status"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/events", event.id, "payment-policy"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/events", event.id, "capacity"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/events", event.id, "potential-players"] });
       
       toast({
         title: "Authorization Successful",
@@ -164,13 +184,26 @@ export default function PaymentAuthorizationModal({
           <DialogDescription>
             {isFromNotification 
               ? `Complete your payment of £${maxPlayerPayment.toFixed(2)} to confirm your attendance for this event.`
-              : "We'll authorize a payment for this event. This is not a charge - final payment occurs after the event."
+              : isFixed
+                ? `You will be charged £${maxPlayerPayment.toFixed(2)} GBP now. Fees are included in this price.`
+                : "We'll authorize a cap in GBP. This is not a charge - the actual cost is settled after the event."
             }
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto">
           <div className="space-y-4 py-4">
+            {quoteError && (
+              <div className="text-sm text-red-600 border border-red-200 rounded p-2" data-testid="text-quote-error">
+                Could not load the payment amount.{" "}
+                <button type="button" className="underline" onClick={() => refetchQuote()}>Retry</button>
+              </div>
+            )}
+            {blocked && (
+              <div className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded p-2" data-testid="text-cannot-pay">
+                {quote?.reason || "Payment is not available right now."}
+              </div>
+            )}
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <span className="text-sm font-medium">Event:</span>
@@ -179,7 +212,7 @@ export default function PaymentAuthorizationModal({
               <div className="flex justify-between items-center">
                 <span className="text-sm font-medium">{isFromNotification ? "Payment Amount:" : "Authorization Amount:"}</span>
                 <Badge variant="secondary" className="font-semibold">
-                  £{maxPlayerPayment.toFixed(2)}
+                  £{maxPlayerPayment.toFixed(2)} GBP
                 </Badge>
               </div>
             </div>
@@ -194,10 +227,21 @@ export default function PaymentAuthorizationModal({
                       <div>This payment confirms your attendance for the event.</div>
                     </>
                   ) : (
-                    <>
-                      <div className="font-medium">Authorization hold - not a charge</div>
-                      <div>We'll authorize this amount. Final charges occur after the event.</div>
-                    </>
+                    isFixed ? (
+                      <>
+                        <div className="font-medium">Charged upfront</div>
+                        <div>
+                          {policy === "fixed_threshold"
+                            ? `You are charged now. If fewer than ${quote?.minimumPaidParticipants ?? "the minimum"} people have paid by the deadline, you are refunded in full.`
+                            : "You are charged now. You can withdraw for a full refund before the registration deadline."}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="font-medium">Authorization hold - not a charge</div>
+                        <div>We'll authorize up to this cap. You are charged the actual cost after the event.</div>
+                      </>
+                    )
                   )}
                 </div>
               </div>
@@ -307,7 +351,7 @@ export default function PaymentAuthorizationModal({
           </Button>
           <Button
             onClick={handleAuthorize}
-            disabled={authorizePaymentMutation.isPending || !selectedPaymentMethod}
+            disabled={authorizePaymentMutation.isPending || !selectedPaymentMethod || blocked || quoteError}
             className="min-w-32"
             data-testid="button-authorize-payment"
           >

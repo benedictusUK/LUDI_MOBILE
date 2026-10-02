@@ -30,7 +30,10 @@ function expandableId(value: string | { id: string } | null | undefined): string
   return typeof value === "string" ? value : value?.id;
 }
 
-async function updatePaymentIntentState(paymentIntent: Stripe.PaymentIntent) {
+async function updatePaymentIntentState(receivedIntent: Stripe.PaymentIntent) {
+  // Webhooks may be delivered out of order. Always reconcile the current
+  // provider state instead of allowing an older authorization to undo capture.
+  const paymentIntent = await stripe.paymentIntents.retrieve(receivedIntent.id);
   const domainStatus =
     paymentIntent.status === "succeeded"
       ? "paid"
@@ -54,7 +57,7 @@ async function updatePaymentIntentState(paymentIntent: Stripe.PaymentIntent) {
     await tx
       .update(payments)
       .set({
-        status: domainStatus,
+        status: sql`CASE WHEN ${payments.status} IN ('refunded','refund_pending') THEN ${payments.status} ELSE ${domainStatus} END`,
         paidAt: paymentIntent.status === "succeeded" ? new Date() : undefined,
         updatedAt: new Date(),
       })
@@ -81,9 +84,9 @@ async function updatePaymentIntentState(paymentIntent: Stripe.PaymentIntent) {
         capturedAmountMinor: paymentIntent.amount_received,
         stripeFeeMinor: balanceTransaction?.fee,
         captureDeadlineAt: captureBefore ? new Date(captureBefore * 1000) : undefined,
-        ...(eventPaymentStatus ? { status: eventPaymentStatus } : {}),
+        ...(eventPaymentStatus ? { status: sql`CASE WHEN COALESCE(${eventPayments.refundedAmountMinor},0) > 0 AND COALESCE(${eventPayments.refundedAmountMinor},0) >= ${paymentIntent.amount_received} THEN 'refunded' ELSE ${eventPaymentStatus} END` } : {}),
         ...(paymentIntent.status === "succeeded"
-          ? { capturedAt: new Date() }
+           ? { capturedAt: new Date((charge?.created || Math.floor(Date.now() / 1000)) * 1000) }
           : {}),
         updatedAt: new Date(),
       })
@@ -167,7 +170,7 @@ async function processEvent(event: Stripe.Event): Promise<void> {
     case "refund.created":
     case "refund.updated":
     case "refund.failed": {
-      const refund = event.data.object;
+      const refund = await stripe.refunds.retrieve(event.data.object.id);
       const paymentIntentId = typeof refund.payment_intent === "string"
         ? refund.payment_intent
         : refund.payment_intent?.id;
@@ -188,6 +191,16 @@ async function processEvent(event: Stripe.Event): Promise<void> {
         target: paymentRefunds.stripeRefundId,
         set: { status: refund.status ?? "pending", updatedAt: new Date() },
       });
+      const chargeId = expandableId(refund.charge);
+      if (chargeId) {
+        const charge = await stripe.charges.retrieve(chargeId);
+        await db.update(eventPayments).set({
+          refundedAmountMinor: charge.amount_refunded,
+          status: charge.refunded ? "refunded" : charge.amount_refunded > 0 ? "captured" : undefined,
+          refundedAt: charge.amount_refunded > 0 ? new Date() : undefined, updatedAt: new Date(),
+        }).where(eq(eventPayments.id, eventPayment.id));
+        if (charge.refunded) await db.update(payments).set({ status: "refunded", updatedAt: new Date() }).where(eq(payments.stripePaymentIntentId, paymentIntentId));
+      }
       return;
     }
 

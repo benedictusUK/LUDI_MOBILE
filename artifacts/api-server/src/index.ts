@@ -3,6 +3,7 @@ import { logger } from "./lib/logger";
 import { registerRoutes } from "./legacyRoutes";
 import { notificationWS } from "./websocket";
 import { storage } from "./storage";
+import { processPaymentDeadlines } from "./payments/policyService";
 
 const rawPort = process.env["PORT"];
 
@@ -38,6 +39,20 @@ async function start() {
   };
   setTimeout(checkExpiredRecurringEvents, 10000);
   setInterval(checkExpiredRecurringEvents, 5 * 60 * 1000);
+  let paymentMaintenanceRunning = false;
+  const maintainPayments = async () => {
+    if (paymentMaintenanceRunning) return;
+    paymentMaintenanceRunning = true;
+    try {
+      await processPaymentDeadlines();
+    } catch (error: any) {
+      logger.error({ errorName: error.name }, "Payment deadline processing failed; will retry");
+    } finally {
+      paymentMaintenanceRunning = false;
+    }
+  };
+  setTimeout(maintainPayments, 15000);
+  setInterval(maintainPayments, 60 * 1000);
 }
 
 start().catch((err) => {

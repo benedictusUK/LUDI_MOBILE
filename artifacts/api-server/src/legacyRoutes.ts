@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { collectPaymentHandler } from "./routes/payments";
+import { registerEventPaymentPolicies } from "./routes/eventPaymentPolicies";
 import mobileAuthRoutes, { verifyMobileToken, verifyAuth } from "./routes/mobileAuth";
 import { isAllowedMobileRedirect } from "./mobileRedirect";
 import { calculatePercentageFeeMinor, decimalToMinorUnits } from "./payments/money";
@@ -22,6 +23,7 @@ import { z } from "zod";
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
+  registerEventPaymentPolicies(app, verifyAuth);
 
   // Block legacy financial endpoints that trusted client amounts or created a
   // second transfer after capture. They remain below temporarily for data-flow

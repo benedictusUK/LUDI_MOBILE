@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useRoute, useNavigation } from '@react-navigation/native';
+import { effectivePolicy, isFixedPolicy, policySummary } from '../lib/paymentPolicy';
 
 export default function EventDetailsScreen() {
   const route = useRoute();
@@ -46,6 +47,7 @@ export default function EventDetailsScreen() {
   const [auditLog, setAuditLog] = useState([]);
   const [sendingReminders, setSendingReminders] = useState(false);
   const [updatingAttendance, setUpdatingAttendance] = useState(false);
+  const [quote, setQuote] = useState(null);
 
   const fetchEventDetails = async () => {
     try {
@@ -67,7 +69,8 @@ export default function EventDetailsScreen() {
         setCanManage(isEventCreator || isTeamOwner || isAdminOrCaptain);
         
         // Fetch payment status if event requires payment
-        if (eventData.paymentRequired && eventData.maxPlayerPayment > 0) {
+        if (eventData.paymentRequired) {
+          fetchQuote();
           fetchPaymentStatus();
         }
       }
@@ -82,6 +85,15 @@ export default function EventDetailsScreen() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  const fetchQuote = async () => {
+    try {
+      const response = await apiRequest(`/api/events/${id}/payment-policy`);
+      if (response.ok) setQuote(await response.json());
+    } catch (error) {
+      console.error('Failed to fetch payment policy:', error);
     }
   };
 
@@ -242,11 +254,18 @@ export default function EventDetailsScreen() {
               });
               
               if (response.ok) {
-                Alert.alert('Success', 'Payment authorisation cancelled');
+                const data = await response.json().catch(() => ({}));
+                Alert.alert(
+                  isFixedPolicy(effectivePolicy(quote || event)) ? 'Withdrawn' : 'Success',
+                  data.message || (isFixedPolicy(effectivePolicy(quote || event))
+                    ? 'You have withdrawn. Your refund is being processed.'
+                    : 'Payment authorisation cancelled')
+                );
                 fetchEventDetails();
+                fetchPaymentStatus();
               } else {
-                const error = await response.json();
-                Alert.alert('Error', error.message || 'Failed to cancel authorisation');
+                const error = await response.json().catch(() => ({}));
+                Alert.alert('Cannot cancel payment', error.details || error.message || 'Failed to cancel authorisation');
               }
             } catch (error) {
               console.error('Cancel authorisation error:', error);
@@ -316,8 +335,8 @@ export default function EventDetailsScreen() {
           [{ text: 'OK', onPress: () => navigation.goBack() }]
         );
       } else {
-        const error = await response.json();
-        Alert.alert('Error', error.message || 'Failed to delete event');
+        const error = await response.json().catch(() => ({}));
+        Alert.alert('Cannot delete event', error.details || error.message || 'Failed to delete event');
       }
     } catch (error) {
       console.error('Failed to delete event:', error);
@@ -405,7 +424,7 @@ export default function EventDetailsScreen() {
     // Venue organiser can vote without payment authorisation
     const isVenueOrganiser = event?.venueOrganiserId === user?.id;
     
-    if (status === 'attending' && event?.paymentRequired && event?.maxPlayerPayment > 0 && !isVenueOrganiser) {
+    if (status === 'attending' && event?.paymentRequired && !isVenueOrganiser) {
       // Wait for payment status to load before blocking
       if (paymentStatusLoading) {
         Alert.alert('Please Wait', 'Checking payment status...');
@@ -423,7 +442,7 @@ export default function EventDetailsScreen() {
               onPress: () => navigation.navigate('PaymentAuthorization', {
                 eventId: id,
                 eventName: event.name,
-                maxPlayerPayment: event.maxPlayerPayment,
+                maxPlayerPayment: quote?.amountMinor != null ? quote.amountMinor / 100 : event.maxPlayerPayment,
               })
             }
           ]
@@ -441,7 +460,9 @@ export default function EventDetailsScreen() {
       // Show confirmation popup warning about payment release
       Alert.alert(
         'Release Payment Authorisation?',
-        'Changing your attendance will release your payment authorisation. You will need to authorise payment again if you decide to attend.',
+        isFixedPolicy(effectivePolicy(quote || event))
+          ? 'Withdrawing is only refunded in full before the registration deadline. After it, paid withdrawals are rejected.'
+          : 'Changing your attendance will release your payment authorisation. You will need to authorise payment again if you decide to attend.',
         [
           { text: 'Keep Attending', style: 'cancel' },
           { 
@@ -466,13 +487,18 @@ export default function EventDetailsScreen() {
       });
 
       if (response.ok) {
+        const data = await response.json().catch(() => ({}));
         fetchEventDetails();
-        if (status !== 'attending' && paymentStatus?.hasAuthorization) {
+        if (event?.paymentRequired) {
           fetchPaymentStatus();
+          fetchQuote();
+        }
+        if (data?.refundStatus || (data?.message && status !== 'attending' && event?.paymentRequired)) {
+          Alert.alert('Payment', data.message || `Your refund is ${String(data.refundStatus).replace(/_/g, ' ')}.`);
         }
       } else {
-        const error = await response.json();
-        Alert.alert('Error', error.message || 'Failed to update attendance');
+        const error = await response.json().catch(() => ({}));
+        Alert.alert('Could not update attendance', error.details || error.message || 'Failed to update attendance');
       }
     } catch (error) {
       console.error('Failed to update attendance:', error);
@@ -562,7 +588,10 @@ export default function EventDetailsScreen() {
               value={`${attendeeCount}/${event.maxParticipants}`} 
             />
           )}
-          {event.cost && parseFloat(event.cost) > 0 && (
+          {event.paymentRequired ? (
+            <DetailRow icon="cash" label={isFixedPolicy(effectivePolicy(event)) ? "Price per player" : "Maximum per player"}
+              value={`£${(isFixedPolicy(effectivePolicy(event)) ? Number(event.fixedPriceMinor || 0) / 100 : Number(event.maxPlayerPayment || 0)).toFixed(2)} GBP`} />
+          ) : event.cost && parseFloat(event.cost) > 0 && (
             <DetailRow icon="cash" label="Cost" value={`£${event.cost}`} />
           )}
         </View>
@@ -685,10 +714,23 @@ export default function EventDetailsScreen() {
           <View style={[styles.card, { backgroundColor: colors.card }]}>
             <Text style={[styles.cardTitle, { color: colors.text }]}>Payment</Text>
             
+            {event.paymentRequired && (
+              <Text style={[styles.paymentLabel, { color: colors.textSecondary, marginBottom: 8 }]}>
+                {policySummary(
+                  effectivePolicy(quote || event),
+                  quote?.amountMinor != null ? quote.amountMinor / 100 : event.maxPlayerPayment,
+                  quote?.minimumPaidParticipants ?? event.minimumPaidParticipants
+                )}
+              </Text>
+            )}
+            {event.paymentRequired && quote?.canPay === false && quote?.reason ? (
+              <Text style={{ color: '#b45309', marginBottom: 8 }}>{quote.reason}</Text>
+            ) : null}
+
             {event.paymentRequired && event.maxPlayerPayment > 0 && (
               <View style={styles.paymentInfo}>
                 <View style={styles.paymentRow}>
-                  <Text style={[styles.paymentLabel, { color: colors.textSecondary }]}>Max Player Fee:</Text>
+                  <Text style={[styles.paymentLabel, { color: colors.textSecondary }]}>{isFixedPolicy(effectivePolicy(quote || event)) ? 'Price (GBP):' : 'Max Player Fee (GBP):'}</Text>
                   <Text style={[styles.paymentValue, { color: colors.text }]}>£{parseFloat(event.maxPlayerPayment).toFixed(2)}</Text>
                 </View>
               </View>
@@ -724,7 +766,7 @@ export default function EventDetailsScreen() {
                 onPress={() => navigation.navigate('PaymentAuthorization', { 
                   eventId: event.id,
                   eventName: event.name,
-                  maxPlayerPayment: event.maxPlayerPayment,
+                  maxPlayerPayment: quote?.amountMinor != null ? quote.amountMinor / 100 : event.maxPlayerPayment,
                 })}
                 data-testid="button-authorize-payment"
               >
@@ -740,7 +782,7 @@ export default function EventDetailsScreen() {
               </TouchableOpacity>
             ) : null}
             
-            {canManage && event.paymentRequired && (
+            {canManage && event.paymentRequired && !isFixedPolicy(effectivePolicy(quote || event)) && (
               <TouchableOpacity 
                 style={[styles.collectPaymentsButton, { backgroundColor: '#10b981' }]}
                 onPress={() => navigation.navigate('PaymentCollection', { 

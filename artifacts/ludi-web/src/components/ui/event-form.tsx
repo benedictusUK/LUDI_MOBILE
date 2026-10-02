@@ -20,6 +20,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { apiErrorMessage } from "@/lib/apiError";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { SPORTS, type PlatformCharge, type Event, type Team } from "@workspace/db/schema";
 import type { TeamMember } from "@/types";
@@ -68,6 +69,16 @@ function TimeInput({
   );
 }
 
+const toLocalInput = (iso?: string | null) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+const fromLocalInput = (v?: string) => (v ? new Date(v).toISOString() : null);
+const poundsToPence = (v?: string) => Math.round(parseFloat(v || "0") * 100);
+
 const eventFormSchema = z.object({
   name: z.string().min(1, "Event name is required"),
   requirements: z.string().min(1, "Description is required"),
@@ -75,23 +86,30 @@ const eventFormSchema = z.object({
   location: z.string().min(1, "Location is required").max(30, "Location must be 30 characters or less"),
   address: z.string().optional().or(z.literal("")),
   postcode: z.string().optional().or(z.literal("")),
-  gender: z.enum(["male", "female", "mixed"]).default("mixed"),
+  gender: z.enum(["male", "female", "mixed"]),
   startDate: z.string().min(1, "Start date is required"),
   startTime: z.string().min(1, "Start time is required"),
   endDate: z.string().optional().or(z.literal("")),
   endTime: z.string().optional().or(z.literal("")),
   primaryTeamId: z.string().min(1, "Primary team is required"),
-  secondaryTeamIds: z.array(z.string()).optional().default([]),
+  secondaryTeamIds: z.array(z.string()),
   maxParticipants: z.string().optional(),
   reserveSpots: z.string().optional(),
   cost: z.string().optional(),
-  isPublished: z.boolean().default(false),
-  requiresPayment: z.boolean().default(false),
+  isPublished: z.boolean(),
+  requiresPayment: z.boolean(),
   maxPlayerPayment: z.string().optional(),
+  finalVenueCost: z.string().optional(),
+  paymentPolicy: z.enum(["fixed_immediate", "fixed_threshold", "flexible_post_event"]),
+  fixedPrice: z.string().optional(),
+  minimumPaidParticipants: z.string().optional(),
+  paymentDeadline: z.string().optional(),
+  authorizationOpensAt: z.string().optional(),
+  completionDueAt: z.string().optional(),
   venueOrganiserId: z.string().optional(),
   // Recurring events fields
-  recurrenceType: z.enum(["none", "daily", "weekly", "monthly"]).default("none"),
-  recurrenceDaysOfWeek: z.array(z.string()).optional().default([]),
+  recurrenceType: z.enum(["none", "daily", "weekly", "monthly"]),
+  recurrenceDaysOfWeek: z.array(z.string()),
   recurrenceEndDate: z.string().optional().or(z.literal("")),
 });
 
@@ -146,6 +164,13 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
       isPublished: false,
       requiresPayment: false,
       maxPlayerPayment: "",
+      finalVenueCost: "",
+      paymentPolicy: "flexible_post_event",
+      fixedPrice: "",
+      minimumPaidParticipants: "",
+      paymentDeadline: "",
+      authorizationOpensAt: "",
+      completionDueAt: "",
       venueOrganiserId: "",
       recurrenceType: "none",
       recurrenceDaysOfWeek: [],
@@ -203,6 +228,13 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
         isPublished: event.isPublished || false,
         requiresPayment: event.paymentRequired || false,
         maxPlayerPayment: event.maxPlayerPayment || "",
+        finalVenueCost: (event as any).finalVenueCost?.toString() || "",
+        paymentPolicy: ((event as any).paymentPolicy && (event as any).paymentPolicy !== "none" ? (event as any).paymentPolicy : "flexible_post_event"),
+        fixedPrice: (event as any).fixedPriceMinor != null ? ((event as any).fixedPriceMinor / 100).toFixed(2) : "",
+        minimumPaidParticipants: (event as any).minimumPaidParticipants?.toString() || "",
+        paymentDeadline: toLocalInput((event as any).paymentDeadlineAt),
+        authorizationOpensAt: toLocalInput((event as any).authorizationOpensAt),
+        completionDueAt: toLocalInput((event as any).completionDueAt),
         venueOrganiserId: event.venueOrganiserId || event.createdById || "",
         recurrenceType: event.recurrenceType || "none",
           recurrenceDaysOfWeek: event.recurrenceDaysOfWeek || [],
@@ -220,15 +252,46 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
   const createEventMutation = useMutation({
     mutationFn: async (data: EventFormData) => {
       // Convert string fields to appropriate types for backend
+      const {
+        requiresPayment, maxPlayerPayment, finalVenueCost, paymentPolicy, fixedPrice,
+        minimumPaidParticipants, paymentDeadline, authorizationOpensAt, completionDueAt,
+        maxParticipants, ...rest
+      } = data;
+      const isFixed = paymentPolicy === "fixed_immediate" || paymentPolicy === "fixed_threshold";
+      const paymentFields: Record<string, unknown> = requiresPayment
+        ? isFixed
+          ? {
+              paymentRequired: true,
+              paymentPolicy,
+              currency: "gbp",
+              fixedPriceMinor: poundsToPence(fixedPrice),
+              maxPlayerPayment: (poundsToPence(fixedPrice) / 100).toFixed(2),
+              minimumPaidParticipants: paymentPolicy === "fixed_threshold" ? parseInt(minimumPaidParticipants || "0") : null,
+              paymentDeadlineAt: fromLocalInput(paymentDeadline),
+              authorizationOpensAt: fromLocalInput(authorizationOpensAt),
+              completionDueAt: null,
+              finalVenueCost: null,
+            }
+          : {
+              paymentRequired: true,
+              paymentPolicy,
+              currency: "gbp",
+              maxPlayerPayment: maxPlayerPayment || null,
+              finalVenueCost: finalVenueCost || null,
+              fixedPriceMinor: null,
+              minimumPaidParticipants: null,
+              paymentDeadlineAt: null,
+              authorizationOpensAt: fromLocalInput(authorizationOpensAt),
+              completionDueAt: fromLocalInput(completionDueAt),
+            }
+        : { paymentRequired: false, paymentPolicy: "none", fixedPriceMinor: null, minimumPaidParticipants: null, paymentDeadlineAt: null, authorizationOpensAt: null, completionDueAt: null };
       const processedData = {
-        ...data,
+        ...rest,
+        ...paymentFields,
         cost: data.cost || "0.00",
-        paymentRequired: data.requiresPayment || false,
-        maxPlayerPayment: data.maxPlayerPayment || null,
         venueOrganiserId: data.venueOrganiserId || null,
-        participants: data.maxParticipants ? parseInt(data.maxParticipants) : null,
+        participants: maxParticipants ? parseInt(maxParticipants) : null,
         reserveSpots: data.reserveSpots ? parseInt(data.reserveSpots) : 0,
-        // Convert empty strings to null for optional fields
         endDate: data.endDate || null,
         endTime: data.endTime || null,
         secondaryTeamIds: data.secondaryTeamIds || [],
@@ -245,6 +308,11 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
+      if (eventId) {
+        queryClient.invalidateQueries({ queryKey: ["/api/events", eventId] });
+        queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "payment-policy"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "payment-status"] });
+      }
       toast({
         title: "Success",
         description: `Event ${isEditing ? "updated" : "created"} successfully`,
@@ -264,22 +332,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
         return;
       }
 
-      // Parse error message for detailed feedback
-      let errorMessage = `Failed to ${isEditing ? "update" : "create"} event`;
-      try {
-        const errorData = error instanceof Error ? JSON.parse(error.message.split(': ')[1] || '{}') : {};
-        if (errorData.message) {
-          errorMessage = errorData.message;
-        }
-      } catch (e) {
-        // If parsing fails, check if it's a simple error message
-        if (error instanceof Error && error.message && error.message.includes(':')) {
-          const parts = error.message.split(': ');
-          if (parts.length > 1) {
-            errorMessage = parts[1];
-          }
-        }
-      }
+      const errorMessage = apiErrorMessage(error, `Failed to ${isEditing ? "update" : "create"} event`);
 
       toast({
         title: "Error",
@@ -297,6 +350,33 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
         variant: "destructive",
       });
       return;
+    }
+    if (data.requiresPayment) {
+      const fail = (description: string) => toast({ title: "Payment settings", description, variant: "destructive" });
+      const mode = data.paymentPolicy;
+      const start = new Date(`${data.startDate}T${data.startTime}`);
+      const end = new Date(`${data.endDate || data.startDate}T${data.endTime || data.startTime}`);
+      const opens = data.authorizationOpensAt ? new Date(data.authorizationOpensAt) : null;
+      if (mode === "flexible_post_event") {
+        if (!(parseFloat(data.maxPlayerPayment || "0") > 0)) return void fail("Max player payment must be greater than 0");
+        if (data.completionDueAt) {
+          const due = new Date(data.completionDueAt);
+          if (due <= end) return void fail("Completion due must be after the event ends");
+          if (opens && due.getTime() - opens.getTime() > 5 * 86400000) return void fail("Completion due must be within 5 days of the authorization opening");
+        }
+      } else {
+        const pence = poundsToPence(data.fixedPrice);
+        if (!Number.isSafeInteger(pence) || pence <= 0) return void fail("Fixed price must be a positive amount in pounds");
+        const deadline = data.paymentDeadline ? new Date(data.paymentDeadline) : null;
+        if (mode === "fixed_threshold") {
+          const min = parseInt(data.minimumPaidParticipants || "0");
+          if (!Number.isInteger(min) || min < 1) return void fail("Minimum paid participants must be a positive whole number");
+          if (data.maxParticipants && min > parseInt(data.maxParticipants)) return void fail("Minimum paid participants cannot exceed max players");
+          if (!deadline) return void fail("Payment deadline is required");
+        }
+        if (deadline && deadline > start && mode === "fixed_threshold") return void fail("Payment deadline must be on or before the event start");
+        if (opens && deadline && opens >= deadline) return void fail("Authorization opening must be before the payment deadline");
+      }
     }
     createEventMutation.mutate(data);
   };
@@ -690,12 +770,74 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                     <div className="space-y-4">
                       <div className="flex items-center space-x-2">
                         <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                        <Label className="text-sm font-medium text-blue-800">Payment Authorization Setup</Label>
+                        <Label className="text-sm font-medium text-blue-800">Event Payment Settings</Label>
                       </div>
                       
+                      <div>
+                        <Label className="text-sm">Payment mode (GBP only)</Label>
+                        <Select
+                          value={form.watch("paymentPolicy")}
+                          onValueChange={(v: any) => form.setValue("paymentPolicy", v)}
+                        >
+                          <SelectTrigger className="bg-white" data-testid="select-payment-policy"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="flexible_post_event">Flexible - hold a cap, settle after event</SelectItem>
+                            <SelectItem value="fixed_immediate">Fixed - charge price upfront</SelectItem>
+                            <SelectItem value="fixed_threshold">Fixed with minimum - refunded if not enough pay</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-blue-600 mt-1">
+                          {form.watch("paymentPolicy") === "flexible_post_event" && "Players authorise a cap, then are charged the actual cost after the event."}
+                          {form.watch("paymentPolicy") === "fixed_immediate" && "Players are charged the displayed price when they join. Fees are deducted from this price, not added."}
+                          {form.watch("paymentPolicy") === "fixed_threshold" && "Players are charged upfront and refunded if fewer than the minimum have paid by the deadline."}
+                        </p>
+                      </div>
+
+                      {form.watch("paymentPolicy") !== "flexible_post_event" ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor="fixedPrice" className="text-sm">Fixed price per player (GBP)</Label>
+                            <Input id="fixedPrice" type="number" min="0.01" step="0.01" {...form.register("fixedPrice")} placeholder="10.00" className="bg-white" data-testid="input-fixed-price" />
+                            <p className="text-xs text-blue-600 mt-1">Players pay exactly this amount.</p>
+                          </div>
+                          {form.watch("paymentPolicy") === "fixed_threshold" && (
+                            <div>
+                              <Label htmlFor="minimumPaidParticipants" className="text-sm">Minimum paid players</Label>
+                              <Input id="minimumPaidParticipants" type="number" min="1" step="1" {...form.register("minimumPaidParticipants")} className="bg-white" data-testid="input-min-paid" />
+                            </div>
+                          )}
+                          <div>
+                            <Label htmlFor="paymentDeadline" className="text-sm">
+                              Payment deadline{form.watch("paymentPolicy") === "fixed_threshold" ? " *" : " (defaults to start)"}
+                            </Label>
+                            <Input id="paymentDeadline" type="datetime-local" {...form.register("paymentDeadline")} className="bg-white" />
+                          </div>
+                          <div>
+                            <Label htmlFor="authorizationOpensAt" className="text-sm">Payments open (optional)</Label>
+                            <Input id="authorizationOpensAt" type="datetime-local" {...form.register("authorizationOpensAt")} className="bg-white" />
+                          </div>
+                        </div>
+                      ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <Label htmlFor="maxPlayerPayment" className="text-sm">Max Player Payment (£)</Label>
+                          <Label htmlFor="authorizationOpensAt" className="text-sm">Authorization opens (default 48h before)</Label>
+                          <Input id="authorizationOpensAt" type="datetime-local" {...form.register("authorizationOpensAt")} className="bg-white" />
+                        </div>
+                        <div>
+                          <Label htmlFor="completionDueAt" className="text-sm">Collect by (default end + 24h)</Label>
+                          <Input id="completionDueAt" type="datetime-local" {...form.register("completionDueAt")} className="bg-white" />
+                        </div>
+                        <div>
+                          <Label htmlFor="finalVenueCost" className="text-sm">Final venue cost (GBP, optional)</Label>
+                          <Input id="finalVenueCost" type="number" min="0" step="0.01" {...form.register("finalVenueCost")} className="bg-white" />
+                        </div>
+                      </div>
+                      )}
+
+                      {form.watch("paymentPolicy") === "flexible_post_event" && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="maxPlayerPayment" className="text-sm">Max Player Payment (GBP)</Label>
                           <Input
                             id="maxPlayerPayment"
                             type="number"
@@ -735,6 +877,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                           </div>
                         )}
                       </div>
+                      )}
                       <div>
                         <Label htmlFor="venueOrganiserId" className="text-sm">Venue Organiser *</Label>
                         <Select
@@ -753,12 +896,14 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                           </SelectContent>
                         </Select>
                         <p className="text-xs text-blue-600 mt-1">
-                          This member will manage the venue and won't need to authorize payment to attend.
+                          This member will manage the venue and won't need to pay to attend.
                         </p>
                       </div>
 
                       <p className="text-xs text-blue-600">
-                        Players will authorize the total amount when voting to attend. The actual charge will be collected after the event.
+                        {form.watch("paymentPolicy") === "flexible_post_event"
+                          ? "Players authorize the agreed cap when joining. The actual share is collected after the event."
+                          : "Players pay the stated price when joining. There is no separate post-event collection."}
                       </p>
                     </div>
                   </div>
