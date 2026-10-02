@@ -152,7 +152,10 @@ export function registerEventPaymentPolicies(app: Express, authenticate: Request
     if (method.type !== "card" || customer !== customerId) throw new PaymentPolicyError(403, "This card does not belong to the authenticated participant");
     try {
       await stripe.paymentIntents.confirm(intent.id, {
-        payment_method: method.id, off_session: true,
+        // This endpoint is called by a participant actively checking out.
+        // off_session=true rejects 3DS-required cards instead of returning
+        // the authentication action that the web/native Stripe SDK can handle.
+        payment_method: method.id, use_stripe_sdk: true,
       }, { idempotencyKey: `confirm-event:${intent.id}:${method.id}` });
     } catch (error: any) {
       const current = await stripe.paymentIntents.retrieve(intent.id);

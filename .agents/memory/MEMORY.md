@@ -10,3 +10,4 @@
 - [Stripe test sandbox](stripe-test-sandbox.md) — LUDI has a dedicated Stripe sandbox for monitoring its tests.
 - [Database query results](database-query-results.md) — development DDL can succeed despite an output-formatting error; inspect effects before retrying.
 - [Payment readiness](payment-readiness.md) — the newer Stripe fields require frontend/API alignment, not just database columns, before confirming readiness.
+- [Stripe card test coverage](stripe-card-test-coverage.md) — mocked authentication is not provider proof; card-attachment declines and saved-card checkout declines are different flows.

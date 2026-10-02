@@ -36,7 +36,7 @@ const original = {
   cancel: stripe.paymentIntents.cancel, charge: stripe.charges.retrieve, method: stripe.paymentMethods.retrieve,
   refund: stripe.refunds.create,
 };
-const intents = new Map(), charges = new Map(), refundCalls = [], createCalls = [];
+const intents = new Map(), charges = new Map(), refundCalls = [], createCalls = [], confirmCalls = [];
 const ids = [0, 1, 2, 3, 4].map(() => `policy-qa-${randomUUID()}`);
 const [organiserId, memberId, secondId, thirdId, outsiderId] = ids;
 const teamId = `policy-qa-${randomUUID()}`;
@@ -50,7 +50,9 @@ stripe.paymentIntents.create = async (data, options) => {
   return structuredClone(intent);
 };
 stripe.paymentIntents.retrieve = async id => structuredClone(intents.get(id));
-stripe.paymentIntents.confirm = async (id, { payment_method }) => {
+stripe.paymentIntents.confirm = async (id, { payment_method, off_session, use_stripe_sdk }) => {
+  assert.notEqual(off_session, true, "Interactive checkout must allow bank authentication");
+  confirmCalls.push({ payment_method, off_session, use_stripe_sdk });
   const intent = intents.get(id);
   if (payment_method.includes("sca")) {
     intent.status = "requires_action";
@@ -196,6 +198,7 @@ test("fixed checkout ignores client amounts, serializes retries, checks card own
   assert.equal((await request("POST", `/api/events/${e.id}/authorize-payment`, { paymentMethodId: `pm_${outsiderId}` })).status, 403);
   const paid = await request("POST", `/api/events/${e.id}/authorize-payment`, { paymentMethodId: `pm_${memberId}` });
   assert.equal(paid.status, 200, JSON.stringify(paid.data));
+  assert.equal(confirmCalls.at(-1).use_stripe_sdk, true, "Interactive checkout must return an SDK authentication action");
   assert.equal(paid.data.status, "captured");
   assert.equal((await request("GET", `/api/events/${e.id}/payment-status`)).data.hasAuthorization, true);
   assert.equal((await request("PUT", `/api/events/${e.id}`, { fixedPriceMinor: 2500 }, organiserId)).status, 409);

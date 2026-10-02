@@ -8,3 +8,9 @@ LUDI has a dedicated sandbox within the user's Stripe account for monitoring tes
 **Why:** The user created a dedicated LUDI sandbox so they can monitor their tests.
 
 **How to apply:** Use that sandbox's credentials for LUDI testing rather than another application's sandbox. Testing on a published LUDI URL still uses the dedicated sandbox; publishing is not permission to switch Stripe to live mode.
+
+Check Connect activation separately from API-key validity.
+
+**Why:** The dedicated sandbox accepted balance requests and ordinary card charges while refusing connected-account creation because Connect was not activated. Valid keys alone do not establish organizer-payment readiness.
+
+**How to apply:** When account creation reports that Connect needs activation, request activation in the existing LUDI sandbox, not replacement keys or a different Stripe account. Do not bypass organizer destinations just to make the checkout tests pass.
