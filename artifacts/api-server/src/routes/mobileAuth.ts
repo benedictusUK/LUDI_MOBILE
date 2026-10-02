@@ -349,6 +349,7 @@ router.post('/apple', async (req, res) => {
     console.error('Mobile Apple auth error:', error);
     res.status(500).json({ message: 'Authentication failed' });
   }
+  return;
 });
 
 // Replit OAuth redirect for mobile
@@ -364,6 +365,7 @@ router.get('/replit/login', (req, res) => {
   
   // Redirect to regular Replit OAuth
   res.redirect('/api/login');
+  return;
 });
 
 // Enhanced callback that supports mobile redirects

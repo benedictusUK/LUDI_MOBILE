@@ -61,6 +61,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error fetching user:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
+    return;
   });
 
   // Mobile profile update endpoint
@@ -110,6 +111,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error searching teams:", error);
       res.status(500).json({ message: "Failed to search teams" });
     }
+    return;
   });
 
   app.get('/api/teams', verifyAuth, async (req: any, res) => {
@@ -143,6 +145,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error creating team:', error);
       res.status(500).json({ message: 'Failed to create team' });
     }
+    return;
   });
 
   app.get('/api/teams/:id', verifyAuth, async (req: any, res) => {
@@ -156,6 +159,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error fetching team:', error);
       res.status(500).json({ message: 'Failed to fetch team' });
     }
+    return;
   });
 
   // Approve join request (mobile compatible)
@@ -249,6 +253,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error creating event:', error);
       res.status(500).json({ message: 'Failed to create event' });
     }
+    return;
   });
 
   app.get('/api/events/:id', verifyAuth, async (req: any, res) => {
@@ -262,6 +267,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error fetching event:', error);
       res.status(500).json({ message: 'Failed to fetch event' });
     }
+    return;
   });
 
   // Mobile: Update event
@@ -341,6 +347,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.status(400).json({ message: "Failed to update event" });
     }
+    return;
   });
 
   // Mobile: Delete single event
@@ -379,6 +386,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error deleting event:", error);
       res.status(500).json({ message: "Failed to delete event" });
     }
+    return;
   });
 
   // Mobile: Delete recurring event (single or series)
@@ -410,6 +418,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error deleting recurring event:", error);
       res.status(400).json({ message: error instanceof Error ? error.message : "Failed to delete recurring event" });
     }
+    return;
   });
 
   // Mobile: Update recurring event (single or future)
@@ -492,6 +501,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.status(400).json({ message: error instanceof Error ? error.message : "Failed to update recurring event" });
     }
+    return;
   });
 
   app.get('/api/events/:id/attendance', verifyAuth, async (req: any, res) => {
@@ -599,6 +609,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error searching flare events:', error);
       res.status(500).json({ message: 'Failed to search flare events' });
     }
+    return;
   });
 
   app.post('/api/events/:id/flare-response', verifyAuth, async (req: any, res) => {
@@ -617,6 +628,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error responding to flare:', error);
       res.status(500).json({ message: 'Failed to respond to flare' });
     }
+    return;
   });
 
   // Mobile Flare Gun activation route
@@ -664,6 +676,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error sending flare gun:", error);
       res.status(500).json({ message: "Failed to send flare gun" });
     }
+    return;
   });
 
   // Mobile Flare status toggle route
@@ -708,6 +721,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error updating flare status:", error);
       res.status(500).json({ message: "Failed to update flare status" });
     }
+    return;
   });
 
   // Mobile blocked members route
@@ -806,6 +820,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error creating payment intent:', error);
       res.status(500).json({ message: 'Failed to create payment intent' });
     }
+    return;
   });
 
   // Object storage routes for team images
@@ -821,6 +836,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       return res.sendStatus(500);
     }
+    return;
   });
 
   app.post("/api/objects/upload", isAuthenticated, async (req, res) => {
@@ -858,6 +874,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error setting team image:", error);
       res.status(500).json({ error: "Internal server error" });
     }
+    return;
   });
 
   // Auth routes
@@ -891,6 +908,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error updating profile:", error);
       res.status(500).json({ message: "Failed to update profile" });
     }
+    return;
   });
 
   app.post('/api/profile/complete', isAuthenticated, async (req: any, res) => {
@@ -920,6 +938,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error completing profile:", error);
       res.status(500).json({ message: "Failed to complete profile" });
     }
+    return;
   });
 
   app.get('/api/profile/check-username/:username', isAuthenticated, async (req: any, res) => {
@@ -991,6 +1010,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.status(400).json({ message: "Failed to create team" });
     }
+    return;
   });
 
   // Search teams - must come before /api/teams/:id routes
@@ -1012,6 +1032,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error searching teams:", error);
       res.status(500).json({ message: "Failed to search teams" });
     }
+    return;
   });
 
   app.get('/api/teams', isAuthenticated, async (req: any, res) => {
@@ -1036,6 +1057,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error fetching team:", error);
       res.status(500).json({ message: "Failed to fetch team" });
     }
+    return;
   });
 
   app.get('/api/teams/:id/members', isAuthenticated, async (req, res) => {
@@ -1151,6 +1173,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error removing team member:", error);
       res.status(400).json({ message: error.message || "Failed to remove member" });
     }
+    return;
   });
 
   // Get blocked members
@@ -1186,6 +1209,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error sending team invitation:", error);
       res.status(400).json({ message: error.message || "Failed to send invitation" });
     }
+    return;
   });
 
   // Accept team invitation
@@ -1324,6 +1348,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error searching users:", error);
       res.status(500).json({ message: "Failed to search users" });
     }
+    return;
   });
 
   // Check team name availability
@@ -1360,6 +1385,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error joining team:", error);
       res.status(400).json({ message: error.message || "Failed to join team" });
     }
+    return;
   });
 
   // Invite member to team
@@ -1385,6 +1411,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error inviting member:", error);
       res.status(500).json({ message: "Failed to send invitation" });
     }
+    return;
   });
 
   // Update team settings
@@ -1426,6 +1453,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.status(500).json({ message: "Failed to update team" });
     }
+    return;
   });
 
   // Delete team
@@ -1451,6 +1479,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error deleting team:", error);
       res.status(500).json({ message: "Failed to delete team" });
     }
+    return;
   });
 
   // Event routes
@@ -1563,6 +1592,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.status(400).json({ message: "Failed to create event" });
     }
+    return;
   });
 
   app.get('/api/events', isAuthenticated, async (req: any, res) => {
@@ -1594,6 +1624,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error fetching event:", error);
       res.status(500).json({ message: "Failed to fetch event" });
     }
+    return;
   });
 
   app.put('/api/events/:id', isAuthenticated, async (req: any, res) => {
@@ -1670,6 +1701,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.status(400).json({ message: "Failed to update event" });
     }
+    return;
   });
 
   app.delete('/api/events/:id', isAuthenticated, async (req, res) => {
@@ -1779,6 +1811,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error voting on event:", error);
       res.status(500).json({ message: "Internal server error" });
     }
+    return;
   });
 
   // Authorize payment from notification
@@ -1980,6 +2013,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Failed to authorize payment"
       });
     }
+    return;
   });
 
   // Authorize payment hold for event attendance
@@ -2274,6 +2308,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         details: error.message 
       });
     }
+    return;
   });
 
   // Collect payment for past events
@@ -2340,6 +2375,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error sending payment reminders:", error);
       res.status(500).json({ message: "Failed to send payment reminders" });
     }
+    return;
   });
 
   // Get event audit data (voting and payments) - Admin/Owner access only
@@ -2436,6 +2472,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error fetching audit data:", error);
       res.status(500).json({ message: "Failed to fetch audit data", error: error.message });
     }
+    return;
   });
 
   // Stripe Connect routes
@@ -2496,6 +2533,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error creating Connect account:", error);
       res.status(500).json({ message: "Failed to create Connect account" });
     }
+    return;
   });
 
   app.get('/api/connect/status/:userId', verifyAuth, async (req: any, res) => {
@@ -2532,6 +2570,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error checking Connect status:", error);
       res.status(500).json({ message: "Failed to check Connect status" });
     }
+    return;
   });
 
   app.get('/api/events/:id/organiser-payout-status', verifyAuth, async (req: any, res) => {
@@ -2604,6 +2643,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error fetching team members:", error);
       res.status(500).json({ message: "Failed to fetch team members" });
     }
+    return;
   });
 
   // Remove vote from event
@@ -2712,6 +2752,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error removing vote:", error);
       res.status(500).json({ message: "Internal server error" });
     }
+    return;
   });
 
   // Get event activity logs
@@ -2817,6 +2858,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error creating demo notification:", error);
       res.status(500).json({ message: "Failed to create demo notification" });
     }
+    return;
   });
 
   // Test endpoint to send a real-time notification to yourself (for development/testing)
@@ -2941,6 +2983,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error promoting reserve player:", error);
       res.status(400).json({ message: error instanceof Error ? error.message : "Failed to promote player" });
     }
+    return;
   });
 
   app.post('/api/events/:id/demote-to-reserve', isAuthenticated, async (req: any, res) => {
@@ -2973,6 +3016,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error demoting player to reserve:", error);
       res.status(400).json({ message: error instanceof Error ? error.message : "Failed to demote player" });
     }
+    return;
   });
 
   app.get('/api/events/:id/reserves', isAuthenticated, async (req, res) => {
@@ -3057,6 +3101,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error suspending recurring series:", error);
       res.status(400).json({ message: error instanceof Error ? error.message : "Failed to suspend recurring series" });
     }
+    return;
   });
 
   app.post('/api/events/series/:seriesId/resume', isAuthenticated, async (req: any, res) => {
@@ -3087,6 +3132,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error resuming recurring series:", error);
       res.status(400).json({ message: error instanceof Error ? error.message : "Failed to resume recurring series" });
     }
+    return;
   });
 
   app.post('/api/events/series/:seriesId/publish', isAuthenticated, async (req: any, res) => {
@@ -3117,6 +3163,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error publishing recurring series:", error);
       res.status(400).json({ message: error instanceof Error ? error.message : "Failed to publish recurring series" });
     }
+    return;
   });
 
   app.delete('/api/events/:id/recurring', isAuthenticated, async (req: any, res) => {
@@ -3147,6 +3194,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error deleting recurring event:", error);
       res.status(400).json({ message: error instanceof Error ? error.message : "Failed to delete recurring event" });
     }
+    return;
   });
 
   // Legacy amount-based PaymentIntent creation was removed.
@@ -3240,6 +3288,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error fetching payment status:", error);
       res.status(500).json({ message: "Failed to fetch payment status" });
     }
+    return;
   });
 
   // Initialize payment setup for event (creates SetupIntent)
@@ -3304,6 +3353,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Payment setup error:', error);
       res.status(500).json({ error: error.message });
     }
+    return;
   });
 
   // Get comprehensive payment summary for an event (for past events)
@@ -3345,6 +3395,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error fetching payment summary:", error);
       res.status(500).json({ message: "Failed to fetch payment summary" });
     }
+    return;
   });
 
   // Get payment audit log (admin only)
@@ -3374,6 +3425,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error fetching payment audits:", error);
       res.status(500).json({ message: "Failed to fetch payment audits" });
     }
+    return;
   });
 
   // Mark player as paid (admin only - for external payments)
@@ -3415,6 +3467,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error marking player as paid:", error);
       res.status(500).json({ message: "Failed to mark player as paid" });
     }
+    return;
   });
 
   // Flare gun routes - for advertising events to nearby users
@@ -3468,6 +3521,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error sending flare gun:", error);
       res.status(500).json({ message: "Failed to send flare gun" });
     }
+    return;
   });
 
   app.post('/api/events/:id/flare-response', isAuthenticated, async (req: any, res) => {
@@ -3492,6 +3546,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error responding to flare:", error);
       res.status(500).json({ message: "Failed to respond to flare" });
     }
+    return;
   });
 
   // Toggle flare status for an event
@@ -3536,6 +3591,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error updating flare status:", error);
       res.status(500).json({ message: "Failed to update flare status" });
     }
+    return;
   });
 
   app.get('/api/events/:id/flare-responses', isAuthenticated, async (req, res) => {
@@ -3571,6 +3627,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error searching flare events:", error);
       res.status(500).json({ message: "Failed to search flare events" });
     }
+    return;
   });
 
   // User events management routes
@@ -3589,6 +3646,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error adding user event:", error);
       res.status(500).json({ message: "Failed to add event" });
     }
+    return;
   });
 
   app.delete('/api/user-events/:eventId', isAuthenticated, async (req: any, res) => {
@@ -3668,6 +3726,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Setup intent error:', error);
       res.status(500).json({ error: error.message });
     }
+    return;
   });
 
   // Confirm SetupIntent and store payment method
@@ -3697,6 +3756,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Setup confirm error:', error);
       res.status(500).json({ error: error.message });
     }
+    return;
   });
 
   // Create PaymentIntent with hold (48h before event)
@@ -3746,6 +3806,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Create hold error:', error);
       res.status(500).json({ error: error.message });
     }
+    return;
   });
 
   // Cancel payment hold (when user unvotes)
@@ -3777,6 +3838,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Cancel hold error:', error);
       res.status(500).json({ error: error.message });
     }
+    return;
   });
 
   // Get payment status for event
@@ -3847,6 +3909,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Get payment methods error:', error);
       res.status(500).json({ error: error.message });
     }
+    return;
   });
 
   // Setup new payment method
@@ -3883,6 +3946,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Payment method setup error:', error);
       res.status(500).json({ error: error.message });
     }
+    return;
   });
 
   // Delete payment method
@@ -3910,6 +3974,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Delete payment method error:', error);
       res.status(500).json({ error: error.message });
     }
+    return;
   });
 
   // Set default payment method
@@ -3941,6 +4006,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Set default payment method error:', error);
       res.status(500).json({ error: error.message });
     }
+    return;
   });
 
   // Get payments history for user
@@ -3984,6 +4050,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error updating platform charge:", error);
       res.status(500).json({ message: "Failed to update platform charge" });
     }
+    return;
   });
 
   const httpServer = createServer(app);

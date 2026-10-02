@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { z } from "zod";
+import { z } from "zod/v4";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -101,6 +101,7 @@ export function ProfileCompletionModal({ isOpen, onClose, user }: ProfileComplet
     } else {
       setUsernameAvailability({ available: false, checked: false });
     }
+    return undefined;
   }, [watchedUsername]);
 
   const onSubmit = (data: ProfileCompletionData) => {

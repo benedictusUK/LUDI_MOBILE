@@ -21,8 +21,9 @@ if (
 
 export const platformFeeBasisPoints = configuredFeeBasisPoints;
 
-// Pin the API contract to the version bundled with Stripe Node 18.4.0.
+// Preserve the verified API contract. Stripe's SDK types accept only its latest
+// version, so this assertion deliberately retains our older pinned version.
 export const stripe = new Stripe(secretKey, {
-  apiVersion: "2025-07-30.basil",
+  apiVersion: "2025-07-30.basil" as Stripe.LatestApiVersion,
   maxNetworkRetries: 2,
 });

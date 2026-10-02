@@ -145,7 +145,7 @@ export default function TeamForm({ onCancel, onSuccess, teamId }: TeamFormProps)
   const { toast } = useToast();
   const isEditing = !!teamId;
 
-  const form = useForm<TeamFormData>({
+  const form = useForm<z.input<typeof teamFormSchema>, unknown, TeamFormData>({
     resolver: zodResolver(teamFormSchema),
     defaultValues: {
       name: "",

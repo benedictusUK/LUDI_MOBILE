@@ -136,12 +136,14 @@ export function setupOAuthRoutes(app: Express) {
           }
           
           res.json({ success: true, message: "Apple sign-in successful" });
+          return;
         });
 
       } catch (error) {
         console.error("Apple sign-in error:", error);
         res.status(400).json({ message: "Apple sign-in failed" });
       }
+      return;
     });
 
     // Apple Sign-In client configuration endpoint
