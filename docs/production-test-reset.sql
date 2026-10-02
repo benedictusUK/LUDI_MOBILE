@@ -8,23 +8,31 @@
 --
 -- 1. Back up production and pause testing before proceeding.
 -- 2. Select PRODUCTION in the Database pane's SQL runner.
--- 3. Run this entire file as one batch. Its default ending is ROLLBACK:
---    the verification result shows the proposed empty state, then undoes it.
--- 4. If the dry run succeeds, replace ONLY the final ROLLBACK with COMMIT
---    and run the entire batch again to make the reset permanent.
--- 5. If a guard fails, stop and recheck the data; do not remove the guards.
+-- 3. Run this entire file as ONE statement (from DO through $reset$;).
+--    The console manages transactions, so do not add BEGIN/COMMIT/ROLLBACK.
+-- 4. Default dry run: apply_reset is false. An intentional error beginning
+--    "DRY RUN PASSED" rolls back ALL changes after checking the empty state.
+-- 5. After a successful dry run and backup, change ONLY apply_reset from
+--    false to true and rerun the entire statement to make the reset permanent.
+-- 6. If a guard fails, stop and recheck the data; do not remove the guards.
 
-BEGIN;
-SET LOCAL lock_timeout = '5s';
-SET LOCAL statement_timeout = '30s';
+DO $reset$
+DECLARE
+  apply_reset boolean := false; -- KEEP FALSE FOR THE FIRST RUN.
+  ledger_table text;
+  users_before bigint;
+  remaining_records bigint;
+BEGIN
+PERFORM set_config('lock_timeout', '5s', true);
+PERFORM set_config('statement_timeout', '30s', true);
 
 -- Block concurrent parent/user writes and FK-dependent inserts during reset.
 LOCK TABLE public.users, public.teams, public.events IN EXCLUSIVE MODE;
 LOCK TABLE public.notifications, public.event_payments, public.payments
   IN SHARE ROW EXCLUSIVE MODE;
 
-DO $reset_guard$
-BEGIN
+SELECT count(*) INTO users_before FROM public.users;
+
   -- Abort if the inspected dataset has changed since approval.
   IF (SELECT count(*) FROM public.events) <> 416
     OR (SELECT count(*) FROM public.teams) <> 4
@@ -49,8 +57,6 @@ BEGIN
   THEN
     RAISE EXCEPTION 'Reset aborted: payment states changed; recheck before resetting';
   END IF;
-END
-$reset_guard$;
 
 -- Notifications have no FK to events/teams. Remove linked messages and the
 -- known event/team test-notification types, including demo/stale references.
@@ -75,10 +81,6 @@ OR (
 -- New payment-accounting tables may not exist until the pending Publish
 -- schema update is applied. If present, remove linked test ledger records
 -- explicitly because these three tables restrict deletion of their parent.
-DO $linked_ledger$
-DECLARE
-  ledger_table text;
-BEGIN
   FOREACH ledger_table IN ARRAY ARRAY[
     'payment_refunds', 'payment_transfers', 'payment_disputes'
   ]
@@ -91,8 +93,6 @@ BEGIN
       );
     END IF;
   END LOOP;
-END
-$linked_ledger$;
 
 -- Cascades remove event attendance, activity/payment audit records,
 -- reimbursements, event payments, event/team-linked payments, event-team
@@ -106,18 +106,33 @@ UPDATE public.users
 SET stripe_customer_id = NULL
 WHERE stripe_customer_id IS NOT NULL;
 
--- All columns in this verification result must be zero.
+-- Assert the empty state before allowing either dry-run success or commit.
 SELECT
-  (SELECT count(*) FROM public.events) AS events_remaining,
-  (SELECT count(*) FROM public.teams) AS teams_remaining,
-  (SELECT count(*) FROM public.event_attendance) AS attendance_remaining,
-  (SELECT count(*) FROM public.event_payments) AS event_payments_remaining,
-  (SELECT count(*) FROM public.event_teams) AS event_team_links_remaining,
-  (SELECT count(*) FROM public.team_memberships) AS memberships_remaining,
+  (SELECT count(*) FROM public.events) +
+  (SELECT count(*) FROM public.teams) +
+  (SELECT count(*) FROM public.event_attendance) +
+  (SELECT count(*) FROM public.event_payments) +
+  (SELECT count(*) FROM public.event_teams) +
+  (SELECT count(*) FROM public.team_memberships) +
   (SELECT count(*) FROM public.payments
-    WHERE event_id IS NOT NULL OR team_id IS NOT NULL) AS linked_payments_remaining,
+    WHERE event_id IS NOT NULL OR team_id IS NOT NULL) +
   (SELECT count(*) FROM public.users
-    WHERE stripe_customer_id IS NOT NULL) AS saved_customers_remaining;
+    WHERE stripe_customer_id IS NOT NULL)
+INTO remaining_records;
 
--- DRY RUN DEFAULT. Replace this line with COMMIT; only after backup/review.
-ROLLBACK;
+IF remaining_records <> 0
+  OR (SELECT count(*) FROM public.users) <> users_before
+THEN
+  RAISE EXCEPTION 'Reset aborted: verification failed; all changes rolled back';
+END IF;
+
+IF NOT apply_reset THEN
+  -- A failed PostgreSQL statement is atomic: every preceding change in this
+  -- DO block is rolled back, even when the console auto-manages transactions.
+  RAISE EXCEPTION
+    'DRY RUN PASSED: reset verified, users preserved, all changes rolled back. Nothing permanently deleted. After backup, set apply_reset to true and rerun.';
+END IF;
+
+RAISE NOTICE 'RESET COMPLETE: events, teams, linked test records and saved customer links cleared; users preserved';
+END
+$reset$;
