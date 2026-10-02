@@ -11,3 +11,4 @@
 - [Database query results](database-query-results.md) — development DDL can succeed despite an output-formatting error; inspect effects before retrying.
 - [Payment readiness](payment-readiness.md) — the newer Stripe fields require frontend/API alignment, not just database columns, before confirming readiness.
 - [Stripe card test coverage](stripe-card-test-coverage.md) — mocked authentication is not provider proof; card-attachment declines and saved-card checkout declines are different flows.
+- [Published webhook verification](published-webhook-verification.md) — saved secret existence is not runtime proof; verify signed delivery and review other changes before republishing.
