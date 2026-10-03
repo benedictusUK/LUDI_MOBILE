@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { Link } from "wouter";
+import { useGetPlatformAdminAccess, getGetPlatformAdminAccessQueryKey } from "@workspace/api-client-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useScrollToTop } from "@/hooks/useScrollToTop";
 import Navigation from "@/components/ui/nav";
@@ -23,6 +25,11 @@ export default function Settings() {
   const { data: preferences, isLoading } = useQuery({
     queryKey: ['/api/notification-preferences'],
   });
+
+  const { data: adminAccess } = useGetPlatformAdminAccess({
+    query: { queryKey: getGetPlatformAdminAccessQueryKey(), retry: false, staleTime: 5 * 60 * 1000 },
+  });
+  const isSuperAdmin = adminAccess?.isSuperAdmin === true;
 
   const { data: user } = useQuery({
     queryKey: ['/api/auth/user'],
@@ -105,6 +112,20 @@ export default function Settings() {
           <h1 className="text-3xl font-bold text-neutral-900 mb-2">Settings</h1>
           <p className="text-neutral-500">Manage your account preferences and settings</p>
         </div>
+
+        {isSuperAdmin && (
+          <Link
+            href="/superadmin/notifications"
+            className="mb-6 flex items-center justify-between rounded-lg border bg-white p-4 hover:bg-neutral-50"
+            data-testid="link-settings-superadmin-notifications"
+          >
+            <span>
+              <span className="block font-medium text-neutral-900">SuperAdmin: push notification manager</span>
+              <span className="block text-sm text-neutral-500">Templates, triggers and delivery log</span>
+            </span>
+            <Bell className="h-5 w-5 text-neutral-500" />
+          </Link>
+        )}
 
         <Tabs defaultValue="profile" className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">

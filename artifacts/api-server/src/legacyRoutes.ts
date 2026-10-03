@@ -5,6 +5,7 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { collectPaymentHandler } from "./routes/payments";
 import { registerEventPaymentPolicies } from "./routes/eventPaymentPolicies";
+import { registerNotificationAdmin } from "./routes/notificationAdmin";
 import mobileAuthRoutes, { verifyMobileToken, verifyAuth } from "./routes/mobileAuth";
 import { isAllowedMobileRedirect } from "./mobileRedirect";
 import { calculatePercentageFeeMinor, decimalToMinorUnits } from "./payments/money";
@@ -23,6 +24,7 @@ import { z } from "zod";
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
+  registerNotificationAdmin(app, verifyAuth);
   registerEventPaymentPolicies(app, verifyAuth);
 
   // Block legacy financial endpoints that trusted client amounts or created a

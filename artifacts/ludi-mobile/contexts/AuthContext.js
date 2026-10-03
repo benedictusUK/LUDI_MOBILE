@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { Alert } from 'react-native';
 import * as SecureStore from '../lib/tokenStore';
 import { API_BASE_URL } from '../lib/apiConfig';
+import { unregisterPushForLogout } from '../lib/pushDevice';
 
 const AuthContext = createContext({});
 
@@ -66,6 +68,14 @@ export function AuthProvider({ children }) {
 
   const signOut = async () => {
     try {
+      try {
+        await unregisterPushForLogout(token);
+      } catch {
+        Alert.alert(
+          'Could not disconnect iPhone alerts',
+          'You will still be logged out. LUDI could not remove this phone’s notification registration. To stop alerts while offline, turn off notifications for LUDI in iPhone Settings.',
+        );
+      }
       setUser(null);
       setToken(null);
       await SecureStore.deleteItemAsync(TOKEN_KEY);

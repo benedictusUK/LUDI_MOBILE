@@ -4,11 +4,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigation } from '@react-navigation/native';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 
 export default function SettingsScreen() {
   const { colors, isDark, themeMode, setThemeMode } = useTheme();
   const { signOut } = useAuth();
   const navigation = useNavigation();
+  const push = usePushNotifications();
 
   const handleLogout = () => {
     Alert.alert(
@@ -32,6 +34,52 @@ export default function SettingsScreen() {
       </View>
 
       <ScrollView style={styles.content}>
+        <View style={[styles.section, { backgroundColor: colors.card }]}>
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Notifications</Text>
+          <View style={[styles.settingItem, { borderBottomColor: colors.border }]}>
+            <View style={[styles.settingLeft, { flex: 1 }]}>
+              <Ionicons name="notifications-outline" size={22} color={colors.text} />
+              <Text style={[styles.settingText, { color: colors.text, flex: 1 }]}>iPhone push notifications</Text>
+            </View>
+            <Switch
+              accessibilityLabel="Enable iPhone push notifications"
+              testID="switch-apple-push"
+              value={push.preferences.pushNotificationsIOS && push.permissionGranted}
+              disabled={!push.available || push.loading || push.busy}
+              onValueChange={value => push.setPreference('pushNotificationsIOS', value)}
+            />
+          </View>
+          {!push.available && (
+            <Text style={{ color: colors.textSecondary, padding: 16 }}>
+              Direct Apple push needs a signed LUDI build on a physical iPhone. It is not available in Expo Go or the web preview.
+            </Text>
+          )}
+          {push.available && !push.permissionGranted && (
+            <TouchableOpacity onPress={push.openSystemSettings} accessibilityRole="button" style={{ padding: 16 }}>
+              <Text style={{ color: colors.primary }}>Open iPhone notification settings</Text>
+            </TouchableOpacity>
+          )}
+          {[
+            ['newEvents', 'New events and event reminders'],
+            ['eventChanges', 'Event changes and cancellations'],
+            ['paymentReminders', 'Payment notifications'],
+            ['flareGunReminders', 'Nearby player flares'],
+          ].map(([key, label]) => (
+            <View key={key} style={[styles.settingItem, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.settingText, { color: colors.text, flex: 1, marginRight: 12 }]}>{label}</Text>
+              <Switch accessibilityLabel={label} testID={`switch-notification-${key}`}
+                value={!!push.preferences[key]} disabled={push.loading || push.busy}
+                onValueChange={value => push.setPreference(key, value)} />
+            </View>
+          ))}
+          <Text style={{ color: colors.textSecondary, padding: 16 }}>
+            Push is optional. Important payment updates remain in your LUDI inbox.
+          </Text>
+          {push.error && <Text accessibilityRole="alert" style={{ color: colors.error, padding: 16 }}>{push.error}</Text>}
+          <TouchableOpacity accessibilityRole="button" onPress={push.refresh} disabled={push.busy || push.loading} style={{ padding: 16 }}>
+            <Text style={{ color: colors.primary }}>{push.loading ? 'Loading settings…' : 'Refresh notification settings'}</Text>
+          </TouchableOpacity>
+        </View>
         <View style={[styles.section, { backgroundColor: colors.card }]}>
           <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Appearance</Text>
           

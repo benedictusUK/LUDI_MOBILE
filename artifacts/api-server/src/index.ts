@@ -4,6 +4,7 @@ import { registerRoutes } from "./legacyRoutes";
 import { notificationWS } from "./websocket";
 import { storage } from "./storage";
 import { processPaymentDeadlines } from "./payments/policyService";
+import { startNotificationWorkers } from "./notifications/service";
 
 const rawPort = process.env["PORT"];
 
@@ -21,6 +22,7 @@ if (Number.isNaN(port) || port <= 0) {
 
 async function start() {
   const server = await registerRoutes(app);
+  startNotificationWorkers();
   server.listen(port, "0.0.0.0", () => {
     logger.info({ port }, "Server listening");
     notificationWS.initialize(server);

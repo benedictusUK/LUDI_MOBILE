@@ -16,6 +16,7 @@ import FlareSearch from "@/pages/flare-search";
 import Teams from "@/pages/teams";
 import Notifications from "@/pages/notifications";
 import Settings from "@/pages/settings";
+import SuperAdminNotifications from "@/pages/superadmin-notifications";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -144,6 +145,7 @@ function Router() {
             <Route path="/teams/:id" component={Teams} />
             <Route path="/notifications" component={Notifications} />
             <Route path="/settings" component={Settings} />
+            <Route path="/superadmin/notifications" component={SuperAdminNotifications} />
           </>
         ) : null}
         <Route component={NotFound} />

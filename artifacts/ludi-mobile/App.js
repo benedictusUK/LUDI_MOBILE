@@ -28,7 +28,8 @@ import PaymentMethodsScreen from './screens/PaymentMethodsScreen';
 import PaymentCollectionScreen from './screens/PaymentCollectionScreen';
 import BlockedMembersScreen from './screens/BlockedMembersScreen';
 import LoadingScreen from './components/LoadingScreen';
-import { usePushNotifications } from './hooks/usePushNotifications';
+import { usePushNotifications, PushNotificationsProvider } from './hooks/usePushNotifications';
+import { navigationRef } from './lib/navigation';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { registerRootComponent } from 'expo';
 import { Ionicons } from '@expo/vector-icons';
@@ -141,7 +142,7 @@ function AppContent() {
   const { colors, loading: themeLoading } = useTheme();
   const [showLogoReveal, setShowLogoReveal] = useState(false);
   const [hasShownReveal, setHasShownReveal] = useState(false);
-  usePushNotifications();
+  const pushNotifications = usePushNotifications();
 
   // Check if user has seen the logo reveal animation on first load
   useEffect(() => {
@@ -197,7 +198,7 @@ function AppContent() {
 
   return (
     <View style={{ flex: 1 }}>
-      <NavigationContainer>
+      <NavigationContainer ref={navigationRef} onReady={pushNotifications.openPendingNotification}>
         <Stack.Navigator>
           <Stack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
           <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: false }} />
@@ -224,7 +225,8 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <ThemeProvider>
-          <AuthProvider>
+    <AuthProvider>
+      <PushNotificationsProvider>
             <NotificationProvider>
               <SafeStripeProvider
                 publishableKey={STRIPE_PUBLISHABLE_KEY}
@@ -235,7 +237,8 @@ export default function App() {
                 </DashboardDataProvider>
               </SafeStripeProvider>
             </NotificationProvider>
-          </AuthProvider>
+      </PushNotificationsProvider>
+    </AuthProvider>
         </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

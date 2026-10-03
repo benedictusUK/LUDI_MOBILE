@@ -88,8 +88,287 @@ paths:
           description: Missing ticket or verifier
         "401":
           description: Invalid, expired, or PKCE-mismatched handoff ticket
+  /admin/access:
+    get:
+      operationId: getPlatformAdminAccess
+      tags: [notificationAdmin]
+      responses:
+        "200":
+          description: Authenticated user's platform permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformAdminAccess"
+  /admin/notifications:
+    get:
+      operationId: getNotificationAdminState
+      tags: [notificationAdmin]
+      responses:
+        "200":
+          description: SuperAdmin notification configuration and recent delivery attempts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationAdminState"
+  /admin/notifications/templates:
+    post:
+      operationId: createPushTemplate
+      tags: [notificationAdmin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushTemplateInput"
+      responses:
+        "201":
+          description: Template created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PushTemplate"
+  /admin/notifications/templates/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string }
+    put:
+      operationId: updatePushTemplate
+      tags: [notificationAdmin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushTemplateInput"
+      responses:
+        "200":
+          description: Template updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PushTemplate"
+    delete:
+      operationId: deletePushTemplate
+      tags: [notificationAdmin]
+      responses:
+        "204": { description: Unassigned template deleted }
+        "409": { description: Template is assigned to a trigger }
+  /admin/notifications/triggers/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string }
+    put:
+      operationId: updatePushTrigger
+      tags: [notificationAdmin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushTriggerInput"
+      responses:
+        "200":
+          description: Trigger updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PushTrigger"
+  /admin/notifications/preview:
+    post:
+      operationId: previewPushTemplate
+      tags: [notificationAdmin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushPreviewInput"
+      responses:
+        "200":
+          description: Rendered example, not sent to any device
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PushPreview"
+  /admin/notifications/test:
+    post:
+      operationId: sendPushTemplateTest
+      tags: [notificationAdmin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushTestInput"
+      responses:
+        "202":
+          description: Queued for the signed-in SuperAdmin's opted-in devices
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [queued]
+                properties:
+                  queued: { type: integer }
+        "409": { description: No opted-in APNs devices registered }
+        "503": { description: Apple credentials not configured }
+  /push/devices:
+    post:
+      operationId: registerApplePushDevice
+      tags: [pushDevices]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApplePushDeviceInput"
+      responses:
+        "200":
+          description: Device registered to authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PushDeviceResult"
+    delete:
+      operationId: unregisterApplePushDevice
+      tags: [pushDevices]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushDeviceRemoval"
+      responses:
+        "204": { description: Device disabled for authenticated user }
 components:
   schemas:
+    PlatformAdminAccess:
+      type: object
+      required: [userId, isSuperAdmin]
+      properties:
+        userId: { type: string }
+        isSuperAdmin: { type: boolean }
+    PushTemplateInput:
+      type: object
+      additionalProperties: false
+      required: [name, title, body]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        title: { type: string, minLength: 1, maxLength: 160 }
+        body: { type: string, minLength: 1, maxLength: 1500 }
+    PushTemplate:
+      allOf:
+        - $ref: "#/components/schemas/PushTemplateInput"
+        - type: object
+          required: [id, updatedAt]
+          properties:
+            id: { type: string }
+            updatedAt: { type: string }
+    PushTriggerInput:
+      type: object
+      additionalProperties: false
+      required: [enabled, templateId, audience, reminderMinutes]
+      properties:
+        enabled: { type: boolean }
+        templateId: { type: string, minLength: 1 }
+        audience: { type: string, enum: [existing, attendees, team_members] }
+        reminderMinutes: { type: integer, minimum: 5, maximum: 10080 }
+    PushTrigger:
+      allOf:
+        - $ref: "#/components/schemas/PushTriggerInput"
+        - type: object
+          required: [id, label, description, scheduled, allowedAudiences, updatedAt]
+          properties:
+            id: { type: string }
+            label: { type: string }
+            description: { type: string }
+            scheduled: { type: boolean }
+            allowedAudiences:
+              type: array
+              items: { type: string }
+            updatedAt: { type: string }
+    PushPreviewInput:
+      type: object
+      additionalProperties: false
+      required: [title, body]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 160 }
+        body: { type: string, minLength: 1, maxLength: 1500 }
+    PushPreview:
+      type: object
+      required: [title, body]
+      properties:
+        title: { type: string }
+        body: { type: string }
+    PushTestInput:
+      type: object
+      additionalProperties: false
+      required: [templateId]
+      properties:
+        templateId: { type: string, minLength: 1 }
+    ApplePushDeviceInput:
+      type: object
+      additionalProperties: false
+      required: [token, environment, installationId]
+      properties:
+        token: { type: string, pattern: "^[a-fA-F0-9]{32,512}$" }
+        environment: { type: string, enum: [sandbox, production] }
+        installationId: { type: string, minLength: 16, maxLength: 100 }
+    PushDeviceRemoval:
+      type: object
+      additionalProperties: false
+      required: [installationId]
+      properties:
+        installationId: { type: string, minLength: 16, maxLength: 100 }
+    PushDeviceResult:
+      type: object
+      required: [registered]
+      properties:
+        registered: { type: boolean }
+    PushDelivery:
+      type: object
+      required: [id, triggerId, title, status, attempts, createdAt, environment]
+      properties:
+        id: { type: string }
+        triggerId: { type: string }
+        title: { type: string }
+        status: { type: string }
+        attempts: { type: integer }
+        createdAt: { type: string }
+        environment: { type: string }
+        reason: { type: [string, "null"] }
+        acceptedAt: { type: [string, "null"] }
+    NotificationAdminState:
+      type: object
+      required: [configuration, templates, triggers, deliveries, placeholders]
+      properties:
+        configuration:
+          type: object
+          required: [configured, missing, bundleId, deviceCount, ownDeviceCount]
+          properties:
+            configured: { type: boolean }
+            missing:
+              type: array
+              items: { type: string }
+            bundleId: { type: string }
+            deviceCount: { type: integer }
+            ownDeviceCount: { type: integer }
+        templates:
+          type: array
+          items: { $ref: "#/components/schemas/PushTemplate" }
+        triggers:
+          type: array
+          items: { $ref: "#/components/schemas/PushTrigger" }
+        deliveries:
+          type: array
+          items: { $ref: "#/components/schemas/PushDelivery" }
+        placeholders:
+          type: array
+          items: { type: string }
     GoogleMobileSignInRequest:
       type: object
       additionalProperties: false

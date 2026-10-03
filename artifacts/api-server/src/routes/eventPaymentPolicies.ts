@@ -1,7 +1,7 @@
 import type { Express, RequestHandler } from "express";
 import { and, eq, notInArray } from "drizzle-orm";
 import {
-  events, eventPayments, eventTeams, payments, insertEventSchema,
+  events, eventPayments, eventTeams, payments, insertEventSchema, teamMemberships, notifications, notificationPreferences,
   normalizeEventPaymentSettings, paymentWindow, effectivePaymentPolicy,
 } from "@workspace/db";
 import { db } from "../db";
@@ -100,19 +100,42 @@ export function registerEventPaymentPolicies(app: Express, authenticate: Request
           eventId: existing.id, teamId, status: teamId === updated.primaryTeamId ? "accepted" : "invited",
         })));
       }
+      const members = await tx.select({ userId: teamMemberships.userId, eventChanges: notificationPreferences.eventChanges }).from(teamMemberships)
+        .leftJoin(notificationPreferences, eq(notificationPreferences.userId, teamMemberships.userId))
+        .where(eq(teamMemberships.teamId, updated.primaryTeamId));
+      const recipients = members.filter(m => m.userId !== req.userId && m.eventChanges !== false);
+      if (recipients.length) await tx.insert(notifications).values(recipients.map(member => ({
+        userId: member.userId, title: "Event updated", message: `The details for "${updated.name}" have changed.`,
+        type: "event_changed", relatedId: updated.id,
+        metadata: JSON.stringify({ eventId: updated.id }),
+      })));
       return updated;
     });
     res.json(result);
   });
   app.put("/api/events/:id", authenticate, updateEvent);
   app.patch("/api/events/:id", authenticate, updateEvent);
-  app.delete("/api/events/:id", authenticate, handler(async (req, _res, next) => {
+  app.delete("/api/events/:id", authenticate, handler(async (req, res) => {
     const event = await requireEventAccess(req.params.id, req.userId);
     if (!await canManage(event, req.userId)) throw new PaymentPolicyError(403, "You are not authorised to delete this event");
-    const record = await storage.getEventPayments(event.id);
-    const modern = await db.select({ id: eventPayments.id }).from(eventPayments).where(eq(eventPayments.eventId, event.id)).limit(1);
-    if (record.length || modern.length) throw new PaymentPolicyError(409, "Events with checkout or payment records must be retained for audit. Cancel registrations instead.");
-    next();
+    await db.transaction(async tx => {
+      // Checkout also locks this event: cancellation cannot race a new payment.
+      await tx.select({ id: events.id }).from(events).where(eq(events.id, event.id)).for("update");
+      const modern = await tx.select({ id: eventPayments.id }).from(eventPayments).where(eq(eventPayments.eventId, event.id)).limit(1);
+      const legacy = await tx.select({ id: payments.id }).from(payments).where(eq(payments.eventId, event.id)).limit(1);
+      if (legacy.length || modern.length) throw new PaymentPolicyError(409, "Events with checkout or payment records must be retained for audit. Cancel registrations instead.");
+      const members = await tx.select({ userId: teamMemberships.userId, eventChanges: notificationPreferences.eventChanges }).from(teamMemberships)
+        .leftJoin(notificationPreferences, eq(notificationPreferences.userId, teamMemberships.userId))
+        .where(eq(teamMemberships.teamId, event.primaryTeamId));
+      const recipients = members.filter(m => m.userId !== req.userId && m.eventChanges !== false);
+      if (recipients.length) await tx.insert(notifications).values(recipients.map(member => ({
+        userId: member.userId, title: "Event cancelled", message: `"${event.name}" has been cancelled.`,
+        type: "event_cancelled", relatedId: event.id,
+        metadata: JSON.stringify({ eventId: event.id, eventData: { title: event.name, startDate: event.startDate, startTime: event.startTime, location: event.location } }),
+      })));
+      await tx.delete(events).where(eq(events.id, event.id));
+    });
+    res.json({ message: "Event deleted successfully" });
   }));
 
   app.get("/api/events/:id/payment-policy", authenticate, handler(async (req, res) => {

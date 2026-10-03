@@ -1,4 +1,5 @@
 import { useAuth } from "@/hooks/useAuth";
+import { useGetPlatformAdminAccess, getGetPlatformAdminAccessQueryKey } from "@workspace/api-client-react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,11 @@ export default function Navigation() {
   const { user } = useAuth();
   const [location] = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const { data: adminAccess } = useGetPlatformAdminAccess({
+    query: { queryKey: getGetPlatformAdminAccessQueryKey(), retry: false, staleTime: 5 * 60 * 1000 },
+  });
+  const isSuperAdmin = adminAccess?.isSuperAdmin === true;
 
   const { data: stats = {} } = useQuery({
     queryKey: ["/api/dashboard/stats"],
@@ -130,6 +136,11 @@ export default function Navigation() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    {isSuperAdmin && (
+                      <DropdownMenuItem asChild>
+                        <Link href="/superadmin/notifications" data-testid="link-superadmin-notifications">SuperAdmin notifications</Link>
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem onClick={handleLogout}>
                       <i className="fas fa-sign-out-alt mr-2"></i>
                       Sign out
@@ -235,6 +246,16 @@ export default function Navigation() {
               Flare Search
             </Link>
             
+            {isSuperAdmin && (
+              <Link
+                href="/superadmin/notifications"
+                className="block px-3 py-2 rounded-md text-base font-medium text-neutral-500 hover:text-neutral-900 hover:bg-gray-50"
+                onClick={() => setIsMobileMenuOpen(false)}
+                data-testid="link-superadmin-notifications-mobile"
+              >
+                SuperAdmin notifications
+              </Link>
+            )}
             {/* User Profile Section */}
             <div className="border-t border-gray-200 pt-4 mt-4">
               <div className="flex items-center px-3 py-2">

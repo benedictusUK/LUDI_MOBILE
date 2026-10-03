@@ -20,10 +20,23 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  ApplePushDeviceInput,
   CompleteGoogleMobileSignIn200,
   GetGoogleMobileSignInConfig200,
   GoogleMobileSignInRequest,
-  HealthStatus
+  HealthStatus,
+  NotificationAdminState,
+  PlatformAdminAccess,
+  PushDeviceRemoval,
+  PushDeviceResult,
+  PushPreview,
+  PushPreviewInput,
+  PushTemplate,
+  PushTemplateInput,
+  PushTestInput,
+  PushTrigger,
+  PushTriggerInput,
+  SendPushTemplateTest202
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -296,5 +309,791 @@ export const useCompleteGoogleMobileSignIn = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getCompleteGoogleMobileSignInMutationOptions(options));
+    }
+
+export const getGetPlatformAdminAccessUrl = () => {
+
+
+
+
+  return `/api/admin/access`
+}
+
+export const getPlatformAdminAccess = async ( options?: Parameters<typeof customFetch>[1]): Promise<PlatformAdminAccess> => {
+
+  return customFetch<PlatformAdminAccess>(getGetPlatformAdminAccessUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPlatformAdminAccessQueryKey = () => {
+    return [
+    `/api/admin/access`
+    ] as const;
+    }
+
+
+export const getGetPlatformAdminAccessQueryOptions = <TData = Awaited<ReturnType<typeof getPlatformAdminAccess>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformAdminAccess>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPlatformAdminAccessQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPlatformAdminAccess>>> = ({ signal }) => getPlatformAdminAccess({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPlatformAdminAccess>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPlatformAdminAccessQueryResult = NonNullable<Awaited<ReturnType<typeof getPlatformAdminAccess>>>
+export type GetPlatformAdminAccessQueryError = ErrorType<unknown>
+
+
+
+export function useGetPlatformAdminAccess<TData = Awaited<ReturnType<typeof getPlatformAdminAccess>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformAdminAccess>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPlatformAdminAccessQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetNotificationAdminStateUrl = () => {
+
+
+
+
+  return `/api/admin/notifications`
+}
+
+export const getNotificationAdminState = async ( options?: Parameters<typeof customFetch>[1]): Promise<NotificationAdminState> => {
+
+  return customFetch<NotificationAdminState>(getGetNotificationAdminStateUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetNotificationAdminStateQueryKey = () => {
+    return [
+    `/api/admin/notifications`
+    ] as const;
+    }
+
+
+export const getGetNotificationAdminStateQueryOptions = <TData = Awaited<ReturnType<typeof getNotificationAdminState>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getNotificationAdminState>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetNotificationAdminStateQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getNotificationAdminState>>> = ({ signal }) => getNotificationAdminState({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getNotificationAdminState>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetNotificationAdminStateQueryResult = NonNullable<Awaited<ReturnType<typeof getNotificationAdminState>>>
+export type GetNotificationAdminStateQueryError = ErrorType<unknown>
+
+
+
+export function useGetNotificationAdminState<TData = Awaited<ReturnType<typeof getNotificationAdminState>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getNotificationAdminState>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetNotificationAdminStateQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreatePushTemplateUrl = () => {
+
+
+
+
+  return `/api/admin/notifications/templates`
+}
+
+export const createPushTemplate = async (pushTemplateInput: PushTemplateInput, options?: Parameters<typeof customFetch>[1]): Promise<PushTemplate> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PushTemplate>(getCreatePushTemplateUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(pushTemplateInput)
+  }
+);}
+
+
+
+
+
+export const getCreatePushTemplateMutationKey = () => ['createPushTemplate'] as const;
+
+export const getCreatePushTemplateMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPushTemplate>>, TError,CreatePushTemplateMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPushTemplate>>, TError,CreatePushTemplateMutationVariables, TContext> => {
+
+const mutationKey = getCreatePushTemplateMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPushTemplate>>, CreatePushTemplateMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createPushTemplate(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePushTemplateMutationResult = NonNullable<Awaited<ReturnType<typeof createPushTemplate>>>
+    export type CreatePushTemplateMutationBody = BodyType<PushTemplateInput>
+    export type CreatePushTemplateMutationError = ErrorType<unknown>
+    export type CreatePushTemplateMutationVariables = {data: BodyType<PushTemplateInput>}
+
+    export const useCreatePushTemplate = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPushTemplate>>, TError,CreatePushTemplateMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createPushTemplate>>,
+        TError,
+        CreatePushTemplateMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreatePushTemplateMutationOptions(options));
+    }
+
+export const getUpdatePushTemplateUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/notifications/templates/${id}`
+}
+
+export const updatePushTemplate = async (id: string,
+    pushTemplateInput: PushTemplateInput, options?: Parameters<typeof customFetch>[1]): Promise<PushTemplate> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PushTemplate>(getUpdatePushTemplateUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(pushTemplateInput)
+  }
+);}
+
+
+
+
+
+export const getUpdatePushTemplateMutationKey = () => ['updatePushTemplate'] as const;
+
+export const getUpdatePushTemplateMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePushTemplate>>, TError,UpdatePushTemplateMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updatePushTemplate>>, TError,UpdatePushTemplateMutationVariables, TContext> => {
+
+const mutationKey = getUpdatePushTemplateMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updatePushTemplate>>, UpdatePushTemplateMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updatePushTemplate(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdatePushTemplateMutationResult = NonNullable<Awaited<ReturnType<typeof updatePushTemplate>>>
+    export type UpdatePushTemplateMutationBody = BodyType<PushTemplateInput>
+    export type UpdatePushTemplateMutationError = ErrorType<unknown>
+    export type UpdatePushTemplateMutationVariables = {id: string;data: BodyType<PushTemplateInput>}
+
+    export const useUpdatePushTemplate = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePushTemplate>>, TError,UpdatePushTemplateMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updatePushTemplate>>,
+        TError,
+        UpdatePushTemplateMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdatePushTemplateMutationOptions(options));
+    }
+
+export const getDeletePushTemplateUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/notifications/templates/${id}`
+}
+
+export const deletePushTemplate = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeletePushTemplateUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeletePushTemplateMutationKey = () => ['deletePushTemplate'] as const;
+
+export const getDeletePushTemplateMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePushTemplate>>, TError,DeletePushTemplateMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deletePushTemplate>>, TError,DeletePushTemplateMutationVariables, TContext> => {
+
+const mutationKey = getDeletePushTemplateMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deletePushTemplate>>, DeletePushTemplateMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  deletePushTemplate(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeletePushTemplateMutationResult = NonNullable<Awaited<ReturnType<typeof deletePushTemplate>>>
+
+    export type DeletePushTemplateMutationError = ErrorType<void>
+    export type DeletePushTemplateMutationVariables = {id: string}
+
+    export const useDeletePushTemplate = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePushTemplate>>, TError,DeletePushTemplateMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deletePushTemplate>>,
+        TError,
+        DeletePushTemplateMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeletePushTemplateMutationOptions(options));
+    }
+
+export const getUpdatePushTriggerUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/notifications/triggers/${id}`
+}
+
+export const updatePushTrigger = async (id: string,
+    pushTriggerInput: PushTriggerInput, options?: Parameters<typeof customFetch>[1]): Promise<PushTrigger> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PushTrigger>(getUpdatePushTriggerUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(pushTriggerInput)
+  }
+);}
+
+
+
+
+
+export const getUpdatePushTriggerMutationKey = () => ['updatePushTrigger'] as const;
+
+export const getUpdatePushTriggerMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePushTrigger>>, TError,UpdatePushTriggerMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updatePushTrigger>>, TError,UpdatePushTriggerMutationVariables, TContext> => {
+
+const mutationKey = getUpdatePushTriggerMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updatePushTrigger>>, UpdatePushTriggerMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updatePushTrigger(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdatePushTriggerMutationResult = NonNullable<Awaited<ReturnType<typeof updatePushTrigger>>>
+    export type UpdatePushTriggerMutationBody = BodyType<PushTriggerInput>
+    export type UpdatePushTriggerMutationError = ErrorType<unknown>
+    export type UpdatePushTriggerMutationVariables = {id: string;data: BodyType<PushTriggerInput>}
+
+    export const useUpdatePushTrigger = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePushTrigger>>, TError,UpdatePushTriggerMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updatePushTrigger>>,
+        TError,
+        UpdatePushTriggerMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdatePushTriggerMutationOptions(options));
+    }
+
+export const getPreviewPushTemplateUrl = () => {
+
+
+
+
+  return `/api/admin/notifications/preview`
+}
+
+export const previewPushTemplate = async (pushPreviewInput: PushPreviewInput, options?: Parameters<typeof customFetch>[1]): Promise<PushPreview> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PushPreview>(getPreviewPushTemplateUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(pushPreviewInput)
+  }
+);}
+
+
+
+
+
+export const getPreviewPushTemplateMutationKey = () => ['previewPushTemplate'] as const;
+
+export const getPreviewPushTemplateMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewPushTemplate>>, TError,PreviewPushTemplateMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof previewPushTemplate>>, TError,PreviewPushTemplateMutationVariables, TContext> => {
+
+const mutationKey = getPreviewPushTemplateMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof previewPushTemplate>>, PreviewPushTemplateMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  previewPushTemplate(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PreviewPushTemplateMutationResult = NonNullable<Awaited<ReturnType<typeof previewPushTemplate>>>
+    export type PreviewPushTemplateMutationBody = BodyType<PushPreviewInput>
+    export type PreviewPushTemplateMutationError = ErrorType<unknown>
+    export type PreviewPushTemplateMutationVariables = {data: BodyType<PushPreviewInput>}
+
+    export const usePreviewPushTemplate = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewPushTemplate>>, TError,PreviewPushTemplateMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof previewPushTemplate>>,
+        TError,
+        PreviewPushTemplateMutationVariables,
+        TContext
+      > => {
+      return useMutation(getPreviewPushTemplateMutationOptions(options));
+    }
+
+export const getSendPushTemplateTestUrl = () => {
+
+
+
+
+  return `/api/admin/notifications/test`
+}
+
+export const sendPushTemplateTest = async (pushTestInput: PushTestInput, options?: Parameters<typeof customFetch>[1]): Promise<SendPushTemplateTest202> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<SendPushTemplateTest202>(getSendPushTemplateTestUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(pushTestInput)
+  }
+);}
+
+
+
+
+
+export const getSendPushTemplateTestMutationKey = () => ['sendPushTemplateTest'] as const;
+
+export const getSendPushTemplateTestMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendPushTemplateTest>>, TError,SendPushTemplateTestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendPushTemplateTest>>, TError,SendPushTemplateTestMutationVariables, TContext> => {
+
+const mutationKey = getSendPushTemplateTestMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendPushTemplateTest>>, SendPushTemplateTestMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  sendPushTemplateTest(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendPushTemplateTestMutationResult = NonNullable<Awaited<ReturnType<typeof sendPushTemplateTest>>>
+    export type SendPushTemplateTestMutationBody = BodyType<PushTestInput>
+    export type SendPushTemplateTestMutationError = ErrorType<void>
+    export type SendPushTemplateTestMutationVariables = {data: BodyType<PushTestInput>}
+
+    export const useSendPushTemplateTest = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendPushTemplateTest>>, TError,SendPushTemplateTestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof sendPushTemplateTest>>,
+        TError,
+        SendPushTemplateTestMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSendPushTemplateTestMutationOptions(options));
+    }
+
+export const getRegisterApplePushDeviceUrl = () => {
+
+
+
+
+  return `/api/push/devices`
+}
+
+export const registerApplePushDevice = async (applePushDeviceInput: ApplePushDeviceInput, options?: Parameters<typeof customFetch>[1]): Promise<PushDeviceResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PushDeviceResult>(getRegisterApplePushDeviceUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(applePushDeviceInput)
+  }
+);}
+
+
+
+
+
+export const getRegisterApplePushDeviceMutationKey = () => ['registerApplePushDevice'] as const;
+
+export const getRegisterApplePushDeviceMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registerApplePushDevice>>, TError,RegisterApplePushDeviceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof registerApplePushDevice>>, TError,RegisterApplePushDeviceMutationVariables, TContext> => {
+
+const mutationKey = getRegisterApplePushDeviceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof registerApplePushDevice>>, RegisterApplePushDeviceMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  registerApplePushDevice(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RegisterApplePushDeviceMutationResult = NonNullable<Awaited<ReturnType<typeof registerApplePushDevice>>>
+    export type RegisterApplePushDeviceMutationBody = BodyType<ApplePushDeviceInput>
+    export type RegisterApplePushDeviceMutationError = ErrorType<unknown>
+    export type RegisterApplePushDeviceMutationVariables = {data: BodyType<ApplePushDeviceInput>}
+
+    export const useRegisterApplePushDevice = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registerApplePushDevice>>, TError,RegisterApplePushDeviceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof registerApplePushDevice>>,
+        TError,
+        RegisterApplePushDeviceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRegisterApplePushDeviceMutationOptions(options));
+    }
+
+export const getUnregisterApplePushDeviceUrl = () => {
+
+
+
+
+  return `/api/push/devices`
+}
+
+export const unregisterApplePushDevice = async (pushDeviceRemoval: PushDeviceRemoval, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<void>(getUnregisterApplePushDeviceUrl(),
+  {
+    ...options,
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(pushDeviceRemoval)
+  }
+);}
+
+
+
+
+
+export const getUnregisterApplePushDeviceMutationKey = () => ['unregisterApplePushDevice'] as const;
+
+export const getUnregisterApplePushDeviceMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unregisterApplePushDevice>>, TError,UnregisterApplePushDeviceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof unregisterApplePushDevice>>, TError,UnregisterApplePushDeviceMutationVariables, TContext> => {
+
+const mutationKey = getUnregisterApplePushDeviceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof unregisterApplePushDevice>>, UnregisterApplePushDeviceMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  unregisterApplePushDevice(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UnregisterApplePushDeviceMutationResult = NonNullable<Awaited<ReturnType<typeof unregisterApplePushDevice>>>
+    export type UnregisterApplePushDeviceMutationBody = BodyType<PushDeviceRemoval>
+    export type UnregisterApplePushDeviceMutationError = ErrorType<unknown>
+    export type UnregisterApplePushDeviceMutationVariables = {data: BodyType<PushDeviceRemoval>}
+
+    export const useUnregisterApplePushDevice = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unregisterApplePushDevice>>, TError,UnregisterApplePushDeviceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof unregisterApplePushDevice>>,
+        TError,
+        UnregisterApplePushDeviceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUnregisterApplePushDeviceMutationOptions(options));
     }
 

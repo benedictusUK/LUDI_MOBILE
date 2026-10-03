@@ -54,3 +54,236 @@ export const CompleteGoogleMobileSignInResponse = zod.object({
 })
 
 
+export const GetPlatformAdminAccessResponse = zod.object({
+  "userId": zod.string(),
+  "isSuperAdmin": zod.boolean()
+})
+
+
+export const getNotificationAdminStateResponseTemplatesItemOneNameMax = 80;
+
+export const getNotificationAdminStateResponseTemplatesItemOneTitleMax = 160;
+
+export const getNotificationAdminStateResponseTemplatesItemOneBodyMax = 1500;
+
+
+export const getNotificationAdminStateResponseTriggersItemOneReminderMinutesMin = 5;
+export const getNotificationAdminStateResponseTriggersItemOneReminderMinutesMax = 10080;
+
+
+
+export const GetNotificationAdminStateResponse = zod.object({
+  "configuration": zod.object({
+  "configured": zod.boolean(),
+  "missing": zod.array(zod.string()),
+  "bundleId": zod.string(),
+  "deviceCount": zod.number().int(),
+  "ownDeviceCount": zod.number().int()
+}),
+  "templates": zod.array(zod.object({
+  "name": zod.string().min(1).max(getNotificationAdminStateResponseTemplatesItemOneNameMax),
+  "title": zod.string().min(1).max(getNotificationAdminStateResponseTemplatesItemOneTitleMax),
+  "body": zod.string().min(1).max(getNotificationAdminStateResponseTemplatesItemOneBodyMax)
+}).and(zod.object({
+  "id": zod.string(),
+  "updatedAt": zod.string()
+}))),
+  "triggers": zod.array(zod.object({
+  "enabled": zod.boolean(),
+  "templateId": zod.string().min(1),
+  "audience": zod.enum(['existing', 'attendees', 'team_members']),
+  "reminderMinutes": zod.number().int().min(getNotificationAdminStateResponseTriggersItemOneReminderMinutesMin).max(getNotificationAdminStateResponseTriggersItemOneReminderMinutesMax)
+}).and(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "description": zod.string(),
+  "scheduled": zod.boolean(),
+  "allowedAudiences": zod.array(zod.string()),
+  "updatedAt": zod.string()
+}))),
+  "deliveries": zod.array(zod.object({
+  "id": zod.string(),
+  "triggerId": zod.string(),
+  "title": zod.string(),
+  "status": zod.string(),
+  "attempts": zod.number().int(),
+  "createdAt": zod.string(),
+  "environment": zod.string(),
+  "reason": zod.string().nullish(),
+  "acceptedAt": zod.string().nullish()
+})),
+  "placeholders": zod.array(zod.string())
+})
+
+
+export const createPushTemplateBodyNameMax = 80;
+
+export const createPushTemplateBodyTitleMax = 160;
+
+export const createPushTemplateBodyBodyMax = 1500;
+
+
+
+export const CreatePushTemplateBody = zod.object({
+  "name": zod.string().min(1).max(createPushTemplateBodyNameMax),
+  "title": zod.string().min(1).max(createPushTemplateBodyTitleMax),
+  "body": zod.string().min(1).max(createPushTemplateBodyBodyMax)
+})
+
+export const createPushTemplateResponseOneNameMax = 80;
+
+export const createPushTemplateResponseOneTitleMax = 160;
+
+export const createPushTemplateResponseOneBodyMax = 1500;
+
+
+
+export const CreatePushTemplateResponse = zod.object({
+  "name": zod.string().min(1).max(createPushTemplateResponseOneNameMax),
+  "title": zod.string().min(1).max(createPushTemplateResponseOneTitleMax),
+  "body": zod.string().min(1).max(createPushTemplateResponseOneBodyMax)
+}).and(zod.object({
+  "id": zod.string(),
+  "updatedAt": zod.string()
+}))
+
+
+export const UpdatePushTemplateParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const updatePushTemplateBodyNameMax = 80;
+
+export const updatePushTemplateBodyTitleMax = 160;
+
+export const updatePushTemplateBodyBodyMax = 1500;
+
+
+
+export const UpdatePushTemplateBody = zod.object({
+  "name": zod.string().min(1).max(updatePushTemplateBodyNameMax),
+  "title": zod.string().min(1).max(updatePushTemplateBodyTitleMax),
+  "body": zod.string().min(1).max(updatePushTemplateBodyBodyMax)
+})
+
+export const updatePushTemplateResponseOneNameMax = 80;
+
+export const updatePushTemplateResponseOneTitleMax = 160;
+
+export const updatePushTemplateResponseOneBodyMax = 1500;
+
+
+
+export const UpdatePushTemplateResponse = zod.object({
+  "name": zod.string().min(1).max(updatePushTemplateResponseOneNameMax),
+  "title": zod.string().min(1).max(updatePushTemplateResponseOneTitleMax),
+  "body": zod.string().min(1).max(updatePushTemplateResponseOneBodyMax)
+}).and(zod.object({
+  "id": zod.string(),
+  "updatedAt": zod.string()
+}))
+
+
+export const DeletePushTemplateParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeletePushTemplateResponse = zod.void()
+
+
+export const UpdatePushTriggerParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+export const updatePushTriggerBodyReminderMinutesMin = 5;
+export const updatePushTriggerBodyReminderMinutesMax = 10080;
+
+
+
+export const UpdatePushTriggerBody = zod.object({
+  "enabled": zod.boolean(),
+  "templateId": zod.string().min(1),
+  "audience": zod.enum(['existing', 'attendees', 'team_members']),
+  "reminderMinutes": zod.number().int().min(updatePushTriggerBodyReminderMinutesMin).max(updatePushTriggerBodyReminderMinutesMax)
+})
+
+
+export const updatePushTriggerResponseOneReminderMinutesMin = 5;
+export const updatePushTriggerResponseOneReminderMinutesMax = 10080;
+
+
+
+export const UpdatePushTriggerResponse = zod.object({
+  "enabled": zod.boolean(),
+  "templateId": zod.string().min(1),
+  "audience": zod.enum(['existing', 'attendees', 'team_members']),
+  "reminderMinutes": zod.number().int().min(updatePushTriggerResponseOneReminderMinutesMin).max(updatePushTriggerResponseOneReminderMinutesMax)
+}).and(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "description": zod.string(),
+  "scheduled": zod.boolean(),
+  "allowedAudiences": zod.array(zod.string()),
+  "updatedAt": zod.string()
+}))
+
+
+export const previewPushTemplateBodyTitleMax = 160;
+
+export const previewPushTemplateBodyBodyMax = 1500;
+
+
+
+export const PreviewPushTemplateBody = zod.object({
+  "title": zod.string().min(1).max(previewPushTemplateBodyTitleMax),
+  "body": zod.string().min(1).max(previewPushTemplateBodyBodyMax)
+})
+
+export const PreviewPushTemplateResponse = zod.object({
+  "title": zod.string(),
+  "body": zod.string()
+})
+
+
+
+
+
+export const SendPushTemplateTestBody = zod.object({
+  "templateId": zod.string().min(1)
+})
+
+export const SendPushTemplateTestResponse = zod.object({
+  "queued": zod.number().int()
+})
+
+
+export const registerApplePushDeviceBodyTokenRegExp = new RegExp('^[a-fA-F0-9]{32,512}$');
+export const registerApplePushDeviceBodyInstallationIdMin = 16;
+export const registerApplePushDeviceBodyInstallationIdMax = 100;
+
+
+
+export const RegisterApplePushDeviceBody = zod.object({
+  "token": zod.string().regex(registerApplePushDeviceBodyTokenRegExp),
+  "environment": zod.enum(['sandbox', 'production']),
+  "installationId": zod.string().min(registerApplePushDeviceBodyInstallationIdMin).max(registerApplePushDeviceBodyInstallationIdMax)
+})
+
+export const RegisterApplePushDeviceResponse = zod.object({
+  "registered": zod.boolean()
+})
+
+
+export const unregisterApplePushDeviceBodyInstallationIdMin = 16;
+export const unregisterApplePushDeviceBodyInstallationIdMax = 100;
+
+
+
+export const UnregisterApplePushDeviceBody = zod.object({
+  "installationId": zod.string().min(unregisterApplePushDeviceBodyInstallationIdMin).max(unregisterApplePushDeviceBodyInstallationIdMax)
+})
+
+export const UnregisterApplePushDeviceResponse = zod.void()
+
+

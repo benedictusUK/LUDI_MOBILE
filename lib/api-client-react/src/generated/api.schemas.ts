@@ -5,6 +5,148 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface PlatformAdminAccess {
+  userId: string;
+  isSuperAdmin: boolean;
+}
+
+export interface PushTemplateInput {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  name: string;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 1500
+     */
+  body: string;
+}
+
+export type PushTemplate = PushTemplateInput & {
+  id: string;
+  updatedAt: string;
+};
+
+export type PushTriggerInputAudience = typeof PushTriggerInputAudience[keyof typeof PushTriggerInputAudience];
+
+
+export const PushTriggerInputAudience = {
+  existing: 'existing',
+  attendees: 'attendees',
+  team_members: 'team_members',
+} as const;
+
+export interface PushTriggerInput {
+  enabled: boolean;
+  /** @minLength 1 */
+  templateId: string;
+  audience: PushTriggerInputAudience;
+  /**
+     * @minimum 5
+     * @maximum 10080
+     */
+  reminderMinutes: number;
+}
+
+export type PushTrigger = PushTriggerInput & {
+  id: string;
+  label: string;
+  description: string;
+  scheduled: boolean;
+  allowedAudiences: string[];
+  updatedAt: string;
+};
+
+export interface PushPreviewInput {
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 1500
+     */
+  body: string;
+}
+
+export interface PushPreview {
+  title: string;
+  body: string;
+}
+
+export interface PushTestInput {
+  /** @minLength 1 */
+  templateId: string;
+}
+
+export type ApplePushDeviceInputEnvironment = typeof ApplePushDeviceInputEnvironment[keyof typeof ApplePushDeviceInputEnvironment];
+
+
+export const ApplePushDeviceInputEnvironment = {
+  sandbox: 'sandbox',
+  production: 'production',
+} as const;
+
+export interface ApplePushDeviceInput {
+  /** @pattern ^[a-fA-F0-9]{32,512}$ */
+  token: string;
+  environment: ApplePushDeviceInputEnvironment;
+  /**
+     * @minLength 16
+     * @maxLength 100
+     */
+  installationId: string;
+}
+
+export interface PushDeviceRemoval {
+  /**
+     * @minLength 16
+     * @maxLength 100
+     */
+  installationId: string;
+}
+
+export interface PushDeviceResult {
+  registered: boolean;
+}
+
+export interface PushDelivery {
+  id: string;
+  triggerId: string;
+  title: string;
+  status: string;
+  attempts: number;
+  createdAt: string;
+  environment: string;
+  /** @nullable */
+  reason?: string | null;
+  /** @nullable */
+  acceptedAt?: string | null;
+}
+
+export type NotificationAdminStateConfiguration = {
+  configured: boolean;
+  missing: string[];
+  bundleId: string;
+  deviceCount: number;
+  ownDeviceCount: number;
+};
+
+export interface NotificationAdminState {
+  configuration: NotificationAdminStateConfiguration;
+  templates: PushTemplate[];
+  triggers: PushTrigger[];
+  deliveries: PushDelivery[];
+  placeholders: string[];
+}
+
 export interface GoogleMobileSignInRequest {
   /** @minLength 1 */
   ticket: string;
@@ -41,5 +183,9 @@ export type CompleteGoogleMobileSignIn200 = {
   /** Normal long-lived LUDI mobile application JWT. */
   token: string;
   user: CompleteGoogleMobileSignIn200User;
+};
+
+export type SendPushTemplateTest202 = {
+  queued: number;
 };
 

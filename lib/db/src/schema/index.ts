@@ -19,3 +19,4 @@
 
 export * from "./schema";
 export * from "./eventPaymentPolicy";
+export * from "./pushNotifications";
