@@ -549,15 +549,17 @@ export default function EventDetailsScreen() {
                 <TouchableOpacity 
                   style={[styles.flareButton, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.2)' : '#fef2f2', borderColor: '#ef4444' }]} 
                   onPress={() => setShowFlareModal(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Send flare for this event"
                   data-testid="button-flare-gun"
                 >
                   <Ionicons name="flame" size={18} color="#ef4444" />
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.editButton, { backgroundColor: colors.primary }]} onPress={handleEdit}>
+                <TouchableOpacity style={[styles.editButton, { backgroundColor: colors.primary }]} onPress={handleEdit} accessibilityRole="button" accessibilityLabel="Edit event">
                   <Ionicons name="create-outline" size={18} color="#ffffff" />
                   <Text style={styles.editButtonText}>Edit</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.deleteButton, { backgroundColor: colors.error }]} onPress={confirmDelete}>
+                <TouchableOpacity style={[styles.deleteButton, { backgroundColor: colors.error }]} onPress={confirmDelete} accessibilityRole="button" accessibilityLabel="Delete event">
                   <Ionicons name="trash-outline" size={18} color="#ffffff" />
                 </TouchableOpacity>
               </View>
@@ -1316,6 +1318,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1e293b',
     marginBottom: 12,
+    flexShrink: 1,
+    alignSelf: 'stretch',
   },
   sportBadge: {
     backgroundColor: '#eff6ff',
@@ -1359,7 +1363,7 @@ const styles = StyleSheet.create({
   },
   detailRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
@@ -1372,9 +1376,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#64748b',
     fontWeight: '500',
-    flex: 1,
+    flexShrink: 1,
+    flexBasis: '40%',
+    marginRight: 12,
   },
   detailValue: {
+    flex: 1,
+    flexShrink: 1,
+    textAlign: 'right',
     fontSize: 16,
     color: '#1e293b',
     fontWeight: '600',
@@ -1465,17 +1474,22 @@ const styles = StyleSheet.create({
   },
   headerTop: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    flexDirection: 'column',
+    alignItems: 'stretch',
   },
   actionButtons: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
     gap: 8,
+    marginBottom: 12,
   },
   editButton: {
     backgroundColor: '#3b82f6',
     paddingHorizontal: 12,
     paddingVertical: 8,
+    minHeight: 44,
+    justifyContent: 'center',
     borderRadius: 8,
     flexDirection: 'row',
     alignItems: 'center',
@@ -1493,6 +1507,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#fecaca',
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   deleteButtonText: {
     fontSize: 16,
@@ -1662,7 +1680,10 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 8,
     borderWidth: 1,
-    marginRight: 8,
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   flareModalContent: {
     backgroundColor: '#ffffff',
