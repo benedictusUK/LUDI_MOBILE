@@ -12,7 +12,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import PaymentPolicyFields from '../components/PaymentPolicyFields';
-import { policyFieldsFromEvent, validatePolicy, buildPolicyPayload } from '../lib/paymentPolicy';
+import CalendarPickerModal from '../components/CalendarPickerModal';
+import useSelectedTeamMembers from '../hooks/useSelectedTeamMembers';
+import { policyFieldsFromEvent, validatePolicy, buildPolicyPayload, eventWindow } from '../lib/paymentPolicy';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -73,7 +75,7 @@ export default function EditEventScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const { event: initialEvent } = route.params;
-  const { apiRequest } = useAuth();
+  const { apiRequest, user: authUser } = useAuth();
   const { colors } = useTheme();
   const [loading, setLoading] = useState(false);
   const [teams, setTeams] = useState([]);
@@ -123,7 +125,6 @@ export default function EditEventScreen() {
     isPublished: initialEvent?.isPublished ?? true,
   });
   
-  const [teamMembers, setTeamMembers] = useState([]);
   const [showVenueOrganiserPicker, setShowVenueOrganiserPicker] = useState(false);
   const [showSecondaryTeamPicker, setShowSecondaryTeamPicker] = useState(false);
   const [tempSecondaryTeamIds, setTempSecondaryTeamIds] = useState([]);
@@ -132,31 +133,8 @@ export default function EditEventScreen() {
     fetchUserTeams();
   }, []);
 
-  useEffect(() => {
-    // Fetch members from all published teams for this event
-    if (initialEvent?.id) {
-      fetchEventTeamMembers(initialEvent.id);
-    }
-  }, [initialEvent?.id]);
-
-  const fetchEventTeamMembers = async (eventId) => {
-    try {
-      const response = await apiRequest(`/api/events/${eventId}/team-members`);
-      if (response.ok) {
-        const members = await response.json();
-        console.log('[EditEvent] Fetched team members:', members.length, members);
-        setTeamMembers(members.map(m => ({
-          id: m.userId,
-          name: m.user?.firstName && m.user?.lastName 
-            ? `${m.user.firstName} ${m.user.lastName}` 
-            : m.user?.username || 'Unknown',
-          username: m.user?.username || '',
-        })));
-      }
-    } catch (error) {
-      console.error('Failed to fetch event team members:', error);
-    }
-  };
+  const { members: teamMembers, loading: membersLoading, error: membersError, retry: retryMembers } = useSelectedTeamMembers(
+    apiRequest, [formData.teamId, ...(formData.secondaryTeamIds || [])], authUser?.id);
 
   const fetchUserTeams = async () => {
     try {
@@ -236,8 +214,7 @@ export default function EditEventScreen() {
       return false;
     }
 
-    const st = new Date(`${formData.startDate}T${formData.startTime}`);
-    const en = new Date(`${formData.endDate || formData.startDate}T${formData.endTime || formData.startTime}`);
+    const { start: st, end: en } = eventWindow(formData);
     const policyError = validatePolicy(formData, st, en);
     if (policyError) {
       Alert.alert('Payment Settings', policyError);
@@ -269,7 +246,7 @@ export default function EditEventScreen() {
         cost: formData.cost || '0.00',
         requirements: formData.requirements || '',
         gender: formData.gender,
-        ...buildPolicyPayload(formData),
+        ...buildPolicyPayload(formData, ...Object.values(eventWindow(formData))),
         venueOrganiserId: formData.paymentRequired && formData.venueOrganiserId ? formData.venueOrganiserId : undefined,
         isPublished: formData.isPublished,
       };
@@ -369,148 +346,6 @@ export default function EditEventScreen() {
       </View>
     </Modal>
   );
-
-  const DatePickerModal = ({ visible, onClose, title, onConfirm, initialDate }) => {
-    const [localDate, setLocalDate] = useState(tempDate);
-    const dayScrollRef = React.useRef(null);
-    const monthScrollRef = React.useRef(null);
-    const yearScrollRef = React.useRef(null);
-    const ITEM_HEIGHT = 40;
-    
-    useEffect(() => {
-      if (visible && initialDate) {
-        const date = new Date(initialDate);
-        const selectedDate = {
-          year: date.getFullYear(),
-          month: date.getMonth() + 1,
-          day: date.getDate()
-        };
-        setLocalDate(selectedDate);
-        
-        setTimeout(() => {
-          const dayIndex = selectedDate.day - 1;
-          const monthIndex = selectedDate.month - 1;
-          const yearIndex = generateYears().indexOf(selectedDate.year);
-          
-          if (dayScrollRef.current && dayIndex >= 0) {
-            dayScrollRef.current.scrollTo({ y: dayIndex * ITEM_HEIGHT, animated: false });
-          }
-          if (monthScrollRef.current && monthIndex >= 0) {
-            monthScrollRef.current.scrollTo({ y: monthIndex * ITEM_HEIGHT, animated: false });
-          }
-          if (yearScrollRef.current && yearIndex >= 0) {
-            yearScrollRef.current.scrollTo({ y: yearIndex * ITEM_HEIGHT, animated: false });
-          }
-        }, 100);
-      } else if (visible) {
-        const now = new Date();
-        const selectedDate = {
-          year: now.getFullYear(),
-          month: now.getMonth() + 1,
-          day: now.getDate()
-        };
-        setLocalDate(selectedDate);
-        
-        setTimeout(() => {
-          const dayIndex = selectedDate.day - 1;
-          const monthIndex = selectedDate.month - 1;
-          const yearIndex = generateYears().indexOf(selectedDate.year);
-          
-          if (dayScrollRef.current && dayIndex >= 0) {
-            dayScrollRef.current.scrollTo({ y: dayIndex * ITEM_HEIGHT, animated: false });
-          }
-          if (monthScrollRef.current && monthIndex >= 0) {
-            monthScrollRef.current.scrollTo({ y: monthIndex * ITEM_HEIGHT, animated: false });
-          }
-          if (yearScrollRef.current && yearIndex >= 0) {
-            yearScrollRef.current.scrollTo({ y: yearIndex * ITEM_HEIGHT, animated: false });
-          }
-        }, 100);
-      }
-    }, [visible, initialDate]);
-
-    const years = generateYears();
-    const days = generateDays(localDate.year, localDate.month);
-
-    return (
-      <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.datePickerModalContent, { backgroundColor: colors.card }]}>
-            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>{title}</Text>
-              <TouchableOpacity onPress={onClose}>
-                <Text style={[styles.modalClose, { color: colors.textSecondary }]}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.datePickerContainer}>
-              <View style={styles.pickerColumn}>
-                <Text style={[styles.pickerLabel, { color: colors.textSecondary }]}>Day</Text>
-                <ScrollView ref={dayScrollRef} style={styles.pickerScroll} showsVerticalScrollIndicator={false}>
-                  {days.map(day => (
-                    <TouchableOpacity
-                      key={day}
-                      style={[styles.pickerItem, localDate.day === day && { backgroundColor: colors.selectionBackground }]}
-                      onPress={() => setLocalDate(prev => ({ ...prev, day }))}
-                    >
-                      <Text style={[styles.pickerItemText, { color: colors.text }, localDate.day === day && { color: colors.primary, fontWeight: '600' }]}>
-                        {day}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-
-              <View style={styles.pickerColumn}>
-                <Text style={[styles.pickerLabel, { color: colors.textSecondary }]}>Month</Text>
-                <ScrollView ref={monthScrollRef} style={styles.pickerScroll} showsVerticalScrollIndicator={false}>
-                  {MONTHS.map(month => (
-                    <TouchableOpacity
-                      key={month.value}
-                      style={[styles.pickerItem, localDate.month === month.value && { backgroundColor: colors.selectionBackground }]}
-                      onPress={() => setLocalDate(prev => ({ ...prev, month: month.value, day: Math.min(prev.day, generateDays(prev.year, month.value).length) }))}
-                    >
-                      <Text style={[styles.pickerItemText, { color: colors.text }, localDate.month === month.value && { color: colors.primary, fontWeight: '600' }]}>
-                        {month.label.substring(0, 3)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-
-              <View style={styles.pickerColumn}>
-                <Text style={[styles.pickerLabel, { color: colors.textSecondary }]}>Year</Text>
-                <ScrollView ref={yearScrollRef} style={styles.pickerScroll} showsVerticalScrollIndicator={false}>
-                  {years.map(year => (
-                    <TouchableOpacity
-                      key={year}
-                      style={[styles.pickerItem, localDate.year === year && { backgroundColor: colors.selectionBackground }]}
-                      onPress={() => setLocalDate(prev => ({ ...prev, year }))}
-                    >
-                      <Text style={[styles.pickerItemText, { color: colors.text }, localDate.year === year && { color: colors.primary, fontWeight: '600' }]}>
-                        {year}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            </View>
-
-            <TouchableOpacity
-              style={styles.confirmButton}
-              onPress={() => {
-                const dateStr = `${localDate.year}-${String(localDate.month).padStart(2, '0')}-${String(localDate.day).padStart(2, '0')}`;
-                onConfirm(dateStr);
-                onClose();
-              }}
-            >
-              <Text style={styles.confirmButtonText}>Confirm</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-    );
-  };
 
   const TimePickerModal = ({ visible, onClose, title, onConfirm, initialTime }) => {
     const [localTime, setLocalTime] = useState({ hour: '12', minute: '00' });
@@ -904,21 +739,9 @@ export default function EditEventScreen() {
         onSelect={(value) => setFormData({ ...formData, gender: value })}
       />
 
-      <DatePickerModal
-        visible={showStartDatePicker}
-        onClose={() => setShowStartDatePicker(false)}
-        title="Select Start Date"
-        onConfirm={(date) => setFormData({ ...formData, startDate: date })}
-        initialDate={formData.startDate}
-      />
+      <CalendarPickerModal visible={showStartDatePicker} title="Select Start Date" value={formData.startDate} colors={colors} onSelect={(ymd) => setFormData({ ...formData, startDate: ymd })} onClose={() => setShowStartDatePicker(false)} />
 
-      <DatePickerModal
-        visible={showEndDatePicker}
-        onClose={() => setShowEndDatePicker(false)}
-        title="Select End Date"
-        onConfirm={(date) => setFormData({ ...formData, endDate: date })}
-        initialDate={formData.endDate}
-      />
+      <CalendarPickerModal visible={showEndDatePicker} title="Select End Date" value={formData.endDate} colors={colors} onSelect={(ymd) => setFormData({ ...formData, endDate: ymd })} onClose={() => setShowEndDatePicker(false)} />
 
       <TimePickerModal
         visible={showStartTimePicker}
@@ -1006,6 +829,15 @@ export default function EditEventScreen() {
                 <Text style={[styles.modalOptionText, { color: !formData.venueOrganiserId ? colors.selectionText : colors.text }]}>None (no venue organiser)</Text>
                 {!formData.venueOrganiserId && <Text style={[styles.modalCheckmark, { color: colors.selectionText }]}>✓</Text>}
               </TouchableOpacity>
+              {membersLoading && <Text style={{ padding: 16, color: colors.textSecondary }}>Loading members...</Text>}
+              {membersError && (
+                <TouchableOpacity onPress={retryMembers} style={{ padding: 16 }} testID="button-retry-members">
+                  <Text style={{ color: colors.error || '#dc2626' }}>{membersError} Tap to retry.</Text>
+                </TouchableOpacity>
+              )}
+              {!membersLoading && !membersError && teamMembers.length === 0 && (
+                <Text style={{ padding: 16, color: colors.textSecondary }}>No members found for the selected teams.</Text>
+              )}
               {teamMembers.map((member) => {
                 const isSelected = formData.venueOrganiserId === member.id;
                 return (

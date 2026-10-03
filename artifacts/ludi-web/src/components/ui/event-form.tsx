@@ -25,6 +25,8 @@ import { isUnauthorizedError } from "@/lib/authUtils";
 import { SPORTS, type PlatformCharge, type Event, type Team } from "@workspace/db/schema";
 import type { TeamMember } from "@/types";
 import { calculateTotalAmount } from "@/lib/payment-utils";
+import { DatePicker, DateTimePicker } from "@/components/ui/date-picker";
+import { computeFlexibleDeadlines, hydrateOffsets, memberDisplayName, DEFAULT_OPENS, DEFAULT_COLLECT } from "@/lib/payment-deadlines";
 
 // Custom Time Input Component with auto-colon insertion
 function TimeInput({
@@ -106,6 +108,10 @@ const eventFormSchema = z.object({
   paymentDeadline: z.string().optional(),
   authorizationOpensAt: z.string().optional(),
   completionDueAt: z.string().optional(),
+  opensDays: z.string(),
+  opensHours: z.string(),
+  collectDays: z.string(),
+  collectHours: z.string(),
   venueOrganiserId: z.string().optional(),
   // Recurring events fields
   recurrenceType: z.enum(["none", "daily", "weekly", "monthly"]),
@@ -171,6 +177,10 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
       paymentDeadline: "",
       authorizationOpensAt: "",
       completionDueAt: "",
+      opensDays: DEFAULT_OPENS.days,
+      opensHours: DEFAULT_OPENS.hours,
+      collectDays: DEFAULT_COLLECT.days,
+      collectHours: DEFAULT_COLLECT.hours,
       venueOrganiserId: "",
       recurrenceType: "none",
       recurrenceDaysOfWeek: [],
@@ -181,11 +191,15 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
   const requiresPayment = form.watch("requiresPayment");
   const primaryTeamId = form.watch("primaryTeamId");
 
-  const { data: teamMembers = [] } = useQuery<TeamMember[]>({
+  const { data: teamMembers = [], isLoading: membersLoading, isError: membersError, refetch: refetchMembers } = useQuery<TeamMember[]>({
     queryKey: ["/api/teams", primaryTeamId, "members"],
     enabled: requiresPayment && !!primaryTeamId,
   });
 
+  const [wStartDate, wStartTime, wEndDate, wEndTime, wOD, wOH, wCD, wCH] = form.watch(["startDate", "startTime", "endDate", "endTime", "opensDays", "opensHours", "collectDays", "collectHours"]);
+  const flexPreview = wStartDate && wStartTime
+    ? computeFlexibleDeadlines({ startDate: wStartDate, startTime: wStartTime, endDate: wEndDate, endTime: wEndTime }, { opensDays: wOD, opensHours: wOH, collectDays: wCD, collectHours: wCH })
+    : null;
   const maxPlayerPayment = form.watch("maxPlayerPayment");
   const paymentCalculation = calculateTotalAmount(maxPlayerPayment || "0", platformCharges);
 
@@ -235,6 +249,10 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
         paymentDeadline: toLocalInput((event as any).paymentDeadlineAt),
         authorizationOpensAt: toLocalInput((event as any).authorizationOpensAt),
         completionDueAt: toLocalInput((event as any).completionDueAt),
+        opensDays: hydrateOffsets(event, (event as any).authorizationOpensAt, (event as any).completionDueAt).opens.days,
+        opensHours: hydrateOffsets(event, (event as any).authorizationOpensAt, (event as any).completionDueAt).opens.hours,
+        collectDays: hydrateOffsets(event, (event as any).authorizationOpensAt, (event as any).completionDueAt).collect.days,
+        collectHours: hydrateOffsets(event, (event as any).authorizationOpensAt, (event as any).completionDueAt).collect.hours,
         venueOrganiserId: event.venueOrganiserId || event.createdById || "",
         recurrenceType: event.recurrenceType || "none",
           recurrenceDaysOfWeek: event.recurrenceDaysOfWeek || [],
@@ -255,9 +273,13 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
       const {
         requiresPayment, maxPlayerPayment, finalVenueCost, paymentPolicy, fixedPrice,
         minimumPaidParticipants, paymentDeadline, authorizationOpensAt, completionDueAt,
+        opensDays, opensHours, collectDays, collectHours,
         maxParticipants, ...rest
       } = data;
       const isFixed = paymentPolicy === "fixed_immediate" || paymentPolicy === "fixed_threshold";
+      const flex = computeFlexibleDeadlines(data, { opensDays, opensHours, collectDays, collectHours });
+      const flexOpens = "opensAt" in flex ? flex.opensAt : null;
+      const flexDue = "completionDueAt" in flex ? flex.completionDueAt : null;
       const paymentFields: Record<string, unknown> = requiresPayment
         ? isFixed
           ? {
@@ -281,8 +303,8 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
               fixedPriceMinor: null,
               minimumPaidParticipants: null,
               paymentDeadlineAt: null,
-              authorizationOpensAt: fromLocalInput(authorizationOpensAt),
-              completionDueAt: fromLocalInput(completionDueAt),
+              authorizationOpensAt: flexOpens,
+              completionDueAt: flexDue,
             }
         : { paymentRequired: false, paymentPolicy: "none", fixedPriceMinor: null, minimumPaidParticipants: null, paymentDeadlineAt: null, authorizationOpensAt: null, completionDueAt: null };
       const processedData = {
@@ -359,11 +381,8 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
       const opens = data.authorizationOpensAt ? new Date(data.authorizationOpensAt) : null;
       if (mode === "flexible_post_event") {
         if (!(parseFloat(data.maxPlayerPayment || "0") > 0)) return void fail("Max player payment must be greater than 0");
-        if (data.completionDueAt) {
-          const due = new Date(data.completionDueAt);
-          if (due <= end) return void fail("Completion due must be after the event ends");
-          if (opens && due.getTime() - opens.getTime() > 5 * 86400000) return void fail("Completion due must be within 5 days of the authorization opening");
-        }
+        const r = computeFlexibleDeadlines(data, data);
+        if ("error" in r) return void fail(r.error);
       } else {
         const pence = poundsToPence(data.fixedPrice);
         if (!Number.isSafeInteger(pence) || pence <= 0) return void fail("Fixed price must be a positive amount in pounds");
@@ -517,10 +536,11 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="startDate">Start Date *</Label>
-                  <Input
+                  <DatePicker
                     id="startDate"
-                    type="date"
-                    {...form.register("startDate")}
+                    data-testid="input-start-date"
+                    value={form.watch("startDate")}
+                    onChange={(v) => form.setValue("startDate", v, { shouldValidate: true })}
                   />
                   {form.formState.errors.startDate && (
                     <p className="text-sm text-red-500 mt-1">
@@ -548,10 +568,11 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="endDate">End Date</Label>
-                  <Input
+                  <DatePicker
                     id="endDate"
-                    type="date"
-                    {...form.register("endDate")}
+                    data-testid="input-end-date"
+                    value={form.watch("endDate")}
+                    onChange={(v) => form.setValue("endDate", v)}
                   />
                 </div>
                 <div>
@@ -733,12 +754,12 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                 {form.watch("recurrenceType") !== "none" && (
                   <div className="space-y-2">
                     <Label htmlFor="recurrenceEndDate">Recurrence End Date (Optional)</Label>
-                    <Input
+                    <DatePicker
                       id="recurrenceEndDate"
-                      type="date"
+                      data-testid="input-recurrence-end-date"
                       value={form.watch("recurrenceEndDate")}
-                      onChange={(e) => form.setValue("recurrenceEndDate", e.target.value)}
-                      min={new Date().toISOString().split('T')[0]}
+                      onChange={(v) => form.setValue("recurrenceEndDate", v)}
+                      disabledBefore={new Date(new Date().setHours(0, 0, 0, 0))}
                     />
                   </div>
                 )}
@@ -810,23 +831,48 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                             <Label htmlFor="paymentDeadline" className="text-sm">
                               Payment deadline{form.watch("paymentPolicy") === "fixed_threshold" ? " *" : " (defaults to start)"}
                             </Label>
-                            <Input id="paymentDeadline" type="datetime-local" {...form.register("paymentDeadline")} className="bg-white" />
+                            <DateTimePicker id="paymentDeadline" value={form.watch("paymentDeadline")} onChange={(v) => form.setValue("paymentDeadline", v)} />
                           </div>
                           <div>
                             <Label htmlFor="authorizationOpensAt" className="text-sm">Payments open (optional)</Label>
-                            <Input id="authorizationOpensAt" type="datetime-local" {...form.register("authorizationOpensAt")} className="bg-white" />
+                            <DateTimePicker id="authorizationOpensAt" value={form.watch("authorizationOpensAt")} onChange={(v) => form.setValue("authorizationOpensAt", v)} />
                           </div>
                         </div>
                       ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <Label htmlFor="authorizationOpensAt" className="text-sm">Authorization opens (default 48h before)</Label>
-                          <Input id="authorizationOpensAt" type="datetime-local" {...form.register("authorizationOpensAt")} className="bg-white" />
+                          <Label className="text-sm">Authorisation opens before event start</Label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="flex items-center gap-2">
+                              <Input type="number" min="0" step="1" className="bg-white" data-testid="input-opens-days" {...form.register("opensDays")} />
+                              <span className="text-xs text-blue-600">days</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Input type="number" min="0" max="23" step="1" className="bg-white" data-testid="input-opens-hours" {...form.register("opensHours")} />
+                              <span className="text-xs text-blue-600">hours</span>
+                            </div>
+                          </div>
+                          <p className="text-xs text-blue-600 mt-1">Default 2 days, 0 hours before start.</p>
                         </div>
                         <div>
-                          <Label htmlFor="completionDueAt" className="text-sm">Collect by (default end + 24h)</Label>
-                          <Input id="completionDueAt" type="datetime-local" {...form.register("completionDueAt")} className="bg-white" />
+                          <Label className="text-sm">Collect by, after event end</Label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="flex items-center gap-2">
+                              <Input type="number" min="0" step="1" className="bg-white" data-testid="input-collect-days" {...form.register("collectDays")} />
+                              <span className="text-xs text-blue-600">days</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Input type="number" min="0" max="23" step="1" className="bg-white" data-testid="input-collect-hours" {...form.register("collectHours")} />
+                              <span className="text-xs text-blue-600">hours</span>
+                            </div>
+                          </div>
+                          <p className="text-xs text-blue-600 mt-1">Default 1 day, 0 hours after end. Total window up to 5 days.</p>
                         </div>
+                        {flexPreview && (
+                          <p className="text-xs text-blue-700 md:col-span-2" data-testid="text-flex-preview">
+                            {"error" in flexPreview ? flexPreview.error : `Opens ${new Date(flexPreview.opensAt).toUTCString()}; collect by ${new Date(flexPreview.completionDueAt).toUTCString()}`}
+                          </p>
+                        )}
                         <div>
                           <Label htmlFor="finalVenueCost" className="text-sm">Final venue cost (GBP, optional)</Label>
                           <Input id="finalVenueCost" type="number" min="0" step="0.01" {...form.register("finalVenueCost")} className="bg-white" />
@@ -888,9 +934,19 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                             <SelectValue placeholder="Select organiser" />
                           </SelectTrigger>
                           <SelectContent>
+                            {membersLoading && <div className="px-2 py-1.5 text-sm text-gray-500" data-testid="status-members-loading">Loading members...</div>}
+                            {membersError && (
+                              <div className="px-2 py-1.5 text-sm text-red-600">
+                                Could not load members.{" "}
+                                <button type="button" className="underline" onClick={() => refetchMembers()}>Retry</button>
+                              </div>
+                            )}
+                            {!membersLoading && !membersError && teamMembers.length === 0 && (
+                              <div className="px-2 py-1.5 text-sm text-gray-500">No members found for this team.</div>
+                            )}
                             {teamMembers.map(member => (
                               <SelectItem key={member.userId} value={member.userId}>
-                                {member.user.firstName} {member.user.lastName}
+                                {memberDisplayName(member.user ?? { id: member.userId }, (user as any)?.id)}
                               </SelectItem>
                             ))}
                           </SelectContent>

@@ -17,7 +17,9 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 import { calculateTotalAmount } from '../lib/paymentUtils';
 import PaymentPolicyFields from '../components/PaymentPolicyFields';
-import { defaultPolicyFields, validatePolicy, buildPolicyPayload, parseLocalText } from '../lib/paymentPolicy';
+import CalendarPickerModal from '../components/CalendarPickerModal';
+import useSelectedTeamMembers from '../hooks/useSelectedTeamMembers';
+import { defaultPolicyFields, validatePolicy, buildPolicyPayload, parseLocalText, eventWindow } from '../lib/paymentPolicy';
 
 // Helper functions for date/time
 const formatDateForDisplay = (dateStr) => {
@@ -133,7 +135,7 @@ const DAYS_OF_WEEK = [
 
 export default function CreateEventScreen() {
   const navigation = useNavigation();
-  const { apiRequest } = useAuth();
+  const { apiRequest, user: authUser } = useAuth();
   const { colors, isDark } = useTheme();
   const styles = createStyles(colors, isDark);
   const [loading, setLoading] = useState(false);
@@ -196,7 +198,6 @@ export default function CreateEventScreen() {
 
   const [platformCharges, setPlatformCharges] = useState([]);
   const [tempSecondaryTeamIds, setTempSecondaryTeamIds] = useState([]);
-  const [teamMembers, setTeamMembers] = useState([]);
   const [showVenueOrganiserPicker, setShowVenueOrganiserPicker] = useState(false);
 
   useEffect(() => {
@@ -204,48 +205,8 @@ export default function CreateEventScreen() {
     fetchPlatformCharges();
   }, []);
 
-  useEffect(() => {
-    // Fetch members from all selected teams (primary + secondary)
-    const allTeamIds = [formData.teamId, ...formData.secondaryTeamIds].filter(Boolean);
-    if (allTeamIds.length > 0) {
-      fetchAllTeamMembers(allTeamIds);
-    } else {
-      setTeamMembers([]);
-    }
-  }, [formData.teamId, formData.secondaryTeamIds]);
-
-  const fetchAllTeamMembers = async (teamIds) => {
-    try {
-      const allMembers = [];
-      const seenUserIds = new Set();
-      
-      for (const teamId of teamIds) {
-        const response = await apiRequest(`/api/teams/${teamId}`);
-        if (response.ok) {
-          const team = await response.json();
-          if (team.members) {
-            for (const m of team.members) {
-              // Avoid duplicates if user is in multiple teams
-              if (!seenUserIds.has(m.userId)) {
-                seenUserIds.add(m.userId);
-                allMembers.push({
-                  id: m.userId,
-                  name: m.user?.firstName && m.user?.lastName 
-                    ? `${m.user.firstName} ${m.user.lastName}` 
-                    : m.user?.username || 'Unknown',
-                  username: m.user?.username || '',
-                });
-              }
-            }
-          }
-        }
-      }
-      console.log('[CreateEvent] Fetched team members:', allMembers.length);
-      setTeamMembers(allMembers);
-    } catch (error) {
-      console.error('Failed to fetch team members:', error);
-    }
-  };
+  const { members: teamMembers, loading: membersLoading, error: membersError, retry: retryMembers } = useSelectedTeamMembers(
+    apiRequest, [formData.teamId, ...formData.secondaryTeamIds], authUser?.id);
 
   // Auto-scroll start time picker when it opens
   useEffect(() => {
@@ -391,8 +352,7 @@ export default function CreateEventScreen() {
     }
 
     {
-      const st = new Date(`${formData.startDate}T${formData.startTime}`);
-      const en = new Date(`${formData.endDate || formData.startDate}T${formData.endTime || formData.startTime}`);
+      const { start: st, end: en } = eventWindow(formData);
       const policyError = validatePolicy(formData, st, en);
       if (policyError) {
         Alert.alert('Payment Settings', policyError);
@@ -433,7 +393,7 @@ export default function CreateEventScreen() {
         recurrenceEndDate: formData.recurrenceEndDate || undefined,
         recurrenceDaysOfWeek: formData.recurrenceDaysOfWeek,
         isPublished: formData.isPublished,
-        ...buildPolicyPayload(formData),
+        ...buildPolicyPayload(formData, ...Object.values(eventWindow(formData))),
         venueOrganiserId: formData.paymentRequired && formData.venueOrganiserId ? formData.venueOrganiserId : undefined,
       };
 
@@ -956,6 +916,15 @@ export default function CreateEventScreen() {
               {teamMembers.length === 0 && (
                 <Text style={[styles.emptyState, { color: colors.textSecondary }]}>No team members available</Text>
               )}
+              {membersLoading && <Text style={{ padding: 16, color: colors.textSecondary }}>Loading members...</Text>}
+              {membersError && (
+                <TouchableOpacity onPress={retryMembers} style={{ padding: 16 }} testID="button-retry-members">
+                  <Text style={{ color: colors.error || '#dc2626' }}>{membersError} Tap to retry.</Text>
+                </TouchableOpacity>
+              )}
+              {!membersLoading && !membersError && teamMembers.length === 0 && (
+                <Text style={{ padding: 16, color: colors.textSecondary }}>No members found for the selected teams.</Text>
+              )}
               {teamMembers.map((member) => {
                 const isSelected = formData.venueOrganiserId === member.id;
                 return (
@@ -1039,85 +1008,14 @@ export default function CreateEventScreen() {
       </Modal>
 
       {/* Start Date Picker Modal */}
-      <Modal
+      <CalendarPickerModal
         visible={showStartDatePicker}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowStartDatePicker(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.datePickerContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Start Date</Text>
-              <TouchableOpacity onPress={() => setShowStartDatePicker(false)}>
-                <Text style={styles.modalClose}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.datePickerRow}>
-              <View style={styles.datePickerColumn}>
-                <Text style={styles.datePickerLabel}>Year</Text>
-                <ScrollView style={styles.datePickerScroll}>
-                  {generateYears().map((year) => (
-                    <TouchableOpacity
-                      key={year}
-                      style={[styles.datePickerItem, tempDate.year === year && styles.datePickerItemSelected]}
-                      onPress={() => setTempDate({ ...tempDate, year })}
-                    >
-                      <Text style={[styles.datePickerItemText, tempDate.year === year && styles.datePickerItemTextSelected]}>
-                        {year}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-              <View style={styles.datePickerColumn}>
-                <Text style={styles.datePickerLabel}>Month</Text>
-                <ScrollView style={styles.datePickerScroll}>
-                  {MONTHS.map((month) => (
-                    <TouchableOpacity
-                      key={month.value}
-                      style={[styles.datePickerItem, tempDate.month === month.value && styles.datePickerItemSelected]}
-                      onPress={() => setTempDate({ ...tempDate, month: month.value, day: Math.min(tempDate.day, generateDays(tempDate.year, month.value).length) })}
-                    >
-                      <Text style={[styles.datePickerItemText, tempDate.month === month.value && styles.datePickerItemTextSelected]}>
-                        {month.label.substring(0, 3)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-              <View style={styles.datePickerColumn}>
-                <Text style={styles.datePickerLabel}>Day</Text>
-                <ScrollView style={styles.datePickerScroll}>
-                  {generateDays(tempDate.year, tempDate.month).map((day) => (
-                    <TouchableOpacity
-                      key={day}
-                      style={[styles.datePickerItem, tempDate.day === day && styles.datePickerItemSelected]}
-                      onPress={() => setTempDate({ ...tempDate, day })}
-                    >
-                      <Text style={[styles.datePickerItemText, tempDate.day === day && styles.datePickerItemTextSelected]}>
-                        {day}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            </View>
-            <View style={styles.modalFooter}>
-              <TouchableOpacity
-                style={styles.modalConfirmButton}
-                onPress={() => {
-                  const dateStr = `${tempDate.year}-${String(tempDate.month).padStart(2, '0')}-${String(tempDate.day).padStart(2, '0')}`;
-                  setFormData({ ...formData, startDate: dateStr, endDate: dateStr });
-                  setShowStartDatePicker(false);
-                }}
-              >
-                <Text style={styles.modalConfirmButtonText}>Confirm</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+        title="Select Start Date"
+        value={formData.startDate}
+        colors={colors}
+        onSelect={(ymd) => setFormData({ ...formData, startDate: ymd, endDate: ymd })}
+        onClose={() => setShowStartDatePicker(false)}
+      />
 
       {/* Start Time Picker Modal */}
       <Modal
@@ -1250,94 +1148,16 @@ export default function CreateEventScreen() {
       </Modal>
 
       {/* Recurrence End Date Picker Modal */}
-      <Modal
+      <CalendarPickerModal
         visible={showRecurrenceEndDatePicker}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowRecurrenceEndDatePicker(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.datePickerContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Recurrence End Date</Text>
-              <TouchableOpacity onPress={() => setShowRecurrenceEndDatePicker(false)}>
-                <Text style={styles.modalClose}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.datePickerRow}>
-              <View style={styles.datePickerColumn}>
-                <Text style={styles.datePickerLabel}>Year</Text>
-                <ScrollView style={styles.datePickerScroll}>
-                  {generateYears().map((year) => (
-                    <TouchableOpacity
-                      key={year}
-                      style={[styles.datePickerItem, tempDate.year === year && styles.datePickerItemSelected]}
-                      onPress={() => setTempDate({ ...tempDate, year })}
-                    >
-                      <Text style={[styles.datePickerItemText, tempDate.year === year && styles.datePickerItemTextSelected]}>
-                        {year}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-              <View style={styles.datePickerColumn}>
-                <Text style={styles.datePickerLabel}>Month</Text>
-                <ScrollView style={styles.datePickerScroll}>
-                  {MONTHS.map((month) => (
-                    <TouchableOpacity
-                      key={month.value}
-                      style={[styles.datePickerItem, tempDate.month === month.value && styles.datePickerItemSelected]}
-                      onPress={() => setTempDate({ ...tempDate, month: month.value, day: Math.min(tempDate.day, generateDays(tempDate.year, month.value).length) })}
-                    >
-                      <Text style={[styles.datePickerItemText, tempDate.month === month.value && styles.datePickerItemTextSelected]}>
-                        {month.label.substring(0, 3)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-              <View style={styles.datePickerColumn}>
-                <Text style={styles.datePickerLabel}>Day</Text>
-                <ScrollView style={styles.datePickerScroll}>
-                  {generateDays(tempDate.year, tempDate.month).map((day) => (
-                    <TouchableOpacity
-                      key={day}
-                      style={[styles.datePickerItem, tempDate.day === day && styles.datePickerItemSelected]}
-                      onPress={() => setTempDate({ ...tempDate, day })}
-                    >
-                      <Text style={[styles.datePickerItemText, tempDate.day === day && styles.datePickerItemTextSelected]}>
-                        {day}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            </View>
-            <View style={styles.datePickerButtons}>
-              <TouchableOpacity
-                style={styles.clearDateButton}
-                onPress={() => {
-                  setFormData({ ...formData, recurrenceEndDate: '' });
-                  setShowRecurrenceEndDatePicker(false);
-                }}
-              >
-                <Text style={styles.clearDateButtonText}>Clear (No End Date)</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalConfirmButton}
-                onPress={() => {
-                  const dateStr = `${tempDate.year}-${String(tempDate.month).padStart(2, '0')}-${String(tempDate.day).padStart(2, '0')}`;
-                  setFormData({ ...formData, recurrenceEndDate: dateStr });
-                  setShowRecurrenceEndDatePicker(false);
-                }}
-              >
-                <Text style={styles.modalConfirmButtonText}>Confirm</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+        title="Recurrence End Date"
+        value={formData.recurrenceEndDate}
+        minDate={formData.startDate}
+        colors={colors}
+        onSelect={(ymd) => setFormData({ ...formData, recurrenceEndDate: ymd })}
+        onClear={() => setFormData({ ...formData, recurrenceEndDate: '' })}
+        onClose={() => setShowRecurrenceEndDatePicker(false)}
+      />
 
       <Modal
         visible={showSecondaryTeamPicker}

@@ -27,38 +27,91 @@ export const parseLocalText = (t) => {
   if (!t || !t.trim()) return null;
   const m = t.trim().match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2})$/);
   if (!m) return undefined;
+  if (+m[4] > 23 || +m[5] > 59 || +m[2] < 1 || +m[2] > 12 || +m[3] < 1 || +m[3] > 31) return undefined;
   const d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
-  return isNaN(d.getTime()) ? undefined : d;
+  return isNaN(d.getTime()) || d.getFullYear() !== +m[1] || d.getMonth() !== +m[2] - 1
+    || d.getDate() !== +m[3] || d.getHours() !== +m[4] || d.getMinutes() !== +m[5]
+    ? undefined : d;
 };
 
-export const policyFieldsFromEvent = (event) => ({
-  paymentPolicy: effectivePolicy(event),
-  fixedPrice: event?.fixedPriceMinor != null ? (event.fixedPriceMinor / 100).toFixed(2) : '',
-  minimumPaidParticipants: event?.minimumPaidParticipants != null ? String(event.minimumPaidParticipants) : '',
-  paymentDeadlineText: toLocalText(event?.paymentDeadlineAt),
-  authorizationOpensText: toLocalText(event?.authorizationOpensAt),
-  completionDueText: toLocalText(event?.completionDueAt),
+const DAY = 86400000;
+const HOUR = 3600000;
+const withSeconds = (t) => (/^\d{1,2}:\d{2}$/.test(t) ? `${t.padStart(5, '0')}:00` : t);
+
+// Server convention: event times are UTC instants.
+export const eventStartUtc = (startDate, startTime) => {
+  if (!startDate || !startTime) return null;
+  const d = new Date(`${startDate}T${withSeconds(startTime)}Z`);
+  return isNaN(d.getTime()) ? null : d;
+};
+export const eventEndUtc = (startDate, endDate, endTime) => {
+  const date = endDate || startDate;
+  if (!date) return null;
+  const d = new Date(`${date}T${endTime ? withSeconds(endTime) : '23:59:59'}Z`);
+  return isNaN(d.getTime()) ? null : d;
+};
+export const eventWindow = (f) => ({
+  start: eventStartUtc(f?.startDate, f?.startTime),
+  end: eventEndUtc(f?.startDate, f?.endDate, f?.endTime),
 });
+
+const msToOffset = (ms) => {
+  const m = Math.max(0, Math.round(ms / HOUR) * HOUR);
+  return { days: String(Math.floor(m / DAY)), hours: String(Math.floor((m % DAY) / HOUR)) };
+};
+
+export const policyFieldsFromEvent = (event) => {
+  const { start, end } = eventWindow(event);
+  const o = event?.authorizationOpensAt ? new Date(event.authorizationOpensAt) : null;
+  const c = event?.completionDueAt ? new Date(event.completionDueAt) : null;
+  const opens = start && o && !isNaN(o) ? msToOffset(start - o) : { days: '2', hours: '0' };
+  const collect = end && c && !isNaN(c) ? msToOffset(c - end) : { days: '1', hours: '0' };
+  return {
+    paymentPolicy: effectivePolicy(event),
+    fixedPrice: event?.fixedPriceMinor != null ? (event.fixedPriceMinor / 100).toFixed(2) : '',
+    minimumPaidParticipants: event?.minimumPaidParticipants != null ? String(event.minimumPaidParticipants) : '',
+    paymentDeadlineText: toLocalText(event?.paymentDeadlineAt),
+    authorizationOpensText: toLocalText(event?.authorizationOpensAt),
+    opensDays: opens.days, opensHours: opens.hours,
+    collectDays: collect.days, collectHours: collect.hours,
+  };
+};
 
 export const defaultPolicyFields = policyFieldsFromEvent(null);
 
 const pence = (v) => Math.round(parseFloat(v || '0') * 100);
+const unit = (v, max) => {
+  if (!/^\d+$/.test(String(v ?? '').trim())) return null;
+  const n = Number(v);
+  return max !== undefined && n > max ? null : n;
+};
 
-// Returns an error string or null
+// Returns { error } or { opensAt: Date, dueAt: Date }
+export const computeFlexibleDeadlines = (f, start, end) => {
+  const od = unit(f.opensDays), oh = unit(f.opensHours, 23);
+  const cd = unit(f.collectDays), ch = unit(f.collectHours, 23);
+  if (od === null || cd === null) return { error: 'Days must be whole numbers of 0 or more' };
+  if (oh === null || ch === null) return { error: 'Hours must be whole numbers from 0 to 23' };
+  if (!start || !end) return { error: 'Set the event start date and time first' };
+  if (end < start) return { error: 'Event end must be on or after its start' };
+  const before = od * DAY + oh * HOUR;
+  const after = cd * DAY + ch * HOUR;
+  if (after <= 0) return { error: 'Collect by must be at least 1 hour after the event ends' };
+  if (before + (end - start) + after > 5 * DAY) return { error: 'Authorisation opening to collection (including event duration) cannot exceed 5 days' };
+  return { opensAt: new Date(start.getTime() - before), dueAt: new Date(end.getTime() + after) };
+};
+
+// Returns an error string or null. eventStart/eventEnd are UTC Dates.
 export const validatePolicy = (f, eventStart, eventEnd) => {
   if (!f.paymentRequired) return null;
-  const opens = parseLocalText(f.authorizationOpensText);
-  const deadline = parseLocalText(f.paymentDeadlineText);
-  const due = parseLocalText(f.completionDueText);
-  if (opens === undefined || deadline === undefined || due === undefined) return 'Use the format YYYY-MM-DD HH:MM for payment dates';
   if (f.paymentPolicy === 'flexible_post_event') {
     if (!(parseFloat(f.maxPlayerPayment) > 0)) return 'Max player payment must be greater than 0';
-    if (due) {
-      if (eventEnd && due <= eventEnd) return 'Collect-by time must be after the event ends';
-      if (opens && due.getTime() - opens.getTime() > 5 * 86400000) return 'Collect-by time must be within 5 days of authorisation opening';
-    }
-    return null;
+    const r = computeFlexibleDeadlines(f, eventStart, eventEnd);
+    return r.error || null;
   }
+  const opens = parseLocalText(f.authorizationOpensText);
+  const deadline = parseLocalText(f.paymentDeadlineText);
+  if (opens === undefined || deadline === undefined) return 'Choose a date and a time (HH:MM) for payment dates';
   const p = pence(f.fixedPrice);
   if (!Number.isSafeInteger(p) || p <= 0) return 'Fixed price must be a positive amount in pounds';
   if (f.paymentPolicy === 'fixed_threshold') {
@@ -72,7 +125,7 @@ export const validatePolicy = (f, eventStart, eventEnd) => {
   return null;
 };
 
-export const buildPolicyPayload = (f) => {
+export const buildPolicyPayload = (f, eventStart, eventEnd) => {
   if (!f.paymentRequired) {
     return {
       paymentRequired: false, paymentPolicy: 'none', fixedPriceMinor: null, minimumPaidParticipants: null,
@@ -90,10 +143,12 @@ export const buildPolicyPayload = (f) => {
       completionDueAt: null, finalVenueCost: null,
     };
   }
+  const r = computeFlexibleDeadlines(f, eventStart, eventEnd);
   return {
     paymentRequired: true, paymentPolicy: 'flexible_post_event', currency: 'gbp',
     maxPlayerPayment: f.maxPlayerPayment, finalVenueCost: f.finalVenueCost || null,
     fixedPriceMinor: null, minimumPaidParticipants: null, paymentDeadlineAt: null,
-    authorizationOpensAt: iso(f.authorizationOpensText), completionDueAt: iso(f.completionDueText),
+    authorizationOpensAt: r.opensAt ? r.opensAt.toISOString() : null,
+    completionDueAt: r.dueAt ? r.dueAt.toISOString() : null,
   };
 };
