@@ -14,3 +14,4 @@
 - [Published webhook verification](published-webhook-verification.md) — saved secret existence is not runtime proof; verify signed delivery and review other changes before republishing.
 - [Production SQL console](production-sql-console.md) — the console manages transactions; preserve rollback safety when adapting manual reset scripts.
 - [Event input conventions](event-input-conventions.md) — use calendars except for birth dates, and separate days/hours for relative flexible-payment deadlines.
+- [Notification direction](notification-direction.md) — direct APNs delivery; SuperAdmin is the intended platform-level manager for notifications and eventually fees.
