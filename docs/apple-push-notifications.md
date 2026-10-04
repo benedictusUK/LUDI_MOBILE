@@ -22,11 +22,16 @@ Expo hosted push-delivery service. Existing in-app notifications remain availabl
    tooling, never a public registration form:
 
    ```sh
-   pnpm --filter @workspace/db run superadmin -- grant account@example.com
+   pnpm --filter @workspace/db run superadmin grant account@example.com
    ```
 
-   Revoke access with the same command using `revoke`. The command must match
-   exactly one existing account. It does not change team organiser permissions.
+   This operator command targets the current database connection (development
+   when run in the workspace), not automatically the published database. Revoke
+   access with the same command using `revoke`. The command must match exactly
+   one existing account. It does not change team organiser permissions. An
+   account may exist in production only; do not create a duplicate preview
+   profile to work around this. Publish the new schema first, then provision the
+   existing production account through the production SQL console.
 6. On the web, open **SuperAdmin → Notifications**. Send a test to your own
    opted-in iPhone. Check the notification with LUDI backgrounded/closed and tap
    it to verify navigation. `accepted` means Apple accepted the request, not that
@@ -76,9 +81,18 @@ trigger enablement. Reminder dispatch also checks current attendance, event star
 and outstanding-payment state. Invalid Apple tokens disable their registration.
 Secrets and device tokens are excluded from the SuperAdmin delivery response.
 
-The existing migration runner is in both development and published API startup.
-Do not edit already-applied migration SQL; create an additive migration instead.
-Publishing remains a separate user action.
+The migration runner applies development changes. Replit's managed production
+schema changes belong to the Publish flow, not application startup. Preserve
+existing production data when publishing; never overwrite it with development
+fixtures. Do not edit already-applied migration SQL; create an additive migration
+instead. Publishing remains a separate user action.
+
+Production verification must also confirm the notification-outbox and
+payment-transition database triggers exist; passing development checks alone
+does not establish that these PostgreSQL functions/triggers reached production.
+Scheduled reminders need an always-running API/worker. An idle autoscale
+deployment does not guarantee on-time background scheduling; keep reminders
+disabled until that operational requirement is met.
 
 ## Verification
 

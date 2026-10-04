@@ -13,5 +13,6 @@
 - [Stripe card test coverage](stripe-card-test-coverage.md) — mocked authentication is not provider proof; card-attachment declines and saved-card checkout declines are different flows.
 - [Published webhook verification](published-webhook-verification.md) — saved secret existence is not runtime proof; verify signed delivery and review other changes before republishing.
 - [Production SQL console](production-sql-console.md) — the console manages transactions; preserve rollback safety when adapting manual reset scripts.
+- [Production account isolation](production-account-isolation.md) — live accounts can be absent from preview; managed production schema changes belong to Publish, not startup.
 - [Event input conventions](event-input-conventions.md) — use calendars except for birth dates, and separate days/hours for relative flexible-payment deadlines.
 - [Notification direction](notification-direction.md) — direct APNs delivery; SuperAdmin is the intended platform-level manager for notifications and eventually fees.

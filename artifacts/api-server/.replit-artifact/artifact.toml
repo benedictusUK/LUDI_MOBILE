@@ -21,8 +21,8 @@ args = ["pnpm", "--filter", "@workspace/api-server", "run", "build"]
 NODE_ENV = "production"
 
 [services.production.run]
-# Keep additive migrations in the published startup path as well as development.
-args = ["pnpm", "--filter", "@workspace/api-server", "run", "start"]
+# Managed production schema changes are applied by Replit's Publish flow.
+args = ["node", "--enable-source-maps", "artifacts/api-server/dist/index.mjs"]
 
 [services.production.run.env]
 PORT = "8080"
