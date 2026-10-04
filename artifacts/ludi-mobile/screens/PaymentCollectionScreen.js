@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { calculateTotalAmount } from '../lib/paymentUtils';
+import UpfrontSettlement from '../components/UpfrontSettlement';
 
 export default function PaymentCollectionScreen() {
   const route = useRoute();
@@ -15,6 +16,7 @@ export default function PaymentCollectionScreen() {
   const { eventId, eventName, eventCost, eventCreatorId, maxPlayerPayment, venueOrganiserId, finalVenueCost } = route.params || {};
   
   const [loading, setLoading] = useState(true);
+  const [currentEvent, setCurrentEvent] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [venueCost, setVenueCost] = useState(finalVenueCost || eventCost || '0');
   const [selectedAttendees, setSelectedAttendees] = useState([]);
@@ -32,11 +34,14 @@ export default function PaymentCollectionScreen() {
     try {
       setLoading(true);
 
-      const [membersRes, attendanceRes, chargesRes] = await Promise.all([
+      const [membersRes, attendanceRes, chargesRes, eventRes] = await Promise.all([
         apiRequest(`/api/events/${eventId}/team-members`),
         apiRequest(`/api/events/${eventId}/attendance`),
         apiRequest('/api/platform-charges'),
+        apiRequest(`/api/events/${eventId}`),
       ]);
+      if (!eventRes.ok) throw new Error('Could not load event payment terms');
+      setCurrentEvent(await eventRes.json());
 
       if (membersRes.ok) {
         const members = await membersRes.json();
@@ -161,6 +166,11 @@ export default function PaymentCollectionScreen() {
     return 0;
   });
 
+  if (!loading && currentEvent?.feeConfiguration) return <UpfrontSettlement event={currentEvent} attendance={attendance} onBack={() => navigation.goBack()} />;
+  if (!loading && !currentEvent) return <View style={{ flex: 1, padding: 24, backgroundColor: colors.background }}>
+    <Text style={{ color: colors.text }}>Payment terms could not be loaded.</Text>
+    <TouchableOpacity onPress={loadData}><Text style={{ color: colors.primary }}>Retry</Text></TouchableOpacity>
+  </View>;
   if (loading) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>

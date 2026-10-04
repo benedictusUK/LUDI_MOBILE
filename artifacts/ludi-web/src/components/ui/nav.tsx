@@ -141,6 +141,11 @@ export default function Navigation() {
                         <Link href="/superadmin/notifications" data-testid="link-superadmin-notifications">SuperAdmin notifications</Link>
                       </DropdownMenuItem>
                     )}
+                    {isSuperAdmin && (
+                      <DropdownMenuItem asChild>
+                        <Link href="/superadmin/fees" data-testid="link-superadmin-fees">SuperAdmin fees</Link>
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem onClick={handleLogout}>
                       <i className="fas fa-sign-out-alt mr-2"></i>
                       Sign out
@@ -254,6 +259,16 @@ export default function Navigation() {
                 data-testid="link-superadmin-notifications-mobile"
               >
                 SuperAdmin notifications
+              </Link>
+            )}
+            {isSuperAdmin && (
+              <Link
+                href="/superadmin/fees"
+                className="block px-3 py-2 rounded-md text-base font-medium text-neutral-500 hover:text-neutral-900 hover:bg-gray-50"
+                onClick={() => setIsMobileMenuOpen(false)}
+                data-testid="link-superadmin-fees-mobile"
+              >
+                SuperAdmin fees
               </Link>
             )}
             {/* User Profile Section */}

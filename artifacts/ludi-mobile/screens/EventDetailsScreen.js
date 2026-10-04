@@ -434,11 +434,11 @@ export default function EventDetailsScreen() {
         // Redirect to payment authorisation screen
         Alert.alert(
           'Payment Required',
-          'This event requires payment authorisation before you can confirm attendance.',
+          event.feeConfiguration ? 'Pay the event price including fees now to confirm attendance.' : 'This event requires payment authorisation before you can confirm attendance.',
           [
             { text: 'Cancel', style: 'cancel' },
             { 
-              text: 'Authorise Payment', 
+              text: event.feeConfiguration ? 'Pay Now' : 'Authorise Payment',
               onPress: () => navigation.navigate('PaymentAuthorization', {
                 eventId: id,
                 eventName: event.name,
@@ -721,7 +721,8 @@ export default function EventDetailsScreen() {
                 {policySummary(
                   effectivePolicy(quote || event),
                   quote?.amountMinor != null ? quote.amountMinor / 100 : event.maxPlayerPayment,
-                  quote?.minimumPaidParticipants ?? event.minimumPaidParticipants
+                  quote?.minimumPaidParticipants ?? event.minimumPaidParticipants,
+                  !!event.feeConfiguration
                 )}
               </Text>
             )}
@@ -773,7 +774,7 @@ export default function EventDetailsScreen() {
                 data-testid="button-authorize-payment"
               >
                 <Ionicons name="card" size={20} color="#fff" />
-                <Text style={styles.authorizeButtonText}>Authorise Payment</Text>
+                <Text style={styles.authorizeButtonText}>{event.feeConfiguration ? 'Pay Now' : 'Authorise Payment'}</Text>
               </TouchableOpacity>
             ) : !event.paymentRequired && event.cost > 0 ? (
               <TouchableOpacity 
@@ -799,7 +800,7 @@ export default function EventDetailsScreen() {
                 data-testid="button-collect-payments"
               >
                 <Ionicons name="cash" size={20} color="#fff" />
-                <Text style={styles.collectPaymentsText}>Collect Payments</Text>
+                <Text style={styles.collectPaymentsText}>{event.feeConfiguration ? 'Finalise cost and refunds' : 'Collect Payments'}</Text>
               </TouchableOpacity>
             )}
           </View>

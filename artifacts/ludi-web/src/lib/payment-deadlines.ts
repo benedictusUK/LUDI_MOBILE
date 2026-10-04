@@ -62,8 +62,6 @@ export function computeFlexibleDeadlines(
   const before = od * DAY + oh * HOUR;
   const after = cd * DAY + ch * HOUR;
   if (after <= 0) return { error: "Collect by must be at least 1 hour after the event ends" };
-  if (before + (+end - +start) + after > MAX_SPAN_MS)
-    return { error: "Authorisation opening to collection (including event duration) cannot exceed 5 days" };
   return { opensAt: new Date(+start - before).toISOString(), completionDueAt: new Date(+end + after).toISOString() };
 }
 

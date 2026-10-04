@@ -24,7 +24,8 @@ export default function PaymentAuthorizationScreen() {
   const [quote, setQuote] = useState(null);
   const [quoteError, setQuoteError] = useState(false);
   const policy = quote?.paymentPolicy && quote.paymentPolicy !== 'none' ? quote.paymentPolicy : 'flexible_post_event';
-  const isFixed = !!quote?.isRecovery || policy === 'fixed_immediate' || policy === 'fixed_threshold';
+  const isUpfront = quote?.paymentFlow === 'upfront_refund';
+  const isFixed = isUpfront || !!quote?.isRecovery || policy === 'fixed_immediate' || policy === 'fixed_threshold';
   const displayAmount = quote?.amountMinor != null ? quote.amountMinor / 100 : parseFloat(maxPlayerPayment || 0);
   const blocked = quote ? quote.canPay === false : false;
 
@@ -249,7 +250,7 @@ export default function PaymentAuthorizationScreen() {
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>
-          {isFromNotification ? 'Complete Payment' : 'Authorise Payment'}
+          {isFromNotification || isFixed ? 'Complete Payment' : 'Authorise Payment'}
         </Text>
         <View style={{ width: 24 }} />
       </View>
@@ -291,7 +292,9 @@ export default function PaymentAuthorizationScreen() {
               {isFromNotification 
                 ? 'This payment confirms your attendance for the event.'
                 : isFixed
-                  ? (policy === 'fixed_threshold'
+                  ? (isUpfront
+                    ? 'You pay the maximum venue share plus fees now. After the final cost is confirmed, the unused venue share is refunded. Both fee amounts stay fixed from the maximum.'
+                    : policy === 'fixed_threshold'
                     ? `Fees are included in the price. If fewer than ${quote?.minimumPaidParticipants ?? 'the minimum'} people have paid by the deadline, you are refunded in full.`
                     : 'Fees are included in the price. You can withdraw for a full refund before the deadline.')
                   : "We'll authorise up to this cap. You are charged the actual cost after the event."}
@@ -299,6 +302,14 @@ export default function PaymentAuthorizationScreen() {
           </View>
         </View>
 
+        {!!quote?.feesFrozen && (
+          <View style={{ marginBottom: 16 }} testID="payment-fee-breakdown">
+            <Text style={{ color: colors.text }}>{isUpfront ? 'Maximum venue share' : 'Event cost'}: £{((quote.baseAmountMinor || 0) / 100).toFixed(2)}</Text>
+            <Text style={{ color: colors.text }}>Platform charge: £{((quote.platformFeeMinor || 0) / 100).toFixed(2)}</Text>
+            <Text style={{ color: colors.text }}>Processing charge: £{((quote.processingFeeMinor || 0) / 100).toFixed(2)}</Text>
+            <Text style={{ color: colors.text, fontWeight: '700' }}>Pay now: £{displayAmount.toFixed(2)}</Text>
+          </View>
+        )}
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Choose payment method</Text>
 
         {paymentMethods.map((method) => (
@@ -401,7 +412,7 @@ export default function PaymentAuthorizationScreen() {
             <>
               <Ionicons name="card" size={20} color="#fff" />
               <Text style={styles.authorizeButtonText}>
-                {isFromNotification ? 'Pay Now' : 'Authorise Payment'}
+                {isFromNotification || isFixed ? 'Pay Now' : 'Authorise Payment'}
               </Text>
             </>
           )}

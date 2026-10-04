@@ -57,7 +57,8 @@ export default function PaymentAuthorizationModal({
     refetchInterval: isOpen ? 30_000 : false,
   });
   const policy: string = quote?.paymentPolicy && quote.paymentPolicy !== "none" ? quote.paymentPolicy : "flexible_post_event";
-  const isFixed = !!quote?.isRecovery || policy === "fixed_immediate" || policy === "fixed_threshold";
+  const isUpfront = quote?.paymentFlow === "upfront_refund";
+  const isFixed = isUpfront || !!quote?.isRecovery || policy === "fixed_immediate" || policy === "fixed_threshold";
   const displayAmount: number = quote?.amountMinor != null ? quote.amountMinor / 100 : maxPlayerPayment;
   const blocked = !quote || quote.canPay === false;
   maxPlayerPayment = displayAmount;
@@ -140,8 +141,8 @@ export default function PaymentAuthorizationModal({
       queryClient.invalidateQueries({ queryKey: ["/api/events", event.id, "potential-players"] });
       
       toast({
-        title: "Authorization Successful",
-        description: "Payment authorized and attendance confirmed!",
+        title: isFixed ? "Payment Successful" : "Authorization Successful",
+        description: isFixed ? "Payment received and attendance confirmed!" : "Payment authorized and attendance confirmed!",
       });
       
       onSuccess();
@@ -179,7 +180,7 @@ export default function PaymentAuthorizationModal({
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <CreditCard className="w-5 h-5 text-blue-600" />
-            {isFromNotification ? "Event Payment Required" : "Authorize Payment"}
+            {isFromNotification || isFixed ? "Event Payment" : "Authorize Payment"}
           </DialogTitle>
           <DialogDescription>
             {isFromNotification 
@@ -210,7 +211,7 @@ export default function PaymentAuthorizationModal({
                 <span className="text-sm">{event.name}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">{isFromNotification ? "Payment Amount:" : "Authorization Amount:"}</span>
+                <span className="text-sm font-medium">{isFromNotification || isFixed ? "Upfront payment amount:" : "Authorization Amount:"}</span>
                 <Badge variant="secondary" className="font-semibold">
                   £{maxPlayerPayment.toFixed(2)} GBP
                 </Badge>
@@ -231,7 +232,9 @@ export default function PaymentAuthorizationModal({
                       <>
                         <div className="font-medium">Charged upfront</div>
                         <div>
-                          {policy === "fixed_threshold"
+                          {isUpfront
+                            ? "You pay the maximum venue share plus fees now. After the final cost is confirmed, the unused venue share is refunded. Both fee amounts stay fixed from the maximum."
+                            : policy === "fixed_threshold"
                             ? `You are charged now. If fewer than ${quote?.minimumPaidParticipants ?? "the minimum"} people have paid by the deadline, you are refunded in full.`
                             : "You are charged now. You can withdraw for a full refund before the registration deadline."}
                         </div>
@@ -247,6 +250,14 @@ export default function PaymentAuthorizationModal({
               </div>
             </div>
 
+            {!!quote?.feesFrozen && (
+              <div className="text-sm space-y-1 rounded-lg border p-3" data-testid="payment-fee-breakdown">
+                <div className="flex justify-between"><span>{isUpfront ? "Maximum venue share" : "Event cost"}</span><span>£{((quote.baseAmountMinor || 0) / 100).toFixed(2)}</span></div>
+                <div className="flex justify-between"><span>Platform charge</span><span>£{((quote.platformFeeMinor || 0) / 100).toFixed(2)}</span></div>
+                <div className="flex justify-between"><span>Processing charge</span><span>£{((quote.processingFeeMinor || 0) / 100).toFixed(2)}</span></div>
+                <div className="flex justify-between font-semibold"><span>Pay now</span><span>£{displayAmount.toFixed(2)}</span></div>
+              </div>
+            )}
             <div>
               <Label className="text-sm font-medium mb-3 block">Choose payment method:</Label>
               <RadioGroup 
@@ -358,12 +369,12 @@ export default function PaymentAuthorizationModal({
             {authorizePaymentMutation.isPending ? (
               <div className="flex items-center gap-2">
                 <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
-                <span>Authorizing...</span>
+                <span>{isFixed ? "Processing payment..." : "Authorizing..."}</span>
               </div>
             ) : (
               <>
                 <CreditCard className="w-4 h-4 mr-2" />
-                {isFromNotification ? "Pay now" : "Authorize Payment"}
+                {isFromNotification || isFixed ? "Pay now" : "Authorize Payment"}
               </>
             )}
           </Button>

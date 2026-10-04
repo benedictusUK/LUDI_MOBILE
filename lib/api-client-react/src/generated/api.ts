@@ -22,6 +22,8 @@ import type {
 import type {
   ApplePushDeviceInput,
   CompleteGoogleMobileSignIn200,
+  FeeAdminState,
+  FeeSettings,
   GetGoogleMobileSignInConfig200,
   GoogleMobileSignInRequest,
   HealthStatus,
@@ -309,6 +311,230 @@ export const useCompleteGoogleMobileSignIn = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getCompleteGoogleMobileSignInMutationOptions(options));
+    }
+
+export const getGetFeeSettingsUrl = () => {
+
+
+
+
+  return `/api/fee-settings`
+}
+
+export const getFeeSettings = async ( options?: Parameters<typeof customFetch>[1]): Promise<FeeSettings> => {
+
+  return customFetch<FeeSettings>(getGetFeeSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetFeeSettingsQueryKey = () => {
+    return [
+    `/api/fee-settings`
+    ] as const;
+    }
+
+
+export const getGetFeeSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getFeeSettings>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFeeSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFeeSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFeeSettings>>> = ({ signal }) => getFeeSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFeeSettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetFeeSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getFeeSettings>>>
+export type GetFeeSettingsQueryError = ErrorType<unknown>
+
+
+
+export function useGetFeeSettings<TData = Awaited<ReturnType<typeof getFeeSettings>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFeeSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetFeeSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetFeeAdminStateUrl = () => {
+
+
+
+
+  return `/api/admin/fees`
+}
+
+export const getFeeAdminState = async ( options?: Parameters<typeof customFetch>[1]): Promise<FeeAdminState> => {
+
+  return customFetch<FeeAdminState>(getGetFeeAdminStateUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetFeeAdminStateQueryKey = () => {
+    return [
+    `/api/admin/fees`
+    ] as const;
+    }
+
+
+export const getGetFeeAdminStateQueryOptions = <TData = Awaited<ReturnType<typeof getFeeAdminState>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFeeAdminState>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFeeAdminStateQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFeeAdminState>>> = ({ signal }) => getFeeAdminState({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFeeAdminState>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetFeeAdminStateQueryResult = NonNullable<Awaited<ReturnType<typeof getFeeAdminState>>>
+export type GetFeeAdminStateQueryError = ErrorType<void>
+
+
+
+export function useGetFeeAdminState<TData = Awaited<ReturnType<typeof getFeeAdminState>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFeeAdminState>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetFeeAdminStateQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateFeeSettingsUrl = () => {
+
+
+
+
+  return `/api/admin/fees`
+}
+
+export const updateFeeSettings = async (feeSettings: FeeSettings, options?: Parameters<typeof customFetch>[1]): Promise<FeeAdminState> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<FeeAdminState>(getUpdateFeeSettingsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(feeSettings)
+  }
+);}
+
+
+
+
+
+export const getUpdateFeeSettingsMutationKey = () => ['updateFeeSettings'] as const;
+
+export const getUpdateFeeSettingsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateFeeSettings>>, TError,UpdateFeeSettingsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateFeeSettings>>, TError,UpdateFeeSettingsMutationVariables, TContext> => {
+
+const mutationKey = getUpdateFeeSettingsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateFeeSettings>>, UpdateFeeSettingsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateFeeSettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateFeeSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateFeeSettings>>>
+    export type UpdateFeeSettingsMutationBody = BodyType<FeeSettings>
+    export type UpdateFeeSettingsMutationError = ErrorType<void>
+    export type UpdateFeeSettingsMutationVariables = {data: BodyType<FeeSettings>}
+
+    export const useUpdateFeeSettings = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateFeeSettings>>, TError,UpdateFeeSettingsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateFeeSettings>>,
+        TError,
+        UpdateFeeSettingsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateFeeSettingsMutationOptions(options));
     }
 
 export const getGetPlatformAdminAccessUrl = () => {

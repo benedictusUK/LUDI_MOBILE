@@ -54,6 +54,175 @@ export const CompleteGoogleMobileSignInResponse = zod.object({
 })
 
 
+export const getFeeSettingsResponsePlatformBasisPointsMin = 0;
+export const getFeeSettingsResponsePlatformBasisPointsMax = 10000;
+
+export const getFeeSettingsResponseStripeBasisPointsMin = 0;
+export const getFeeSettingsResponseStripeBasisPointsMax = 10000;
+
+export const getFeeSettingsResponseStripeFixedMinorMin = 0;
+export const getFeeSettingsResponseStripeFixedMinorMax = 1000000;
+
+export const getFeeSettingsResponseRevisionMin = 0;
+
+
+
+export const GetFeeSettingsResponse = zod.object({
+  "platformBasisPoints": zod.number().int().min(getFeeSettingsResponsePlatformBasisPointsMin).max(getFeeSettingsResponsePlatformBasisPointsMax),
+  "stripeBasisPoints": zod.number().int().min(getFeeSettingsResponseStripeBasisPointsMin).max(getFeeSettingsResponseStripeBasisPointsMax),
+  "stripeFixedMinor": zod.number().int().min(getFeeSettingsResponseStripeFixedMinorMin).max(getFeeSettingsResponseStripeFixedMinorMax),
+  "revision": zod.number().int().min(getFeeSettingsResponseRevisionMin)
+})
+
+
+export const getFeeAdminStateResponseSettingsPlatformBasisPointsMin = 0;
+export const getFeeAdminStateResponseSettingsPlatformBasisPointsMax = 10000;
+
+export const getFeeAdminStateResponseSettingsStripeBasisPointsMin = 0;
+export const getFeeAdminStateResponseSettingsStripeBasisPointsMax = 10000;
+
+export const getFeeAdminStateResponseSettingsStripeFixedMinorMin = 0;
+export const getFeeAdminStateResponseSettingsStripeFixedMinorMax = 1000000;
+
+export const getFeeAdminStateResponseSettingsRevisionMin = 0;
+
+export const getFeeAdminStateResponseAuditItemBeforePlatformBasisPointsMin = 0;
+export const getFeeAdminStateResponseAuditItemBeforePlatformBasisPointsMax = 10000;
+
+export const getFeeAdminStateResponseAuditItemBeforeStripeBasisPointsMin = 0;
+export const getFeeAdminStateResponseAuditItemBeforeStripeBasisPointsMax = 10000;
+
+export const getFeeAdminStateResponseAuditItemBeforeStripeFixedMinorMin = 0;
+export const getFeeAdminStateResponseAuditItemBeforeStripeFixedMinorMax = 1000000;
+
+export const getFeeAdminStateResponseAuditItemBeforeRevisionMin = 0;
+
+export const getFeeAdminStateResponseAuditItemAfterPlatformBasisPointsMin = 0;
+export const getFeeAdminStateResponseAuditItemAfterPlatformBasisPointsMax = 10000;
+
+export const getFeeAdminStateResponseAuditItemAfterStripeBasisPointsMin = 0;
+export const getFeeAdminStateResponseAuditItemAfterStripeBasisPointsMax = 10000;
+
+export const getFeeAdminStateResponseAuditItemAfterStripeFixedMinorMin = 0;
+export const getFeeAdminStateResponseAuditItemAfterStripeFixedMinorMax = 1000000;
+
+export const getFeeAdminStateResponseAuditItemAfterRevisionMin = 0;
+
+
+
+export const GetFeeAdminStateResponse = zod.object({
+  "settings": zod.object({
+  "platformBasisPoints": zod.number().int().min(getFeeAdminStateResponseSettingsPlatformBasisPointsMin).max(getFeeAdminStateResponseSettingsPlatformBasisPointsMax),
+  "stripeBasisPoints": zod.number().int().min(getFeeAdminStateResponseSettingsStripeBasisPointsMin).max(getFeeAdminStateResponseSettingsStripeBasisPointsMax),
+  "stripeFixedMinor": zod.number().int().min(getFeeAdminStateResponseSettingsStripeFixedMinorMin).max(getFeeAdminStateResponseSettingsStripeFixedMinorMax),
+  "revision": zod.number().int().min(getFeeAdminStateResponseSettingsRevisionMin)
+}),
+  "audit": zod.array(zod.object({
+  "id": zod.string(),
+  "actorId": zod.string().nullish(),
+  "before": zod.object({
+  "platformBasisPoints": zod.number().int().min(getFeeAdminStateResponseAuditItemBeforePlatformBasisPointsMin).max(getFeeAdminStateResponseAuditItemBeforePlatformBasisPointsMax),
+  "stripeBasisPoints": zod.number().int().min(getFeeAdminStateResponseAuditItemBeforeStripeBasisPointsMin).max(getFeeAdminStateResponseAuditItemBeforeStripeBasisPointsMax),
+  "stripeFixedMinor": zod.number().int().min(getFeeAdminStateResponseAuditItemBeforeStripeFixedMinorMin).max(getFeeAdminStateResponseAuditItemBeforeStripeFixedMinorMax),
+  "revision": zod.number().int().min(getFeeAdminStateResponseAuditItemBeforeRevisionMin)
+}),
+  "after": zod.object({
+  "platformBasisPoints": zod.number().int().min(getFeeAdminStateResponseAuditItemAfterPlatformBasisPointsMin).max(getFeeAdminStateResponseAuditItemAfterPlatformBasisPointsMax),
+  "stripeBasisPoints": zod.number().int().min(getFeeAdminStateResponseAuditItemAfterStripeBasisPointsMin).max(getFeeAdminStateResponseAuditItemAfterStripeBasisPointsMax),
+  "stripeFixedMinor": zod.number().int().min(getFeeAdminStateResponseAuditItemAfterStripeFixedMinorMin).max(getFeeAdminStateResponseAuditItemAfterStripeFixedMinorMax),
+  "revision": zod.number().int().min(getFeeAdminStateResponseAuditItemAfterRevisionMin)
+}),
+  "createdAt": zod.coerce.date()
+})),
+  "appliesTo": zod.string(),
+  "processingChargeNotice": zod.string()
+})
+
+
+export const updateFeeSettingsBodyPlatformBasisPointsMin = 0;
+export const updateFeeSettingsBodyPlatformBasisPointsMax = 10000;
+
+export const updateFeeSettingsBodyStripeBasisPointsMin = 0;
+export const updateFeeSettingsBodyStripeBasisPointsMax = 10000;
+
+export const updateFeeSettingsBodyStripeFixedMinorMin = 0;
+export const updateFeeSettingsBodyStripeFixedMinorMax = 1000000;
+
+export const updateFeeSettingsBodyRevisionMin = 0;
+
+
+
+export const UpdateFeeSettingsBody = zod.object({
+  "platformBasisPoints": zod.number().int().min(updateFeeSettingsBodyPlatformBasisPointsMin).max(updateFeeSettingsBodyPlatformBasisPointsMax),
+  "stripeBasisPoints": zod.number().int().min(updateFeeSettingsBodyStripeBasisPointsMin).max(updateFeeSettingsBodyStripeBasisPointsMax),
+  "stripeFixedMinor": zod.number().int().min(updateFeeSettingsBodyStripeFixedMinorMin).max(updateFeeSettingsBodyStripeFixedMinorMax),
+  "revision": zod.number().int().min(updateFeeSettingsBodyRevisionMin)
+})
+
+export const updateFeeSettingsResponseSettingsPlatformBasisPointsMin = 0;
+export const updateFeeSettingsResponseSettingsPlatformBasisPointsMax = 10000;
+
+export const updateFeeSettingsResponseSettingsStripeBasisPointsMin = 0;
+export const updateFeeSettingsResponseSettingsStripeBasisPointsMax = 10000;
+
+export const updateFeeSettingsResponseSettingsStripeFixedMinorMin = 0;
+export const updateFeeSettingsResponseSettingsStripeFixedMinorMax = 1000000;
+
+export const updateFeeSettingsResponseSettingsRevisionMin = 0;
+
+export const updateFeeSettingsResponseAuditItemBeforePlatformBasisPointsMin = 0;
+export const updateFeeSettingsResponseAuditItemBeforePlatformBasisPointsMax = 10000;
+
+export const updateFeeSettingsResponseAuditItemBeforeStripeBasisPointsMin = 0;
+export const updateFeeSettingsResponseAuditItemBeforeStripeBasisPointsMax = 10000;
+
+export const updateFeeSettingsResponseAuditItemBeforeStripeFixedMinorMin = 0;
+export const updateFeeSettingsResponseAuditItemBeforeStripeFixedMinorMax = 1000000;
+
+export const updateFeeSettingsResponseAuditItemBeforeRevisionMin = 0;
+
+export const updateFeeSettingsResponseAuditItemAfterPlatformBasisPointsMin = 0;
+export const updateFeeSettingsResponseAuditItemAfterPlatformBasisPointsMax = 10000;
+
+export const updateFeeSettingsResponseAuditItemAfterStripeBasisPointsMin = 0;
+export const updateFeeSettingsResponseAuditItemAfterStripeBasisPointsMax = 10000;
+
+export const updateFeeSettingsResponseAuditItemAfterStripeFixedMinorMin = 0;
+export const updateFeeSettingsResponseAuditItemAfterStripeFixedMinorMax = 1000000;
+
+export const updateFeeSettingsResponseAuditItemAfterRevisionMin = 0;
+
+
+
+export const UpdateFeeSettingsResponse = zod.object({
+  "settings": zod.object({
+  "platformBasisPoints": zod.number().int().min(updateFeeSettingsResponseSettingsPlatformBasisPointsMin).max(updateFeeSettingsResponseSettingsPlatformBasisPointsMax),
+  "stripeBasisPoints": zod.number().int().min(updateFeeSettingsResponseSettingsStripeBasisPointsMin).max(updateFeeSettingsResponseSettingsStripeBasisPointsMax),
+  "stripeFixedMinor": zod.number().int().min(updateFeeSettingsResponseSettingsStripeFixedMinorMin).max(updateFeeSettingsResponseSettingsStripeFixedMinorMax),
+  "revision": zod.number().int().min(updateFeeSettingsResponseSettingsRevisionMin)
+}),
+  "audit": zod.array(zod.object({
+  "id": zod.string(),
+  "actorId": zod.string().nullish(),
+  "before": zod.object({
+  "platformBasisPoints": zod.number().int().min(updateFeeSettingsResponseAuditItemBeforePlatformBasisPointsMin).max(updateFeeSettingsResponseAuditItemBeforePlatformBasisPointsMax),
+  "stripeBasisPoints": zod.number().int().min(updateFeeSettingsResponseAuditItemBeforeStripeBasisPointsMin).max(updateFeeSettingsResponseAuditItemBeforeStripeBasisPointsMax),
+  "stripeFixedMinor": zod.number().int().min(updateFeeSettingsResponseAuditItemBeforeStripeFixedMinorMin).max(updateFeeSettingsResponseAuditItemBeforeStripeFixedMinorMax),
+  "revision": zod.number().int().min(updateFeeSettingsResponseAuditItemBeforeRevisionMin)
+}),
+  "after": zod.object({
+  "platformBasisPoints": zod.number().int().min(updateFeeSettingsResponseAuditItemAfterPlatformBasisPointsMin).max(updateFeeSettingsResponseAuditItemAfterPlatformBasisPointsMax),
+  "stripeBasisPoints": zod.number().int().min(updateFeeSettingsResponseAuditItemAfterStripeBasisPointsMin).max(updateFeeSettingsResponseAuditItemAfterStripeBasisPointsMax),
+  "stripeFixedMinor": zod.number().int().min(updateFeeSettingsResponseAuditItemAfterStripeFixedMinorMin).max(updateFeeSettingsResponseAuditItemAfterStripeFixedMinorMax),
+  "revision": zod.number().int().min(updateFeeSettingsResponseAuditItemAfterRevisionMin)
+}),
+  "createdAt": zod.coerce.date()
+})),
+  "appliesTo": zod.string(),
+  "processingChargeNotice": zod.string()
+})
+
+
 export const GetPlatformAdminAccessResponse = zod.object({
   "userId": zod.string(),
   "isSuperAdmin": zod.boolean()

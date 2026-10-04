@@ -17,6 +17,7 @@ import { z } from "zod/v4";
 
 import { relations } from "drizzle-orm";
 import { paymentTimestampSchema, paymentPolicies } from "./eventPaymentPolicy";
+import type { FeeConfiguration } from "./paymentPricing";
 
 // Sports constants including Team Social for non-sporting events
 export const SPORTS = [
@@ -181,6 +182,7 @@ export const events = pgTable("events", {
   
   // Payment fields for Stripe integration
   paymentRequired: boolean("payment_required").default(false),
+  feeConfiguration: jsonb("fee_configuration").$type<FeeConfiguration>(),
   paymentPolicy: varchar("payment_policy", {
     enum: ["none", "fixed_threshold", "fixed_immediate", "flexible_post_event"],
   }).notNull().default("none"),
@@ -268,6 +270,7 @@ export const eventPayments = pgTable("event_payments", {
   stripeBalanceTransactionId: varchar("stripe_balance_transaction_id"),
   paymentIntentStatus: varchar("payment_intent_status", { enum: ["requires_payment_method", "requires_confirmation", "requires_action", "processing", "requires_capture", "canceled", "succeeded"] }),
   agreedAmountMinor: integer("agreed_amount_minor"),
+  settledBaseAmountMinor: integer("settled_base_amount_minor"),
   authorizedAmountMinor: integer("authorized_amount_minor").default(0),
   capturedAmountMinor: integer("captured_amount_minor").default(0),
   refundedAmountMinor: integer("refunded_amount_minor").default(0),

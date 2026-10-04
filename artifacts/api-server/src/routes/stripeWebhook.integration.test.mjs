@@ -23,6 +23,13 @@ test("Stripe webhook signatures, status updates, and accounting retries", {
   const testSecret = "whsec_isolated_webhook_regression_fixture";
   process.env.STRIPE_WEBHOOK_SECRET = testSecret;
   const stripe = new Stripe("sk_test_isolated_fixture");
+  const providerObjects = new Map();
+  // The webhook intentionally fetches current provider objects rather than
+  // trusting an older delivery snapshot. Keep these tests entirely isolated.
+  stripe.paymentIntents.retrieve = async id => providerObjects.get(id);
+  stripe.refunds.retrieve = async id => providerObjects.get(id);
+  stripe.disputes.retrieve = async id => providerObjects.get(id);
+  stripe.transfers.retrieve = async () => ({ id: "tr_fixture", amount: 950, currency: "gbp", destination: "acct_fixture" });
   let lookupFails = false;
   stripe.charges.retrieve = async () => {
     if (lookupFails) throw new Error("Fixture lookup failed");
@@ -59,7 +66,7 @@ test("Stripe webhook signatures, status updates, and accounting retries", {
               ? `export const db = globalThis[${JSON.stringify(contextKey)}].db;`
               : path.endsWith("/stripeClient")
                 ? `export const stripe = globalThis[${JSON.stringify(contextKey)}].stripe;`
-                : "export const logger = {warn() {}, error() {}};",
+                : "export const logger = {warn() {}, error(details) { console.error('Webhook fixture failure:', details?.errName || 'unknown'); }};",
           }));
         },
       }],
@@ -95,6 +102,7 @@ test("Stripe webhook signatures, status updates, and accounting retries", {
       });
       const url = `http://127.0.0.1:${server.address().port}/api/stripe/webhook`;
       const send = async (event, options = {}) => {
+        providerObjects.set(event.data.object.id, structuredClone(event.data.object));
         const payload = JSON.stringify(event, null, 2);
         const signature = stripe.webhooks.generateTestHeaderString({ payload, secret: testSecret });
         const response = await fetch(url, {

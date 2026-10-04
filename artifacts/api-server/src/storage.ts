@@ -3437,7 +3437,7 @@ export class DatabaseStorage implements IStorage {
     return eventPayment;
   }
 
-  async updateEventPaymentStatus(eventId: string, status: "none" | "setup" | "holds_created" | "captured" | "refunded"): Promise<void> {
+  async updateEventPaymentStatus(eventId: string, status: "none" | "setup" | "holds_created" | "captured" | "refunded" | "partial_captured"): Promise<void> {
     await db
       .update(events)
       .set({
@@ -3707,11 +3707,11 @@ export class DatabaseStorage implements IStorage {
     const perPlayerShare = attendingCount > 0 ? venueCost / attendingCount : 0;
 
     // Check if organiser is in the attendees
-    const organiserId = event.createdById;
+    const organiserId = event.feeConfiguration ? (event.venueOrganiserId || event.createdById) : event.createdById;
     const organiserPlayed = attendance.some(a => a.event_attendance.userId === organiserId);
 
     // Expected payout: venue cost minus organiser's share if they played
-    const expectedPayout = organiserPlayed 
+    const expectedPayout = event.feeConfiguration ? venueCost : organiserPlayed
       ? Math.max(0, venueCost - perPlayerShare)
       : venueCost;
 
@@ -3728,7 +3728,10 @@ export class DatabaseStorage implements IStorage {
       
       // Check if paid via Stripe or manually
       if (eventPayment?.event_payments.status === 'captured' || isManual) {
-        const amount = eventPayment?.event_payments.finalAmount || perPlayerShare.toFixed(2);
+        const ep = eventPayment?.event_payments;
+        const amount = event.feeConfiguration && ep
+          ? (((ep.capturedAmountMinor || 0) - (ep.refundedAmountMinor || 0)) / 100).toFixed(2)
+          : ep?.finalAmount || perPlayerShare.toFixed(2);
         const paidAt = eventPayment?.event_payments.capturedAt || null;
         paidPlayers.push({
           userId,
@@ -3748,12 +3751,14 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Get bank balance
-    const bankTotal = await this.getEventBankBalance(eventId);
+    const bankTotal = event.feeConfiguration
+      ? (eventPaymentRecords.reduce((sum, p) => sum + (p.event_payments.status === "captured" ? p.event_payments.organiserAmountMinor || 0 : 0), 0) / 100).toFixed(2)
+      : await this.getEventBankBalance(eventId);
 
     // Determine if ready to transfer
     const bankBalance = parseFloat(bankTotal);
     const playersRequired = organiserPlayed ? attendingCount - 1 : attendingCount; // Organiser doesn't pay if they played
-    const isReadyToTransfer = unpaidPlayers.length === 0 && 
+    const isReadyToTransfer = !event.feeConfiguration && unpaidPlayers.length === 0 &&
                               paidPlayers.length >= playersRequired &&
                               bankBalance >= expectedPayout;
 
@@ -3787,7 +3792,7 @@ export class DatabaseStorage implements IStorage {
       venueCost: venueCost.toFixed(2),
       expectedPayout: expectedPayout.toFixed(2),
       organiserPlayed,
-      transferStatus: reimbursement?.transferStatus || 'pending',
+      transferStatus: event.feeConfiguration ? "transferred" : reimbursement?.transferStatus || 'pending',
       isReadyToTransfer,
     };
   }

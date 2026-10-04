@@ -6,6 +6,8 @@ import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { collectPaymentHandler } from "./routes/payments";
 import { registerEventPaymentPolicies } from "./routes/eventPaymentPolicies";
 import { registerNotificationAdmin } from "./routes/notificationAdmin";
+import { registerFeeAdmin } from "./routes/feeAdmin";
+import { getPublicPlatformCharges } from "./payments/feeSettings";
 import mobileAuthRoutes, { verifyMobileToken, verifyAuth } from "./routes/mobileAuth";
 import { isAllowedMobileRedirect } from "./mobileRedirect";
 import { calculatePercentageFeeMinor, decimalToMinorUnits } from "./payments/money";
@@ -25,6 +27,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
   registerNotificationAdmin(app, verifyAuth);
+  registerFeeAdmin(app, verifyAuth);
   registerEventPaymentPolicies(app, verifyAuth);
 
   // Block legacy financial endpoints that trusted client amounts or created a
@@ -4026,7 +4029,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Platform charges management routes (public endpoint - no auth required)
   app.get('/api/platform-charges', async (req: any, res) => {
     try {
-      const charges = await storage.getPlatformCharges();
+      const charges = await getPublicPlatformCharges();
       res.json(charges);
     } catch (error) {
       console.error("Error fetching platform charges:", error);
@@ -4034,6 +4037,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put('/api/platform-charges/:id', verifyAuth, (_req, res) => res.status(410).json({ message: "Fee changes require the audited SuperAdmin fee settings endpoint" }));
   app.put('/api/platform-charges/:id', isAuthenticated, async (req: any, res) => {
     try {
       const { id } = req.params;

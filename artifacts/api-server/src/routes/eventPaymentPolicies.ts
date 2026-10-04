@@ -9,8 +9,10 @@ import { storage } from "../storage";
 import { stripe } from "../payments/stripeClient";
 import {
   PaymentPolicyError, requireEventAccess, getPolicyQuote, hasValidEventPayment,
-  getOrCreateEventIntent, finalizeEventIntent, refundRegistration,
+  getOrCreateEventIntent, finalizeEventIntent, refundRegistration, usesUpfrontRefunds,
 } from "../payments/policyService";
+import { getFeeSettings } from "../payments/feeSettings";
+import { settleFlexibleEvent } from "../payments/flexibleRefunds";
 
 const handler = (run: (req: any, res: any, next: any) => Promise<any>): RequestHandler =>
   (req, res, next) => { void run(req, res, next).catch(error => {
@@ -45,6 +47,7 @@ export function registerEventPaymentPolicies(app: Express, authenticate: Request
     if (typeof teamId !== "string") throw new PaymentPolicyError(400, "Primary team ID is required");
     const [membership, team] = await Promise.all([storage.getUserTeam(req.userId, teamId), storage.getTeam(teamId)]);
     if (!membership && team?.ownerId !== req.userId) throw new PaymentPolicyError(403, "You must belong to the event's primary team");
+    req.body.feeConfiguration = await getFeeSettings();
     req.body = normalizeEventPaymentSettings(req.body);
     req.body.paymentStatus = "none";
     req.body.paymentCollectionInitiated = false;
@@ -62,7 +65,10 @@ export function registerEventPaymentPolicies(app: Express, authenticate: Request
       const [existing] = await tx.select().from(events).where(eq(events.id, req.params.id)).for("update");
       if (!existing) throw new PaymentPolicyError(404, "Event not found");
       if (!await canManage(existing, req.userId)) throw new PaymentPolicyError(403, "You are not authorised to edit this event");
-      const normalized = normalizeEventPaymentSettings(req.body, existing);
+      const input = { ...req.body };
+      delete input.feeConfiguration;
+      const normalized = normalizeEventPaymentSettings(input, existing);
+      delete (normalized as Record<string, unknown>).feeConfiguration;
       const data = insertEventSchema.partial().parse(normalized);
       // Zod transforms/defaults may emit values for absent optional inputs.
       // A partial update must never clear unrelated event times or team links.
@@ -141,6 +147,13 @@ export function registerEventPaymentPolicies(app: Express, authenticate: Request
   app.get("/api/events/:id/payment-policy", authenticate, handler(async (req, res) => {
     const event = await requireEventAccess(req.params.id, req.userId);
     res.json(await getPolicyQuote(event, req.userId, typeof req.query.notificationId === "string" ? req.query.notificationId : undefined));
+  }));
+  app.post("/api/events/:id/collect-payment", authenticate, handler(async (req, res, next) => {
+    const event = await requireEventAccess(req.params.id, req.userId);
+    if (!usesUpfrontRefunds(event)) return next();
+    if (!await canManage(event, req.userId)) throw new PaymentPolicyError(403, "You are not authorised to finalise this event");
+    const result = await settleFlexibleEvent(event, req.userId, req.body.venueCost);
+    res.status(result.settlementComplete ? 200 : 202).json(result);
   }));
   app.post("/api/payments/create-intent", authenticate, handler(async (req, res) => {
     if (typeof req.body.eventId !== "string") throw new PaymentPolicyError(400, "Event ID is required");
@@ -227,7 +240,7 @@ export function registerEventPaymentPolicies(app: Express, authenticate: Request
       const row = await storage.getEventPayment(event.id, req.userId);
       if (row?.paymentIntentId) {
         if (effectivePaymentPolicy(event) !== "flexible_post_event" && row.capturedAmountMinor && new Date() >= paymentWindow(event).deadline) throw new PaymentPolicyError(409, "The paid-registration withdrawal deadline has passed");
-        if (effectivePaymentPolicy(event) === "flexible_post_event" && row.status === "captured") throw new PaymentPolicyError(409, "This event has already settled. Contact the organiser about refunds.");
+         if (effectivePaymentPolicy(event) === "flexible_post_event" && !usesUpfrontRefunds(event) && row.status === "captured") throw new PaymentPolicyError(409, "This event has already settled. Contact the organiser about refunds.");
         const result = await refundRegistration(event, req.userId, "participant_withdrawal");
         if (result?.status === "failed" || result?.status === "canceled") throw new PaymentPolicyError(502, "The refund could not complete. Your registration has not been withdrawn.");
         refund = result;
@@ -245,7 +258,7 @@ export function registerEventPaymentPolicies(app: Express, authenticate: Request
       const row = await storage.getEventPayment(event.id, req.userId);
       if (row?.paymentIntentId) {
         if (effectivePaymentPolicy(event) !== "flexible_post_event" && row.capturedAmountMinor && new Date() >= paymentWindow(event).deadline) throw new PaymentPolicyError(409, "The paid-registration withdrawal deadline has passed");
-        if (effectivePaymentPolicy(event) === "flexible_post_event" && row.status === "captured") throw new PaymentPolicyError(409, "This event has already settled. Contact the organiser about refunds.");
+        if (effectivePaymentPolicy(event) === "flexible_post_event" && !usesUpfrontRefunds(event) && row.status === "captured") throw new PaymentPolicyError(409, "This event has already settled. Contact the organiser about refunds.");
         refund = await refundRegistration(event, req.userId, "participant_withdrawal");
         if (refund?.status === "failed" || refund?.status === "canceled") throw new PaymentPolicyError(502, "The refund could not complete. Your vote has not been removed.");
       }

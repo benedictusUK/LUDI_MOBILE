@@ -15,4 +15,5 @@
 - [Production SQL console](production-sql-console.md) — the console manages transactions; preserve rollback safety when adapting manual reset scripts.
 - [Production account isolation](production-account-isolation.md) — live accounts can be absent from preview; managed production schema changes belong to Publish, not startup.
 - [Event input conventions](event-input-conventions.md) — use calendars except for birth dates, and separate days/hours for relative flexible-payment deadlines.
-- [Notification direction](notification-direction.md) — direct APNs delivery; SuperAdmin is the intended platform-level manager for notifications and eventually fees.
+- [Notification direction](notification-direction.md) — direct APNs delivery; platform SuperAdmin manages notifications and fee configuration, separate from team organisers.
+- [Participant fee policy](participant-fee-policy.md) — upfront maximum payment, refund unused venue cost only, and retain both original maximum-based fee amounts.

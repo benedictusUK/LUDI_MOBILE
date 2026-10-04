@@ -9,8 +9,8 @@ Use an APNs key for direct Apple push delivery rather than Expo's push service. 
 
 **How to apply:** Retaining Expo's on-device notification library is compatible with this direction; distinguish that library from Expo's hosted push delivery service.
 
-The user chose “Notifications + SuperAdmin (recommended)” for the initial scope: notification management is included; platform-fee percentage controls are deferred.
+The platform-level SuperAdmin manages notifications and participant-fee configuration; team organisers are not platform administrators.
 
-**Why:** The user explicitly chose this initial scope after discussing the platform-level role and eventual fee controls.
+**Why:** The user initially chose “Notifications + SuperAdmin (recommended)” and subsequently explicitly requested SuperAdmin controls for platform and processing charges.
 
-**How to apply:** Keep this distinct from team organiser permissions. Future fee controls need their own request; the eventual fee controls are not permission to change current fees.
+**How to apply:** Keep platform administration distinct from team organiser permissions. Adding controls is not permission to change existing events' agreed fees.

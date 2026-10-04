@@ -179,14 +179,19 @@ async function processEvent(event: Stripe.Event): Promise<void> {
         .from(eventPayments)
         .where(eq(eventPayments.paymentIntentId, paymentIntentId));
       if (!eventPayment) return;
-      await db.insert(paymentRefunds).values({
+      const [plannedRefund] = refund.metadata?.ludiRefundRequestKey ? await db.select().from(paymentRefunds)
+        .where(and(eq(paymentRefunds.eventPaymentId, eventPayment.id), eq(paymentRefunds.requestKey, refund.metadata.ludiRefundRequestKey))) : [];
+      if (plannedRefund) await db.update(paymentRefunds).set({
+        stripeRefundId: refund.id, status: refund.status ?? "pending", updatedAt: new Date(),
+      }).where(eq(paymentRefunds.id, plannedRefund.id));
+      else await db.insert(paymentRefunds).values({
         eventPaymentId: eventPayment.id,
         stripeRefundId: refund.id,
         requestKey: `stripe:${refund.id}`,
         amountMinor: refund.amount,
         currency: refund.currency,
         status: refund.status ?? "pending",
-        reason: refund.reason ?? undefined,
+        reason: refund.metadata?.ludiRefundReason ?? refund.reason ?? undefined,
       }).onConflictDoUpdate({
         target: paymentRefunds.stripeRefundId,
         set: { status: refund.status ?? "pending", updatedAt: new Date() },

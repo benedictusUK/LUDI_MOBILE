@@ -59,7 +59,7 @@ export function normalizeEventPaymentSettings(input: Record<string, any>, existi
     const amount = String(merged.maxPlayerPayment ?? "");
     if (!/^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/.test(amount) || Number(amount) < 0.5 || Number(amount) > 999_999.99) fail("maxPlayerPayment", "An authorization cap between £0.50 and £999,999.99 is required");
     if (!settings.completionDueAt || settings.completionDueAt <= end) fail("completionDueAt", "The settlement deadline must be after the event ends");
-    if (!settings.authorizationOpensAt || +settings.completionDueAt! - +settings.authorizationOpensAt > 5 * 86400_000) fail("completionDueAt", "The authorization-to-settlement window must not exceed five days");
+    if (!merged.feeConfiguration && (!settings.authorizationOpensAt || +settings.completionDueAt! - +settings.authorizationOpensAt > 5 * 86400_000)) fail("completionDueAt", "The authorization-to-settlement window must not exceed five days");
   }
   return {
     ...input, ...settings, paymentRequired: true,
@@ -87,6 +87,7 @@ export function recurringPaymentSettings(template: Record<string, any>, startDat
   const offset = +new Date(`${startDate}T00:00:00Z`) - +new Date(`${template.startDate}T00:00:00Z`);
   const shift = (value: any) => value ? new Date(+new Date(value) + offset) : null;
   return {
+    feeConfiguration: template.feeConfiguration ?? null,
     paymentPolicy: effectivePaymentPolicy(template), currency: template.currency || "gbp",
     fixedPriceMinor: template.fixedPriceMinor ?? null,
     minimumPaidParticipants: template.minimumPaidParticipants ?? null,

@@ -51,3 +51,11 @@ _Populate as you build — sharp edges, "always run X before Y" rules._
 ## Pointers
 
 - See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+
+## Fees and payment rollout
+
+- Web SuperAdmin fee controls are at `/superadmin/fees`. Production access depends on the production schema and the intended account's platform-admin membership; development test identities must never be granted access in production.
+- Apply development migrations with the database workspace's migration command. Production schema changes belong to the publishing process. Keep the production start command `node artifacts/api-server/dist/index.mjs`; do not add production migrations to server startup.
+- Pricing and residual-refund regression tests use isolated Stripe fixtures, not real provider funds. Browser verification uses synthetic development sessions, not proof of provider sign-in.
+- Before live use, verify residual refunds and transfer reversals against actual Stripe test-mode Connect balances and complete the signed-iPhone checkout check. The configured processing charge does not change Stripe's actual provider pricing; review UK consumer card-surcharge restrictions.
+- Do not publish automatically.

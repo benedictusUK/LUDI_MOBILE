@@ -418,7 +418,7 @@ export default function Settings() {
                           </Label>
                           <div className="mt-1 text-lg font-semibold text-gray-900">
                             {charge.type === 'percentage' 
-                              ? `${(parseFloat(charge.value) * 100).toFixed(1)}%`
+                              ? `${(parseFloat(charge.value) * 100).toFixed(2)}%`
                               : `£${parseFloat(charge.value).toFixed(2)}`
                             }
                           </div>

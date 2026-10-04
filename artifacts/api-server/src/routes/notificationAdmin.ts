@@ -30,7 +30,7 @@ export async function hasSuperAdminAccess(userId: string) {
   const [role] = await db.select({ userId: platformAdmins.userId }).from(platformAdmins).where(eq(platformAdmins.userId, userId)).limit(1);
   return !!role;
 }
-const requireSuperAdmin: RequestHandler = (req: any, res, next) => {
+export const requireSuperAdmin: RequestHandler = (req: any, res, next) => {
   void hasSuperAdminAccess(req.userId).then(allowed => {
     if (!allowed) res.status(403).json({ message: "SuperAdmin access is required" });
     else next();
@@ -39,7 +39,7 @@ const requireSuperAdmin: RequestHandler = (req: any, res, next) => {
 
 // Session-authenticated mutations must originate from this app, not a site
 // exploiting the legacy API's permissive CORS settings. Native JWTs aren't CSRF.
-const sameOriginMutation: RequestHandler = (req, res, next) => {
+export const sameOriginMutation: RequestHandler = (req, res, next) => {
   if (!["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) return next();
   const origin = req.get("origin");
   if (origin) {

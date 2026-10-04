@@ -126,7 +126,7 @@ export default function EventDetails() {
         const errorData = await response.json();
         
         // If payment authorization is required, show the modal
-        if (response.status === 400 && errorData.requiresPaymentAuth) {
+        if (response.status === 402 || response.status === 400 && errorData.requiresPaymentAuth) {
           setPaymentAuthModal(true);
           throw new Error("PAYMENT_AUTHORIZATION_REQUIRED");
         }
@@ -268,7 +268,7 @@ export default function EventDetails() {
       } else if (eventData?.paymentRequired && data?.paymentReleased) {
         toast({
           title: "Payment Authorization Released",
-          description: `${isFixedPolicy ? 'Your fixed payment withdrawal has been processed; any refund follows the event policy.' : 'Your payment hold of up to £' + parseFloat(eventData.maxPlayerPayment || '0').toFixed(2) + ' has been cancelled. You will not be charged.'}`,
+          description: `${isFixedPolicy || eventData.feeConfiguration ? 'Your withdrawal has been processed; your refund follows the event policy.' : 'Your payment hold of up to £' + parseFloat(eventData.maxPlayerPayment || '0').toFixed(2) + ' has been cancelled. You will not be charged.'}`,
         });
       } else {
         toast({
@@ -463,12 +463,16 @@ export default function EventDetails() {
                     <div className="font-medium text-neutral-800">
                       {isFixedPolicy
                         ? `Fixed price: £${(paymentQuote?.amountMinor != null ? paymentQuote.amountMinor / 100 : parseFloat((event as any).maxPlayerPayment || "0")).toFixed(2)} GBP`
-                        : `Flexible: hold up to £${parseFloat((event as any).maxPlayerPayment || "0").toFixed(2)} GBP`}
+                        : (event as any).feeConfiguration
+                          ? `Flexible: pay £${(paymentQuote?.amountMinor != null ? paymentQuote.amountMinor / 100 : parseFloat((event as any).maxPlayerPayment || "0")).toFixed(2)} GBP upfront`
+                          : `Flexible: hold up to £${parseFloat((event as any).maxPlayerPayment || "0").toFixed(2)} GBP`}
                     </div>
                     <p className="text-neutral-600 mt-1">
                       {policyMode === "fixed_immediate" && "Charged upfront when you join. Fees are included. Full refund if you withdraw before the deadline."}
                       {policyMode === "fixed_threshold" && `Charged upfront. Refunded if fewer than ${paymentQuote?.minimumPaidParticipants ?? "the minimum"} people have paid by the deadline.`}
-                      {!isFixedPolicy && "A cap is authorised now and the actual cost is settled after the event."}
+                      {!isFixedPolicy && ((event as any).feeConfiguration
+                        ? "Pay the maximum venue share plus fees now. Unused venue cost is refunded after finalisation; both original fee amounts stay fixed."
+                        : "A cap is authorised now and the actual cost is settled after the event.")}
                     </p>
                     {paymentQuote?.paymentDeadlineAt && (
                       <p className="text-neutral-600 mt-1">Payment deadline: {new Date(paymentQuote.paymentDeadlineAt).toLocaleString()}</p>
@@ -582,7 +586,7 @@ export default function EventDetails() {
                   </div>
 
                   {/* Payment Section - Shows when user has voted to attend and event has cost */}
-                  {userAttendance?.status === "attending" && eventData.paymentRequired && (user as any)?.id !== eventData.venueOrganiserId && (
+                  {userAttendance?.status === "attending" && eventData.paymentRequired && (user as any)?.id !== (eventData.venueOrganiserId || eventData.createdById) && (
                     <div className="p-4 border rounded-lg" data-testid="card-fixed-payment">
                       {(paymentStatus as any)?.hasAuthorization ? (
                         <div className="text-green-800">
@@ -596,7 +600,7 @@ export default function EventDetails() {
                       ) : (
                         <div className="flex items-center justify-between gap-3">
                           <div className="text-sm text-neutral-700">
-                            Your place is not confirmed until you {isFixedPolicy ? "pay" : "authorize up to"} £{(paymentQuote?.amountMinor != null ? paymentQuote.amountMinor / 100 : parseFloat(eventData.maxPlayerPayment || "0")).toFixed(2)} GBP.
+                            Your place is not confirmed until you {isFixedPolicy || eventData.feeConfiguration ? "pay" : "authorize up to"} £{(paymentQuote?.amountMinor != null ? paymentQuote.amountMinor / 100 : parseFloat(eventData.maxPlayerPayment || "0")).toFixed(2)} GBP.
                             {paymentQuote?.canPay === false && paymentQuote?.reason && <span className="block text-amber-700">{paymentQuote.reason}</span>}
                           </div>
                           <Button onClick={() => setPaymentAuthModal(true)} disabled={paymentQuote?.canPay === false} data-testid="button-pay-fixed">
@@ -623,25 +627,28 @@ export default function EventDetails() {
                   )}
 
                   {/* Payment Requirement Notice - Shows for paid events when user hasn't voted yet */}
-                  {!userAttendance && eventData.paymentRequired && eventData.maxPlayerPayment && parseFloat(eventData.maxPlayerPayment) > 0 && (user as any)?.id !== eventData.venueOrganiserId && (
+                  {!userAttendance && eventData.paymentRequired && eventData.maxPlayerPayment && parseFloat(eventData.maxPlayerPayment) > 0 && (user as any)?.id !== (eventData.venueOrganiserId || eventData.createdById) && (
                     <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
                       <div className="flex items-center gap-2">
-                        <div className="text-amber-600 font-medium">Payment Authorization Required</div>
+                        <div className="text-amber-600 font-medium">{isFixedPolicy || eventData.feeConfiguration ? "Upfront Payment Required" : "Payment Authorization Required"}</div>
                         <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-300">
-                          {isFixedPolicy ? "" : "Up to "}£{parseFloat(eventData.maxPlayerPayment).toFixed(2)} GBP
+                          {isFixedPolicy || eventData.feeConfiguration ? "" : "Up to "}£{(paymentQuote?.amountMinor != null ? paymentQuote.amountMinor / 100 : parseFloat(eventData.maxPlayerPayment)).toFixed(2)} GBP
                         </Badge>
                       </div>
                       <p className="text-sm text-amber-700 mt-1">
-                        You'll need to set up a payment method before confirming your attendance for this event.
+                        {eventData.feeConfiguration ? "Pay the maximum venue share plus fees to confirm attendance. Unused venue cost is refunded; original fees stay fixed." : "You'll need to set up a payment method before confirming your attendance for this event."}
                       </p>
+                      <Button className="mt-3" onClick={() => setPaymentAuthModal(true)} disabled={!paymentQuote || paymentQuote.canPay === false} data-testid="button-start-event-payment">
+                        {isFixedPolicy || eventData.feeConfiguration ? "Continue to payment" : "Authorize payment"}
+                      </Button>
                     </div>
                   )}
 
                   {/* Collect Payment Button for Past Events (Admin Only) */}
                   {eventData && isEventPast(eventData) && 
-                   eventData.cost && parseFloat(eventData.cost) > 0 && 
+                   (eventData.feeConfiguration ? policyMode === "flexible_post_event" : eventData.cost && parseFloat(eventData.cost) > 0) &&
                    !isFixedPolicy &&
-                   !eventData.paymentCollectionInitiated &&
+                   (!eventData.paymentCollectionInitiated || (eventData.feeConfiguration && eventData.paymentStatus === "partial_captured")) &&
                    user && eventData.primaryTeam && (
                      eventData.primaryTeam.ownerId === (user as any).id || 
                      eventData.primaryTeam.memberships?.some((m: any) => 
@@ -652,9 +659,9 @@ export default function EventDetails() {
                       <CardContent className="pt-6">
                         <div className="flex flex-col space-y-4">
                           <div className="text-center">
-                            <h3 className="text-lg font-semibold text-neutral-900 mb-2">Event Payment Collection</h3>
+                            <h3 className="text-lg font-semibold text-neutral-900 mb-2">{eventData.feeConfiguration ? "Finalise venue cost and refunds" : "Event Payment Collection"}</h3>
                             <p className="text-sm text-neutral-600 mb-4">
-                              This event has finished. You can now collect payments from attendees who have authorized payment holds.
+                              {eventData.feeConfiguration ? "Confirm the final venue cost and refund unused venue shares. Original platform and processing fees stay fixed." : "This event has finished. You can now collect payments from attendees who have authorized payment holds."}
                             </p>
                           </div>
                           <Button 

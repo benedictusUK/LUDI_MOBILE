@@ -5,6 +5,42 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface FeeSettings {
+  /**
+     * @minimum 0
+     * @maximum 10000
+     */
+  platformBasisPoints: number;
+  /**
+     * @minimum 0
+     * @maximum 10000
+     */
+  stripeBasisPoints: number;
+  /**
+     * @minimum 0
+     * @maximum 1000000
+     */
+  stripeFixedMinor: number;
+  /** @minimum 0 */
+  revision: number;
+}
+
+export interface FeeAuditEntry {
+  id: string;
+  /** @nullable */
+  actorId?: string | null;
+  before: FeeSettings;
+  after: FeeSettings;
+  createdAt: string;
+}
+
+export interface FeeAdminState {
+  settings: FeeSettings;
+  audit: FeeAuditEntry[];
+  appliesTo: string;
+  processingChargeNotice: string;
+}
+
 export interface PlatformAdminAccess {
   userId: string;
   isSuperAdmin: boolean;

@@ -375,6 +375,7 @@ export default function SuperAdminNotifications() {
           <h1 className="text-3xl font-bold text-neutral-900">Push notification manager</h1>
           <p className="text-neutral-500 mt-1 max-w-2xl">Control push wording and which events send it. Original in-app notifications are unchanged, and trigger switches affect push delivery only.</p>
         </div>
+        <Link href="/superadmin/fees" className="text-primary font-medium text-sm self-center" data-testid="link-fees">Fee management</Link>
         <Button variant="outline" onClick={() => state.refetch()} disabled={state.isFetching} data-testid="button-refresh">
           <RefreshCw className={`h-4 w-4 mr-2 ${state.isFetching ? "animate-spin" : ""}`} />Refresh
         </Button>

@@ -88,6 +88,50 @@ paths:
           description: Missing ticket or verifier
         "401":
           description: Invalid, expired, or PKCE-mismatched handoff ticket
+  /fee-settings:
+    get:
+      operationId: getFeeSettings
+      tags: [fees]
+      responses:
+        "200":
+          description: Current settings for new events
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeeSettings"
+  /admin/fees:
+    get:
+      operationId: getFeeAdminState
+      tags: [fees]
+      responses:
+        "200":
+          description: SuperAdmin fee settings and audit history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeeAdminState"
+        "403":
+          description: SuperAdmin access required
+    put:
+      operationId: updateFeeSettings
+      tags: [fees]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FeeSettings"
+      responses:
+        "200":
+          description: Saved settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeeAdminState"
+        "409":
+          description: Another administrator changed the revision
+        "403":
+          description: SuperAdmin access required
   /admin/access:
     get:
       operationId: getPlatformAdminAccess
@@ -246,6 +290,54 @@ paths:
         "204": { description: Device disabled for authenticated user }
 components:
   schemas:
+    FeeSettings:
+      type: object
+      required: [platformBasisPoints, stripeBasisPoints, stripeFixedMinor, revision]
+      properties:
+        platformBasisPoints:
+          type: integer
+          minimum: 0
+          maximum: 10000
+        stripeBasisPoints:
+          type: integer
+          minimum: 0
+          maximum: 10000
+        stripeFixedMinor:
+          type: integer
+          minimum: 0
+          maximum: 1000000
+        revision:
+          type: integer
+          minimum: 0
+    FeeAuditEntry:
+      type: object
+      required: [id, before, after, createdAt]
+      properties:
+        id:
+          type: string
+        actorId:
+          type: [string, "null"]
+        before:
+          $ref: "#/components/schemas/FeeSettings"
+        after:
+          $ref: "#/components/schemas/FeeSettings"
+        createdAt:
+          type: string
+          format: date-time
+    FeeAdminState:
+      type: object
+      required: [settings, audit, appliesTo, processingChargeNotice]
+      properties:
+        settings:
+          $ref: "#/components/schemas/FeeSettings"
+        audit:
+          type: array
+          items:
+            $ref: "#/components/schemas/FeeAuditEntry"
+        appliesTo:
+          type: string
+        processingChargeNotice:
+          type: string
     PlatformAdminAccess:
       type: object
       required: [userId, isSuperAdmin]

@@ -30,6 +30,7 @@ import {
 import { apiRequest } from "@/lib/queryClient";
 import { calculateTotalAmount, calculatePerPersonCost } from "@/lib/payment-utils";
 import type { PlatformCharge, TeamMember, AttendanceRecord } from "@/types";
+import { UpfrontSettlementModal } from "./upfront-settlement-modal";
 
 interface OrganiserStatus {
   payoutsEnabled?: boolean;
@@ -62,6 +63,9 @@ export function PaymentCollectionModal({
   const [attendeesExpanded, setAttendeesExpanded] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { data: currentEvent, isLoading: loadingEvent, isError: eventError } = useQuery<any>({
+    queryKey: ["/api/events", eventId], enabled: isOpen,
+  });
 
   // Reset form when modal opens
   useEffect(() => {
@@ -221,6 +225,10 @@ export function PaymentCollectionModal({
         })
     : [];
 
+  if (isOpen && (loadingEvent || eventError || !currentEvent)) return <Dialog open={isOpen} onOpenChange={open => !open && onClose()}>
+    <DialogContent><DialogHeader><DialogTitle>Event payment terms</DialogTitle><DialogDescription>{eventError ? "Payment terms could not be loaded. Close and reopen to retry." : "Loading payment terms..."}</DialogDescription></DialogHeader></DialogContent>
+  </Dialog>;
+  if (currentEvent?.feeConfiguration) return <UpfrontSettlementModal isOpen={isOpen} onClose={onClose} event={currentEvent} attendance={attendance} />;
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[95vh] flex flex-col">

@@ -201,7 +201,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
     ? computeFlexibleDeadlines({ startDate: wStartDate, startTime: wStartTime, endDate: wEndDate, endTime: wEndTime }, { opensDays: wOD, opensHours: wOH, collectDays: wCD, collectHours: wCH })
     : null;
   const maxPlayerPayment = form.watch("maxPlayerPayment");
-  const paymentCalculation = calculateTotalAmount(maxPlayerPayment || "0", platformCharges);
+  const paymentCalculation = calculateTotalAmount(maxPlayerPayment || "0", platformCharges, (event as any)?.feeConfiguration);
 
   useEffect(() => {
     if (user && (!form.getValues("venueOrganiserId") || form.getValues("venueOrganiserId") === "")) {
@@ -802,13 +802,13 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                         >
                           <SelectTrigger className="bg-white" data-testid="select-payment-policy"><SelectValue /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="flexible_post_event">Flexible - hold a cap, settle after event</SelectItem>
+                            <SelectItem value="flexible_post_event">Flexible - pay maximum upfront, refund residual</SelectItem>
                             <SelectItem value="fixed_immediate">Fixed - charge price upfront</SelectItem>
                             <SelectItem value="fixed_threshold">Fixed with minimum - refunded if not enough pay</SelectItem>
                           </SelectContent>
                         </Select>
                         <p className="text-xs text-blue-600 mt-1">
-                          {form.watch("paymentPolicy") === "flexible_post_event" && "Players authorise a cap, then are charged the actual cost after the event."}
+                          {form.watch("paymentPolicy") === "flexible_post_event" && "For new events, players pay the maximum share plus fees now. Unused venue cost is refunded after finalisation; both fee amounts stay fixed. Existing events retain their original payment flow."}
                           {form.watch("paymentPolicy") === "fixed_immediate" && "Players are charged the displayed price when they join. Fees are deducted from this price, not added."}
                           {form.watch("paymentPolicy") === "fixed_threshold" && "Players are charged upfront and refunded if fewer than the minimum have paid by the deadline."}
                         </p>
@@ -866,7 +866,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                               <span className="text-xs text-blue-600">hours</span>
                             </div>
                           </div>
-                          <p className="text-xs text-blue-600 mt-1">Default 1 day, 0 hours after end. Total window up to 5 days.</p>
+                          <p className="text-xs text-blue-600 mt-1">Default 1 day, 0 hours after end. New upfront payments do not expire like card holds.</p>
                         </div>
                         {flexPreview && (
                           <p className="text-xs text-blue-700 md:col-span-2" data-testid="text-flex-preview">

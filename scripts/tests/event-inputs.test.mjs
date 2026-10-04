@@ -64,14 +64,14 @@ for (const [name, calculate] of Object.entries(calculators)) {
     assert.ok(calculate(event, { ...defaults, collectDays: "0", collectHours: "0" }).error);
   });
 
-  test(`${name}: event duration counts toward the five-day limit`, () => {
-    assert.ok(calculate({ ...event, endDate: "2026-10-20" }, defaults).error);
+  test(`${name}: upfront payments allow events lasting beyond the old hold window`, () => {
+    assert.ok(!calculate({ ...event, endDate: "2026-10-20" }, defaults).error);
   });
 
-  test(`${name}: accepts exactly five days and rejects one hour more`, () => {
+  test(`${name}: upfront payments allow settlement offsets beyond five days`, () => {
     const ev = { ...event, endTime: "18:00" };
     assert.ok(!calculate(ev, { ...defaults, collectDays: "3" }).error);
-    assert.ok(calculate(ev, { ...defaults, collectDays: "3", collectHours: "1" }).error);
+    assert.ok(!calculate(ev, { ...defaults, collectDays: "3", collectHours: "1" }).error);
   });
 
   test(`${name}: rejects an event ending before it starts`, () => {

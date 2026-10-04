@@ -1,5 +1,5 @@
 export const POLICY_OPTIONS = [
-  { value: 'flexible_post_event', label: 'Flexible', help: 'Players authorise a cap in GBP; the actual cost is settled after the event.' },
+  { value: 'flexible_post_event', label: 'Flexible', help: 'Players pay the maximum venue share plus fees upfront. Unused venue cost is refunded; both fee amounts stay fixed.' },
   { value: 'fixed_immediate', label: 'Fixed', help: 'Players are charged the displayed price upfront. Fees come out of this price, not on top.' },
   { value: 'fixed_threshold', label: 'Fixed + minimum', help: 'Charged upfront; refunded if fewer than the minimum have paid by the deadline.' },
 ];
@@ -9,11 +9,11 @@ export const isFixedPolicy = (p) => p === 'fixed_immediate' || p === 'fixed_thre
 export const effectivePolicy = (event) =>
   event?.paymentPolicy && event.paymentPolicy !== 'none' ? event.paymentPolicy : 'flexible_post_event';
 
-export const policySummary = (policy, amountPounds, minPaid) => {
+export const policySummary = (policy, amountPounds, minPaid, upfront = false) => {
   const amt = `£${Number(amountPounds || 0).toFixed(2)} GBP`;
   if (policy === 'fixed_immediate') return `Fixed price ${amt}, charged upfront`;
   if (policy === 'fixed_threshold') return `Fixed price ${amt}, refunded if fewer than ${minPaid || 'the minimum'} pay`;
-  return `Flexible: hold up to ${amt}, settled after the event`;
+  return upfront ? `Flexible: pay ${amt} upfront; unused venue cost refunded, original fees fixed` : `Flexible: hold up to ${amt}, settled after the event`;
 };
 
 const pad = (n) => String(n).padStart(2, '0');
@@ -97,7 +97,6 @@ export const computeFlexibleDeadlines = (f, start, end) => {
   const before = od * DAY + oh * HOUR;
   const after = cd * DAY + ch * HOUR;
   if (after <= 0) return { error: 'Collect by must be at least 1 hour after the event ends' };
-  if (before + (end - start) + after > 5 * DAY) return { error: 'Authorisation opening to collection (including event duration) cannot exceed 5 days' };
   return { opensAt: new Date(start.getTime() - before), dueAt: new Date(end.getTime() + after) };
 };
 

@@ -17,6 +17,7 @@ import Teams from "@/pages/teams";
 import Notifications from "@/pages/notifications";
 import Settings from "@/pages/settings";
 import SuperAdminNotifications from "@/pages/superadmin-notifications";
+import SuperAdminFees from "@/pages/superadmin-fees";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -146,6 +147,7 @@ function Router() {
             <Route path="/notifications" component={Notifications} />
             <Route path="/settings" component={Settings} />
             <Route path="/superadmin/notifications" component={SuperAdminNotifications} />
+            <Route path="/superadmin/fees" component={SuperAdminFees} />
           </>
         ) : null}
         <Route component={NotFound} />
