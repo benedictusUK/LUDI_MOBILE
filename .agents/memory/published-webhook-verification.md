@@ -15,8 +15,8 @@ Review publishing readiness before recommending a secret-refresh republish when 
 
 **How to apply:** Keep readiness inspection read-only and leave publishing and production database changes subject to the user's approval.
 
-A confirmed Secrets submission does not validate the credential's contents.
+A PEM parse failure does not establish that the original credential is invalid. Check its stored representation, including flattened line breaks, before asking the user to replace it.
 
-**Why:** Repeated APNs private-key submissions still failed cryptographic parsing, even with both expected PEM marker lines present. Checking common formatting and encoding variants did not establish validity.
+**Why:** A valid APNs private key arrived with no newline after its PEM header. Repeated submissions were incorrectly treated as bad key material. Reconstructing standard PEM whitespace made the existing key parse as P-256; no replacement key was necessary.
 
-**How to apply:** Validate credentials through the application's safe configuration check before claiming readiness. If repeated submissions fail and formatting checks do not help, stop repeating the same request and ask whether the user has the untouched original credential file. Collect any replacement only through the secure Secrets flow. Never print the credential or the full configuration object.
+**How to apply:** Validate through the freshly started application, not only a shell. Normalize intact PEM whitespace consistently for validation and signing while retaining cryptographic type/curve checks. Do not claim Apple accepted the credentials until an actual provider request succeeds. Never print the credential or the full configuration object, and collect any replacement only through the secure Secrets flow.

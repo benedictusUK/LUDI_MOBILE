@@ -10,6 +10,9 @@ Expo hosted push-delivery service. Existing in-app notifications remain availabl
    - `APNS_PRIVATE_KEY`: the complete `.p8` ES256 key, including PEM delimiters.
    - `APNS_KEY_ID`: the Apple key identifier.
    - `APNS_TEAM_ID`: the Apple Developer team identifier.
+   The sender normalizes escaped, flattened, or space-separated PEM line breaks
+   before validation and signing. It still requires an intact PKCS8 key with an
+   EC/P-256 curve; it does not repair missing or corrupted key material.
 2. The APNs topic defaults to the existing `com.ludi.mobile` bundle ID. Set the
    non-secret `APNS_BUNDLE_ID` only if the actual signed app's bundle ID changes.
 3. The Apple App ID and signed provisioning profile must support Push

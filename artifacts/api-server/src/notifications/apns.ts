@@ -2,10 +2,22 @@ import { createPrivateKey, sign } from "node:crypto";
 import { connect, type ClientHttp2Session } from "node:http2";
 
 export type AppleEnvironment = "sandbox" | "production";
+export function normalizeApnsPrivateKey(value: string) {
+  const normalized = value.replace(/\\r\\n|\\n|\\r/g, "\n").trim();
+  // Secret entry/transport can flatten PEM lines. Rebuild only the whitespace
+  // around an intact PKCS8 base64 body; cryptographic validation still follows.
+  const match = normalized.match(/-----BEGIN PRIVATE KEY-----([\s\S]*?)-----END PRIVATE KEY-----/);
+  if (!match) return normalized;
+  const body = match[1].replace(/\s/g, "");
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(body)) return normalized;
+  const lines = body.match(/.{1,64}/g)!;
+  return `-----BEGIN PRIVATE KEY-----\n${lines.join("\n")}\n-----END PRIVATE KEY-----\n`;
+}
 export function apnsConfiguration(environment: AppleEnvironment = "production") {
   const prefix = environment === "sandbox" && process.env.APNS_SANDBOX_PRIVATE_KEY ? "APNS_SANDBOX_" : "APNS_";
   const keyId = process.env[`${prefix}KEY_ID`];
-  const privateKey = process.env[`${prefix}PRIVATE_KEY`];
+  const rawPrivateKey = process.env[`${prefix}PRIVATE_KEY`];
+  const privateKey = rawPrivateKey ? normalizeApnsPrivateKey(rawPrivateKey) : undefined;
   const teamId = process.env.APNS_TEAM_ID;
   const bundleId = process.env.APNS_BUNDLE_ID || "com.ludi.mobile";
   const missing = [
@@ -14,7 +26,7 @@ export function apnsConfiguration(environment: AppleEnvironment = "production") 
   let validKey = !missing.length;
   if (validKey) {
     try {
-      const parsed = createPrivateKey(privateKey!.replace(/\\n/g, "\n"));
+      const parsed = createPrivateKey(privateKey!);
       validKey = parsed.asymmetricKeyType === "ec" && parsed.asymmetricKeyDetails?.namedCurve === "prime256v1";
     } catch { validKey = false; }
     if (!validKey) missing.push("Valid Apple APNs ES256 private key");
@@ -32,7 +44,7 @@ function authorization(environment: AppleEnvironment): string {
   const claims = Buffer.from(JSON.stringify({ iss: config.teamId, iat: Math.floor(Date.now() / 1000) })).toString("base64url");
   const content = `${header}.${claims}`;
   const signature = sign("sha256", Buffer.from(content), {
-    key: config.privateKey!.replace(/\\n/g, "\n"), dsaEncoding: "ieee-p1363",
+    key: config.privateKey!, dsaEncoding: "ieee-p1363",
   }).toString("base64url");
   const value = `${content}.${signature}`;
   authCache.set(environment, { value, expires: Date.now() + 45 * 60_000, key: config.privateKey! });

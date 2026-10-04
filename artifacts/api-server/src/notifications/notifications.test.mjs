@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { generateKeyPairSync } from "node:crypto";
+import { generateKeyPairSync, createPrivateKey, sign, verify } from "node:crypto";
 import { transform } from "esbuild";
 
 async function moduleFrom(path) {
@@ -77,4 +77,48 @@ test("configuration checks reject missing and invalid keys without exposing valu
   } finally {
     for (const key of keys) if (saved[key] === undefined) delete process.env[key]; else process.env[key] = saved[key];
   }
+});
+test("APNs validator accepts standard PKCS8 P-256 PEM formats and rejects the wrong curve", () => {
+  const keys = ["APNS_PRIVATE_KEY", "APNS_KEY_ID", "APNS_TEAM_ID", "APNS_SANDBOX_PRIVATE_KEY"];
+  const saved = Object.fromEntries(keys.map(key => [key, process.env[key]]));
+  try {
+    delete process.env.APNS_SANDBOX_PRIVATE_KEY;
+    process.env.APNS_KEY_ID = "TESTKEY123";
+    process.env.APNS_TEAM_ID = "TESTTEAM12";
+    const { privateKey } = generateKeyPairSync("ec", { namedCurve: "prime256v1" });
+    const pem = privateKey.export({ type: "pkcs8", format: "pem" });
+    for (const [format, value] of [
+      ["multiline PEM", pem],
+      ["Windows line endings", pem.replace(/\n/g, "\r\n")],
+      ["escaped newlines", pem.replace(/\n/g, "\\n")],
+      ["escaped Windows line endings", pem.replace(/\n/g, "\\r\\n")],
+      ["surrounding whitespace", `\n${pem}\n`],
+      ["flattened PEM lines", pem.replace(/\n/g, "")],
+      ["space-separated PEM lines", pem.replace(/\n/g, " ")],
+    ]) {
+      process.env.APNS_PRIVATE_KEY = value;
+      assert.equal(apns.apnsConfiguration("production").configured, true, format);
+      assert.equal(apns.apnsConfiguration("sandbox").configured, true, format);
+    }
+    const wrongCurve = generateKeyPairSync("ec", { namedCurve: "secp384r1" });
+    process.env.APNS_PRIVATE_KEY = wrongCurve.privateKey.export({ type: "pkcs8", format: "pem" });
+    assert.equal(apns.apnsConfiguration().configured, false);
+  } finally {
+    for (const key of keys) {
+      if (saved[key] === undefined) delete process.env[key];
+      else process.env[key] = saved[key];
+    }
+  }
+});
+test("flattened PEM remains the same signing key after normalization", () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ec", { namedCurve: "prime256v1" });
+  const pem = privateKey.export({ type: "pkcs8", format: "pem" });
+  const normalized = apns.normalizeApnsPrivateKey(pem.replace(/\n/g, ""));
+  const restored = createPrivateKey(normalized);
+  assert.deepEqual(restored.export({ type: "pkcs8", format: "der" }), privateKey.export({ type: "pkcs8", format: "der" }));
+  const payload = Buffer.from("APNs normalization signing regression");
+  const signature = sign("sha256", payload, { key: restored, dsaEncoding: "ieee-p1363" });
+  assert.equal(verify("sha256", payload, { key: publicKey, dsaEncoding: "ieee-p1363" }, signature), true);
+  const damaged = pem.replace(/\n/g, "").replace("-----END PRIVATE KEY-----", "!-----END PRIVATE KEY-----");
+  assert.throws(() => createPrivateKey(apns.normalizeApnsPrivateKey(damaged)));
 });

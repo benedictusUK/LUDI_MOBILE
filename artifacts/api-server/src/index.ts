@@ -5,6 +5,7 @@ import { notificationWS } from "./websocket";
 import { storage } from "./storage";
 import { processPaymentDeadlines } from "./payments/policyService";
 import { startNotificationWorkers } from "./notifications/service";
+import { apnsConfiguration } from "./notifications/apns";
 
 const rawPort = process.env["PORT"];
 
@@ -22,6 +23,10 @@ if (Number.isNaN(port) || port <= 0) {
 
 async function start() {
   const server = await registerRoutes(app);
+  // Check the managed API process's environment, which can differ from a shell.
+  // Never log the full configuration: it contains the private key and identifiers.
+  const { configured, missing, bundleId } = apnsConfiguration();
+  logger.info({ configured, missing, bundleId }, "Apple push configuration checked");
   startNotificationWorkers();
   server.listen(port, "0.0.0.0", () => {
     logger.info({ port }, "Server listening");
