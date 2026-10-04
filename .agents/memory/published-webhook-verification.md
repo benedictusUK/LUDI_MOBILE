@@ -1,6 +1,6 @@
 ---
-name: Published webhook verification
-description: Saved secret existence and successful Stripe API operations do not prove the published webhook can authenticate events.
+name: Published credential verification
+description: Saved secrets and confirmed submissions do not prove valid credentials or a correctly configured published runtime.
 ---
 
 Verify the running published webhook with real Stripe deliveries; do not infer readiness from saved secret existence or an enabled endpoint.
@@ -14,3 +14,9 @@ Review publishing readiness before recommending a secret-refresh republish when 
 **Why:** Republishing deploys the current workspace, not just the saved secret. Successful development payment checks do not authorize production schema changes.
 
 **How to apply:** Keep readiness inspection read-only and leave publishing and production database changes subject to the user's approval.
+
+A confirmed Secrets submission does not validate the credential's contents.
+
+**Why:** Repeated APNs private-key submissions still failed cryptographic parsing, even with both expected PEM marker lines present. Checking common formatting and encoding variants did not establish validity.
+
+**How to apply:** Validate credentials through the application's safe configuration check before claiming readiness. If repeated submissions fail and formatting checks do not help, stop repeating the same request and ask whether the user has the untouched original credential file. Collect any replacement only through the secure Secrets flow. Never print the credential or the full configuration object.
