@@ -1,4 +1,4 @@
-import { and, or, eq, inArray, lte, gte } from "drizzle-orm";
+import { and, or, eq, inArray, lte, gte, notExists, isNotNull, sql } from "drizzle-orm";
 import {
   notifications, events, teams, eventAttendance, teamMemberships, notificationPreferences,
   eventPayments, pushTemplates, pushTriggers, pushDevices, pushDeliveries,
@@ -42,8 +42,12 @@ async function queueNotification(tx: Transaction, notification: Notification) {
   if (!triggerId) return;
   const [trigger] = await tx.select().from(pushTriggers).where(eq(pushTriggers.id, triggerId)).limit(1);
   if (!trigger?.enabled) return;
+  // The compatibility producer can see recent records from before opt-in.
+  // Never turn enabling a trigger into a historical push broadcast.
+  if (notification.createdAt && notification.createdAt < trigger.updatedAt) return;
   const [prefs] = await tx.select().from(notificationPreferences).where(eq(notificationPreferences.userId, notification.userId)).limit(1);
   if (!pushPreferenceAllows(triggerId, prefs)) return;
+  if (notification.createdAt && prefs?.updatedAt && notification.createdAt < prefs.updatedAt) return;
   const { context, event, eventId } = await notificationContext(notification, tx);
   if (trigger.audience === "attendees") {
     if (!event) return;
@@ -68,6 +72,64 @@ async function queueNotification(tx: Transaction, notification: Notification) {
     userId: notification.userId, deviceId: device.id, notificationId: notification.id, triggerId,
     dedupeKey: `${notification.id}:${device.id}`, title, body, data, expiresAt,
   }))).onConflictDoNothing({ target: pushDeliveries.dedupeKey });
+}
+
+export async function notificationDatabaseHooks() {
+  const result = await db.execute(sql`
+    SELECT
+      EXISTS (SELECT 1 FROM pg_trigger t WHERE t.tgrelid = 'public.notifications'::regclass
+        AND t.tgname = 'notification_push_outbox' AND NOT t.tgisinternal AND t.tgenabled IN ('O', 'A')) AS outbox,
+      EXISTS (SELECT 1 FROM pg_trigger t WHERE t.tgrelid = 'public.event_payments'::regclass
+        AND t.tgname = 'event_payment_notification' AND NOT t.tgisinternal AND t.tgenabled IN ('O', 'A')) AS payments
+  `);
+  return { outbox: result.rows[0]?.outbox === true, payments: result.rows[0]?.payments === true };
+}
+
+// Managed schema publishing may omit custom PostgreSQL functions/triggers.
+// Use existing durable claim and queue tables, never startup-time DDL.
+export async function reconcileNotificationProducers() {
+  const hooks = await notificationDatabaseHooks();
+  const cutoff = new Date(Date.now() - 6 * 3600_000);
+  if (!hooks.payments) {
+    const kind = sql<string>`CASE WHEN ${eventPayments.status} = 'captured' THEN 'payment_captured' ELSE 'payment_failed' END`;
+    const key = sql<string>`concat('payment-state:', ${eventPayments.id}, ':', coalesce(${eventPayments.paymentIntentId}, ''), ':', ${kind})`;
+    await db.transaction(async tx => {
+      const candidates = await tx.select({ payment: eventPayments, kind, key }).from(eventPayments).where(and(
+        gte(eventPayments.updatedAt, cutoff),
+        or(eq(eventPayments.status, "captured"), and(eq(eventPayments.paymentIntentStatus, "requires_payment_method"), isNotNull(eventPayments.paymentIntentId))),
+        notExists(tx.select({ key: pushReminderClaims.key }).from(pushReminderClaims).where(eq(pushReminderClaims.key, key))),
+      )).orderBy(eventPayments.updatedAt).limit(30);
+      for (const { payment, kind: type, key: claimKey } of candidates) {
+        const claim = await tx.insert(pushReminderClaims).values({ key: claimKey }).onConflictDoNothing().returning();
+        if (!claim.length) continue;
+        const [event] = await tx.select().from(events).where(eq(events.id, payment.eventId)).limit(1);
+        const [notification] = await tx.insert(notifications).values({
+          userId: payment.userId, relatedId: payment.eventId, type,
+          title: type === "payment_captured" ? "Payment collected" : "Payment needs attention",
+          message: type === "payment_captured"
+            ? `Your payment for "${event?.name || "your event"}" has been collected.`
+            : `Please review your payment method for "${event?.name || "your event"}" in LUDI.`,
+          createdAt: payment.updatedAt,
+          metadata: JSON.stringify({ eventId: payment.eventId, amountMinor: payment.capturedAmountMinor }),
+        }).returning();
+        await tx.insert(pushNotificationOutbox).values({ notificationId: notification.id }).onConflictDoNothing();
+      }
+    });
+  }
+  if (!hooks.outbox) {
+    await db.transaction(async tx => {
+      const pending = await tx.select().from(notifications).where(and(
+        gte(notifications.createdAt, cutoff),
+        notExists(tx.select({ key: pushReminderClaims.key }).from(pushReminderClaims)
+          .where(eq(pushReminderClaims.key, sql`concat('notification-outbox:', ${notifications.id})`))),
+      )).orderBy(notifications.createdAt).limit(30);
+      for (const notification of pending) {
+        const claim = await tx.insert(pushReminderClaims).values({ key: `notification-outbox:${notification.id}` })
+          .onConflictDoNothing().returning();
+        if (claim.length) await tx.insert(pushNotificationOutbox).values({ notificationId: notification.id }).onConflictDoNothing();
+      }
+    });
+  }
 }
 
 export async function processNotificationOutbox() {
@@ -218,8 +280,13 @@ export function startNotificationWorkers() {
   const pushTick = async () => {
     if (pushRunning) return;
     pushRunning = true;
-    try { await processNotificationOutbox(); await processPushDeliveries(); }
-    catch (error: any) { logger.error({ errorName: error.name }, "Push processing failed; durable queue will retry"); }
+    try {
+      // A malformed legacy notice must not block self-test deliveries.
+      for (const process of [reconcileNotificationProducers, processNotificationOutbox, processPushDeliveries]) {
+        try { await process(); }
+        catch (error: any) { logger.error({ errorName: error.name, stage: process.name }, "Push processing failed; durable queue will retry"); }
+      }
+    }
     finally { pushRunning = false; }
   };
   let remindersRunning = false;

@@ -178,6 +178,22 @@ export default function NotificationsSection({ onBack }) {
         : (
           <>
             {notice ? <Banner tone={notice.ok ? 'success' : 'error'}>{notice.text}</Banner> : null}
+            {cfg.outboxReady === false || cfg.paymentHooksReady === false ? (
+              <Banner tone={cfg.applicationQueueEnabled ? 'warning' : 'error'} title={cfg.applicationQueueEnabled ? 'Application notification queue active' : 'Automatic notifications are blocked'}>
+                Missing database hooks: {[
+                  cfg.outboxReady === false && 'event notification queue',
+                  cfg.paymentHooksReady === false && 'payment status notifications',
+                ].filter(Boolean).join(', ')}.
+                {' '}{cfg.applicationQueueEnabled ? 'The server handles these notices with a durable, duplicate-protected queue.' : 'Update and publish the server before testing automatic notifications.'}
+                {' '}Self-tests can work once your iPhone is registered.
+              </Banner>
+            ) : null}
+            {cfg.ownDeviceCount < 1 ? (
+              <Banner tone="warning" title="Register your iPhone first">
+                On the signed iPhone app, open Profile → Notification settings and turn on iPhone push notifications.
+                Allow the iPhone prompt, then return here and tap Refresh.
+              </Banner>
+            ) : null}
             <Card accent={cfg.configured ? colors.success : colors.warning}>
               <Text style={[s.label, { color: cfg.configured ? colors.success : colors.warning }]}>Apple push: {cfg.configured ? 'Configured' : 'Not configured'}</Text>
               <Text style={[s.body, { color: colors.text }]}>Bundle ID: {cfg.bundleId || '-'}</Text>

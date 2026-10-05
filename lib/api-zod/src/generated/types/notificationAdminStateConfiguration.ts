@@ -12,4 +12,7 @@ export type NotificationAdminStateConfiguration = {
   bundleId: string;
   deviceCount: number;
   ownDeviceCount: number;
+  outboxReady?: boolean;
+  paymentHooksReady?: boolean;
+  applicationQueueEnabled?: boolean;
 };

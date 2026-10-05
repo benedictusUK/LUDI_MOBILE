@@ -404,6 +404,13 @@ export default function SuperAdminNotifications() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
+              {(cfg!.outboxReady === false || cfg!.paymentHooksReady === false) && (
+                <p role="status" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+                  {cfg!.applicationQueueEnabled
+                    ? "The application notification queue is active. It handles missing database hooks with durable duplicate protection."
+                    : "Automatic notifications are blocked by missing database hooks. Update and publish the server."}
+                </p>
+              )}
               <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                 <div><dt className="text-neutral-500">Bundle ID</dt><dd className="font-mono break-all" data-testid="text-bundle-id">{cfg!.bundleId || "-"}</dd></div>
                 <div><dt className="text-neutral-500">Registered devices</dt><dd className="font-semibold" data-testid="text-device-count">{cfg!.deviceCount}</dd></div>

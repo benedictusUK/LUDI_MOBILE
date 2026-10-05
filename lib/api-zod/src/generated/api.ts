@@ -246,7 +246,10 @@ export const GetNotificationAdminStateResponse = zod.object({
   "missing": zod.array(zod.string()),
   "bundleId": zod.string(),
   "deviceCount": zod.number().int(),
-  "ownDeviceCount": zod.number().int()
+  "ownDeviceCount": zod.number().int(),
+  "outboxReady": zod.boolean().optional(),
+  "paymentHooksReady": zod.boolean().optional(),
+  "applicationQueueEnabled": zod.boolean().optional()
 }),
   "templates": zod.array(zod.object({
   "name": zod.string().min(1).max(getNotificationAdminStateResponseTemplatesItemOneNameMax),
@@ -423,6 +426,8 @@ export const SendPushTemplateTestResponse = zod.object({
 })
 
 
+export const registerApplePushDeviceBodyBundleIdMax = 255;
+
 export const registerApplePushDeviceBodyTokenRegExp = new RegExp('^[a-fA-F0-9]{32,512}$');
 export const registerApplePushDeviceBodyInstallationIdMin = 16;
 export const registerApplePushDeviceBodyInstallationIdMax = 100;
@@ -430,6 +435,7 @@ export const registerApplePushDeviceBodyInstallationIdMax = 100;
 
 
 export const RegisterApplePushDeviceBody = zod.object({
+  "bundleId": zod.string().min(1).max(registerApplePushDeviceBodyBundleIdMax).optional(),
   "token": zod.string().regex(registerApplePushDeviceBodyTokenRegExp),
   "environment": zod.enum(['sandbox', 'production']),
   "installationId": zod.string().min(registerApplePushDeviceBodyInstallationIdMin).max(registerApplePushDeviceBodyInstallationIdMax)

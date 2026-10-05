@@ -285,6 +285,20 @@ export default function ProfileScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
+        <View style={[styles.section, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+          <TouchableOpacity style={[styles.themeButton, { backgroundColor: colors.inputBackground }]}
+            onPress={() => navigation.navigate('Settings')} accessibilityRole="button"
+            accessibilityLabel="Open notification settings" testID="button-notification-settings">
+            <View style={styles.themeButtonContent}>
+              <View style={styles.themeButtonLeft}>
+                <Ionicons name="notifications-outline" size={20} color={colors.icon} />
+                <Text style={[styles.themeButtonLabel, { color: colors.text }]}>Notification settings</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.icon} />
+            </View>
+          </TouchableOpacity>
+        </View>
+
         <SuperAdminShortcut />
 
         {/* Appearance Section */}

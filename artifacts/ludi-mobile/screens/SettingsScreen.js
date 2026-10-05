@@ -32,13 +32,15 @@ export default function SettingsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Settings</Text>
-      </View>
-
       <ScrollView style={styles.content}>
         <View style={[styles.section, { backgroundColor: colors.card }]}>
           <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Notifications</Text>
+          <Text style={{ color: colors.textSecondary, marginBottom: 8 }}>
+            iPhone permission: {push.available ? push.permissionStatus : 'Requires a signed build on a physical iPhone'}
+          </Text>
+          <Text style={{ color: colors.textSecondary, marginBottom: 8 }}>
+            Device registration: {push.deviceRegistered ? 'Registered for this account' : 'Not registered'}
+          </Text>
           <View style={[styles.settingItem, { borderBottomColor: colors.border }]}>
             <View style={[styles.settingLeft, { flex: 1 }]}>
               <Ionicons name="notifications-outline" size={22} color={colors.text} />
@@ -52,6 +54,12 @@ export default function SettingsScreen() {
               onValueChange={value => push.setPreference('pushNotificationsIOS', value)}
             />
           </View>
+          {push.available && push.preferences.pushNotificationsIOS && !push.deviceRegistered ? (
+            <TouchableOpacity onPress={push.refresh} disabled={push.loading || push.busy}
+              accessibilityRole="button" testID="button-retry-push-registration" style={{ paddingVertical: 12 }}>
+              <Text style={{ color: colors.primary }}>Retry device registration</Text>
+            </TouchableOpacity>
+          ) : null}
           {!push.available && (
             <Text style={{ color: colors.textSecondary, padding: 16 }}>
               Direct Apple push needs a signed LUDI build on a physical iPhone. It is not available in Expo Go or the web preview.

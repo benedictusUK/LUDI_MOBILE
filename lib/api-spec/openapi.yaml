@@ -610,6 +610,7 @@ components:
       additionalProperties: false
       required: [token, environment, installationId]
       properties:
+        bundleId: { type: string, minLength: 1, maxLength: 255 }
         token: { type: string, pattern: "^[a-fA-F0-9]{32,512}$" }
         environment: { type: string, enum: [sandbox, production] }
         installationId: { type: string, minLength: 16, maxLength: 100 }
@@ -652,6 +653,9 @@ components:
             bundleId: { type: string }
             deviceCount: { type: integer }
             ownDeviceCount: { type: integer }
+            outboxReady: { type: boolean }
+            paymentHooksReady: { type: boolean }
+            applicationQueueEnabled: { type: boolean }
         templates:
           type: array
           items: { $ref: "#/components/schemas/PushTemplate" }

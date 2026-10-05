@@ -184,6 +184,7 @@ function AppContent() {
         <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: colors.card }, headerTintColor: colors.text, headerTitleStyle: fontsLoaded ? { fontFamily: 'LudiBody', color: colors.text } : { color: colors.text }, headerShadowVisible: false, contentStyle: { backgroundColor: colors.background } }}>
           <Stack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
           <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Notification settings' }} />
           <Stack.Screen name="SuperAdmin" component={SuperAdminScreen} options={{ headerShown: false }} />
           <Stack.Screen name="TeamDetails" component={TeamDetailsScreen} options={{ headerShown: false }} />
           <Stack.Screen name="TeamHistory" component={EventsScreen} options={{ headerShown: false }} />

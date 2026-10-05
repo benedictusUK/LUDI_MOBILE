@@ -77,9 +77,21 @@ export function registerNotificationAdmin(app: Express, authenticate: RequestHan
         .where(and(eq(pushDevices.enabled, true), eq(pushDevices.userId, req.userId), eq(notificationPreferences.pushNotificationsIOS, true))),
     ]);
     const config = apnsConfiguration();
+    const hookStatus = await db.execute(sql`
+      SELECT
+        EXISTS (SELECT 1 FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid
+          WHERE c.relname = 'notifications' AND t.tgname = 'notification_push_outbox'
+            AND NOT t.tgisinternal AND t.tgenabled IN ('O', 'A')) AS "outboxReady",
+        EXISTS (SELECT 1 FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid
+          WHERE c.relname = 'event_payments' AND t.tgname = 'event_payment_notification'
+            AND NOT t.tgisinternal AND t.tgenabled IN ('O', 'A')) AS "paymentHooksReady"
+    `);
     res.json({
       configuration: { configured: config.configured, missing: config.missing, bundleId: config.bundleId,
-        deviceCount: devices[0]?.count || 0, ownDeviceCount: ownDevices[0]?.count || 0 },
+        deviceCount: devices[0]?.count || 0, ownDeviceCount: ownDevices[0]?.count || 0,
+        outboxReady: hookStatus.rows[0]?.outboxReady === true,
+        paymentHooksReady: hookStatus.rows[0]?.paymentHooksReady === true,
+        applicationQueueEnabled: true },
       templates, triggers: resolveTriggerSettings(triggers),
       deliveries, placeholders: PLACEHOLDERS,
     });
@@ -167,11 +179,15 @@ export function registerNotificationAdmin(app: Express, authenticate: RequestHan
 
   app.post("/api/push/devices", authenticate, sameOriginMutation, handle(async (req, res) => {
     const input = RegisterApplePushDeviceBody.parse(req.body);
+    const { bundleId, ...device } = input;
+    if (bundleId && bundleId !== apnsConfiguration(input.environment).bundleId) {
+      throw new NotificationError(409, `This signed app uses ${bundleId}, but the server's APNS_BUNDLE_ID does not match. Set APNS_BUNDLE_ID to this signed App ID and republish the server.`);
+    }
     await db.transaction(async tx => {
       await tx.update(pushDevices).set({ enabled: false, updatedAt: new Date() }).where(and(
         eq(pushDevices.userId, req.userId), eq(pushDevices.installationId, input.installationId),
       ));
-      await tx.insert(pushDevices).values({ ...input, token: input.token.toLowerCase(), userId: req.userId })
+      await tx.insert(pushDevices).values({ ...device, token: input.token.toLowerCase(), userId: req.userId })
         .onConflictDoUpdate({ target: [pushDevices.token, pushDevices.environment],
           set: { userId: req.userId, installationId: input.installationId, enabled: true, updatedAt: new Date() } });
     });

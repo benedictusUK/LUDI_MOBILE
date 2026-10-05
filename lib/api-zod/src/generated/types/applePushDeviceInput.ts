@@ -8,6 +8,11 @@
 import type { ApplePushDeviceInputEnvironment } from './applePushDeviceInputEnvironment';
 
 export interface ApplePushDeviceInput {
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  bundleId?: string;
   /** @pattern ^[a-fA-F0-9]{32,512}$ */
   token: string;
   environment: ApplePushDeviceInputEnvironment;

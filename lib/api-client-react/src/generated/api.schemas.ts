@@ -227,6 +227,11 @@ export const ApplePushDeviceInputEnvironment = {
 } as const;
 
 export interface ApplePushDeviceInput {
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  bundleId?: string;
   /** @pattern ^[a-fA-F0-9]{32,512}$ */
   token: string;
   environment: ApplePushDeviceInputEnvironment;
@@ -269,6 +274,9 @@ export type NotificationAdminStateConfiguration = {
   bundleId: string;
   deviceCount: number;
   ownDeviceCount: number;
+  outboxReady?: boolean;
+  paymentHooksReady?: boolean;
+  applicationQueueEnabled?: boolean;
 };
 
 export interface NotificationAdminState {
