@@ -1192,8 +1192,6 @@ export class DatabaseStorage implements IStorage {
   }
 
 
-
-
   async recordAttendance(attendance: InsertEventAttendance): Promise<EventAttendance> {
     // Get event capacity information
     const capacityInfo = await this.getEventCapacityInfo(attendance.eventId);
@@ -1267,7 +1265,6 @@ export class DatabaseStorage implements IStorage {
     const [newPayment] = await db.insert(payments).values(payment).returning();
     return newPayment;
   }
-
 
 
   async getEventPayments(eventId: string): Promise<(Payment & { user: User })[]> {
@@ -1352,7 +1349,6 @@ export class DatabaseStorage implements IStorage {
       event: record.event?.name ? record.event : undefined
     }));
   }
-
 
 
   // Notification preferences

@@ -21,3 +21,4 @@
 - [Home design direction](home-design-direction.md) — Match night with Clean sport navigation; prominent date/time, three-event stack, voting status and amount paid.
 - [Recurring event buffer](recurring-event-policy.md) — initially five events; generate replacements only as occurrences expire, not on a weeks-ahead policy.
 - [Team management compatibility](team-management-compatibility.md) — retain installed iPhone routes; keep invitation state independent of notification delivery and read state.
+- [Native disabled controls](native-disabled-controls.md) — set Pressable's disabled prop, not just accessibility state or a guarded handler.

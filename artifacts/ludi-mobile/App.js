@@ -19,6 +19,7 @@ import TeamDetailsScreen from './screens/TeamDetailsScreen';
 import NotificationsScreen from './screens/NotificationsScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import ProfileScreen from './screens/ProfileScreen';
+import SuperAdminScreen from './screens/SuperAdminScreen';
 import SearchScreen from './screens/SearchScreen';
 import CreateTeamScreen from './screens/CreateTeamScreen';
 import TeamSearchScreen from './screens/TeamSearchScreen';
@@ -177,6 +178,7 @@ function AppContent() {
         <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: colors.card }, headerTintColor: colors.text, headerTitleStyle: fontsLoaded ? { fontFamily: 'LudiBody', color: colors.text } : { color: colors.text }, headerShadowVisible: false, contentStyle: { backgroundColor: colors.background } }}>
           <Stack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
           <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="SuperAdmin" component={SuperAdminScreen} options={{ headerShown: false }} />
           <Stack.Screen name="TeamDetails" component={TeamDetailsScreen} options={{ headerShown: false }} />
           <Stack.Screen name="CreateTeam" component={CreateTeamScreen} options={{ headerShown: false }} />
           <Stack.Screen name="TeamSearch" component={TeamSearchScreen} options={{ headerShown: false }} />
