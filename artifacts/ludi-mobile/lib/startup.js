@@ -1,5 +1,5 @@
-// Measured from all 98 ANMF frame durations in the supplied WebP.
-export const STARTUP_ANIMATION_DURATION_MS = 4950;
+// All 98 supplied WebP frames retained, with their timeline sped up 2×.
+export const STARTUP_ANIMATION_DURATION_MS = 2475;
 
 export function startupPhase({
   animationComplete, authLoading, authError, themeLoading, fontsReady,

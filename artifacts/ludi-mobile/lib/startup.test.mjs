@@ -19,6 +19,7 @@ test('the supplied animation plays exactly once with its measured full duration'
   assert.equal(loopCount, 1);
   assert.equal(frames, 98);
   assert.equal(duration, STARTUP_ANIMATION_DURATION_MS);
+  assert.ok(duration >= 2000 && duration <= 2500, 'Startup playback should take 2–2.5 seconds');
   const poster = readFileSync(new URL('../assets/images/ludi-startup-final.png', import.meta.url));
   assert.equal(poster.readUInt32BE(16), 752);
   assert.equal(poster.readUInt32BE(20), 752);
