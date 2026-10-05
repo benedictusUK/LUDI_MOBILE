@@ -13,7 +13,7 @@ import TeamAvatar from '../components/team/TeamAvatar';
 import LoadingScreen from '../components/LoadingScreen';
 
 export default function MatchNightHomeScreen() {
-  const { user, apiRequest } = useAuth();
+  const { user } = useAuth();
   const { data, loading, error, reload } = useDashboardData();
   const { unreadCount, updateUnreadCount } = useNotifications();
   const { isDark } = useTheme();
@@ -33,14 +33,8 @@ export default function MatchNightHomeScreen() {
     return () => { clearInterval(timer); listener.remove(); };
   }, [retry]));
   useEffect(() => {
-    let current = true;
-    apiRequest('/api/notifications').then(async response => {
-      if (!response.ok) return;
-      const notifications = await response.json();
-      if (current && Array.isArray(notifications)) updateUnreadCount(notifications.filter(item => !item.isRead).length);
-    }).catch(() => {});
-    return () => { current = false; };
-  }, [user?.id, apiRequest, updateUnreadCount]);
+    if (data) updateUnreadCount(data.unreadCount);
+  }, [data, updateUnreadCount]);
   if (!data) return <LoadingScreen />;
   const body = style => [typography.body, style];
   const display = style => [typography.display, style];

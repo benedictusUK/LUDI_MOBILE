@@ -24,18 +24,22 @@ export function DashboardDataProvider({ children }) {
       try {
         // Start during the reveal animation. Home consumes this same in-memory
         // snapshot instead of issuing another set of requests after mounting.
-        const [eventsResponse, teamsResponse] = await Promise.all([
+        const [eventsResponse, teamsResponse, notificationsResponse] = await Promise.all([
           requestRef.current('/api/events?limit=3'),
           requestRef.current('/api/teams'),
+          requestRef.current('/api/notifications'),
         ]);
-        if (!eventsResponse.ok || !teamsResponse.ok) {
-          throw new Error('We couldn’t load your events and teams. Please try again.');
+        if (!eventsResponse.ok || !teamsResponse.ok || !notificationsResponse.ok) {
+          throw new Error('We couldn’t load your events, teams and notifications. Please try again.');
         }
-        const [eventsData, teamsData] = await Promise.all([eventsResponse.json(), teamsResponse.json()]);
-        if (!Array.isArray(eventsData.events) || !Array.isArray(teamsData)) {
+        const [eventsData, teamsData, notificationsData] = await Promise.all([
+          eventsResponse.json(), teamsResponse.json(), notificationsResponse.json(),
+        ]);
+        if (!Array.isArray(eventsData.events) || !Array.isArray(teamsData) || !Array.isArray(notificationsData)) {
           throw new Error('The server returned unexpected event data. Please try again.');
         }
         const data = {
+          unreadCount: notificationsData.filter(notification => !notification.isRead).length,
           upcomingEvents: await Promise.all(eventsData.events.slice(0, 3).map(async event => {
             if (!event.paymentRequired) return event;
             try {

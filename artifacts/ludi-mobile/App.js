@@ -32,6 +32,7 @@ import PaymentMethodsScreen from './screens/PaymentMethodsScreen';
 import PaymentCollectionScreen from './screens/PaymentCollectionScreen';
 import BlockedMembersScreen from './screens/BlockedMembersScreen';
 import LoadingScreen from './components/LoadingScreen';
+import { startupPhase } from './lib/startup';
 import { usePushNotifications, PushNotificationsProvider } from './hooks/usePushNotifications';
 import { navigationRef } from './lib/navigation';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
@@ -140,29 +141,34 @@ function MainTabs() {
 }
 
 function AppContent() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, authError, retryAuth } = useAuth();
   const { isReady: dashboardReady, error: dashboardError, reload } = useDashboardData();
   const { colors, loading: themeLoading } = useTheme();
   const pushNotifications = usePushNotifications();
   const [fontsLoaded, fontError] = useFonts(brandFonts);
+  const [animationComplete, setAnimationComplete] = React.useState(false);
+  const phase = startupPhase({
+    animationComplete, authLoading: isLoading, authError, themeLoading,
+    fontsReady: fontsLoaded || !!fontError, isAuthenticated,
+    dashboardReady, dashboardError,
+  });
 
-  if (isLoading || themeLoading || (!fontsLoaded && !fontError)) {
-    return <LoadingScreen />;
+  if (phase === 'animation' || phase === 'waiting') {
+    return <LoadingScreen playAnimation={phase === 'animation'} onComplete={() => setAnimationComplete(true)} />;
   }
 
-  if (!isAuthenticated) {
+  if (phase === 'login') {
     return <BrandTypographyContext.Provider value={{ loaded: fontsLoaded, error: fontError }}><AuthScreen onAuthSuccess={() => {}} /></BrandTypographyContext.Provider>;
   }
 
-  if (!dashboardReady) {
-    if (!dashboardError) return <LoadingScreen />;
+  if (phase === 'error') {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: colors.background, padding: 24 }]}>
         <Text style={[styles.loadingText, { color: colors.text, textAlign: 'center' }]}>
-          {dashboardError || 'Loading your events…'}
+          {authError || dashboardError || 'LUDI couldn’t finish loading. Please try again.'}
         </Text>
-        {dashboardError && (
-          <TouchableOpacity accessibilityRole="button" onPress={() => reload().catch(() => {})}
+        {(authError || dashboardError) && (
+          <TouchableOpacity accessibilityRole="button" onPress={() => authError ? retryAuth() : reload().catch(() => {})}
             style={{ backgroundColor: colors.primaryGreen, minHeight: 44, padding: 14, borderRadius: 12, marginTop: 20 }}>
             <Text style={{ color: colors.buttonText, fontWeight: '700' }}>Try again</Text>
           </TouchableOpacity>
