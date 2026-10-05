@@ -34,6 +34,7 @@ import type {
   ProfilePictureRecord,
   PushDeviceRemoval,
   PushDeviceResult,
+  PushNotificationInput,
   PushPreview,
   PushPreviewInput,
   PushTemplate,
@@ -918,6 +919,156 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getDeletePushTemplateMutationOptions(options));
+    }
+
+export const getCreatePushTriggerUrl = () => {
+
+
+
+
+  return `/api/admin/notifications/triggers`
+}
+
+export const createPushTrigger = async (pushNotificationInput: PushNotificationInput, options?: Parameters<typeof customFetch>[1]): Promise<PushTrigger> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PushTrigger>(getCreatePushTriggerUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(pushNotificationInput)
+  }
+);}
+
+
+
+
+
+export const getCreatePushTriggerMutationKey = () => ['createPushTrigger'] as const;
+
+export const getCreatePushTriggerMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPushTrigger>>, TError,CreatePushTriggerMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPushTrigger>>, TError,CreatePushTriggerMutationVariables, TContext> => {
+
+const mutationKey = getCreatePushTriggerMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPushTrigger>>, CreatePushTriggerMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createPushTrigger(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePushTriggerMutationResult = NonNullable<Awaited<ReturnType<typeof createPushTrigger>>>
+    export type CreatePushTriggerMutationBody = BodyType<PushNotificationInput>
+    export type CreatePushTriggerMutationError = ErrorType<unknown>
+    export type CreatePushTriggerMutationVariables = {data: BodyType<PushNotificationInput>}
+
+    export const useCreatePushTrigger = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPushTrigger>>, TError,CreatePushTriggerMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createPushTrigger>>,
+        TError,
+        CreatePushTriggerMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreatePushTriggerMutationOptions(options));
+    }
+
+export const getDeletePushTriggerUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/notifications/triggers/${id}`
+}
+
+export const deletePushTrigger = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeletePushTriggerUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeletePushTriggerMutationKey = () => ['deletePushTrigger'] as const;
+
+export const getDeletePushTriggerMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePushTrigger>>, TError,DeletePushTriggerMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deletePushTrigger>>, TError,DeletePushTriggerMutationVariables, TContext> => {
+
+const mutationKey = getDeletePushTriggerMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deletePushTrigger>>, DeletePushTriggerMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  deletePushTrigger(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeletePushTriggerMutationResult = NonNullable<Awaited<ReturnType<typeof deletePushTrigger>>>
+
+    export type DeletePushTriggerMutationError = ErrorType<void>
+    export type DeletePushTriggerMutationVariables = {id: string}
+
+    export const useDeletePushTrigger = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePushTrigger>>, TError,DeletePushTriggerMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deletePushTrigger>>,
+        TError,
+        DeletePushTriggerMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeletePushTriggerMutationOptions(options));
     }
 
 export const getUpdatePushTriggerUrl = (id: string,) => {

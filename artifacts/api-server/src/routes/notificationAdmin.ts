@@ -6,14 +6,14 @@ import {
   pushAdminAudit, notificationPreferences,
 } from "@workspace/db";
 import {
-  CreatePushTemplateBody, UpdatePushTemplateBody, UpdatePushTriggerBody, PreviewPushTemplateBody,
+  CreatePushTemplateBody, UpdatePushTemplateBody, UpdatePushTriggerBody, CreatePushTriggerBody, PreviewPushTemplateBody,
   SendPushTemplateTestBody, RegisterApplePushDeviceBody, UnregisterApplePushDeviceBody,
 } from "@workspace/api-zod";
 import { z } from "zod";
 import { db } from "../db";
 import { apnsConfiguration } from "../notifications/apns";
 import { PLACEHOLDERS, TRIGGER_CATALOG, SAMPLE_CONTEXT, renderTemplate, validateTemplateText } from "../notifications/catalog";
-import { resolveTriggerSettings } from "../notifications/triggerSettings";
+import { resolveTriggerSettings, describeTrigger, triggerType } from "../notifications/triggerSettings";
 
 class NotificationError extends Error {
   constructor(public status: number, message: string) { super(message); }
@@ -92,7 +92,7 @@ export function registerNotificationAdmin(app: Express, authenticate: RequestHan
         outboxReady: hookStatus.rows[0]?.outboxReady === true,
         paymentHooksReady: hookStatus.rows[0]?.paymentHooksReady === true,
         applicationQueueEnabled: true },
-      templates, triggers: resolveTriggerSettings(triggers),
+      templates, triggers: resolveTriggerSettings(triggers), triggerTypes: TRIGGER_CATALOG,
       deliveries, placeholders: PLACEHOLDERS,
     });
   }));
@@ -130,21 +130,49 @@ export function registerNotificationAdmin(app: Express, authenticate: RequestHan
     });
     res.status(204).end();
   }));
+  app.post("/api/admin/notifications/triggers", handle(async (req, res) => {
+    const { type, ...input } = CreatePushTriggerBody.parse(req.body);
+    const definition = TRIGGER_CATALOG.find(t => t.id === type);
+    if (!definition) throw new NotificationError(400, "Choose a supported notification type");
+    if (!(definition.allowedAudiences as readonly string[]).includes(input.audience)) throw new NotificationError(400, "That recipient audience is not supported for this type");
+    const created = await db.transaction(async tx => {
+      const [template] = await tx.select().from(pushTemplates).where(eq(pushTemplates.id, input.templateId));
+      if (!template) throw new NotificationError(400, "Choose an existing template");
+      const [trigger] = await tx.insert(pushTriggers).values({ id: `${type}:${randomUUID()}`, ...input }).returning();
+      await tx.insert(pushAdminAudit).values({ actorId: req.userId, action: "trigger_created", entityId: trigger.id });
+      return trigger;
+    });
+    res.status(201).json(describeTrigger(created));
+  }));
+  app.delete("/api/admin/notifications/triggers/:id", handle(async (req, res) => {
+    await db.transaction(async tx => {
+      const deleted = await tx.delete(pushTriggers).where(eq(pushTriggers.id, req.params.id)).returning();
+      if (!deleted.length) throw new NotificationError(404, "Notification not found");
+      await tx.insert(pushAdminAudit).values({ actorId: req.userId, action: "trigger_deleted", entityId: req.params.id });
+    });
+    res.status(204).end();
+  }));
   app.put("/api/admin/notifications/triggers/:id", handle(async (req, res) => {
     const input = UpdatePushTriggerBody.parse(req.body);
-    const definition = TRIGGER_CATALOG.find(t => t.id === req.params.id);
+    const definition = TRIGGER_CATALOG.find(t => t.id === triggerType(req.params.id));
     if (!definition) throw new NotificationError(404, "Unsupported notification trigger");
     if (!(definition.allowedAudiences as readonly string[]).includes(input.audience)) throw new NotificationError(400, "That recipient audience is not supported for this trigger");
     const [template] = await db.select().from(pushTemplates).where(eq(pushTemplates.id, input.templateId));
     if (!template) throw new NotificationError(400, "Choose an existing template");
     const trigger = await db.transaction(async tx => {
+      // Keep the old catalog-ID upsert for installed clients. A generated ID
+      // must already exist; editing a deleted configuration cannot recreate it.
+      if (req.params.id !== definition.id) {
+        const [existing] = await tx.select().from(pushTriggers).where(eq(pushTriggers.id, req.params.id)).for("update");
+        if (!existing) throw new NotificationError(404, "Notification no longer exists");
+      }
       const settings = { ...input, updatedAt: new Date() };
-      const [updated] = await tx.insert(pushTriggers).values({ id: definition.id, ...settings })
+      const [updated] = await tx.insert(pushTriggers).values({ id: req.params.id, ...settings })
         .onConflictDoUpdate({ target: pushTriggers.id, set: settings }).returning();
       await tx.insert(pushAdminAudit).values({ actorId: req.userId, action: "trigger_updated", entityId: updated.id });
       return updated;
     });
-    res.json({ ...trigger, ...definition });
+    res.json(describeTrigger(trigger));
   }));
   app.post("/api/admin/notifications/preview", handle(async (req, res) => {
     const input = PreviewPushTemplateBody.parse(req.body);

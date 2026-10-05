@@ -14,3 +14,9 @@ The platform-level SuperAdmin manages notifications and participant-fee configur
 **Why:** The user initially chose “Notifications + SuperAdmin (recommended)” and subsequently explicitly requested SuperAdmin controls for platform and processing charges.
 
 **How to apply:** Keep platform administration distinct from team organiser permissions. Adding controls is not permission to change existing events' agreed fees.
+
+Notification types are choices for creating configurations, not a limit of one notification per type. Support multiple “Before an event” reminders with independent timings and templates.
+
+**Why:** The user explicitly wants to create multiple reminders of the same type.
+
+**How to apply:** Notification settings opens the configured-notification list with creation available. Keep Templates at the top as a separate screen for viewing and creating reusable templates.

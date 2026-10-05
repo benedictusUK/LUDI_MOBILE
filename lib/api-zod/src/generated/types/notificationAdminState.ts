@@ -9,11 +9,13 @@ import type { NotificationAdminStateConfiguration } from './notificationAdminSta
 import type { PushDelivery } from './pushDelivery';
 import type { PushTemplate } from './pushTemplate';
 import type { PushTrigger } from './pushTrigger';
+import type { PushTriggerType } from './pushTriggerType';
 
 export interface NotificationAdminState {
   configuration: NotificationAdminStateConfiguration;
   templates: PushTemplate[];
   triggers: PushTrigger[];
+  triggerTypes: PushTriggerType[];
   deliveries: PushDelivery[];
   placeholders: string[];
 }

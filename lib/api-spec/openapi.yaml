@@ -199,12 +199,35 @@ paths:
       responses:
         "204": { description: Unassigned template deleted }
         "409": { description: Template is assigned to a trigger }
+  /admin/notifications/triggers:
+    post:
+      operationId: createPushTrigger
+      tags: [notificationAdmin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushNotificationInput"
+      responses:
+        "201":
+          description: Notification created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PushTrigger"
   /admin/notifications/triggers/{id}:
     parameters:
       - in: path
         name: id
         required: true
         schema: { type: string }
+    delete:
+      operationId: deletePushTrigger
+      tags: [notificationAdmin]
+      responses:
+        "204": { description: Notification removed }
+        "404": { description: Notification not found }
     put:
       operationId: updatePushTrigger
       tags: [notificationAdmin]
@@ -561,6 +584,24 @@ components:
           properties:
             id: { type: string }
             updatedAt: { type: string }
+    PushNotificationInput:
+      allOf:
+        - $ref: "#/components/schemas/PushTriggerInput"
+        - type: object
+          required: [type]
+          properties:
+            type: { type: string, minLength: 1 }
+    PushTriggerType:
+      type: object
+      required: [id, label, description, scheduled, allowedAudiences]
+      properties:
+        id: { type: string }
+        label: { type: string }
+        description: { type: string }
+        scheduled: { type: boolean }
+        allowedAudiences:
+          type: array
+          items: { type: string }
     PushTriggerInput:
       type: object
       additionalProperties: false
@@ -572,9 +613,10 @@ components:
         reminderMinutes: { type: integer, minimum: 5, maximum: 10080 }
     PushTrigger:
       type: object
-      required: [id, enabled, templateId, audience, reminderMinutes, label, description, scheduled, allowedAudiences, updatedAt]
+      required: [id, type, enabled, templateId, audience, reminderMinutes, label, description, scheduled, allowedAudiences, updatedAt]
       properties:
         id: { type: string }
+        type: { type: string }
         enabled: { type: boolean }
         templateId: { type: ["string", "null"] }
         audience: { type: string, enum: [existing, attendees, team_members] }
@@ -640,7 +682,7 @@ components:
         acceptedAt: { type: [string, "null"] }
     NotificationAdminState:
       type: object
-      required: [configuration, templates, triggers, deliveries, placeholders]
+      required: [configuration, templates, triggers, triggerTypes, deliveries, placeholders]
       properties:
         configuration:
           type: object
@@ -662,6 +704,9 @@ components:
         triggers:
           type: array
           items: { $ref: "#/components/schemas/PushTrigger" }
+        triggerTypes:
+          type: array
+          items: { $ref: "#/components/schemas/PushTriggerType" }
         deliveries:
           type: array
           items: { $ref: "#/components/schemas/PushDelivery" }

@@ -9,6 +9,7 @@ import { logger } from "../lib/logger";
 import { notificationWS } from "../websocket";
 import { canonicalTrigger, pushPreferenceAllows, renderTemplate, type TemplateContext } from "./catalog";
 import { apnsConfiguration, classifyApnsResponse, sendApplePush } from "./apns";
+import { triggerType } from "./triggerSettings";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Notification = typeof notifications.$inferSelect;
@@ -40,8 +41,19 @@ export async function notificationContext(notification: Notification, tx: Pick<t
 async function queueNotification(tx: Transaction, notification: Notification) {
   const triggerId = canonicalTrigger(notification.type);
   if (!triggerId) return;
-  const [trigger] = await tx.select().from(pushTriggers).where(eq(pushTriggers.id, triggerId)).limit(1);
-  if (!trigger?.enabled) return;
+  const configurationId = metadataOf(notification).configurationId;
+  const triggers = await tx.select().from(pushTriggers).where(eq(pushTriggers.enabled, true));
+  for (const trigger of triggers) {
+    if (triggerType(trigger.id) !== triggerId ||
+      configurationId && configurationId !== trigger.id) continue;
+    await queueConfiguredNotification(tx, notification, triggerId, trigger);
+  }
+}
+
+async function queueConfiguredNotification(
+  tx: Transaction, notification: Notification, triggerId: string,
+  trigger: typeof pushTriggers.$inferSelect,
+) {
   // The compatibility producer can see recent records from before opt-in.
   // Never turn enabling a trigger into a historical push broadcast.
   if (notification.createdAt && notification.createdAt < trigger.updatedAt) return;
@@ -66,11 +78,12 @@ async function queueNotification(tx: Transaction, notification: Notification) {
   if (expiresAt <= new Date()) return;
   const title = renderTemplate(template.title, context);
   const body = renderTemplate(template.body, context);
-  const data: Record<string, string> = { notificationId: notification.id, triggerId, userId: notification.userId };
+  const data: Record<string, string> = { notificationId: notification.id, triggerId, configurationId: trigger.id, userId: notification.userId };
   if (eventId) data.eventId = eventId;
   await tx.insert(pushDeliveries).values(devices.map(device => ({
-    userId: notification.userId, deviceId: device.id, notificationId: notification.id, triggerId,
-    dedupeKey: `${notification.id}:${device.id}`, title, body, data, expiresAt,
+    userId: notification.userId, deviceId: device.id, notificationId: notification.id, triggerId: trigger.id,
+    dedupeKey: trigger.id === triggerId ? `${notification.id}:${device.id}` : `${notification.id}:${device.id}:${trigger.id}`,
+    title, body, data, expiresAt,
   }))).onConflictDoNothing({ target: pushDeliveries.dedupeKey });
 }
 
@@ -162,19 +175,20 @@ export async function processPushDeliveries() {
     const [device] = await db.select().from(pushDevices).where(eq(pushDevices.id, row.deviceId)).limit(1);
     const [prefs] = await db.select().from(notificationPreferences).where(eq(notificationPreferences.userId, row.userId)).limit(1);
     const [trigger] = row.triggerId === "test" ? [] : await db.select().from(pushTriggers).where(eq(pushTriggers.id, row.triggerId)).limit(1);
+    const type = triggerType(row.triggerId);
     // Recheck ownership and preferences immediately before dispatch: a token can
     // move to a different account, or a user can opt out while a job is waiting.
-    if (!device?.enabled || device.userId !== row.userId || !pushPreferenceAllows(row.triggerId, prefs) ||
+    if (!device?.enabled || device.userId !== row.userId || !pushPreferenceAllows(type, prefs) ||
       row.triggerId !== "test" && !trigger?.enabled) {
       await update({ status: "skipped", reason: "Device, preference or trigger disabled" }); return;
     }
-    if ((row.triggerId === "event_reminder" || row.triggerId === "payment_reminder") && row.data.eventId) {
+    if ((type === "event_reminder" || type === "payment_reminder") && row.data.eventId) {
       const [event] = await db.select().from(events).where(eq(events.id, row.data.eventId)).limit(1);
       if (!event) { await update({ status: "skipped", reason: "Event no longer active" }); return; }
-      if (row.triggerId === "event_reminder" && new Date(`${event.startDate}T${event.startTime || "00:00"}Z`) <= new Date()) {
+      if (type === "event_reminder" && new Date(`${event.startDate}T${event.startTime || "00:00"}Z`) <= new Date()) {
         await update({ status: "skipped", reason: "Event has already started" }); return;
       }
-      if (row.triggerId === "payment_reminder") {
+      if (type === "payment_reminder") {
         const [payment] = await db.select().from(eventPayments).where(and(eq(eventPayments.eventId, event.id), eq(eventPayments.userId, row.userId))).limit(1);
         if (!paymentWindow(event).canPay || payment && ["hold_created", "captured", "refunded", "cancelled"].includes(payment.status || "")) {
           await update({ status: "skipped", reason: "Payment no longer outstanding or payable" }); return;
@@ -216,7 +230,8 @@ export async function processPushDeliveries() {
 }
 
 export async function processScheduledReminders() {
-  const active = await db.select().from(pushTriggers).where(and(eq(pushTriggers.enabled, true), inArray(pushTriggers.id, ["event_reminder", "payment_reminder"])));
+  const active = (await db.select().from(pushTriggers).where(eq(pushTriggers.enabled, true)))
+    .filter(trigger => ["event_reminder", "payment_reminder"].includes(triggerType(trigger.id)));
   if (!active.length) return;
   const now = new Date();
   const earliest = new Date(+now - 86400_000).toISOString().slice(0, 10);
@@ -230,10 +245,11 @@ export async function processScheduledReminders() {
   ));
   for (const event of upcoming) {
     for (const trigger of active) {
+      const type = triggerType(trigger.id);
       const window = paymentWindow(event, now);
-      const target = trigger.id === "event_reminder"
+      const target = type === "event_reminder"
         ? new Date(`${event.startDate}T${event.startTime || "00:00"}Z`) : window.deadline;
-      if (trigger.id === "payment_reminder" && (!event.paymentRequired || !window.canPay)) continue;
+      if (type === "payment_reminder" && (!event.paymentRequired || !window.canPay)) continue;
       const due = new Date(+target - trigger.reminderMinutes * 60_000);
       // Enabling/changing a reminder does not send historical reminders in bulk.
       if (!Number.isFinite(+target) || now < due || now >= target || due < trigger.updatedAt) continue;
@@ -244,8 +260,8 @@ export async function processScheduledReminders() {
           .where(and(eq(eventAttendance.eventId, event.id), inArray(eventAttendance.status, ["attending", "promoted"])));
       for (const recipient of recipients) {
         const [prefs] = await db.select().from(notificationPreferences).where(eq(notificationPreferences.userId, recipient.userId)).limit(1);
-        if (!pushPreferenceAllows(trigger.id, prefs)) continue;
-        if (trigger.id === "payment_reminder") {
+        if (!pushPreferenceAllows(type, prefs)) continue;
+        if (type === "payment_reminder") {
           const [payment] = await db.select().from(eventPayments).where(and(eq(eventPayments.eventId, event.id), eq(eventPayments.userId, recipient.userId))).limit(1);
           if (payment && ["hold_created", "captured", "refunded", "cancelled"].includes(payment.status || "")) continue;
         }
@@ -257,8 +273,8 @@ export async function processScheduledReminders() {
           const [template] = await tx.select().from(pushTemplates).where(eq(pushTemplates.id, trigger.templateId));
           if (!template) throw new Error("ReminderTemplateMissing");
           const provisional = {
-            userId: recipient.userId, relatedId: event.id, type: trigger.id, message: "Open LUDI to review your event.",
-            metadata: JSON.stringify({ eventId: event.id }),
+            userId: recipient.userId, relatedId: event.id, type, message: "Open LUDI to review your event.",
+            metadata: JSON.stringify({ eventId: event.id, configurationId: trigger.id }),
           };
           const { context } = await notificationContext(provisional as Notification, tx);
           const [notification] = await tx.insert(notifications).values({

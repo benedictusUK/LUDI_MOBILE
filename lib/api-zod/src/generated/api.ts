@@ -261,6 +261,7 @@ export const GetNotificationAdminStateResponse = zod.object({
 }))),
   "triggers": zod.array(zod.object({
   "id": zod.string(),
+  "type": zod.string(),
   "enabled": zod.boolean(),
   "templateId": zod.string().nullable(),
   "audience": zod.enum(['existing', 'attendees', 'team_members']),
@@ -270,6 +271,13 @@ export const GetNotificationAdminStateResponse = zod.object({
   "scheduled": zod.boolean(),
   "allowedAudiences": zod.array(zod.string()),
   "updatedAt": zod.string().nullable()
+})),
+  "triggerTypes": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "description": zod.string(),
+  "scheduled": zod.boolean(),
+  "allowedAudiences": zod.array(zod.string())
 })),
   "deliveries": zod.array(zod.object({
   "id": zod.string(),
@@ -361,6 +369,49 @@ export const DeletePushTemplateParams = zod.object({
 export const DeletePushTemplateResponse = zod.void()
 
 
+
+export const createPushTriggerBodyOneReminderMinutesMin = 5;
+export const createPushTriggerBodyOneReminderMinutesMax = 10080;
+
+
+
+
+export const CreatePushTriggerBody = zod.object({
+  "enabled": zod.boolean(),
+  "templateId": zod.string().min(1),
+  "audience": zod.enum(['existing', 'attendees', 'team_members']),
+  "reminderMinutes": zod.number().int().min(createPushTriggerBodyOneReminderMinutesMin).max(createPushTriggerBodyOneReminderMinutesMax)
+}).and(zod.object({
+  "type": zod.string().min(1)
+}))
+
+export const createPushTriggerResponseReminderMinutesMin = 5;
+export const createPushTriggerResponseReminderMinutesMax = 10080;
+
+
+
+export const CreatePushTriggerResponse = zod.object({
+  "id": zod.string(),
+  "type": zod.string(),
+  "enabled": zod.boolean(),
+  "templateId": zod.string().nullable(),
+  "audience": zod.enum(['existing', 'attendees', 'team_members']),
+  "reminderMinutes": zod.number().int().min(createPushTriggerResponseReminderMinutesMin).max(createPushTriggerResponseReminderMinutesMax),
+  "label": zod.string(),
+  "description": zod.string(),
+  "scheduled": zod.boolean(),
+  "allowedAudiences": zod.array(zod.string()),
+  "updatedAt": zod.string().nullable()
+})
+
+
+export const DeletePushTriggerParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeletePushTriggerResponse = zod.void()
+
+
 export const UpdatePushTriggerParams = zod.object({
   "id": zod.coerce.string()
 })
@@ -385,6 +436,7 @@ export const updatePushTriggerResponseReminderMinutesMax = 10080;
 
 export const UpdatePushTriggerResponse = zod.object({
   "id": zod.string(),
+  "type": zod.string(),
   "enabled": zod.boolean(),
   "templateId": zod.string().nullable(),
   "audience": zod.enum(['existing', 'attendees', 'team_members']),

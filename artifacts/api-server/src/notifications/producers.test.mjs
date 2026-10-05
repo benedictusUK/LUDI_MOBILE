@@ -144,3 +144,47 @@ test('enabling push or a trigger does not replay older compatibility records', a
   await service.processNotificationOutbox();
   assert.equal(state.push_deliveries.length, 0);
 });
+
+test('multiple immediate configurations each queue once per notification and device', async () => {
+  reset();
+  state.push_triggers.push({ ...state.push_triggers[0], id: 'event_created:second' });
+  state.notifications.push({ id: 'fixture-notice', userId: 'fixture-user', type: 'new_event', message: 'New match', createdAt: new Date() });
+  state.push_notification_outbox = [{ notificationId: 'fixture-notice' }];
+  await service.processNotificationOutbox();
+  assert.deepEqual(state.push_deliveries.map(d => d.triggerId), ['event_created', 'event_created:second']);
+  assert.equal(new Set(state.push_deliveries.map(d => d.dedupeKey)).size, 2);
+  // Preserve the dedupe key of already queued legacy deliveries.
+  assert.equal(state.push_deliveries[0].dedupeKey, 'fixture-notice:fixture-device');
+  state.push_notification_outbox = [{ notificationId: 'fixture-notice' }];
+  await service.processNotificationOutbox();
+  assert.equal(state.push_deliveries.length, 2);
+});
+
+test('two before-event reminders have independent claims and push only their own configuration', async () => {
+  reset();
+  const start = new Date(Date.now() + 30 * 60_000).toISOString();
+  state.events[0].startDate = start.slice(0, 10);
+  state.events[0].startTime = start.slice(11, 16);
+  state.event_attendance = [{ userId: 'fixture-user', eventId: 'fixture-event', status: 'attending' }];
+  const common = { enabled: true, templateId: 'fixture-template', audience: 'attendees', updatedAt: new Date(Date.now() - 3 * 86400_000) };
+  state.push_triggers = [
+    { ...common, id: 'event_reminder', reminderMinutes: 1440 },
+    { ...common, id: 'event_reminder:second', reminderMinutes: 60 },
+  ];
+  await service.processScheduledReminders();
+  await service.processScheduledReminders();
+  assert.equal(state.notifications.length, 2);
+  assert.equal(state.push_reminder_claims.length, 2);
+  assert.deepEqual(state.notifications.map(n => JSON.parse(n.metadata).configurationId), ['event_reminder', 'event_reminder:second']);
+  const reminders = [...state.notifications];
+  // Isolate each outbox record because this fixture deliberately does not
+  // interpret Drizzle SQL predicates.
+  for (const reminder of reminders) {
+    state.notifications = [reminder];
+    state.push_notification_outbox = [{ notificationId: reminder.id }];
+    await service.processNotificationOutbox();
+  }
+  assert.equal(state.push_deliveries.length, 2, 'No cross-product of reminders and configurations');
+  assert.deepEqual(state.push_deliveries.map(d => d.triggerId), ['event_reminder', 'event_reminder:second']);
+  assert.ok(state.push_deliveries.every(d => d.data.triggerId === 'event_reminder'));
+});

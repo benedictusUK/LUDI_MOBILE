@@ -167,6 +167,19 @@ export interface PushTriggerInput {
   reminderMinutes: number;
 }
 
+export type PushNotificationInput = PushTriggerInput & {
+  /** @minLength 1 */
+  type: string;
+};
+
+export interface PushTriggerType {
+  id: string;
+  label: string;
+  description: string;
+  scheduled: boolean;
+  allowedAudiences: string[];
+}
+
 export type PushTriggerAudience = typeof PushTriggerAudience[keyof typeof PushTriggerAudience];
 
 
@@ -178,6 +191,7 @@ export const PushTriggerAudience = {
 
 export interface PushTrigger {
   id: string;
+  type: string;
   enabled: boolean;
   /** @nullable */
   templateId: string | null;
@@ -283,6 +297,7 @@ export interface NotificationAdminState {
   configuration: NotificationAdminStateConfiguration;
   templates: PushTemplate[];
   triggers: PushTrigger[];
+  triggerTypes: PushTriggerType[];
   deliveries: PushDelivery[];
   placeholders: string[];
 }

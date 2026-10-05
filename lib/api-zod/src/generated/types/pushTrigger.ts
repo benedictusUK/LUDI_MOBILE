@@ -9,6 +9,7 @@ import type { PushTriggerAudience } from './pushTriggerAudience';
 
 export interface PushTrigger {
   id: string;
+  type: string;
   enabled: boolean;
   /** @nullable */
   templateId: string | null;

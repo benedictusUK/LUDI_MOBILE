@@ -3,16 +3,18 @@ import { TRIGGER_CATALOG } from "./catalog";
 
 type StoredTrigger = typeof pushTriggers.$inferSelect;
 
-// Production schema provisioning does not necessarily copy migration seed data.
-// Unsaved triggers must still be usable, without implicitly enabling delivery.
+// Legacy rows use the type as their ID. New configurations use type:UUID so
+// multiple rules can coexist without changing the live database schema.
+export function triggerType(id: string) {
+  return id.split(":")[0];
+}
+
+export function describeTrigger(trigger: StoredTrigger) {
+  const definition = TRIGGER_CATALOG.find(t => t.id === triggerType(trigger.id));
+  if (!definition) throw new Error("Unsupported stored notification type");
+  return { ...definition, ...trigger, type: definition.id };
+}
+
 export function resolveTriggerSettings(stored: StoredTrigger[]) {
-  return TRIGGER_CATALOG.map(definition => ({
-    enabled: false,
-    templateId: null,
-    audience: definition.allowedAudiences[0],
-    reminderMinutes: 1440,
-    updatedAt: null,
-    ...stored.find(trigger => trigger.id === definition.id),
-    ...definition,
-  }));
+  return stored.map(describeTrigger);
 }
