@@ -1,0 +1,3 @@
+/* Scoped baseline: LUDI's native screen uses its copied theme and style objects. */
+.ludi-native-current button { font: inherit; }
+.ludi-native-current button:focus-visible { outline: 2px solid #35edba; outline-offset: 3px; }
