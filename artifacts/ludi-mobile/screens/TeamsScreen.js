@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, RefreshControl, Alert, ActivityIndicator } from 'react-native';
+import useBrandStyles from '../components/brand/useBrandStyles';
+import { View, FlatList, StyleSheet, TouchableOpacity, RefreshControl, Alert, ActivityIndicator } from 'react-native';
+import { BrandText as Text } from '../components/brand/BrandText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -9,6 +11,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import HeaderWithNotifications from '../components/HeaderWithNotifications';
 
 export default function TeamsScreen() {
+  const styles = useBrandStyles(baseStyles, { navClearance: 112 });
   const [teams, setTeams] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -85,7 +88,7 @@ export default function TeamsScreen() {
       data-testid={`card-team-${item.id}`}
     >
       <View style={styles.teamHeader}>
-        <View style={[styles.teamColor, { backgroundColor: item.color || '#3b82f6' }]} />
+        <View style={[styles.teamColor, { backgroundColor: item.color || '#3d86e8' }]} />
         <View style={styles.teamInfo}>
           <Text style={[styles.teamName, { color: colors.text }]}>{item.name}</Text>
           {item.description && (
@@ -97,12 +100,12 @@ export default function TeamsScreen() {
       <View style={styles.teamFooter}>
         <View style={styles.sportsContainer}>
           {item.sports?.slice(0, 3).map((sport, index) => (
-            <Text key={index} style={[styles.sportTag, { color: colors.primary, backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff' }]}>
+            <Text key={index} style={[styles.sportTag, { color: colors.primary, backgroundColor: isDark ? 'rgba(114, 170, 255, 0.2)' : '#e3eefb' }]}>
               {sport}
             </Text>
           ))}
           {item.sports?.length > 3 && (
-            <Text style={[styles.sportTag, { color: colors.primary, backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff' }]}>+{item.sports.length - 3}</Text>
+            <Text style={[styles.sportTag, { color: colors.primary, backgroundColor: isDark ? 'rgba(114, 170, 255, 0.2)' : '#e3eefb' }]}>+{item.sports.length - 3}</Text>
           )}
         </View>
         
@@ -259,7 +262,7 @@ export default function TeamsScreen() {
           data-testid="button-create-team"
         >
           <LinearGradient
-            colors={['#3b82f6', '#10b981']}
+                colors={['#135cc7', '#0e345f']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.fab}
@@ -272,7 +275,7 @@ export default function TeamsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',

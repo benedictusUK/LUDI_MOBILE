@@ -1,5 +1,7 @@
 import { useState, useCallback } from 'react';
-import { View, Text, TextInput, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import useBrandStyles from '../components/brand/useBrandStyles';
+import { View, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { BrandText as Text, BrandTextInput as TextInput } from '../components/brand/BrandText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,6 +10,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import HeaderWithNotifications from '../components/HeaderWithNotifications';
 
 export default function TeamSearchScreen() {
+  const styles = useBrandStyles(baseStyles);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -81,7 +84,7 @@ export default function TeamSearchScreen() {
         activeOpacity={isMember ? 0.7 : 1}
       >
         <View style={styles.teamHeader}>
-          <View style={[styles.teamColor, { backgroundColor: item.color || '#3b82f6' }]} />
+          <View style={[styles.teamColor, { backgroundColor: item.color || '#3d86e8' }]} />
           <View style={styles.teamInfo}>
             <Text style={[styles.teamName, { color: colors.text }]}>{item.name}</Text>
             {item.description && (
@@ -95,12 +98,12 @@ export default function TeamSearchScreen() {
         <View style={styles.teamMeta}>
           <View style={styles.sportsContainer}>
             {item.sports?.slice(0, 2).map((sport, index) => (
-              <View key={index} style={[styles.sportTag, { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff' }]}>
+              <View key={index} style={[styles.sportTag, { backgroundColor: isDark ? 'rgba(114, 170, 255, 0.2)' : '#e3eefb' }]}>
                 <Text style={[styles.sportTagText, { color: colors.primary }]}>{sport}</Text>
               </View>
             ))}
             {item.sports?.length > 2 && (
-              <View style={[styles.sportTag, { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff' }]}>
+              <View style={[styles.sportTag, { backgroundColor: isDark ? 'rgba(114, 170, 255, 0.2)' : '#e3eefb' }]}>
                 <Text style={[styles.sportTagText, { color: colors.primary }]}>+{item.sports.length - 2}</Text>
               </View>
             )}
@@ -112,8 +115,8 @@ export default function TeamSearchScreen() {
 
         <View style={styles.teamFooter}>
           {isMember ? (
-            <View style={[styles.memberBadge, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#d1fae5' }]}>
-              <Ionicons name="checkmark-circle" size={16} color="#10b981" />
+            <View style={[styles.memberBadge, { backgroundColor: isDark ? 'rgba(66, 230, 181, 0.16)' : '#dff3ec' }]}>
+              <Ionicons name="checkmark-circle" size={16} color="#0f9d78" />
               <Text style={styles.memberBadgeText}>Member</Text>
             </View>
           ) : isPrivate ? (
@@ -133,10 +136,10 @@ export default function TeamSearchScreen() {
               disabled={joiningTeamId === item.id}
             >
               {joiningTeamId === item.id ? (
-                <ActivityIndicator size="small" color="#ffffff" />
+                <ActivityIndicator size="small" color={colors.buttonText} />
               ) : (
                 <>
-                  <Ionicons name={requiresApproval ? "paper-plane" : "add-circle"} size={18} color="#ffffff" />
+                  <Ionicons name={requiresApproval ? "paper-plane" : "add-circle"} size={18} color={colors.buttonText} />
                   <Text style={styles.joinButtonText}>
                     {requiresApproval ? 'Request to Join' : 'Join Team'}
                   </Text>
@@ -207,7 +210,7 @@ export default function TeamSearchScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
   },

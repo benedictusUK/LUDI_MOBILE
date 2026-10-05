@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Platform } from 'react-native';
+import useBrandStyles from '../components/brand/useBrandStyles';
+import { View, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Platform } from 'react-native';
+import { BrandText as Text } from '../components/brand/BrandText';
 import { Ionicons } from '@expo/vector-icons';
 import { useStripe } from '../lib/stripe';
 import { useAuth } from '../contexts/AuthContext';
@@ -7,6 +9,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 export default function PaymentAuthorizationScreen() {
+  const styles = useBrandStyles(baseStyles);
   const route = useRoute();
   const navigation = useNavigation();
   const { initPaymentSheet, presentPaymentSheet, handleNextAction } = useStripe();
@@ -265,8 +268,8 @@ export default function PaymentAuthorizationScreen() {
             <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>
               {isFromNotification || isFixed ? 'Payment Amount (GBP)' : 'Authorisation Cap (GBP)'}
             </Text>
-            <View style={[styles.amountBadge, { backgroundColor: isDark ? '#1e3a5f' : '#dbeafe' }]}>
-              <Text style={[styles.amountText, { color: isDark ? '#60a5fa' : '#1d4ed8' }]}>
+            <View style={[styles.amountBadge, { backgroundColor: isDark ? '#16324d' : '#e3eefb' }]}>
+              <Text style={[styles.amountText, { color: isDark ? '#72aaff' : '#1d5fc4' }]}>
                 £{displayAmount.toFixed(2)} GBP
               </Text>
             </View>
@@ -279,16 +282,16 @@ export default function PaymentAuthorizationScreen() {
           </TouchableOpacity>
         )}
         {blocked && (
-          <Text style={{ color: '#b45309', marginBottom: 12 }}>{quote?.reason || 'Payment is not available right now.'}</Text>
+          <Text style={{ color: colors.warning, marginBottom: 12 }}>{quote?.reason || 'Payment is not available right now.'}</Text>
         )}
 
-        <View style={[styles.infoBox, { backgroundColor: isDark ? '#1e3a5f' : '#dbeafe', borderColor: isDark ? '#3b82f6' : '#93c5fd' }]}>
-          <Ionicons name="checkmark-circle" size={20} color={isDark ? '#60a5fa' : '#2563eb'} />
+        <View style={[styles.infoBox, { backgroundColor: isDark ? '#16324d' : '#e3eefb', borderColor: isDark ? '#3d86e8' : '#93c5fd' }]}>
+          <Ionicons name="checkmark-circle" size={20} color={isDark ? '#72aaff' : '#1d5fc4'} />
           <View style={styles.infoBoxContent}>
-            <Text style={[styles.infoBoxTitle, { color: isDark ? '#60a5fa' : '#1d4ed8' }]}>
+            <Text style={[styles.infoBoxTitle, { color: isDark ? '#72aaff' : '#1d5fc4' }]}>
               {isFromNotification ? 'Payment will be processed immediately' : isFixed ? 'Charged upfront' : 'Authorisation hold - not a charge'}
             </Text>
-            <Text style={[styles.infoBoxText, { color: isDark ? '#93c5fd' : '#3b82f6' }]}>
+            <Text style={[styles.infoBoxText, { color: isDark ? '#93c5fd' : '#3d86e8' }]}>
               {isFromNotification 
                 ? 'This payment confirms your attendance for the event.'
                 : isFixed
@@ -338,8 +341,8 @@ export default function PaymentAuthorizationScreen() {
                   {formatCardBrand(method.card?.brand)} •••• {method.card?.last4}
                 </Text>
                 {method.isDefault && (
-                  <View style={[styles.defaultBadge, { backgroundColor: isDark ? '#064e3b' : '#d1fae5' }]}>
-                    <Text style={[styles.defaultBadgeText, { color: isDark ? '#10b981' : '#047857' }]}>
+                  <View style={[styles.defaultBadge, { backgroundColor: isDark ? '#0d3a35' : '#dff3ec' }]}>
+                    <Text style={[styles.defaultBadgeText, { color: isDark ? '#42e6b5' : '#087c60' }]}>
                       Default
                     </Text>
                   </View>
@@ -407,10 +410,10 @@ export default function PaymentAuthorizationScreen() {
           data-testid="button-authorize-payment"
         >
           {processing ? (
-            <ActivityIndicator color="#fff" size="small" />
+            <ActivityIndicator color={colors.buttonText} size="small" />
           ) : (
             <>
-              <Ionicons name="card" size={20} color="#fff" />
+              <Ionicons name="card" size={20} color={colors.buttonText} />
               <Text style={styles.authorizeButtonText}>
                 {isFromNotification || isFixed ? 'Pay Now' : 'Authorise Payment'}
               </Text>
@@ -422,7 +425,7 @@ export default function PaymentAuthorizationScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
   },

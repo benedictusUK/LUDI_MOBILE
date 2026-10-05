@@ -1,15 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Image,
-  Alert,
-  TextInput,
-  Modal,
-} from 'react-native';
+import useBrandStyles from '../components/brand/useBrandStyles';
+import { View, StyleSheet, TouchableOpacity, ScrollView, Image, Alert, Modal } from 'react-native';
+import { BrandText as Text, BrandTextInput as TextInput } from '../components/brand/BrandText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
@@ -49,6 +41,7 @@ const GENDERS = [
 ];
 
 export default function ProfileScreen({ navigation }) {
+  const styles = useBrandStyles(baseStyles, { navClearance: 112 });
   const { user, updateUser, apiRequest, signOut } = useAuth();
   const { themeMode, changeTheme, colors, isDark } = useTheme();
   const [isEditing, setIsEditing] = useState(false);
@@ -324,7 +317,7 @@ export default function ProfileScreen({ navigation }) {
               {profileData.sportsInterests.length > 0 && (
                 <View style={styles.selectedSportsContainer}>
                   {profileData.sportsInterests.map((sport) => (
-                    <View key={sport} style={[styles.selectedSportChip, { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff' }]}>
+                    <View key={sport} style={[styles.selectedSportChip, { backgroundColor: isDark ? 'rgba(114, 170, 255, 0.2)' : '#e3eefb' }]}>
                       <Text style={[styles.selectedSportText, { color: colors.primary }]}>{sport}</Text>
                       <TouchableOpacity onPress={() => handleSportToggle(sport)}>
                         <Ionicons name="close-circle" size={16} color={colors.primary} />
@@ -347,7 +340,7 @@ export default function ProfileScreen({ navigation }) {
                         profileData.sportsInterests.includes(sport) && { backgroundColor: colors.primary, borderColor: colors.primary }
                       ]}>
                         {profileData.sportsInterests.includes(sport) && (
-                          <Ionicons name="checkmark" size={16} color="#ffffff" />
+                          <Ionicons name="checkmark" size={16} color={colors.buttonText} />
                         )}
                       </View>
                       <Text style={[styles.sportListText, { color: colors.text }]}>{sport}</Text>
@@ -359,7 +352,7 @@ export default function ProfileScreen({ navigation }) {
           ) : (
             <View style={styles.selectedSportsContainer}>
               {(user?.sportsInterests || []).map((sport) => (
-                <View key={sport} style={[styles.selectedSportChip, { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff' }]}>
+                <View key={sport} style={[styles.selectedSportChip, { backgroundColor: isDark ? 'rgba(114, 170, 255, 0.2)' : '#e3eefb' }]}>
                   <Text style={[styles.selectedSportText, { color: colors.primary }]}>{sport}</Text>
                 </View>
               ))}
@@ -396,7 +389,7 @@ export default function ProfileScreen({ navigation }) {
                 return (
                   <TouchableOpacity
                     key={index}
-                    style={[styles.modalOption, { borderBottomColor: colors.borderLight }, isSelected && { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff' }]}
+                    style={[styles.modalOption, { borderBottomColor: colors.borderLight }, isSelected && { backgroundColor: isDark ? 'rgba(114, 170, 255, 0.2)' : '#e3eefb' }]}
                     onPress={() => {
                       setProfileData({ ...profileData, gender: option.value });
                       setShowGenderPicker(false);
@@ -468,6 +461,7 @@ export default function ProfileScreen({ navigation }) {
 }
 
 function InfoRow({ label, value }) {
+  const styles = useBrandStyles(baseStyles);
   const { colors } = useTheme();
   return (
     <View style={[styles.infoRow, { borderBottomColor: colors.borderLight }]}>
@@ -477,7 +471,7 @@ function InfoRow({ label, value }) {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',

@@ -1,15 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-  RefreshControl,
-  Modal,
-  ActivityIndicator,
-} from 'react-native';
+import useBrandStyles from '../components/brand/useBrandStyles';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Alert, RefreshControl, Modal, ActivityIndicator } from 'react-native';
+import { BrandText as Text } from '../components/brand/BrandText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
@@ -18,6 +10,7 @@ import { useRoute, useNavigation } from '@react-navigation/native';
 import { effectivePolicy, isFixedPolicy, policySummary } from '../lib/paymentPolicy';
 
 export default function EventDetailsScreen() {
+  const styles = useBrandStyles(baseStyles);
   const route = useRoute();
   const navigation = useNavigation();
   const { apiRequest, user } = useAuth();
@@ -556,20 +549,20 @@ export default function EventDetailsScreen() {
                   <Ionicons name="flame" size={18} color="#ef4444" />
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.editButton, { backgroundColor: colors.primary }]} onPress={handleEdit} accessibilityRole="button" accessibilityLabel="Edit event">
-                  <Ionicons name="create-outline" size={18} color="#ffffff" />
+                  <Ionicons name="create-outline" size={18} color={colors.buttonText} />
                   <Text style={styles.editButtonText}>Edit</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.deleteButton, { backgroundColor: colors.error }]} onPress={confirmDelete} accessibilityRole="button" accessibilityLabel="Delete event">
-                  <Ionicons name="trash-outline" size={18} color="#ffffff" />
+                  <Ionicons name="trash-outline" size={18} color={colors.buttonText} />
                 </TouchableOpacity>
               </View>
             )}
           </View>
-          <View style={[styles.sportBadge, { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff' }]}>
+          <View style={[styles.sportBadge, { backgroundColor: isDark ? 'rgba(114, 170, 255, 0.2)' : '#e3eefb' }]}>
             <Text style={[styles.sportText, { color: colors.primary }]}>{event.sport}</Text>
           </View>
           {!!event.recurringSeriesId && (
-            <View style={[styles.recurringBadge, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#f0fdf4' }]}>
+            <View style={[styles.recurringBadge, { backgroundColor: isDark ? 'rgba(66, 230, 181, 0.16)' : '#dff3ec' }]}>
               <Ionicons name="repeat" size={16} color={colors.success} style={{ marginRight: 6 }} />
               <Text style={[styles.recurringText, { color: colors.success }]}>Recurring Event</Text>
             </View>
@@ -626,7 +619,7 @@ export default function EventDetailsScreen() {
                 <Ionicons
                   name="checkmark-circle"
                   size={18}
-                  color={userAttendance?.status === 'attending' ? "#ffffff" : "#10b981"}
+                  color={userAttendance?.status === 'attending' ? colors.buttonText : colors.success}
                 />
                 <Text style={[
                   styles.attendanceButtonText,
@@ -648,7 +641,7 @@ export default function EventDetailsScreen() {
                 <Ionicons
                   name="close-circle"
                   size={18}
-                  color={userAttendance?.status === 'not_attending' ? "#ffffff" : "#ef4444"}
+                  color={userAttendance?.status === 'not_attending' ? colors.buttonText : "#ef4444"}
                 />
                 <Text style={[
                   styles.attendanceButtonText,
@@ -685,7 +678,7 @@ export default function EventDetailsScreen() {
               <SummaryItem 
                 label="Attending" 
                 count={attendeeCount}
-                color="#10b981"
+                color={colors.success}
                 textColor={colors.text}
               />
               <SummaryItem 
@@ -727,7 +720,7 @@ export default function EventDetailsScreen() {
               </Text>
             )}
             {event.paymentRequired && quote?.canPay === false && quote?.reason ? (
-              <Text style={{ color: '#b45309', marginBottom: 8 }}>{quote.reason}</Text>
+              <Text style={{ color: colors.warning, marginBottom: 8 }}>{quote.reason}</Text>
             ) : null}
 
             {event.paymentRequired && event.maxPlayerPayment > 0 && (
@@ -741,9 +734,9 @@ export default function EventDetailsScreen() {
             
             {paymentStatus?.hasAuthorization ? (
               <View style={styles.paymentStatusSection}>
-                <View style={[styles.authorizationBadge, { backgroundColor: isDark ? '#064e3b' : '#d1fae5' }]}>
-                  <Ionicons name="checkmark-circle" size={20} color={isDark ? '#10b981' : '#047857'} />
-                  <Text style={[styles.authorizationText, { color: isDark ? '#10b981' : '#047857' }]}>
+                <View style={[styles.authorizationBadge, { backgroundColor: isDark ? '#0d3a35' : '#dff3ec' }]}>
+                  <Ionicons name="checkmark-circle" size={20} color={isDark ? '#42e6b5' : '#087c60'} />
+                  <Text style={[styles.authorizationText, { color: isDark ? '#42e6b5' : '#087c60' }]}>
                     Payment Authorised - £{parseFloat(paymentStatus.amount || 0).toFixed(2)}
                   </Text>
                 </View>
@@ -787,7 +780,7 @@ export default function EventDetailsScreen() {
             
             {canManage && event.paymentRequired && !isFixedPolicy(effectivePolicy(quote || event)) && (
               <TouchableOpacity 
-                style={[styles.collectPaymentsButton, { backgroundColor: '#10b981' }]}
+                style={[styles.collectPaymentsButton, { backgroundColor: colors.success }]}
                 onPress={() => navigation.navigate('PaymentCollection', { 
                   eventId: event.id,
                   eventName: event.name,
@@ -799,8 +792,8 @@ export default function EventDetailsScreen() {
                 })}
                 data-testid="button-collect-payments"
               >
-                <Ionicons name="cash" size={20} color="#fff" />
-                <Text style={styles.collectPaymentsText}>{event.feeConfiguration ? 'Finalise cost and refunds' : 'Collect Payments'}</Text>
+                <Ionicons name="cash" size={20} color={colors.buttonText} />
+                <Text style={[styles.collectPaymentsText, { color: colors.buttonText }]}>{event.feeConfiguration ? 'Finalise cost and refunds' : 'Collect Payments'}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -828,15 +821,15 @@ export default function EventDetailsScreen() {
                     styles.progressFill, 
                     { 
                       width: `${Math.min(100, (parseFloat(paymentSummary.bankTotal) / parseFloat(paymentSummary.venueCost)) * 100)}%`,
-                      backgroundColor: paymentSummary.isReadyToTransfer ? '#10b981' : colors.primary 
+                      backgroundColor: paymentSummary.isReadyToTransfer ? colors.success : colors.primary
                     }
                   ]} 
                 />
               </View>
               {paymentSummary.isReadyToTransfer && (
-                <View style={[styles.readyBadge, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#d1fae5' }]}>
-                  <Ionicons name="checkmark-circle" size={16} color="#10b981" />
-                  <Text style={[styles.readyText, { color: '#10b981' }]}>Ready to transfer</Text>
+                <View style={[styles.readyBadge, { backgroundColor: isDark ? 'rgba(66, 230, 181, 0.16)' : '#dff3ec' }]}>
+                  <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+                  <Text style={[styles.readyText, { color: colors.success }]}>Ready to transfer</Text>
                 </View>
               )}
             </View>
@@ -855,9 +848,9 @@ export default function EventDetailsScreen() {
                 Expected Payout: £{parseFloat(paymentSummary.expectedPayout).toFixed(2)}
               </Text>
               {paymentSummary.transferStatus === 'completed' && (
-                <View style={[styles.transferBadge, { backgroundColor: '#d1fae5' }]}>
+                <View style={[styles.transferBadge, { backgroundColor: '#dff3ec' }]}>
                   <Ionicons name="checkmark-circle" size={16} color="#047857" />
-                  <Text style={[styles.transferText, { color: '#047857' }]}>Transferred</Text>
+                  <Text style={[styles.transferText, { color: '#087c60' }]}>Transferred</Text>
                 </View>
               )}
             </View>
@@ -870,7 +863,7 @@ export default function EventDetailsScreen() {
               {paymentSummary.paidPlayers?.map((player) => (
                 <View key={player.userId} style={[styles.playerRow, { borderColor: colors.border }]}>
                   <View style={styles.playerInfo}>
-                    <Ionicons name="checkmark-circle" size={18} color="#10b981" />
+                    <Ionicons name="checkmark-circle" size={18} color={colors.success} />
                     <Text style={[styles.playerName, { color: colors.text }]}>
                       {player.user?.firstName} {player.user?.lastName}
                     </Text>
@@ -880,7 +873,7 @@ export default function EventDetailsScreen() {
                       </View>
                     )}
                   </View>
-                  <Text style={[styles.playerAmount, { color: '#10b981' }]}>
+                  <Text style={[styles.playerAmount, { color: colors.success }]}>
                     £{parseFloat(player.amount).toFixed(2)}
                   </Text>
                 </View>
@@ -902,12 +895,12 @@ export default function EventDetailsScreen() {
                       </Text>
                     </View>
                     <View style={styles.unpaidActions}>
-                      <Text style={[styles.playerAmount, { color: '#f59e0b' }]}>
+                      <Text style={[styles.playerAmount, { color: colors.warning }]}>
                         £{parseFloat(player.amountDue).toFixed(2)}
                       </Text>
                       {canManage && (
                         <TouchableOpacity
-                          style={[styles.markPaidBtn, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#d1fae5' }]}
+                          style={[styles.markPaidBtn, { backgroundColor: isDark ? 'rgba(66, 230, 181, 0.16)' : '#dff3ec' }]}
                           onPress={() => {
                             setSelectedPlayerForPayment(player);
                             setShowMarkPaidModal(true);
@@ -943,15 +936,15 @@ export default function EventDetailsScreen() {
             {/* Admin Transfer Button */}
             {canManage && paymentSummary.isReadyToTransfer && paymentSummary.transferStatus !== 'completed' && (
               <TouchableOpacity
-                style={[styles.transferButton, { backgroundColor: '#10b981' }]}
+                style={[styles.transferButton, { backgroundColor: colors.success }]}
                 onPress={handleTransferFunds}
                 disabled={initiatingTransfer || !paymentSummary.organiser?.payoutsEnabled}
               >
                 {initiatingTransfer ? (
-                  <ActivityIndicator size="small" color="#fff" />
+                  <ActivityIndicator size="small" color={colors.buttonText} />
                 ) : (
                   <>
-                    <Ionicons name="arrow-forward-circle" size={22} color="#fff" />
+                    <Ionicons name="arrow-forward-circle" size={22} color={colors.buttonText} />
                     <Text style={styles.transferButtonText}>
                       Transfer £{parseFloat(paymentSummary.expectedPayout).toFixed(2)} to Organiser
                     </Text>
@@ -964,7 +957,7 @@ export default function EventDetailsScreen() {
             {canManage && paymentSummary.isReadyToTransfer && !paymentSummary.organiser?.payoutsEnabled && (
               <View style={[styles.warningBox, { backgroundColor: isDark ? 'rgba(251, 191, 36, 0.2)' : '#fef3c7' }]}>
                 <Ionicons name="warning" size={18} color="#f59e0b" />
-                <Text style={[styles.warningText, { color: isDark ? '#fbbf24' : '#92400e' }]}>
+                <Text style={[styles.warningText, { color: colors.warning }]}>
                   Organiser needs to set up their payment account before receiving transfers
                 </Text>
               </View>
@@ -1152,9 +1145,9 @@ export default function EventDetailsScreen() {
                   disabled={togglingFlareStatus}
                 >
                   {togglingFlareStatus ? (
-                    <ActivityIndicator size="small" color={event?.flareStatus === 'active' ? '#ef4444' : '#ffffff'} />
+                    <ActivityIndicator size="small" color={event?.flareStatus === 'active' ? '#ef4444' : colors.buttonText} />
                   ) : (
-                    <Text style={[styles.flareToggleText, { color: event?.flareStatus === 'active' ? '#ef4444' : '#ffffff' }]}>
+                    <Text style={[styles.flareToggleText, { color: event?.flareStatus === 'active' ? '#ef4444' : colors.buttonText }]}>
                       {event?.flareStatus === 'active' ? 'Deactivate' : 'Activate'}
                     </Text>
                   )}
@@ -1220,14 +1213,14 @@ export default function EventDetailsScreen() {
                 <Text style={[styles.markPaidCancelText, { color: colors.textSecondary }]}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.markPaidConfirmBtn, { backgroundColor: '#10b981' }]}
+                style={[styles.markPaidConfirmBtn, { backgroundColor: colors.success }]}
                 onPress={handleMarkAsPaid}
                 disabled={markingAsPaid}
               >
                 {markingAsPaid ? (
-                  <ActivityIndicator size="small" color="#fff" />
+                  <ActivityIndicator size="small" color={colors.buttonText} />
                 ) : (
-                  <Text style={styles.markPaidConfirmText}>Confirm Paid</Text>
+                  <Text style={[styles.markPaidConfirmText, { color: colors.buttonText }]}>Confirm Paid</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -1239,6 +1232,7 @@ export default function EventDetailsScreen() {
 }
 
 function DetailRow({ icon, label, value }) {
+  const styles = useBrandStyles(baseStyles);
   const { colors } = useTheme();
   const iconMap = {
     'calendar': 'calendar-outline',
@@ -1259,6 +1253,7 @@ function DetailRow({ icon, label, value }) {
 }
 
 function SummaryItem({ label, count, color, textColor }) {
+  const styles = useBrandStyles(baseStyles);
   return (
     <View style={styles.summaryItem}>
       <View style={[styles.summaryDot, { backgroundColor: color }]} />
@@ -1268,7 +1263,7 @@ function SummaryItem({ label, count, color, textColor }) {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',

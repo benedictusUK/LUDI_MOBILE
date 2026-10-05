@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, Animated, StyleSheet, Dimensions, Platform, StatusBar } from 'react-native';
+import useBrandStyles from './brand/useBrandStyles';
+import { View, TouchableOpacity, Animated, StyleSheet, Dimensions, Platform, StatusBar } from 'react-native';
+import { BrandText as Text } from './brand/BrandText';
 import { Ionicons } from '@expo/vector-icons';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -60,6 +62,7 @@ const getNotificationColor = (type, isDark) => {
 };
 
 export default function NotificationToast() {
+  const styles = useBrandStyles(baseStyles);
   const { latestNotification, clearLatestNotification } = useNotifications();
   const { isDark } = useTheme();
   const slideAnim = useRef(new Animated.Value(-150 - SAFE_AREA_TOP)).current;
@@ -125,10 +128,10 @@ export default function NotificationToast() {
       style={[
         styles.container,
         {
-          backgroundColor: isDark ? '#1f2937' : '#ffffff',
+          backgroundColor: isDark ? '#10243a' : '#ffffff', borderWidth: 1, borderColor: isDark ? '#304b63' : '#cbdcea',
           transform: [{ translateY: slideAnim }],
           opacity: opacityAnim,
-          shadowColor: isDark ? '#000' : '#333',
+          shadowColor: '#020b14',
         },
       ]}
     >
@@ -143,13 +146,13 @@ export default function NotificationToast() {
         </View>
         <View style={styles.textContainer}>
           <Text
-            style={[styles.title, { color: isDark ? '#f9fafb' : '#111827' }]}
+            style={[styles.title, { color: isDark ? '#f2f7fc' : '#102943' }]}
             numberOfLines={1}
           >
             {latestNotification.title}
           </Text>
           <Text
-            style={[styles.message, { color: isDark ? '#9ca3af' : '#6b7280' }]}
+            style={[styles.message, { color: isDark ? '#acbfd0' : '#526b80' }]}
             numberOfLines={2}
           >
             {latestNotification.message}
@@ -158,13 +161,13 @@ export default function NotificationToast() {
         <TouchableOpacity
           onPress={hideToast}
           style={styles.closeButton}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           data-testid="button-close-toast"
         >
           <Ionicons
             name="close"
             size={20}
-            color={isDark ? '#9ca3af' : '#6b7280'}
+            color={isDark ? '#acbfd0' : '#526b80'}
           />
         </TouchableOpacity>
       </TouchableOpacity>
@@ -172,7 +175,7 @@ export default function NotificationToast() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     position: 'absolute',
     top: 0,

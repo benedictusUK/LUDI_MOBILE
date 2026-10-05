@@ -1,14 +1,7 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  Alert,
-  Modal,
-} from 'react-native';
+import useBrandStyles from '../components/brand/useBrandStyles';
+import { View, StyleSheet, TouchableOpacity, ScrollView, Alert, Modal } from 'react-native';
+import { BrandText as Text, BrandTextInput as TextInput } from '../components/brand/BrandText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -64,7 +57,7 @@ export default function CreateTeamScreen() {
   const navigation = useNavigation();
   const { apiRequest } = useAuth();
   const { colors } = useTheme();
-  const styles = createStyles(colors);
+  const styles = useBrandStyles(createStyles(colors));
   const [loading, setLoading] = useState(false);
   const [showGenderPicker, setShowGenderPicker] = useState(false);
   

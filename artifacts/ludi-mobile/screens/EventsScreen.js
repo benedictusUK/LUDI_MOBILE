@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, RefreshControl, Alert, Switch, ActivityIndicator } from 'react-native';
+import useBrandStyles from '../components/brand/useBrandStyles';
+import { View, FlatList, StyleSheet, TouchableOpacity, RefreshControl, Alert, Switch, ActivityIndicator } from 'react-native';
+import { BrandText as Text } from '../components/brand/BrandText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +11,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import HeaderWithNotifications from '../components/HeaderWithNotifications';
 
 export default function EventsScreen() {
+  const styles = useBrandStyles(baseStyles, { navClearance: 112 });
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -244,7 +247,7 @@ export default function EventsScreen() {
               <View style={styles.eventFooter}>
                 <Text style={[
                   styles.eventSport,
-                  { color: colors.primary, backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff' },
+                  { color: colors.primary, backgroundColor: isDark ? 'rgba(114, 170, 255, 0.2)' : '#e3eefb' },
                   isPast && { color: colors.textTertiary, backgroundColor: colors.border },
                   isActive && styles.liveEventSport
                 ]}>{item.sport}</Text>
@@ -252,7 +255,7 @@ export default function EventsScreen() {
                   {item.cost && parseFloat(item.cost) > 0 && (
                     <Text style={[
                       styles.eventCost,
-                      { color: colors.success, backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#f0fdf4' },
+                      { color: colors.success, backgroundColor: isDark ? 'rgba(66, 230, 181, 0.16)' : '#dff3ec' },
                       isPast && { color: colors.textTertiary, backgroundColor: colors.border },
                       isActive && styles.liveEventCost
                     ]}>£{item.cost}</Text>
@@ -284,7 +287,7 @@ export default function EventsScreen() {
             >
               {isActive ? (
                 <LinearGradient
-                  colors={['#3b82f6', '#10b981']}
+                  colors={['#1d5183', '#0d2a47']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.liveGradient}
@@ -326,7 +329,7 @@ export default function EventsScreen() {
         activeOpacity={0.8}
       >
         <LinearGradient
-          colors={['#3b82f6', '#10b981']}
+          colors={['#135cc7', '#0e345f']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.fab}
@@ -338,7 +341,7 @@ export default function EventsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',

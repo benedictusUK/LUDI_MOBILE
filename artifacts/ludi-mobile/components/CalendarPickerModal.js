@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
+import useBrandStyles from './brand/useBrandStyles';
+import { View, TouchableOpacity, Modal, StyleSheet } from 'react-native';
+import { BrandText as Text } from './brand/BrandText';
 import { Ionicons } from '@expo/vector-icons';
 import { monthCells, parseYmd, toYmd } from '../lib/calendar';
 
@@ -8,6 +10,7 @@ const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 // value / minDate: 'YYYY-MM-DD'. onSelect(ymd). onClear optional.
 export default function CalendarPickerModal({ visible, title, value, minDate, onSelect, onClear, onClose, colors = {} }) {
+  const styles = useBrandStyles(baseStyles);
   const today = new Date();
   const [view, setView] = useState({ year: today.getFullYear(), month: today.getMonth() + 1 });
 
@@ -36,7 +39,7 @@ export default function CalendarPickerModal({ visible, title, value, minDate, on
         <View style={[styles.sheet, { backgroundColor: bg }]}>
           <View style={styles.header}>
             <Text style={[styles.title, { color: fg }]}>{title || 'Select date'}</Text>
-            <TouchableOpacity onPress={onClose} accessibilityLabel="Close calendar" testID="calendar-close">
+            <TouchableOpacity onPress={onClose} style={styles.closeButton} accessibilityLabel="Close calendar" testID="calendar-close">
               <Ionicons name="close" size={22} color={fg} />
             </TouchableOpacity>
           </View>
@@ -62,7 +65,7 @@ export default function CalendarPickerModal({ visible, title, value, minDate, on
                 <TouchableOpacity key={i} style={styles.cell} disabled={disabled} testID={`calendar-day-${ymd}`}
                   onPress={() => { onSelect(ymd); onClose(); }}>
                   <View style={[styles.dayBubble, selected && { backgroundColor: accent }, !selected && ymd === todayYmd && { borderWidth: 1, borderColor: accent }]}>
-                    <Text style={{ color: selected ? '#fff' : fg, opacity: disabled ? 0.3 : 1, fontWeight: selected ? '700' : '400' }}>{d}</Text>
+                    <Text style={{ color: selected ? (colors.buttonText || '#fff') : fg, opacity: disabled ? 0.3 : 1, fontWeight: selected ? '700' : '400' }}>{d}</Text>
                   </View>
                 </TouchableOpacity>
               );
@@ -79,18 +82,19 @@ export default function CalendarPickerModal({ visible, title, value, minDate, on
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
   sheet: { borderRadius: 16, padding: 16 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   title: { fontSize: 17, fontWeight: '700' },
   nav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  navBtn: { padding: 6 },
+  closeButton: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  navBtn: { padding: 6, minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   monthLabel: { fontSize: 16, fontWeight: '600' },
   week: { flexDirection: 'row' },
   weekday: { width: `${100 / 7}%`, textAlign: 'center', fontSize: 12, fontWeight: '600', paddingVertical: 4 },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
-  cell: { width: `${100 / 7}%`, height: 42, alignItems: 'center', justifyContent: 'center' },
+  cell: { width: `${100 / 7}%`, height: 44, alignItems: 'center', justifyContent: 'center' },
   dayBubble: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  clear: { alignItems: 'center', paddingTop: 12 },
+  clear: { alignItems: 'center', justifyContent: 'center', minHeight: 44, paddingTop: 12 },
 });

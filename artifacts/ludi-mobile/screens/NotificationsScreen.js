@@ -1,14 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  RefreshControl,
-  Alert,
-  ActivityIndicator,
-} from 'react-native';
+import useBrandStyles from '../components/brand/useBrandStyles';
+import { View, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Alert, ActivityIndicator } from 'react-native';
+import { BrandText as Text } from '../components/brand/BrandText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
@@ -17,6 +10,7 @@ import { useNotifications } from '../contexts/NotificationContext';
 import { useNavigation } from '@react-navigation/native';
 
 export default function NotificationsScreen() {
+  const styles = useBrandStyles(baseStyles);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -328,10 +322,10 @@ export default function NotificationsScreen() {
             disabled={isProcessing}
           >
             {isProcessing ? (
-              <ActivityIndicator size="small" color="#ffffff" />
+              <ActivityIndicator size="small" color={colors.buttonText} />
             ) : (
               <>
-                <Ionicons name="checkmark" size={16} color="#ffffff" />
+                <Ionicons name="checkmark" size={16} color={colors.buttonText} />
                 <Text style={styles.actionButtonText}>Approve</Text>
               </>
             )}
@@ -342,10 +336,10 @@ export default function NotificationsScreen() {
             disabled={isProcessing}
           >
             {isProcessing ? (
-              <ActivityIndicator size="small" color="#ffffff" />
+              <ActivityIndicator size="small" color={colors.buttonText} />
             ) : (
               <>
-                <Ionicons name="close" size={16} color="#ffffff" />
+                <Ionicons name="close" size={16} color={colors.buttonText} />
                 <Text style={styles.actionButtonText}>Reject</Text>
               </>
             )}
@@ -363,10 +357,10 @@ export default function NotificationsScreen() {
             disabled={isProcessing}
           >
             {isProcessing ? (
-              <ActivityIndicator size="small" color="#ffffff" />
+              <ActivityIndicator size="small" color={colors.buttonText} />
             ) : (
               <>
-                <Ionicons name="checkmark" size={16} color="#ffffff" />
+                <Ionicons name="checkmark" size={16} color={colors.buttonText} />
                 <Text style={styles.actionButtonText}>Accept</Text>
               </>
             )}
@@ -377,10 +371,10 @@ export default function NotificationsScreen() {
             disabled={isProcessing}
           >
             {isProcessing ? (
-              <ActivityIndicator size="small" color="#ffffff" />
+              <ActivityIndicator size="small" color={colors.buttonText} />
             ) : (
               <>
-                <Ionicons name="close" size={16} color="#ffffff" />
+                <Ionicons name="close" size={16} color={colors.buttonText} />
                 <Text style={styles.actionButtonText}>Decline</Text>
               </>
             )}
@@ -442,7 +436,7 @@ export default function NotificationsScreen() {
               style={[
                 styles.notificationCard,
                 { backgroundColor: colors.card },
-                !item.isRead && [styles.unreadCard, { backgroundColor: isDark ? colors.cardSecondary : '#eff6ff' }]
+                !item.isRead && [styles.unreadCard, { backgroundColor: isDark ? colors.cardSecondary : '#e3eefb' }]
               ]}
               onPress={() => handleNotificationPress(item)}
               onLongPress={() => handleLongPress(item)}
@@ -509,7 +503,7 @@ export default function NotificationsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
   },

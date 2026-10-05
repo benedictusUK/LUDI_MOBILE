@@ -1,15 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  Image,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-  ScrollView,
-  Alert,
-  Platform,
-} from 'react-native';
+import useBrandStyles from '../components/brand/useBrandStyles';
+import { View, Image, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Alert, Platform } from 'react-native';
+import { BrandText as Text } from '../components/brand/BrandText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { useAuth } from '../contexts/AuthContext';
@@ -22,7 +14,7 @@ export default function AuthScreen() {
   const [isAppleAvailable, setIsAppleAvailable] = useState(null);
   const { signIn } = useAuth();
   const { colors } = useTheme();
-  const styles = createStyles(colors);
+  const styles = useBrandStyles(createStyles(colors));
 
   useEffect(() => {
     if (Platform.OS !== 'ios') return;

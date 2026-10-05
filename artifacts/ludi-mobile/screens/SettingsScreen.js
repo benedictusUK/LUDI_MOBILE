@@ -1,5 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert } from 'react-native';
+import useBrandStyles from '../components/brand/useBrandStyles';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert } from 'react-native';
+import { BrandText as Text } from '../components/brand/BrandText';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -7,6 +9,7 @@ import { useNavigation } from '@react-navigation/native';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 
 export default function SettingsScreen() {
+  const styles = useBrandStyles(baseStyles);
   const { colors, isDark, themeMode, setThemeMode } = useTheme();
   const { signOut } = useAuth();
   const navigation = useNavigation();
@@ -165,7 +168,7 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
   },

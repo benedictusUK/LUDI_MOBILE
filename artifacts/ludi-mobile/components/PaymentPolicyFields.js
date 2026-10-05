@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import useBrandStyles from './brand/useBrandStyles';
+import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { BrandText as Text, BrandTextInput as TextInput } from './brand/BrandText';
 import { Ionicons } from '@expo/vector-icons';
 import { POLICY_OPTIONS, isFixedPolicy } from '../lib/paymentPolicy';
 import CalendarPickerModal from './CalendarPickerModal';
@@ -11,6 +13,7 @@ const fmtTime = (raw) => {
 };
 
 export default function PaymentPolicyFields({ formData, setFormData, colors }) {
+  const styles = useBrandStyles(baseStyles);
   const fixed = isFixedPolicy(formData.paymentPolicy);
   const set = (k) => (v) => setFormData({ ...formData, [k]: v });
   const input = [styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder || colors.border, color: colors.inputText || colors.text }];
@@ -98,7 +101,7 @@ export default function PaymentPolicyFields({ formData, setFormData, colors }) {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   label: { fontSize: 14, fontWeight: '600', marginTop: 12, marginBottom: 6 },
   hint: { fontSize: 12, marginBottom: 6 },
   input: { borderWidth: 1, borderRadius: 8, padding: 12, fontSize: 16 },

@@ -1,19 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-  RefreshControl,
-  Modal,
-  TextInput,
-  Platform,
-  FlatList,
-  Switch,
-  ActivityIndicator,
-} from 'react-native';
+import useBrandStyles from '../components/brand/useBrandStyles';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Alert, RefreshControl, Modal, Platform, FlatList, Switch, ActivityIndicator } from 'react-native';
+import { BrandText as Text, BrandTextInput as TextInput } from '../components/brand/BrandText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -49,6 +37,7 @@ const SPORTS_OPTIONS = [
 ];
 
 export default function TeamDetailsScreen() {
+  const styles = useBrandStyles(baseStyles);
   const { user, apiRequest } = useAuth();
   const { colors, isDark } = useTheme();
   const navigation = useNavigation();
@@ -486,7 +475,7 @@ export default function TeamDetailsScreen() {
         {/* Team Info Card */}
         <View style={[styles.infoCard, { backgroundColor: colors.card }]}>
           <View style={styles.teamHeader}>
-            <View style={[styles.teamColorLarge, { backgroundColor: team.color || '#3b82f6' }]} />
+            <View style={[styles.teamColorLarge, { backgroundColor: team.color || '#3d86e8' }]} />
             <View style={styles.teamMainInfo}>
               <Text style={[styles.teamName, { color: colors.text }]}>{team.name}</Text>
               {team.description && (
@@ -499,7 +488,7 @@ export default function TeamDetailsScreen() {
             <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Sports</Text>
             <View style={styles.sportsContainer}>
               {team.sports?.map((sport, index) => (
-                <View key={index} style={[styles.sportChip, { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff' }]}>
+                <View key={index} style={[styles.sportChip, { backgroundColor: isDark ? 'rgba(114, 170, 255, 0.2)' : '#e3eefb' }]}>
                   <Text style={[styles.sportText, { color: colors.primary }]}>{sport}</Text>
                 </View>
               ))}
@@ -580,7 +569,7 @@ export default function TeamDetailsScreen() {
             <>
               <TouchableOpacity style={styles.actionButtonWrapper} onPress={() => setShowEditModal(true)}>
                 <LinearGradient
-                  colors={['#3b82f6', '#10b981']}
+                  colors={['#1d5183', '#0d2a47']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.actionButton}
@@ -592,7 +581,7 @@ export default function TeamDetailsScreen() {
 
               <TouchableOpacity style={styles.actionButtonWrapper} onPress={() => setShowInviteModal(true)}>
                 <LinearGradient
-                  colors={['#3b82f6', '#10b981']}
+                  colors={['#1d5183', '#0d2a47']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.actionButton}
@@ -610,7 +599,7 @@ export default function TeamDetailsScreen() {
                 }}
               >
                 <LinearGradient
-                  colors={['#3b82f6', '#10b981']}
+                  colors={['#1d5183', '#0d2a47']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.actionButton}
@@ -626,7 +615,7 @@ export default function TeamDetailsScreen() {
                 data-testid="button-view-blocked"
               >
                 <LinearGradient
-                  colors={['#3b82f6', '#10b981']}
+                  colors={['#1d5183', '#0d2a47']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.actionButton}
@@ -803,7 +792,7 @@ export default function TeamDetailsScreen() {
               {editSports.length > 0 && (
                 <View style={styles.selectedSportsContainer}>
                   {editSports.map((sport) => (
-                    <View key={sport} style={[styles.selectedSportChip, { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff', borderColor: colors.primary }]}>
+                    <View key={sport} style={[styles.selectedSportChip, { backgroundColor: isDark ? 'rgba(114, 170, 255, 0.2)' : '#e3eefb', borderColor: colors.primary }]}>
                       <Text style={[styles.selectedSportText, { color: colors.primary }]}>{sport}</Text>
                       <TouchableOpacity onPress={() => toggleSport(sport)}>
                         <Ionicons name="close-circle" size={16} color={colors.primary} />
@@ -826,7 +815,7 @@ export default function TeamDetailsScreen() {
                         editSports.includes(sport) && { ...styles.sportCheckboxSelected, backgroundColor: colors.primary }
                       ]}>
                         {editSports.includes(sport) && (
-                          <Ionicons name="checkmark" size={16} color="#ffffff" />
+                          <Ionicons name="checkmark" size={16} color={colors.buttonText} />
                         )}
                       </View>
                       <Text style={[styles.sportListText, { color: colors.text }]}>{sport}</Text>
@@ -1011,7 +1000,7 @@ export default function TeamDetailsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',

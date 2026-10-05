@@ -1,14 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  Alert,
-  Modal,
-} from 'react-native';
+import useBrandStyles from '../components/brand/useBrandStyles';
+import { View, StyleSheet, TouchableOpacity, ScrollView, Alert, Modal } from 'react-native';
+import { BrandText as Text, BrandTextInput as TextInput } from '../components/brand/BrandText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import PaymentPolicyFields from '../components/PaymentPolicyFields';
@@ -72,6 +65,7 @@ const GENDERS = [
 ];
 
 export default function EditEventScreen() {
+  const styles = useBrandStyles(baseStyles);
   const navigation = useNavigation();
   const route = useRoute();
   const { event: initialEvent } = route.params;
@@ -932,7 +926,7 @@ export default function EditEventScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',

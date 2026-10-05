@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Platform } from 'react-native';
+import useBrandStyles from '../components/brand/useBrandStyles';
+import { View, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Platform } from 'react-native';
+import { BrandText as Text } from '../components/brand/BrandText';
 import { Ionicons } from '@expo/vector-icons';
 import { useStripe } from '../lib/stripe';
 import { useAuth } from '../contexts/AuthContext';
@@ -7,6 +9,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 
 export default function PaymentMethodsScreen() {
+  const styles = useBrandStyles(baseStyles);
   const navigation = useNavigation();
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const { apiRequest } = useAuth();
@@ -215,8 +218,8 @@ export default function PaymentMethodsScreen() {
                         {formatCardBrand(method.card?.brand)} •••• {method.card?.last4}
                       </Text>
                       {method.isDefault && (
-                        <View style={[styles.defaultBadge, { backgroundColor: isDark ? '#064e3b' : '#d1fae5' }]}>
-                          <Text style={[styles.defaultBadgeText, { color: isDark ? '#10b981' : '#047857' }]}>
+                        <View style={[styles.defaultBadge, { backgroundColor: isDark ? '#0d3a35' : '#dff3ec' }]}>
+                          <Text style={[styles.defaultBadgeText, { color: isDark ? '#42e6b5' : '#087c60' }]}>
                             Default
                           </Text>
                         </View>
@@ -273,10 +276,10 @@ export default function PaymentMethodsScreen() {
               disabled={addingMethod}
             >
               {addingMethod ? (
-                <ActivityIndicator color="#fff" size="small" />
+                <ActivityIndicator color={colors.buttonText} size="small" />
               ) : (
                 <>
-                  <Ionicons name="add" size={20} color="#fff" />
+                  <Ionicons name="add" size={20} color={colors.buttonText} />
                   <Text style={styles.addButtonText}>Add Payment Method</Text>
                 </>
               )}
@@ -302,7 +305,7 @@ export default function PaymentMethodsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
   },

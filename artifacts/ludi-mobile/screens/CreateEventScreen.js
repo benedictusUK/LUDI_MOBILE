@@ -1,15 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  Alert,
-  Modal,
-  Platform,
-} from 'react-native';
+import useBrandStyles from '../components/brand/useBrandStyles';
+import { View, StyleSheet, TouchableOpacity, ScrollView, Alert, Modal, Platform } from 'react-native';
+import { BrandText as Text, BrandTextInput as TextInput } from '../components/brand/BrandText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
@@ -137,7 +129,7 @@ export default function CreateEventScreen() {
   const navigation = useNavigation();
   const { apiRequest, user: authUser } = useAuth();
   const { colors, isDark } = useTheme();
-  const styles = createStyles(colors, isDark);
+  const styles = useBrandStyles(createStyles(colors, isDark));
   const [loading, setLoading] = useState(false);
   const [teams, setTeams] = useState([]);
   

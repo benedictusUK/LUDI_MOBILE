@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, TextInput } from 'react-native';
+import useBrandStyles from '../components/brand/useBrandStyles';
+import { View, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { BrandText as Text, BrandTextInput as TextInput } from '../components/brand/BrandText';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -8,6 +10,7 @@ import { calculateTotalAmount } from '../lib/paymentUtils';
 import UpfrontSettlement from '../components/UpfrontSettlement';
 
 export default function PaymentCollectionScreen() {
+  const styles = useBrandStyles(baseStyles);
   const route = useRoute();
   const navigation = useNavigation();
   const { apiRequest, user } = useAuth();
@@ -145,7 +148,7 @@ export default function PaymentCollectionScreen() {
   };
 
   const getStatusColor = (vote) => {
-    if (vote === 'can_attend' || vote === 'attending') return '#10b981';
+    if (vote === 'can_attend' || vote === 'attending') return '#0f9d78';
     if (vote === 'cant_attend') return '#ef4444';
     return colors.textSecondary;
   };
@@ -220,28 +223,28 @@ export default function PaymentCollectionScreen() {
           </View>
 
           {parseFloat(venueCost) > 0 && selectedAttendees.length > 0 && (
-            <View style={[styles.costBreakdown, { backgroundColor: isDark ? '#1e3a5f' : '#dbeafe' }]}>
-              <Text style={[styles.breakdownTitle, { color: isDark ? '#60a5fa' : '#1d4ed8' }]}>
+            <View style={[styles.costBreakdown, { backgroundColor: isDark ? '#16324d' : '#e3eefb' }]}>
+              <Text style={[styles.breakdownTitle, { color: isDark ? '#72aaff' : '#1d5fc4' }]}>
                 Cost Breakdown Per Person
               </Text>
               <View style={styles.breakdownRow}>
-                <Text style={[styles.breakdownLabel, { color: isDark ? '#93c5fd' : '#3b82f6' }]}>
+                <Text style={[styles.breakdownLabel, { color: isDark ? '#93c5fd' : '#3d86e8' }]}>
                   Base amount
                 </Text>
-                <Text style={[styles.breakdownValue, { color: isDark ? '#93c5fd' : '#3b82f6' }]}>
+                <Text style={[styles.breakdownValue, { color: isDark ? '#93c5fd' : '#3d86e8' }]}>
                   £{(parseFloat(venueCost) / Math.max(1, selectedAttendees.filter(id => id !== selectedOrganiserId).length)).toFixed(2)}
                 </Text>
               </View>
-              <View style={[styles.breakdownDivider, { backgroundColor: isDark ? '#3b82f6' : '#93c5fd' }]} />
+              <View style={[styles.breakdownDivider, { backgroundColor: isDark ? '#3d86e8' : '#93c5fd' }]} />
               <View style={styles.breakdownRow}>
-                <Text style={[styles.breakdownLabel, { color: isDark ? '#60a5fa' : '#1d4ed8', fontWeight: '600' }]}>
+                <Text style={[styles.breakdownLabel, { color: isDark ? '#72aaff' : '#1d5fc4', fontWeight: '600' }]}>
                   Total per Person
                 </Text>
-                <Text style={[styles.breakdownValue, { color: isDark ? '#60a5fa' : '#1d4ed8', fontWeight: '600' }]} data-testid="text-per-person-cost">
+                <Text style={[styles.breakdownValue, { color: isDark ? '#72aaff' : '#1d5fc4', fontWeight: '600' }]} data-testid="text-per-person-cost">
                   £{perPersonCost.toFixed(2)}
                 </Text>
               </View>
-              <Text style={[styles.breakdownNote, { color: isDark ? '#93c5fd' : '#3b82f6' }]}>
+              <Text style={[styles.breakdownNote, { color: isDark ? '#93c5fd' : '#3d86e8' }]}>
                 Total to collect: £{totalToCollect.toFixed(2)} from {selectedAttendees.filter(id => id !== selectedOrganiserId).length} attendees
               </Text>
             </View>
@@ -260,8 +263,8 @@ export default function PaymentCollectionScreen() {
               Selected: {selectedAttendees.length} attendees
             </Text>
             {selectedAttendees.length > 0 && (
-              <View style={[styles.perPersonBadge, { backgroundColor: isDark ? '#1e3a5f' : '#dbeafe' }]}>
-                <Text style={[styles.perPersonBadgeText, { color: isDark ? '#60a5fa' : '#1d4ed8' }]}>
+              <View style={[styles.perPersonBadge, { backgroundColor: isDark ? '#16324d' : '#e3eefb' }]}>
+                <Text style={[styles.perPersonBadgeText, { color: isDark ? '#72aaff' : '#1d5fc4' }]}>
                   £{perPersonCost.toFixed(2)} each
                 </Text>
               </View>
@@ -275,7 +278,7 @@ export default function PaymentCollectionScreen() {
                 style={[
                   styles.attendeeRow,
                   { 
-                    backgroundColor: member.isAttending ? (isDark ? '#064e3b' : '#d1fae5') : 'transparent',
+                    backgroundColor: member.isAttending ? (isDark ? '#0d3a35' : '#dff3ec') : 'transparent',
                     borderColor: colors.border,
                   }
                 ]}
@@ -288,7 +291,7 @@ export default function PaymentCollectionScreen() {
                   selectedAttendees.includes(member.userId) && { backgroundColor: colors.primary }
                 ]}>
                   {selectedAttendees.includes(member.userId) && (
-                    <Ionicons name="checkmark" size={14} color="#fff" />
+                    <Ionicons name="checkmark" size={14} color={colors.buttonText} />
                   )}
                 </View>
                 
@@ -304,15 +307,15 @@ export default function PaymentCollectionScreen() {
                       {member.user?.firstName} {member.user?.lastName}
                     </Text>
                     {member.isAttending && (
-                      <View style={[styles.statusBadge, { backgroundColor: isDark ? '#064e3b' : '#d1fae5' }]}>
-                        <Text style={[styles.statusBadgeText, { color: isDark ? '#10b981' : '#047857' }]}>
+                      <View style={[styles.statusBadge, { backgroundColor: isDark ? '#0d3a35' : '#dff3ec' }]}>
+                        <Text style={[styles.statusBadgeText, { color: isDark ? '#42e6b5' : '#087c60' }]}>
                           Attending
                         </Text>
                       </View>
                     )}
                     {member.userId === selectedOrganiserId && (
                       <View style={[styles.statusBadge, { backgroundColor: isDark ? '#78350f' : '#fef3c7' }]}>
-                        <Text style={[styles.statusBadgeText, { color: isDark ? '#f59e0b' : '#b45309' }]}>
+                        <Text style={[styles.statusBadgeText, { color: colors.warning }]}>
                           Organizer
                         </Text>
                       </View>
@@ -325,7 +328,7 @@ export default function PaymentCollectionScreen() {
 
                 {selectedAttendees.includes(member.userId) && (
                   <View style={styles.chargeAmount}>
-                    <Text style={[styles.chargeAmountText, { color: member.userId === selectedOrganiserId ? '#f59e0b' : colors.text }]}>
+                    <Text style={[styles.chargeAmountText, { color: member.userId === selectedOrganiserId ? colors.warning : colors.text }]}>
                       {member.userId === selectedOrganiserId ? 'N/A' : `£${perPersonCost.toFixed(2)}`}
                     </Text>
                     <Text style={[styles.chargeNote, { color: colors.textSecondary }]}>
@@ -350,7 +353,7 @@ export default function PaymentCollectionScreen() {
         <TouchableOpacity
           style={[
             styles.collectButton,
-            { backgroundColor: '#10b981' },
+            { backgroundColor: colors.primaryGreen },
             (processing || selectedAttendees.filter(id => id !== selectedOrganiserId).length === 0) && styles.disabledButton
           ]}
           onPress={handleCollectPayment}
@@ -358,10 +361,10 @@ export default function PaymentCollectionScreen() {
           data-testid="button-collect-payments"
         >
           {processing ? (
-            <ActivityIndicator color="#fff" size="small" />
+            <ActivityIndicator color={colors.buttonText} size="small" />
           ) : (
             <>
-              <Ionicons name="card" size={20} color="#fff" />
+              <Ionicons name="card" size={20} color={colors.buttonText} />
               <Text style={styles.collectButtonText}>Collect Payments</Text>
             </>
           )}
@@ -371,7 +374,7 @@ export default function PaymentCollectionScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
   },

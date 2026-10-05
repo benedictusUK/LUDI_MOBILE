@@ -1,5 +1,8 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import useBrandStyles from './brand/useBrandStyles';
+import { useTheme } from '../contexts/ThemeContext';
+import { TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { BrandText as Text } from './brand/BrandText';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function GradientButton({ 
@@ -10,6 +13,11 @@ export default function GradientButton({
   style,
   textStyle 
 }) {
+  const styles = useBrandStyles(baseStyles);
+  const { colors, isDark } = useTheme();
+  const inactive = disabled || loading;
+  const fill = inactive ? [colors.disabled, colors.disabled] : isDark ? ['#42e6b5', '#2fcf9f'] : ['#087c60', '#096d58'];
+  const ink = inactive ? colors.text : colors.buttonText;
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -18,22 +26,22 @@ export default function GradientButton({
       activeOpacity={0.8}
     >
       <LinearGradient
-        colors={disabled || loading ? ['#94a3b8', '#cbd5e1'] : ['#3b82f6', '#10b981']}
+        colors={fill}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={styles.gradient}
       >
         {loading ? (
-          <ActivityIndicator color="#ffffff" />
+          <ActivityIndicator color={ink} />
         ) : (
-          <Text style={[styles.text, textStyle]}>{title}</Text>
+          <Text style={[styles.text, { color: ink }, textStyle]}>{title}</Text>
         )}
       </LinearGradient>
     </TouchableOpacity>
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     borderRadius: 8,
     overflow: 'hidden',

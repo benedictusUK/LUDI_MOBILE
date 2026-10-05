@@ -46,11 +46,7 @@ const Stack = createNativeStackNavigator();
 
 function MainTabs() {
   const { colors } = useTheme();
-  const [fontsLoaded, fontError] = useFonts(brandFonts);
-  if (!fontsLoaded && !fontError) return <LoadingScreen />;
-  
   return (
-    <BrandTypographyContext.Provider value={{ loaded: fontsLoaded, error: fontError }}>
     <Tab.Navigator
       tabBar={props => <FloatingTabBar {...props} />}
       screenOptions={({ route }) => ({
@@ -139,7 +135,6 @@ function MainTabs() {
         }}
       />
     </Tab.Navigator>
-    </BrandTypographyContext.Provider>
   );
 }
 
@@ -148,13 +143,14 @@ function AppContent() {
   const { isReady: dashboardReady, error: dashboardError, reload } = useDashboardData();
   const { colors, loading: themeLoading } = useTheme();
   const pushNotifications = usePushNotifications();
+  const [fontsLoaded, fontError] = useFonts(brandFonts);
 
-  if (isLoading || themeLoading) {
+  if (isLoading || themeLoading || (!fontsLoaded && !fontError)) {
     return <LoadingScreen />;
   }
 
   if (!isAuthenticated) {
-    return <AuthScreen onAuthSuccess={() => {}} />;
+    return <BrandTypographyContext.Provider value={{ loaded: fontsLoaded, error: fontError }}><AuthScreen onAuthSuccess={() => {}} /></BrandTypographyContext.Provider>;
   }
 
   if (!dashboardReady) {
@@ -166,8 +162,8 @@ function AppContent() {
         </Text>
         {dashboardError && (
           <TouchableOpacity accessibilityRole="button" onPress={() => reload().catch(() => {})}
-            style={{ backgroundColor: colors.primary, padding: 14, borderRadius: 8, marginTop: 20 }}>
-            <Text style={{ color: '#fff' }}>Try again</Text>
+            style={{ backgroundColor: colors.primaryGreen, minHeight: 44, padding: 14, borderRadius: 12, marginTop: 20 }}>
+            <Text style={{ color: colors.buttonText, fontWeight: '700' }}>Try again</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -175,9 +171,10 @@ function AppContent() {
   }
 
   return (
+    <BrandTypographyContext.Provider value={{ loaded: fontsLoaded, error: fontError }}>
     <View style={{ flex: 1 }}>
       <NavigationContainer ref={navigationRef} onReady={pushNotifications.openPendingNotification}>
-        <Stack.Navigator>
+        <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: colors.card }, headerTintColor: colors.text, headerTitleStyle: fontsLoaded ? { fontFamily: 'LudiBody', color: colors.text } : { color: colors.text }, headerShadowVisible: false, contentStyle: { backgroundColor: colors.background } }}>
           <Stack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
           <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: false }} />
           <Stack.Screen name="TeamDetails" component={TeamDetailsScreen} options={{ headerShown: false }} />
@@ -195,6 +192,7 @@ function AppContent() {
       </NavigationContainer>
       <NotificationToast />
     </View>
+    </BrandTypographyContext.Provider>
   );
 }
 

@@ -21,7 +21,13 @@ The user approved the refined Match night preview and asked to begin implementin
 
 **Why:** The user said “That looks amazing. Please can we start to implement these UI changes?”
 
-**How to apply:** Use the approved preview as the visual reference for the native home and floating navigation. Do not treat earlier prototype-only scope as a continuing ban on application changes; do not expand this approval into redesigning unrelated screens.
+**How to apply:** Use the approved preview as the visual reference for the native home and floating navigation. Do not treat earlier prototype-only scope as a continuing ban on application changes.
+
+The user subsequently approved carrying the same colours, typography, cards and buttons across the remaining native screens while preserving their existing behaviour.
+
+**Why:** The user answered “Yes please!” to this explicit scope extension after learning that only the home and shared navigation had been aligned.
+
+**How to apply:** Align the native app consistently, including detail screens, forms, voting and payment UI. This approval does not authorise backend changes, changes to auth/payment behaviour, or a redesign of the separate web app.
 
 Floating navigation must reserve its measured space; allow vertical scrolling for longer cards and larger text rather than shrinking touch targets to force the whole prototype into one viewport.
 

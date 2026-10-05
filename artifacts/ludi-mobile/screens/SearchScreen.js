@@ -1,16 +1,7 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  FlatList,
-  StyleSheet,
-  Alert,
-  RefreshControl,
-  Modal,
-  ScrollView,
-} from 'react-native';
+import useBrandStyles from '../components/brand/useBrandStyles';
+import { View, TouchableOpacity, FlatList, StyleSheet, Alert, RefreshControl, Modal, ScrollView } from 'react-native';
+import { BrandText as Text, BrandTextInput as TextInput } from '../components/brand/BrandText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
@@ -55,6 +46,7 @@ const RADIUS_OPTIONS = [
 ];
 
 export default function SearchScreen() {
+  const styles = useBrandStyles(baseStyles, { navClearance: 112 });
   const [activeTab, setActiveTab] = useState('events');
   
   // Event search state
@@ -238,7 +230,7 @@ export default function SearchScreen() {
         </Text>
       </View>
 
-      <View style={[styles.sportBadge, { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff' }]}>
+      <View style={[styles.sportBadge, { backgroundColor: isDark ? 'rgba(114, 170, 255, 0.2)' : '#e3eefb' }]}>
         <Text style={[styles.sportText, { color: colors.primary }]}>{item.sport}</Text>
       </View>
 
@@ -252,7 +244,7 @@ export default function SearchScreen() {
         <TouchableOpacity
           style={[
             styles.responseButton,
-            { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#f0fdf4', borderColor: colors.success },
+            { backgroundColor: isDark ? 'rgba(66, 230, 181, 0.16)' : '#dff3ec', borderColor: colors.success },
             item.userResponse === 'interested' && { backgroundColor: colors.primary, borderColor: colors.primary }
           ]}
           onPress={() => handleFlareResponse(item.id, 'interested')}
@@ -260,7 +252,7 @@ export default function SearchScreen() {
         >
           <Text style={[
             styles.responseButtonText,
-            { color: item.userResponse === 'interested' ? '#ffffff' : colors.text }
+            { color: item.userResponse === 'interested' ? colors.buttonText : colors.text }
           ]}>
             ✓ Interested
           </Text>
@@ -277,7 +269,7 @@ export default function SearchScreen() {
         >
           <Text style={[
             styles.responseButtonText,
-            { color: item.userResponse === 'maybe' ? '#ffffff' : colors.text }
+            { color: item.userResponse === 'maybe' ? colors.buttonText : colors.text }
           ]}>
             ? Maybe
           </Text>
@@ -300,13 +292,13 @@ export default function SearchScreen() {
     return (
       <View style={[styles.teamCard, { backgroundColor: colors.card }]} data-testid={`card-team-${item.id}`}>
         <View style={styles.teamHeader}>
-          <View style={[styles.teamColor, { backgroundColor: item.color || '#3b82f6' }]} />
+          <View style={[styles.teamColor, { backgroundColor: item.color || '#3d86e8' }]} />
           <View style={styles.teamInfo}>
             <View style={styles.teamNameRow}>
               <Text style={[styles.teamName, { color: colors.text }]}>{item.name}</Text>
               {item.isMember && (
                 <View style={styles.memberBadge}>
-                  <Ionicons name="checkmark-circle" size={16} color="#10b981" />
+                  <Ionicons name="checkmark-circle" size={16} color="#0f9d78" />
                   <Text style={styles.memberBadgeText}>Member</Text>
                 </View>
               )}
@@ -327,12 +319,12 @@ export default function SearchScreen() {
         <View style={styles.teamFooter}>
           <View style={styles.sportsContainer}>
             {item.sports?.slice(0, 2).map((sportItem, index) => (
-              <Text key={index} style={[styles.sportTag, { color: colors.primary, backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff' }]}>
+              <Text key={index} style={[styles.sportTag, { color: colors.primary, backgroundColor: isDark ? 'rgba(114, 170, 255, 0.2)' : '#e3eefb' }]}>
                 {sportItem}
               </Text>
             ))}
             {item.sports?.length > 2 && (
-              <Text style={[styles.sportTag, { color: colors.primary, backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff' }]}>
+              <Text style={[styles.sportTag, { color: colors.primary, backgroundColor: isDark ? 'rgba(114, 170, 255, 0.2)' : '#e3eefb' }]}>
                 +{item.sports.length - 2}
               </Text>
             )}
@@ -356,7 +348,7 @@ export default function SearchScreen() {
                 onPress={() => handleJoinTeam(item)}
                 data-testid={`button-join-team-${item.id}`}
               >
-                <Ionicons name={requiresApproval ? "paper-plane" : "add-circle"} size={18} color="#ffffff" />
+                <Ionicons name={requiresApproval ? "paper-plane" : "add-circle"} size={18} color={colors.buttonText} />
                 <Text style={styles.joinButtonText}>
                   {requiresApproval ? 'Request to Join' : 'Join Team'}
                 </Text>
@@ -422,7 +414,7 @@ export default function SearchScreen() {
           disabled={loading}
           data-testid="button-search-events"
         >
-          <Ionicons name="search" size={18} color="#ffffff" style={{ marginRight: 8 }} />
+          <Ionicons name="search" size={18} color={colors.buttonText} style={{ marginRight: 8 }} />
           <Text style={styles.searchButtonText}>
             {loading ? 'Searching...' : 'Search Events'}
           </Text>
@@ -495,7 +487,7 @@ export default function SearchScreen() {
             disabled={teamLoading}
             data-testid="button-search-teams"
           >
-            <Ionicons name="search" size={20} color="#ffffff" />
+            <Ionicons name="search" size={20} color={colors.buttonText} />
           </TouchableOpacity>
         </View>
       </View>
@@ -601,7 +593,7 @@ export default function SearchScreen() {
                 return (
                   <TouchableOpacity
                     key={index}
-                    style={[styles.modalOption, { borderBottomColor: colors.borderLight }, isSelected && { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff' }]}
+                    style={[styles.modalOption, { borderBottomColor: colors.borderLight }, isSelected && { backgroundColor: isDark ? 'rgba(114, 170, 255, 0.2)' : '#e3eefb' }]}
                     onPress={() => {
                       setRadius(option.value);
                       setShowRadiusPicker(false);
@@ -640,7 +632,7 @@ export default function SearchScreen() {
                 return (
                   <TouchableOpacity
                     key={index}
-                    style={[styles.modalOption, { borderBottomColor: colors.borderLight }, isSelected && { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff' }]}
+                    style={[styles.modalOption, { borderBottomColor: colors.borderLight }, isSelected && { backgroundColor: isDark ? 'rgba(114, 170, 255, 0.2)' : '#e3eefb' }]}
                     onPress={() => {
                       setSport(sportOption);
                       setShowSportPicker(false);
@@ -661,7 +653,7 @@ export default function SearchScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',

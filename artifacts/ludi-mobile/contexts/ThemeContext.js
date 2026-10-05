@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { useColorScheme } from 'react-native';
+import { homePalette } from '../components/home/brand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ThemeContext = createContext();
@@ -50,57 +51,37 @@ export const ThemeProvider = ({ children }) => {
   };
 
   // Theme colors
+  const hp = homePalette(isDark);
   const colors = {
-    // Background colors
-    background: isDark ? '#0f172a' : '#f8fafc',
-    card: isDark ? '#1e293b' : '#ffffff',
-    cardSecondary: isDark ? '#334155' : '#f1f5f9',
-    
-    // Text colors
-    text: isDark ? '#f1f5f9' : '#1e293b',
-    textSecondary: isDark ? '#94a3b8' : '#64748b',
-    textTertiary: isDark ? '#64748b' : '#94a3b8',
-    
-    // Border colors
-    border: isDark ? '#334155' : '#e2e8f0',
-    borderLight: isDark ? '#1e293b' : '#f1f5f9',
-    
-    // Primary colors (blue-green gradient)
-    primary: '#3b82f6',
-    primaryGreen: '#10b981',
-    
-    // Status colors
-    success: '#10b981',
-    error: '#ef4444',
-    warning: '#f59e0b',
-    info: '#3b82f6',
-    
-    // Input colors
-    inputBackground: isDark ? '#1e293b' : '#ffffff',
-    inputBorder: isDark ? '#334155' : '#e2e8f0',
-    inputText: isDark ? '#f1f5f9' : '#1e293b',
-    inputPlaceholder: isDark ? '#94a3b8' : '#64748b',
-    
-    // Button colors
-    buttonText: '#ffffff',
-    buttonSecondary: isDark ? '#334155' : '#e2e8f0',
-    buttonSecondaryText: isDark ? '#f1f5f9' : '#64748b',
-    
-    // Icon colors
-    icon: isDark ? '#94a3b8' : '#64748b',
-    iconActive: isDark ? '#10b981' : '#3b82f6',
-    
-    // Special states
-    disabled: isDark ? '#475569' : '#cbd5e1',
-    shadow: isDark ? '#000000' : '#000000',
-    
-    // Selection/highlight colors (always blue-tinted for consistency)
-    selectionBackground: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff',
-    selectionText: isDark ? '#60a5fa' : '#3b82f6',
-    overlay: isDark ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.5)',
-    
-    // Primary light variant for chips/badges
-    primaryLight: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff',
+    background: hp.background,
+    card: hp.surface,
+    cardSecondary: isDark ? '#16324d' : '#e3eefb',
+    text: hp.text,
+    textSecondary: hp.muted,
+    textTertiary: isDark ? '#8aa3b8' : '#6b8296',
+    border: hp.border,
+    borderLight: isDark ? '#1d3750' : '#dde9f3',
+    primary: hp.mint,
+    primaryGreen: hp.mint,
+    success: hp.mint,
+    error: isDark ? '#ff7a7a' : '#c93b3b',
+    warning: isDark ? '#ffd27a' : '#a8660a',
+    info: hp.blue,
+    inputBackground: hp.surface,
+    inputBorder: hp.border,
+    inputText: hp.text,
+    inputPlaceholder: isDark ? '#8aa3b8' : '#6b8296',
+    buttonText: isDark ? '#06231e' : '#ffffff',
+    buttonSecondary: isDark ? '#16324d' : '#e3eefb',
+    buttonSecondaryText: hp.text,
+    icon: hp.muted,
+    iconActive: hp.mint,
+    disabled: isDark ? '#3a566e' : '#b5c8d8',
+    shadow: '#020b14',
+    selectionBackground: isDark ? 'rgba(66,230,181,0.16)' : '#dff3ec',
+    selectionText: hp.mint,
+    overlay: isDark ? 'rgba(2,11,20,0.75)' : 'rgba(7,23,40,0.5)',
+    primaryLight: isDark ? 'rgba(66,230,181,0.16)' : '#dff3ec',
   };
 
   const value = {

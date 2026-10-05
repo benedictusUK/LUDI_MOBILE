@@ -1,13 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
-  RefreshControl,
-} from 'react-native';
+import useBrandStyles from '../components/brand/useBrandStyles';
+import { View, FlatList, StyleSheet, TouchableOpacity, Alert, RefreshControl } from 'react-native';
+import { BrandText as Text } from '../components/brand/BrandText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
@@ -15,6 +9,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useRoute, useNavigation } from '@react-navigation/native';
 
 export default function BlockedMembersScreen() {
+  const styles = useBrandStyles(baseStyles);
   const route = useRoute();
   const navigation = useNavigation();
   const { teamId, teamName } = route.params;
@@ -125,17 +120,17 @@ export default function BlockedMembersScreen() {
         </View>
 
         <TouchableOpacity
-          style={[styles.unblockButton, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#f0fdf4', borderColor: '#10b981' }]}
+          style={[styles.unblockButton, { backgroundColor: isDark ? 'rgba(66, 230, 181, 0.16)' : '#dff3ec', borderColor: '#0f9d78' }]}
           onPress={() => handleUnblock(item.userId, userName)}
           disabled={unblocking === item.userId}
           data-testid={`button-unblock-${item.userId}`}
         >
           {unblocking === item.userId ? (
-            <Text style={[styles.unblockButtonText, { color: '#10b981' }]}>...</Text>
+            <Text style={[styles.unblockButtonText, { color: '#0f9d78' }]}>...</Text>
           ) : (
             <>
-              <Ionicons name="checkmark-circle-outline" size={18} color="#10b981" />
-              <Text style={[styles.unblockButtonText, { color: '#10b981' }]}>Unblock</Text>
+              <Ionicons name="checkmark-circle-outline" size={18} color="#0f9d78" />
+              <Text style={[styles.unblockButtonText, { color: '#0f9d78' }]}>Unblock</Text>
             </>
           )}
         </TouchableOpacity>
@@ -186,7 +181,7 @@ export default function BlockedMembersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
   },

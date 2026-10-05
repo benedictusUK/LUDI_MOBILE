@@ -1,19 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
-  ScrollView,
-  Platform,
-} from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Alert, ScrollView, Platform } from 'react-native';
+import { BrandText as Text } from '../components/brand/BrandText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useStripe } from '../lib/stripe';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigation } from '@react-navigation/native';
+import useBrandStyles from '../components/brand/useBrandStyles';
 
 export default function PaymentScreen({ route }) {
+  const styles = useBrandStyles(baseStyles);
   const { eventId, amount = 0, description = 'Event Payment' } = route.params || {};
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const { apiRequest } = useAuth();
@@ -251,7 +246,7 @@ export default function PaymentScreen({ route }) {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',
