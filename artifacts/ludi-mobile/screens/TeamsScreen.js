@@ -13,6 +13,7 @@ import HeaderWithNotifications from '../components/HeaderWithNotifications';
 export default function TeamsScreen() {
   const styles = useBrandStyles(baseStyles, { navClearance: 112 });
   const [teams, setTeams] = useState([]);
+  const [showArchived, setShowArchived] = useState(false);
   const [pendingRequests, setPendingRequests] = useState([]);
   const [respondingId, setRespondingId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -26,7 +27,7 @@ export default function TeamsScreen() {
 
   const fetchTeams = async () => {
     try {
-      const response = await apiRequest('/api/teams');
+      const response = await apiRequest(`/api/teams?archived=${showArchived}`);
       if (response.ok) {
         const data = await response.json();
         setTeams(data || []);
@@ -78,7 +79,7 @@ export default function TeamsScreen() {
   }, []));
   useEffect(() => {
     fetchTeams();
-  }, []);
+  }, [showArchived]);
 
   useEffect(() => {
     if (activeTab === 'pending') {
@@ -160,7 +161,7 @@ export default function TeamsScreen() {
       
       <View style={styles.pendingFooter}>
         <View style={[styles.pendingBadge, { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.2)' : '#fef3c7' }]}>
-          <Text style={styles.pendingBadgeText}>{item.invitedById === item.userId ? 'Request Pending' : 'Team Invitation'}</Text>
+          <Text style={styles.pendingBadgeText}>{item.team?.archivedAt ? 'Paused — team archived' : item.invitedById === item.userId ? 'Request Pending' : 'Team Invitation'}</Text>
         </View>
         {item.invitedAt && (
           <Text style={[styles.pendingDate, { color: colors.textSecondary }]}>
@@ -171,7 +172,7 @@ export default function TeamsScreen() {
       {item.invitedById !== item.userId && <View style={[styles.pendingFooter, { marginTop: 14 }]}>
         {['accept', 'decline'].map(action => <TouchableOpacity key={action}
           accessibilityRole="button" accessibilityLabel={`${action === 'accept' ? 'Accept' : 'Decline'} invitation to ${item.team?.name}`}
-          testID={`${action}-team-invitation-${item.id}`} disabled={!!respondingId}
+          testID={`${action}-team-invitation-${item.id}`} disabled={!!respondingId || !!item.team?.archivedAt}
           onPress={() => respondToInvitation(item.id, action === 'accept')}>
           <Text style={{ color: colors.primary, fontSize: 16, fontWeight: '700', padding: 8 }}>
             {respondingId === item.id ? 'Please wait…' : action === 'accept' ? 'Accept' : 'Decline'}
@@ -235,6 +236,20 @@ export default function TeamsScreen() {
           )}
         </TouchableOpacity>
       </View>
+      {activeTab === 'myTeams' && (
+        <View style={[styles.tabContainer, { backgroundColor: colors.card }]}>
+          {[false, true].map(archived => (
+            <TouchableOpacity key={String(archived)} style={styles.tab}
+              accessibilityRole="button" accessibilityState={{ selected: showArchived === archived }}
+              onPress={() => { setLoading(true); setShowArchived(archived); }}
+              disabled={showArchived === archived}>
+              <Text style={[styles.tabText, { color: showArchived === archived ? colors.primary : colors.textSecondary }]}>
+                {archived ? 'Archived teams' : 'Active teams'}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
       
       {activeTab === 'myTeams' ? (
         <FlatList
@@ -247,9 +262,9 @@ export default function TeamsScreen() {
           renderItem={renderTeamItem}
           ListEmptyComponent={
             <View style={styles.centerContainer}>
-              <Text style={[styles.emptyText, { color: colors.text }]}>No teams yet</Text>
+              <Text style={[styles.emptyText, { color: colors.text }]}>{showArchived ? 'No archived teams' : 'No active teams'}</Text>
               <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
-                Create or join a team to start organising events!
+                {showArchived ? 'Archived teams preserve event and payment history.' : 'Create or join a team to start organising events!'}
               </Text>
             </View>
           }

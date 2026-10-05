@@ -27,6 +27,7 @@ import type {
   GetGoogleMobileSignInConfig200,
   GoogleMobileSignInRequest,
   HealthStatus,
+  ListLudiTeamsParams,
   NotificationAdminState,
   PlatformAdminAccess,
   ProfilePictureChangeInput,
@@ -42,6 +43,7 @@ import type {
   PushTriggerInput,
   SendPushTemplateTest202,
   TeamCreationInput,
+  TeamListRecord,
   TeamPictureUpload,
   TeamRecord,
   TeamSettingsInput
@@ -1491,6 +1493,90 @@ export const useUpdateProfilePicture = <TError = ErrorType<void>,
       return useMutation(getUpdateProfilePictureMutationOptions(options));
     }
 
+export const getListLudiTeamsUrl = (params?: ListLudiTeamsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/teams?${stringifiedParams}` : `/api/teams`
+}
+
+/**
+ * @summary List active teams or archived teams belonging to the signed-in user
+ */
+export const listLudiTeams = async (params?: ListLudiTeamsParams, options?: Parameters<typeof customFetch>[1]): Promise<TeamListRecord[]> => {
+
+  return customFetch<TeamListRecord[]>(getListLudiTeamsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListLudiTeamsQueryKey = (params?: ListLudiTeamsParams,) => {
+    return [
+    `/api/teams`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListLudiTeamsQueryOptions = <TData = Awaited<ReturnType<typeof listLudiTeams>>, TError = ErrorType<void>>(params?: ListLudiTeamsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listLudiTeams>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListLudiTeamsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listLudiTeams>>> = ({ signal }) => listLudiTeams(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listLudiTeams>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListLudiTeamsQueryResult = NonNullable<Awaited<ReturnType<typeof listLudiTeams>>>
+export type ListLudiTeamsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List active teams or archived teams belonging to the signed-in user
+ */
+
+export function useListLudiTeams<TData = Awaited<ReturnType<typeof listLudiTeams>>, TError = ErrorType<void>>(
+ params?: ListLudiTeamsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listLudiTeams>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListLudiTeamsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getCreateLudiTeamUrl = () => {
 
 
@@ -1666,5 +1752,155 @@ export const useUpdateLudiTeam = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getUpdateLudiTeamMutationOptions(options));
+    }
+
+export const getArchiveLudiTeamUrl = (id: string,) => {
+
+
+
+
+  return `/api/teams/${id}/archive`
+}
+
+/**
+ * Preserves memberships, invitations and all event/financial history. Existing upcoming events are not cancelled or refunded. Recurring generation pauses while a linked team is archived.
+ * @summary Owner-only reversible archival
+ */
+export const archiveLudiTeam = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<TeamRecord> => {
+
+  return customFetch<TeamRecord>(getArchiveLudiTeamUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getArchiveLudiTeamMutationKey = () => ['archiveLudiTeam'] as const;
+
+export const getArchiveLudiTeamMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof archiveLudiTeam>>, TError,ArchiveLudiTeamMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof archiveLudiTeam>>, TError,ArchiveLudiTeamMutationVariables, TContext> => {
+
+const mutationKey = getArchiveLudiTeamMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof archiveLudiTeam>>, ArchiveLudiTeamMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  archiveLudiTeam(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ArchiveLudiTeamMutationResult = NonNullable<Awaited<ReturnType<typeof archiveLudiTeam>>>
+
+    export type ArchiveLudiTeamMutationError = ErrorType<void>
+    export type ArchiveLudiTeamMutationVariables = {id: string}
+
+    /**
+ * @summary Owner-only reversible archival
+ */
+export const useArchiveLudiTeam = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof archiveLudiTeam>>, TError,ArchiveLudiTeamMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof archiveLudiTeam>>,
+        TError,
+        ArchiveLudiTeamMutationVariables,
+        TContext
+      > => {
+      return useMutation(getArchiveLudiTeamMutationOptions(options));
+    }
+
+export const getRestoreLudiTeamUrl = (id: string,) => {
+
+
+
+
+  return `/api/teams/${id}/restore`
+}
+
+/**
+ * Resumes team changes and recurring generation; separately suspended series remain suspended. No event or payment changes.
+ * @summary Restore an archived team as its owner
+ */
+export const restoreLudiTeam = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<TeamRecord> => {
+
+  return customFetch<TeamRecord>(getRestoreLudiTeamUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRestoreLudiTeamMutationKey = () => ['restoreLudiTeam'] as const;
+
+export const getRestoreLudiTeamMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreLudiTeam>>, TError,RestoreLudiTeamMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof restoreLudiTeam>>, TError,RestoreLudiTeamMutationVariables, TContext> => {
+
+const mutationKey = getRestoreLudiTeamMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof restoreLudiTeam>>, RestoreLudiTeamMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  restoreLudiTeam(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RestoreLudiTeamMutationResult = NonNullable<Awaited<ReturnType<typeof restoreLudiTeam>>>
+
+    export type RestoreLudiTeamMutationError = ErrorType<void>
+    export type RestoreLudiTeamMutationVariables = {id: string}
+
+    /**
+ * @summary Restore an archived team as its owner
+ */
+export const useRestoreLudiTeam = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreLudiTeam>>, TError,RestoreLudiTeamMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof restoreLudiTeam>>,
+        TError,
+        RestoreLudiTeamMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRestoreLudiTeamMutationOptions(options));
     }
 

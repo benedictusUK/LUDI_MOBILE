@@ -1,3 +1,4 @@
+import { canManageExistingEvent } from "@/lib/event-permissions";
 import { apiErrorMessage } from "@/lib/apiError";
 import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -15,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { LudiInlineLoader } from "@/components/ui/ludi-loader";
@@ -212,6 +213,7 @@ export default function Events() {
     const url = new URL(fullUrl);
     const teamParam = url.searchParams.get('team');
     setSelectedTeamId(teamParam || null);
+    if (url.searchParams.get('history') === 'true') setShowPastEvents(true);
   }, [location]);
 
   // Show create form when navigating to /events/new
@@ -298,7 +300,15 @@ export default function Events() {
 
   const { data: teams = [] } = useQuery({
     queryKey: ["/api/teams"],
+    refetchInterval: 30000,
   });
+  // Keep active discovery separate from access to existing events and audits.
+  const { data: archivedTeams = [] } = useQuery({
+    queryKey: ["/api/teams", { archived: true }],
+    queryFn: async () => (await apiRequest("GET", "/api/teams?archived=true")).json(),
+    refetchInterval: 30000,
+  });
+  const eventAccessTeams = [...(teams as any[]), ...(archivedTeams as any[])];
 
   // Fetch attendance data for all events to determine voting status
   const attendanceQueries = useQuery({
@@ -339,22 +349,7 @@ export default function Events() {
   };
 
   // Helper function to check if user can edit an event
-  const canEditEvent = (event: any) => {
-    if (!user || !event?.primaryTeamId) return false;
-    
-    // User can edit if they created the event directly
-    if (event.createdById === (user as any).id) return true;
-    
-    const primaryTeam = (teams as any[]).find((team: any) => team.id === event.primaryTeamId);
-    if (!primaryTeam) return false;
-    
-    // User can edit if they're the team owner
-    if (primaryTeam.ownerId === (user as any).id) return true;
-    
-    // User can edit if they have admin or captain role in the team
-    // The team object already contains the user's role since getUserTeams returns the user's role
-    return primaryTeam.role === "admin" || primaryTeam.role === "captain";
-  };
+  const canEditEvent = (event: any) => canManageExistingEvent(event, (user as any)?.id, eventAccessTeams);
 
   // Helper function to check if event is in the past
   const isEventPast = (event: any): boolean => {
@@ -378,29 +373,25 @@ export default function Events() {
   // Calculate filter counts based on current events
   const allEventsCount = events?.length || 0;
   const attendingCount = (events || []).filter(event => 
-    (!selectedTeamId || event.primaryTeamId === selectedTeamId) &&
     getUserVotingStatus(event.id) === 'attending'
   ).length;
   
   const notAttendingCount = (events || []).filter(event => 
-    (!selectedTeamId || event.primaryTeamId === selectedTeamId) &&
     getUserVotingStatus(event.id) === 'not_attending'
   ).length;
   
   const notVotedCount = (events || []).filter(event => 
-    (!selectedTeamId || event.primaryTeamId === selectedTeamId) &&
     getUserVotingStatus(event.id) === 'not_voted'
   ).length;
 
   const selectedTeam = selectedTeamId 
-    ? (teams as any[]).find((team: any) => team.id === selectedTeamId)
+    ? eventAccessTeams.find((team: any) => team.id === selectedTeamId)
     : null;
 
   // Apply all filters (past events filter is now handled server-side)
   const filteredEvents = (events || [])
     .filter((event: any) => {
-      // Team filter
-      if (selectedTeamId && event.primaryTeamId !== selectedTeamId) return false;
+      // The server includes primary, secondary and junction-linked team history.
       
       // Voting status filter
       if (votingStatusFilter !== 'all') {

@@ -323,6 +323,23 @@ paths:
         "404": { description: Account or uploaded picture not found }
         "503": { description: Storage could not verify the picture }
   /teams:
+    get:
+      operationId: listLudiTeams
+      summary: List active teams or archived teams belonging to the signed-in user
+      parameters:
+        - in: query
+          name: archived
+          schema: { type: boolean, default: false }
+      responses:
+        "200":
+          description: Owner and member teams with history retained
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/TeamListRecord" }
+        "400": { description: Invalid archive filter }
+        "401": { description: Authentication required }
     post:
       operationId: createLudiTeam
       summary: Create a team with an optional previously uploaded picture
@@ -368,10 +385,57 @@ paths:
         "401": { description: Authentication required }
         "403": { description: Requires team admin; picture changes require team ownership }
         "404": { description: Team not found }
-        "409": { description: Team name already exists }
+        "409": { description: Team name already exists or team is archived }
         "503": { description: Picture could not be verified }
+  /teams/{id}/archive:
+    post:
+      operationId: archiveLudiTeam
+      summary: Owner-only reversible archival
+      description: Preserves memberships, invitations and all event/financial history. Existing upcoming events are not cancelled or refunded. Recurring generation pauses while a linked team is archived.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Archived team, including idempotent retries
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TeamRecord" }
+        "401": { description: Authentication required }
+        "403": { description: Team owner required }
+        "404": { description: Team not found }
+  /teams/{id}/restore:
+    post:
+      operationId: restoreLudiTeam
+      summary: Restore an archived team as its owner
+      description: Resumes team changes and recurring generation; separately suspended series remain suspended. No event or payment changes.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Restored team, including idempotent retries
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TeamRecord" }
+        "401": { description: Authentication required }
+        "403": { description: Team owner required }
+        "404": { description: Team not found }
 components:
   schemas:
+    TeamListRecord:
+      allOf:
+        - $ref: "#/components/schemas/TeamRecord"
+        - type: object
+          required: [role, memberCount, isOwner]
+          properties:
+            role: { type: string }
+            memberCount: { type: integer }
+            isOwner: { type: boolean }
     ProfilePictureChangeInput:
       type: object
       additionalProperties: false
@@ -420,12 +484,13 @@ components:
     TeamRecord:
       type: object
       additionalProperties: true
-      required: [id, name, ownerId]
+      required: [id, name, ownerId, archivedAt]
       properties:
         id: { type: string }
         name: { type: string }
         ownerId: { type: string }
         teamImagePath: { type: [string, "null"] }
+        archivedAt: { type: [string, "null"], format: date-time }
     FeeSettings:
       type: object
       required: [platformBasisPoints, stripeBasisPoints, stripeFixedMinor, revision]

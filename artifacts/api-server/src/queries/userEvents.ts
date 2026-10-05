@@ -8,6 +8,8 @@ export function userEventConditions(userId: string, includePast: boolean, teamId
   const accessible = sql`(
     EXISTS (SELECT 1 FROM ${teamMemberships}
       WHERE ${teamMemberships.userId} = ${userId} AND ${teamMemberships.teamId} = ${events.primaryTeamId})
+    OR EXISTS (SELECT 1 FROM ${teamMemberships}
+      WHERE ${teamMemberships.userId} = ${userId} AND ${teamMemberships.teamId} = ANY(${events.secondaryTeamIds}))
     OR EXISTS (SELECT 1 FROM ${eventTeams}
       INNER JOIN ${teamMemberships} ON ${teamMemberships.teamId} = ${eventTeams.teamId}
       WHERE ${eventTeams.eventId} = ${events.id} AND ${teamMemberships.userId} = ${userId})
@@ -25,7 +27,9 @@ export function userEventConditions(userId: string, includePast: boolean, teamId
     includePast
       ? sql`${endAt} <= ${now.toISOString()}::timestamp`
       : sql`${endAt} > ${now.toISOString()}::timestamp`,
-    teamId ? eq(events.primaryTeamId, teamId) : undefined,
+    teamId ? sql`(${events.primaryTeamId} = ${teamId}
+      OR ${teamId} = ANY(${events.secondaryTeamIds})
+      OR EXISTS (SELECT 1 FROM ${eventTeams} WHERE ${eventTeams.eventId} = ${events.id} AND ${eventTeams.teamId} = ${teamId}))` : undefined,
   );
 }
 

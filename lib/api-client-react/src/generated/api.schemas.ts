@@ -5,6 +5,23 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface TeamRecord {
+  id: string;
+  name: string;
+  ownerId: string;
+  /** @nullable */
+  teamImagePath?: string | null;
+  /** @nullable */
+  archivedAt: string | null;
+  [key: string]: unknown;
+ }
+
+export type TeamListRecord = TeamRecord & {
+  role: string;
+  memberCount: number;
+  isOwner: boolean;
+};
+
 export interface ProfilePictureChangeInput {
   /**
      * @nullable
@@ -64,15 +81,6 @@ export interface TeamSettingsInput {
      */
   teamImagePath?: string | null;
 }
-
-export interface TeamRecord {
-  id: string;
-  name: string;
-  ownerId: string;
-  /** @nullable */
-  teamImagePath?: string | null;
-  [key: string]: unknown;
- }
 
 export interface FeeSettings {
   /**
@@ -292,5 +300,9 @@ export type CompleteGoogleMobileSignIn200 = {
 
 export type SendPushTemplateTest202 = {
   queued: number;
+};
+
+export type ListLudiTeamsParams = {
+archived?: boolean;
 };
 

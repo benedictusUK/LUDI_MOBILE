@@ -481,6 +481,29 @@ export const UpdateProfilePictureResponse = zod.object({
 
 
 /**
+ * @summary List active teams or archived teams belonging to the signed-in user
+ */
+export const listLudiTeamsQueryArchivedDefault = false;
+
+export const ListLudiTeamsQueryParams = zod.object({
+  "archived": zod.coerce.boolean().default(listLudiTeamsQueryArchivedDefault)
+})
+
+export const ListLudiTeamsResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "ownerId": zod.string(),
+  "teamImagePath": zod.string().nullish(),
+  "archivedAt": zod.coerce.date().nullable()
+}).and(zod.object({
+  "role": zod.string(),
+  "memberCount": zod.number().int(),
+  "isOwner": zod.boolean()
+}))
+export const ListLudiTeamsResponse = zod.array(ListLudiTeamsResponseItem)
+
+
+/**
  * @summary Create a team with an optional previously uploaded picture
  */
 export const CreateLudiTeamBody = zod.object({
@@ -499,7 +522,8 @@ export const CreateLudiTeamResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
   "ownerId": zod.string(),
-  "teamImagePath": zod.string().nullish()
+  "teamImagePath": zod.string().nullish(),
+  "archivedAt": zod.coerce.date().nullable()
 })
 
 
@@ -523,7 +547,42 @@ export const UpdateLudiTeamResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
   "ownerId": zod.string(),
-  "teamImagePath": zod.string().nullish()
+  "teamImagePath": zod.string().nullish(),
+  "archivedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * Preserves memberships, invitations and all event/financial history. Existing upcoming events are not cancelled or refunded. Recurring generation pauses while a linked team is archived.
+ * @summary Owner-only reversible archival
+ */
+export const ArchiveLudiTeamParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ArchiveLudiTeamResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "ownerId": zod.string(),
+  "teamImagePath": zod.string().nullish(),
+  "archivedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * Resumes team changes and recurring generation; separately suspended series remain suspended. No event or payment changes.
+ * @summary Restore an archived team as its owner
+ */
+export const RestoreLudiTeamParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const RestoreLudiTeamResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "ownerId": zod.string(),
+  "teamImagePath": zod.string().nullish(),
+  "archivedAt": zod.coerce.date().nullable()
 })
 
 

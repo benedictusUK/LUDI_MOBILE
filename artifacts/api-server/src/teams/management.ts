@@ -1,6 +1,6 @@
 import { and, eq, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { blockedMembers, events, notifications, teamInvitations, teamMemberships, teams, users, type InsertNotification, type Team } from "@workspace/db";
+import { blockedMembers, events, notifications, payments, teamInvitations, teamMemberships, teams, users, type InsertNotification, type Team } from "@workspace/db";
 import { db } from "../db";
 
 export class TeamFlowError extends Error {
@@ -18,11 +18,12 @@ type Context = { tx: Tx; team: Team; notices: InsertNotification[] };
 // blocking and pending-state checks are performed inside that transaction.
 export class TeamManagementStore {
   constructor(private database = db, private notify?: (notice: InsertNotification) => Promise<unknown>) {}
-  private async run<T extends object>(teamId: string, action: (ctx: Context) => Promise<T>) {
+  private async run<T extends object>(teamId: string, action: (ctx: Context) => Promise<T>, allowArchived = false) {
     const notices: InsertNotification[] = [];
     const result = await this.database.transaction(async tx => {
       const [team] = await tx.select().from(teams).where(eq(teams.id, teamId)).for("update");
       if (!team) throw new TeamFlowError(404, "Team not found");
+      if (team.archivedAt && !allowArchived) throw new TeamFlowError(409, "This team is archived. The owner must restore it before making team changes.");
       return action({ tx, team, notices });
     });
     let notificationWarning: string | undefined;
@@ -223,6 +224,7 @@ export class TeamManagementStore {
     const [member] = await this.database.select().from(teamMemberships)
       .where(and(eq(teamMemberships.teamId, teamId), eq(teamMemberships.userId, actor)));
     if (team.ownerId === actor || member) return team;
+    if (team.archivedAt) throw new TeamFlowError(403, "Archived teams are only available to their owner and members");
     if (team.isPrivate) {
       const [invite] = await this.database.select().from(teamInvitations).where(and(eq(teamInvitations.teamId, teamId),
         eq(teamInvitations.userId, actor), ne(teamInvitations.invitedById, actor), eq(teamInvitations.status, "pending")));
@@ -254,13 +256,25 @@ export class TeamManagementStore {
       return { team };
     });
   }
+  archive(teamId: string, actor: string, archived: boolean) {
+    return this.run(teamId, async ctx => {
+      if (ctx.team.ownerId !== actor) throw new TeamFlowError(403, "Only the team owner can archive or restore this team");
+      if (!!ctx.team.archivedAt === archived) return { team: ctx.team };
+      const [team] = await ctx.tx.update(teams).set({
+        archivedAt: archived ? new Date() : null, updatedAt: new Date(),
+      }).where(eq(teams.id, teamId)).returning();
+      return { team };
+    }, true);
+  }
   delete(teamId: string, actor: string) {
     return this.run(teamId, async ctx => {
       await this.admin(ctx, actor);
       const [event] = await ctx.tx.select({ id: events.id }).from(events).where(or(eq(events.primaryTeamId, teamId),
         sql`${teamId} = ANY(${events.secondaryTeamIds})`,
         sql`EXISTS (SELECT 1 FROM event_teams et WHERE et.event_id = ${events.id} AND et.team_id = ${teamId})`)).limit(1);
-      if (event) throw new TeamFlowError(409, "This team has event history and cannot be deleted. Keep it to preserve attendance and payment records.");
+      if (event) throw new TeamFlowError(409, "This team has event history and cannot be deleted. The owner can archive it to preserve attendance and payment records.");
+      const [payment] = await ctx.tx.select({ id: payments.id }).from(payments).where(eq(payments.teamId, teamId)).limit(1);
+      if (payment) throw new TeamFlowError(409, "This team has payment history and cannot be deleted. The owner can archive it instead.");
       await ctx.tx.delete(notifications).where(eq(notifications.relatedId, teamId));
       await ctx.tx.delete(notifications).where(sql`${notifications.type} = 'team_invitation' AND ${notifications.relatedId} IN (SELECT id FROM team_invitations WHERE team_id = ${teamId})`);
       await ctx.tx.delete(teams).where(eq(teams.id, teamId));

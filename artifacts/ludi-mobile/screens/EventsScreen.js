@@ -10,19 +10,21 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import HeaderWithNotifications from '../components/HeaderWithNotifications';
 
-export default function EventsScreen() {
+export default function EventsScreen({ route }) {
   const styles = useBrandStyles(baseStyles, { navClearance: 112 });
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [showPastEvents, setShowPastEvents] = useState(false);
+  const teamId = route?.params?.teamId;
+  const [showPastEvents, setShowPastEvents] = useState(!!teamId);
   const navigation = useNavigation();
   const { apiRequest } = useAuth();
   const { colors, isDark } = useTheme();
 
   const fetchEvents = async (includePast = false) => {
     try {
-      const queryParams = includePast ? '?includePast=true' : '';
+      const params = [includePast ? 'includePast=true' : '', teamId ? `teamId=${encodeURIComponent(teamId)}` : ''].filter(Boolean);
+      const queryParams = params.length ? `?${params.join('&')}` : '';
       const response = await apiRequest(`/api/events${queryParams}`);
       if (response.ok) {
         const data = await response.json();
@@ -41,7 +43,7 @@ export default function EventsScreen() {
 
   useEffect(() => {
     fetchEvents(showPastEvents);
-  }, [showPastEvents]);
+  }, [showPastEvents, teamId]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -125,7 +127,10 @@ export default function EventsScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <HeaderWithNotifications title="Events" />
+      <HeaderWithNotifications title={teamId ? `${route.params.teamName} History` : "Events"} />
+      {teamId && <TouchableOpacity onPress={() => navigation.goBack()} accessibilityRole="button">
+        <Text style={{ color: colors.primary, padding: 16 }}>Back to team</Text>
+      </TouchableOpacity>}
       <View style={styles.toggleContainer}>
         <TouchableOpacity
           style={[

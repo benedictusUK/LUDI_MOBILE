@@ -180,6 +180,7 @@ function AppContent() {
           <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: false }} />
           <Stack.Screen name="SuperAdmin" component={SuperAdminScreen} options={{ headerShown: false }} />
           <Stack.Screen name="TeamDetails" component={TeamDetailsScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="TeamHistory" component={EventsScreen} options={{ headerShown: false }} />
           <Stack.Screen name="CreateTeam" component={CreateTeamScreen} options={{ headerShown: false }} />
           <Stack.Screen name="TeamSearch" component={TeamSearchScreen} options={{ headerShown: false }} />
           <Stack.Screen name="CreateEvent" component={CreateEventScreen} options={{ headerShown: false }} />

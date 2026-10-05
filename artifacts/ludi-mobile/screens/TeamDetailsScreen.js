@@ -49,6 +49,7 @@ export default function TeamDetailsScreen() {
   const { teamId } = route.params;
 
   const [team, setTeam] = useState(null);
+  const [archiveBusy, setArchiveBusy] = useState(false);
   const [members, setMembers] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -370,6 +371,21 @@ export default function TeamDetailsScreen() {
     );
   };
 
+  const handleArchiveTeam = () => {
+    Alert.alert(team.archivedAt ? 'Restore Team' : 'Archive Team', team.archivedAt
+      ? 'Invitations become available again and recurring generation resumes unless separately suspended.'
+      : 'Memberships, invitations, attendance, votes and payments are preserved. Existing upcoming events stay available and are NOT cancelled or refunded. New recurring occurrences pause while any linked team is archived. You can restore the team later.',
+    [{ text: 'Cancel', style: 'cancel' }, { text: team.archivedAt ? 'Restore' : 'Archive', onPress: async () => {
+      setArchiveBusy(true);
+      try {
+        const response = await apiRequest(`/api/teams/${team.id}/${team.archivedAt ? 'restore' : 'archive'}`, { method: 'POST' });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message || 'Unable to update team');
+        setTeam(result);
+      } catch (error) { Alert.alert('Error', error.message || 'Unable to update team'); }
+      finally { setArchiveBusy(false); }
+    }}]);
+  };
   const handleDeleteTeam = () => {
     Alert.alert(
       'Delete Team',
@@ -563,7 +579,7 @@ export default function TeamDetailsScreen() {
               <Text style={[styles.statValue, { color: colors.text }]}>{members.length}</Text>
               <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Members</Text>
             </View>
-            {isAdmin && pendingRequests.length > 0 && (
+            {isAdmin && !team.archivedAt && pendingRequests.length > 0 && (
               <View style={styles.statItem}>
                 <Text style={[styles.statValue, { color: colors.text }]}>{pendingRequests.length}</Text>
                 <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Pending</Text>
@@ -597,7 +613,7 @@ export default function TeamDetailsScreen() {
         </View>
 
         {/* Pending Requests for Admins */}
-        {isAdmin && pendingRequests.length > 0 && (
+        {isAdmin && !team.archivedAt && pendingRequests.length > 0 && (
           <View style={[styles.section, { backgroundColor: colors.card }]}>
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>Pending Requests ({pendingRequests.length})</Text>
@@ -629,7 +645,14 @@ export default function TeamDetailsScreen() {
 
         {/* Action Buttons */}
         <View style={styles.actionsSection}>
-          {isAdmin && (
+          <TouchableOpacity style={styles.actionButtonWrapper}
+            onPress={() => navigation.navigate('TeamHistory', { teamId: team.id, teamName: team.name })}>
+            <View style={[styles.actionButton, { backgroundColor: colors.primary }]}>
+              <Ionicons name="calendar-outline" size={20} color={colors.buttonText} />
+              <Text style={[styles.actionButtonText, { color: colors.buttonText }]}>Events & History</Text>
+            </View>
+          </TouchableOpacity>
+          {isAdmin && !team.archivedAt && (
             <>
               <TouchableOpacity style={styles.actionButtonWrapper} onPress={openEdit}>
                 <View style={[styles.actionButton, { backgroundColor: colors.primary }]}>
@@ -671,7 +694,7 @@ export default function TeamDetailsScreen() {
             </>
           )}
 
-          {!isOwner && (
+          {!isOwner && !team.archivedAt && (
             <TouchableOpacity style={styles.actionButtonWrapper} onPress={handleLeaveTeam}>
               <View style={styles.dangerButton}>
                 <Ionicons name="exit-outline" size={20} color="#ef4444" />
@@ -681,6 +704,15 @@ export default function TeamDetailsScreen() {
           )}
 
           {isOwner && (
+            <TouchableOpacity style={styles.actionButtonWrapper} onPress={handleArchiveTeam}
+              disabled={archiveBusy} accessibilityRole="button" accessibilityState={{ disabled: archiveBusy }}>
+              <View style={[styles.actionButton, { backgroundColor: colors.primary }]}>
+                <Ionicons name="archive-outline" size={20} color={colors.buttonText} />
+                <Text style={[styles.actionButtonText, { color: colors.buttonText }]}>{archiveBusy ? 'Saving...' : team.archivedAt ? 'Restore Team' : 'Archive Team'}</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+          {isOwner && !team.archivedAt && (
             <TouchableOpacity style={styles.actionButtonWrapper} onPress={handleDeleteTeam}>
               <View style={styles.dangerButton}>
                 <Ionicons name="trash-outline" size={20} color="#ef4444" />
@@ -689,6 +721,7 @@ export default function TeamDetailsScreen() {
             </TouchableOpacity>
           )}
         </View>
+        {team.archivedAt && <Text style={{ color: colors.textSecondary, padding: 16 }}>Archived — history remains available. Existing events and payments are unchanged. New recurring occurrences pause while a linked team is archived. Restore to enable team changes; separately suspended series stay suspended.</Text>}
       </ScrollView>
 
       {/* Members Modal */}
@@ -717,7 +750,7 @@ export default function TeamDetailsScreen() {
                     <Text style={[styles.memberCardUsername, { color: colors.textSecondary }]}>@{member.user?.username || 'unknown'}</Text>
                     <Text style={[styles.memberCardRole, { color: colors.primary }]}>{displayRole}</Text>
                   </View>
-                  {isAdmin && displayRole !== 'owner' && member.userId !== user.id && (
+                  {isAdmin && !team.archivedAt && displayRole !== 'owner' && member.userId !== user.id && (
                     <View style={styles.memberActions}>
                       <TouchableOpacity
                         style={styles.roleButton}

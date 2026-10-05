@@ -22,3 +22,4 @@
 - [Recurring event buffer](recurring-event-policy.md) — initially five events; generate replacements only as occurrences expire, not on a weeks-ahead policy.
 - [Team management compatibility](team-management-compatibility.md) — retain installed iPhone routes; keep invitation state independent of notification delivery and read state.
 - [Native disabled controls](native-disabled-controls.md) — set Pressable's disabled prop, not just accessibility state or a guarded handler.
+- [Team archival policy](team-archival-policy.md) — owner-only archival preserves existing events and records; linked recurring series pause without clearing explicit suspension.

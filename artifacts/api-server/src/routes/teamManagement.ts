@@ -6,6 +6,7 @@ import { db } from "../db";
 import { storage } from "../storage";
 import { publicUser, TeamFlowError, TeamManagementStore } from "../teams/management";
 import { TeamPictureError, validateTeamPicture } from "./teamPictures";
+import { ObjectStorageService } from "../objectStorage";
 
 export function registerTeamManagement(app: Express, authenticate: RequestHandler,
   management = new TeamManagementStore(db, notice => storage.createNotificationIfAllowed(notice))) {
@@ -98,6 +99,9 @@ export function registerTeamManagement(app: Express, authenticate: RequestHandle
     res.json((await storage.getTeamMembers(req.params.id)).map(row => ({ ...row, user: publicUser(row.user) })));
   }));
   app.get("/api/teams/:id", authenticate, wrap(async (req, res) => { res.json(await management.details(req.params.id, actor(req))); }));
+  for (const action of ["archive", "restore"]) app.post(`/api/teams/:id/${action}`, authenticate, wrap(async (req, res) => {
+    res.json((await management.archive(req.params.id, actor(req), action === "archive")).team);
+  }));
   app.put("/api/teams/:id", authenticate, wrap(async (req, res) => {
     await management.canRead(req.params.id, actor(req), true);
     const parsed = insertTeamSchema.partial().parse(req.body);
@@ -113,6 +117,17 @@ export function registerTeamManagement(app: Express, authenticate: RequestHandle
       updates.teamImagePath = await validateTeamPicture(req.body.teamImagePath);
     }
     res.json((await management.update(req.params.id, actor(req), updates)).team);
+  }));
+  // Preserve the installed legacy route, but share the archival-aware lock and
+  // owner checks with every other picture/settings update.
+  app.put("/api/teams/:id/image", authenticate, wrap(async (req, res) => {
+    const team = await management.canRead(req.params.id, actor(req), true);
+    if (team.ownerId !== actor(req)) throw new TeamFlowError(403, "Only the team owner can change the picture");
+    if (!Object.hasOwn(req.body, "imageURL")) throw new TeamFlowError(400, "imageURL is required");
+    const image = z.string().nullable().parse(req.body.imageURL);
+    const objectPath = await validateTeamPicture(image === null ? null : new ObjectStorageService().normalizeObjectEntityPath(image));
+    const updated = await management.update(req.params.id, actor(req), { teamImagePath: objectPath });
+    res.json({ objectPath: updated.team.teamImagePath });
   }));
   app.delete("/api/teams/:id", authenticate, wrap(async (req, res) => { res.json(await management.delete(req.params.id, actor(req))); }));
   // Notification IDs must not let one user mutate another user's inbox.

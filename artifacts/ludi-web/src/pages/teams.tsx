@@ -397,8 +397,10 @@ function TeamSettingsModal({ team, onClose, onSave, isLoading }: {
 
 export default function Teams() {
   useScrollToTop();
+  const [, navigate] = useLocation();
   const { toast } = useToast();
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<any>(null);
   const [showManageModal, setShowManageModal] = useState(false);
   const [showMembersModal, setShowMembersModal] = useState(false);
@@ -416,19 +418,53 @@ export default function Teams() {
   const teamId = params?.id;
 
   const { data: teams = [], isLoading } = useQuery({
-    queryKey: ["/api/teams"],
+    queryKey: ["/api/teams", { archived: showArchived }],
+    queryFn: async () => (await apiRequest("GET", `/api/teams?archived=${showArchived}`)).json(),
+    refetchInterval: 30000,
   });
+  const { data: archivedRouteTeams = [] } = useQuery({
+    queryKey: ["/api/teams", { archived: true }],
+    queryFn: async () => (await apiRequest("GET", "/api/teams?archived=true")).json(),
+    enabled: !!teamId,
+    refetchInterval: 30000,
+  });
+  const archiveMutation = useMutation({
+    mutationFn: async (team: any) => (await apiRequest("POST", `/api/teams/${team.id}/${team.archivedAt ? "restore" : "archive"}`)).json(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/teams"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      setShowManageModal(false);
+      setSelectedTeam(null);
+      if (teamId) navigate("/teams");
+      toast({ title: "Team updated", description: "Team history and existing events are unchanged." });
+    },
+    onError: (error: Error) => toast({ title: "Unable to update team", description: error.message, variant: "destructive" }),
+  });
+  const changeArchive = () => {
+    if (confirm(selectedTeam.archivedAt
+      ? "Restore this team? Invitations become available again and recurring generation resumes unless the series was separately suspended."
+      : "Archive this team? Memberships, invitations, attendance, votes and payments are preserved. Existing upcoming events stay available and are NOT cancelled or refunded. New recurring occurrences pause while any linked team is archived. The owner can restore the team later.")) {
+      archiveMutation.mutate(selectedTeam);
+    }
+  };
 
   // Handle team detail route - automatically open manage modal for specific team
   useEffect(() => {
-    if (teamId && (teams as any[]).length > 0) {
-      const team = (teams as any[]).find((t: any) => t.id === teamId);
+    if (teamId) {
+      const team = [...(teams as any[]), ...(archivedRouteTeams as any[])].find((t: any) => t.id === teamId);
       if (team) {
         setSelectedTeam(team);
         setShowManageModal(true);
       }
     }
-  }, [teamId, teams]);
+  }, [teamId, teams, archivedRouteTeams]);
+  useEffect(() => {
+    if (selectedTeam && !teamId) {
+      const current = (teams as any[]).find(t => t.id === selectedTeam.id);
+      if (current) setSelectedTeam(current);
+      else { setShowManageModal(false); setSelectedTeam(null); }
+    }
+  }, [teams]);
 
   const { data: teamMembers = [] } = useQuery({
     queryKey: ["/api/teams", selectedTeam?.id, "members"],
@@ -461,10 +497,10 @@ export default function Teams() {
         description: "Team deleted successfully",
       });
     },
-    onError: () => {
+    onError: (error: Error) => {
       toast({
         title: "Error",
-        description: "Failed to delete team",
+        description: error.message || "Failed to delete team",
         variant: "destructive",
       });
     },
@@ -595,6 +631,10 @@ export default function Teams() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold text-neutral-900">Teams</h1>
+              <div className="flex gap-2 mt-3">
+                <Button variant={!showArchived ? "default" : "outline"} onClick={() => setShowArchived(false)}>Active teams</Button>
+                <Button variant={showArchived ? "default" : "outline"} onClick={() => setShowArchived(true)}>Archived teams</Button>
+              </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <Button 
@@ -629,8 +669,8 @@ export default function Teams() {
         {(teams as any[]).length === 0 ? (
           <div className="text-center py-12">
               <i className="fas fa-users text-neutral-300 text-6xl mb-4"></i>
-              <h3 className="text-lg font-semibold text-neutral-900 mb-2">No teams yet</h3>
-              <p className="text-neutral-500 mb-4">Create your first team to get started</p>
+              <h3 className="text-lg font-semibold text-neutral-900 mb-2">{showArchived ? "No archived teams" : "No active teams"}</h3>
+              <p className="text-neutral-500 mb-4">{showArchived ? "Archived teams keep your event and payment history." : "Create your first team to get started"}</p>
               <Button onClick={() => setShowCreateForm(true)}>
                 Create Team
               </Button>
@@ -767,7 +807,7 @@ export default function Teams() {
                     </div>
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-neutral-500">Status:</span>
-                      <Badge variant="secondary">Active</Badge>
+                      <Badge variant="secondary">{team.archivedAt ? "Archived" : "Active"}</Badge>
                     </div>
                   </div>
 
@@ -860,7 +900,7 @@ export default function Teams() {
                       <i className="fas fa-users"></i>
                       <span>View Members</span>
                     </Button>
-                    {(selectedTeam.isOwner || selectedTeam.role === "admin") && (
+                    {!selectedTeam.archivedAt && (selectedTeam.isOwner || selectedTeam.role === "admin") && (
                       <Button 
                         variant="outline" 
                         className="flex items-center space-x-2"
@@ -870,13 +910,13 @@ export default function Teams() {
                         <span>Manage Members</span>
                       </Button>
                     )}
-                    <Link href={`/events?team=${selectedTeam.id}`}>
+                    <Link href={`/events?team=${selectedTeam.id}&history=true`}>
                       <Button variant="outline" className="flex items-center space-x-2 w-full">
                         <i className="fas fa-calendar"></i>
-                        <span>Team Events</span>
+                        <span>Events & History</span>
                       </Button>
                     </Link>
-                    {!selectedTeam.isOwner && (
+                    {!selectedTeam.isOwner && !selectedTeam.archivedAt && (
                       <Button 
                         variant="destructive" 
                         className="flex items-center space-x-2"
@@ -890,6 +930,7 @@ export default function Teams() {
                       variant="outline" 
                       className="flex items-center space-x-2"
                       onClick={() => setShowSettingsModal(true)}
+                      disabled={!!selectedTeam.archivedAt}
                     >
                       <i className="fas fa-cog"></i>
                       <span>Settings</span>
@@ -897,6 +938,7 @@ export default function Teams() {
                   </div>
                 </div>
 
+                {selectedTeam.archivedAt && <p className="text-sm text-neutral-600">Archived — history remains available. Existing events and payments are unchanged. New recurring occurrences pause while a linked team is archived. Restore to enable team changes; separately suspended series stay suspended.</p>}
                 {/* Quick Stats */}
                 <div className="bg-neutral-50 rounded-lg p-4">
                   <h4 className="text-sm font-medium text-neutral-900 mb-3">Quick Stats</h4>
@@ -910,7 +952,7 @@ export default function Teams() {
                     <div
                       className="cursor-pointer hover:bg-neutral-100 rounded-lg p-2 transition-colors"
                       onClick={() => {
-                        if ((teamStats as any)?.pendingRequests && (teamStats as any).pendingRequests > 0) {
+                        if (!selectedTeam.archivedAt && (teamStats as any)?.pendingRequests && (teamStats as any).pendingRequests > 0) {
                           setPendingRequestsTab(true);
                           setShowMemberManagement(true);
                         }
@@ -920,11 +962,11 @@ export default function Teams() {
                         {isStatsLoading ? "..." : (teamStats as any)?.pendingRequests || 0}
                       </p>
                       <p className="text-xs text-neutral-500">
-                        Pending Requests {(teamStats as any)?.pendingRequests && (teamStats as any).pendingRequests > 0 ? "(Click to view)" : ""}
+                        Pending Requests {!selectedTeam.archivedAt && (teamStats as any)?.pendingRequests > 0 ? "(Click to view)" : ""}
                       </p>
                     </div>
                     <div>
-                      <p className="text-2xl font-bold text-accent">Active</p>
+                      <p className="text-2xl font-bold text-accent">{selectedTeam.archivedAt ? "Archived" : "Active"}</p>
                       <p className="text-xs text-neutral-500">Team Status</p>
                     </div>
                   </div>
@@ -938,7 +980,12 @@ export default function Teams() {
                 >
                   Close
                 </Button>
-                {selectedTeam.role === "admin" && (
+                {selectedTeam.isOwner && (
+                  <Button onClick={changeArchive} disabled={archiveMutation.isPending}>
+                    {archiveMutation.isPending ? "Saving..." : selectedTeam.archivedAt ? "Restore Team" : "Archive Team"}
+                  </Button>
+                )}
+                {!selectedTeam.archivedAt && selectedTeam.role === "admin" && (
                   <Button 
                     variant="destructive"
                     onClick={() => setShowDeleteModal(true)}
@@ -1058,7 +1105,7 @@ export default function Teams() {
                   <h4 className="font-medium text-red-800 mb-2">This will permanently:</h4>
                   <ul className="text-sm text-red-700 space-y-1">
                     <li>• Remove all team members</li>
-                    <li>• Delete all team events</li>
+                    <li>• Teams with any event history cannot be deleted; archive them instead</li>
                     <li>• Remove all team data</li>
                   </ul>
                 </div>

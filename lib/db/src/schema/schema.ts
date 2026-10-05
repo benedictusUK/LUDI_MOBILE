@@ -99,6 +99,7 @@ export const teams = pgTable("teams", {
   ownerId: varchar("owner_id").notNull().references(() => users.id),
   inviteCode: varchar("invite_code").unique(),
   teamImagePath: varchar("team_image_path"), // path to team's uploaded image
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -686,6 +687,7 @@ export const updateProfileSchema = z.object({
 
 export const insertTeamSchema = createInsertSchema(teams).omit({
   id: true,
+  archivedAt: true,
   createdAt: true,
   updatedAt: true,
   ownerId: true,

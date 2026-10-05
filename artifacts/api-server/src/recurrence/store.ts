@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { asc, eq, isNotNull, sql } from "drizzle-orm";
-import { events, eventTeams, recurringPaymentSettings, type Event, type InsertEvent } from "@workspace/db";
+import { asc, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { events, eventTeams, teams, recurringPaymentSettings, type Event, type InsertEvent } from "@workspace/db";
+import { lockActiveTeams } from "../teams/archival";
 import { db } from "../db";
 import { addDays, dayNumber, hasExpired, londonNow, occurrenceDates, occurrenceOnOrAfter, RECURRING_WINDOW, RecurrenceError, revisedSchedule, shiftedEndDate } from "./calendar";
 
@@ -31,6 +32,7 @@ export class RecurringEventStore {
     if (!dates.length) throw new RecurrenceError("The recurrence end date leaves no upcoming occurrences.");
     const seriesId = randomUUID();
     return this.database.transaction(async tx => {
+      await lockActiveTeams(tx, [template.primaryTeamId, ...(template.secondaryTeamIds || [])]);
       const created = await tx.insert(events).values(dates.map(date => instance(schedule, date, seriesId))).returning();
       const associations = created.flatMap(event => (template.secondaryTeamIds || []).map(teamId => ({ eventId: event.id, teamId, status: "accepted" as const })));
       if (associations.length) await tx.insert(eventTeams).values(associations).onConflictDoNothing();
@@ -44,6 +46,11 @@ export class RecurringEventStore {
       const rows = await tx.select().from(events).where(eq(events.recurringSeriesId, seriesId)).orderBy(asc(events.startDate), asc(events.startTime), asc(events.createdAt), asc(events.id));
       if (!rows.length) return { maintained: false, created: 0 };
       const latest = rows[rows.length - 1];
+      const associations = await tx.select().from(eventTeams).where(eq(eventTeams.eventId, latest.id));
+      const linkedTeams = await tx.select().from(teams).where(inArray(teams.id,
+        [...new Set([latest.primaryTeamId, ...(latest.secondaryTeamIds || []), ...associations.map(row => row.teamId)])]))
+        .orderBy(asc(teams.id)).for("share");
+      if (linkedTeams.some(team => team.archivedAt)) return { maintained: false, created: 0 };
       if (latest.isRecurringSuspended || !latest.recurrenceType || latest.recurrenceType === "none") return { maintained: false, created: 0 };
       const future = rows.filter(row => !hasExpired(row, now));
       const used = new Set(rows.map(row => row.parentEventId).filter(Boolean));
@@ -85,6 +92,9 @@ export class RecurringEventStore {
   async update(event: Event, updates: Partial<InsertEvent>, scope: "single" | "future"): Promise<Event[]> {
     return this.database.transaction(async tx => {
       if (event.recurringSeriesId) await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${event.recurringSeriesId}, 0))`);
+      const existing = new Set([event.primaryTeamId, ...(event.secondaryTeamIds || [])]);
+      const added = [updates.primaryTeamId, ...(updates.secondaryTeamIds || [])].filter((id): id is string => !!id && !existing.has(id));
+      if (added.length) await lockActiveTeams(tx, added);
       if (scope === "single" || !event.recurringSeriesId) {
         return tx.update(events).set(updates).where(eq(events.id, event.id)).returning();
       }

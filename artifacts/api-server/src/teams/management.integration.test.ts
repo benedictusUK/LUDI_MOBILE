@@ -3,11 +3,13 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import express from "express";
 import { and, eq, inArray } from "drizzle-orm";
-import { events, insertEventSchema, notifications, teamInvitations, teamMemberships, teams, users } from "@workspace/db";
+import { eventAttendance, eventPayments, eventTeams, events, insertEventSchema, notifications, payments, teamInvitations, teamMemberships, teams, users } from "@workspace/db";
 import { db, pool } from "../db";
 import { storage } from "../storage";
 import { registerTeamManagement } from "../routes/teamManagement";
 import { TeamManagementStore } from "./management";
+import { RecurringEventStore } from "../recurrence/store";
+import { queryUserEvents } from "../queries/userEvents";
 
 test("real PostgreSQL team lifecycle, HTTP contracts and concurrent admissions", { timeout: 180000 }, async t => {
   const prefix = `team-regression-${randomUUID()}`;
@@ -136,6 +138,104 @@ test("real PostgreSQL team lifecycle, HTTP contracts and concurrent admissions",
       assert.deepEqual(accepted.map(r => r.status).sort(), [200, 409]);
       assert.equal((await db.select().from(teamMemberships).where(eq(teamMemberships.teamId, id))).length, 2);
     });
+    await t.test("owner-controlled archive preserves all records and permissions; restore is reversible", async () => {
+      const id = await makeTeam("archive");
+      await store.add(id, member, owner, "admin");
+      await store.add(id, second, owner, "captain");
+      const invitation = await store.invite(id, outsider, owner);
+      const template = insertEventSchema.parse({
+        name: "Synthetic paid archival history", sport: "football", startDate: "2090-01-01", startTime: "19:00",
+        location: "Test venue", requirements: "Synthetic fixture", primaryTeamId: id, createdById: outsider,
+        type: "training", gender: "mixed", paymentStatus: "captured",
+      });
+      const event = await storage.createEvent(template);
+      await db.insert(eventAttendance).values({ eventId: event.id, userId: member, status: "attending", votedAt: new Date() });
+      await db.insert(eventPayments).values({ eventId: event.id, userId: member, status: "captured", capturedAmountMinor: 2000, refundedAmountMinor: 0 });
+      await db.insert(payments).values({ teamId: id, eventId: event.id, userId: member, type: "event_fee", amount: "20.00", status: "paid" });
+      const snapshot = async () => ({
+        events: await db.select().from(events).where(eq(events.primaryTeamId, id)),
+        members: await db.select().from(teamMemberships).where(eq(teamMemberships.teamId, id)),
+        invites: await db.select().from(teamInvitations).where(eq(teamInvitations.teamId, id)),
+        attendance: await db.select().from(eventAttendance).where(eq(eventAttendance.eventId, event.id)),
+        payments: await db.select().from(eventPayments).where(eq(eventPayments.eventId, event.id)),
+        ledger: await db.select().from(payments).where(eq(payments.teamId, id)),
+      });
+      const before = await snapshot();
+      const [past] = await db.insert(events).values({ ...template, name: "Synthetic past history", startDate: "2020-01-01", paymentStatus: "none" }).returning();
+      // Keep the preserved snapshot separate from the additional past fixture.
+      before.events.push(past);
+      assert.equal((await request(member, `/api/teams/${id}/archive`, "POST")).status, 403);
+      assert.equal((await request(outsider, `/api/teams/${id}/archive`, "POST")).status, 403);
+      const archived = await request(owner, `/api/teams/${id}/archive`, "POST");
+      assert.equal(archived.status, 200); assert.ok(archived.data.archivedAt);
+      assert.equal((await request(owner, `/api/teams/${id}/archive`, "POST")).data.archivedAt, archived.data.archivedAt);
+      assert.deepEqual(await snapshot(), before);
+      assert.equal((await storage.getUserTeams(owner)).some(t => t.id === id), false);
+      assert.equal((await storage.getUserTeams(owner, true)).some(t => t.id === id), true);
+      assert.equal((await storage.getUserTeams(member, "all")).some(t => t.id === id && t.role === "admin"), true);
+      // The same archive-inclusive data authorizes financial audit access and
+      // management of another organiser's event, independently of discovery.
+      assert.notEqual(event.createdById, owner);
+      assert.notEqual(event.createdById, member);
+      assert.notEqual(event.createdById, second);
+      assert.equal((await storage.getUserTeams(owner, "all")).some(t => t.id === id && t.isOwner), true);
+      assert.equal((await storage.getUserTeams(second, "all")).some(t => t.id === id && t.role === "captain"), true);
+      assert.equal((await storage.searchTeams(prefix, outsider)).some(t => t.id === id), false);
+      assert.equal((await request(member, `/api/teams/${id}`)).status, 200);
+      assert.equal((await request(outsider, `/api/teams/${id}`)).status, 403);
+      assert.equal((await request(member, `/api/teams/${id}/members`)).status, 200);
+      assert.equal((await queryUserEvents(db, member)).events.some(e => e.id === event.id), true);
+      assert.equal((await queryUserEvents(db, member, true, 1, 100, id)).events.some(e => e.id === past.id), true);
+      assert.equal((await queryUserEvents(db, outsider, true, 1, 100, id)).events.length, 0);
+      for (const [path, method, body] of [
+        [`/api/teams/${id}/members`, "POST", { userId: second }],
+        [`/api/teams/${id}/members/${member}/role`, "PATCH", { role: "captain" }],
+        [`/api/teams/${id}/members/${member}`, "DELETE", undefined],
+        [`/api/teams/${id}`, "PUT", { name: `${prefix}-changed` }],
+        [`/api/teams/${id}/image`, "PUT", { imageURL: null }],
+        [`/api/teams/${id}`, "DELETE", undefined],
+      ] as const) assert.equal((await request(owner, path, method, body)).status, 409);
+      assert.equal((await request(outsider, `/api/teams/${id}/request-join`, "POST")).status, 409);
+      assert.equal((await request(outsider, `/api/invitations/${invitation.invitation.id}/accept`, "POST")).status, 409);
+      assert.equal((await store.listPending(outsider, false)).find(i => i.teamId === id)?.status, "pending");
+      await assert.rejects(storage.createEvent(template), /Restore archived teams/);
+      assert.equal((await request(member, `/api/teams/${id}/restore`, "POST")).status, 403);
+      assert.equal((await request(owner, `/api/teams/${id}/restore`, "POST")).data.archivedAt, null);
+      assert.deepEqual(await snapshot(), before);
+      assert.equal((await storage.getUserTeams(owner)).some(t => t.id === id), true);
+      assert.equal((await request(member, `/api/teams/${id}/image`, "PUT", { imageURL: null })).status, 403);
+      assert.deepEqual((await request(owner, `/api/teams/${id}/image`, "PUT", { imageURL: null })).data, { objectPath: null });
+      assert.equal((await request(outsider, `/api/invitations/${invitation.invitation.id}/accept`, "POST")).status, 200);
+    });
+    await t.test("archival pauses linked recurring series without cancelling occurrences or clearing suspension", async () => {
+      const primary = await makeTeam("recurring-primary");
+      const secondary = await makeTeam("recurring-secondary");
+      const storeRecurring = new RecurringEventStore(db);
+      const initial = await storeRecurring.create(insertEventSchema.parse({
+        name: "Synthetic recurring archive", sport: "football", startDate: "2026-10-05", startTime: "19:00",
+        location: "Test venue", requirements: "Synthetic fixture", primaryTeamId: primary, secondaryTeamIds: [secondary], createdById: owner,
+        type: "training", gender: "mixed", recurrenceType: "weekly",
+      }), new Date("2026-10-05T12:00:00Z"));
+      const seriesId = initial[0].recurringSeriesId!;
+      await store.archive(secondary, owner, true);
+      const historyFor = async () => [...(await queryUserEvents(db, owner, true, 1, 100, secondary)).events,
+        ...(await queryUserEvents(db, owner, false, 1, 100, secondary)).events];
+      assert.equal((await historyFor()).some(e => e.recurringSeriesId === seriesId), true);
+      assert.equal((await storeRecurring.maintain(seriesId, new Date("2026-10-13T12:00:00Z"))).created, 0);
+      assert.deepEqual(await db.select().from(events).where(eq(events.recurringSeriesId, seriesId)), initial);
+      await store.archive(secondary, owner, false);
+      assert.equal((await storeRecurring.maintain(seriesId, new Date("2026-10-13T12:00:00Z"))).created, 2);
+      await db.update(events).set({ isRecurringSuspended: true }).where(eq(events.recurringSeriesId, seriesId));
+      await store.archive(primary, owner, true);
+      await store.archive(primary, owner, false);
+      assert.equal((await storeRecurring.maintain(seriesId, new Date("2026-11-20T12:00:00Z"))).created, 0);
+      // Junction-only links pause generation too, without changing the event.
+      await db.update(events).set({ isRecurringSuspended: false, secondaryTeamIds: [] }).where(eq(events.recurringSeriesId, seriesId));
+      await store.archive(secondary, owner, true);
+      assert.equal((await storeRecurring.maintain(seriesId, new Date("2026-11-20T12:00:00Z"))).created, 0);
+      assert.equal((await historyFor()).some(e => e.recurringSeriesId === seriesId), true);
+      await assert.rejects(storage.addEventTeam(initial[0].id, secondary), /Restore archived teams/);
+    });
     await t.test("deletion preserves team event history; empty teams can be deleted", async () => {
       const id = await makeTeam("history");
       await db.insert(events).values(insertEventSchema.parse({
@@ -147,6 +247,10 @@ test("real PostgreSQL team lifecycle, HTTP contracts and concurrent admissions",
       const empty = await makeTeam("empty");
       assert.equal((await request(outsider, `/api/teams/${empty}`, "DELETE")).status, 403);
       assert.equal((await request(owner, `/api/teams/${empty}`, "DELETE")).status, 200);
+      const financial = await makeTeam("financial-only");
+      await db.insert(payments).values({ teamId: financial, userId: member, amount: "15.00", type: "membership", status: "paid" });
+      assert.equal((await request(owner, `/api/teams/${financial}`, "DELETE")).status, 409);
+      assert.equal((await request(owner, `/api/teams/${financial}/archive`, "POST")).status, 200);
     });
   } finally {
     await new Promise<void>(resolve => server.close(() => resolve()));

@@ -1,3 +1,4 @@
+import { ArchivedTeamError } from "./teams/archival";
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
@@ -136,7 +137,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/teams', verifyAuth, async (req: any, res) => {
     try {
       const userId = req.userId;
-      const teams = await storage.getUserTeams(userId);
+      if (req.query.archived !== undefined && !["true", "false"].includes(req.query.archived)) {
+        res.status(400).json({ message: "archived must be true or false" });
+        return;
+      }
+      const teams = await storage.getUserTeams(userId, req.query.archived === "true");
       res.json(teams);
     } catch (error) {
       console.error('Error fetching teams:', error);
@@ -266,6 +271,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(event);
     } catch (error) {
+      if (error instanceof ArchivedTeamError) return res.status(409).json({ message: error.message });
       if (error instanceof RecurrenceError) return res.status(400).json({ message: error.message });
       if (error instanceof z.ZodError) {
         console.error('Validation error creating event:', JSON.stringify(error.errors, null, 2));
@@ -351,6 +357,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(event);
     } catch (error: any) {
+      if (error instanceof ArchivedTeamError) return res.status(409).json({ message: error.message });
       console.error("Error updating event:", error);
       
       if (error.name === 'ZodError') {
@@ -498,6 +505,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         events: updatedEvents 
       });
     } catch (error: any) {
+      if (error instanceof ArchivedTeamError) return res.status(409).json({ message: error.message });
       console.error("Error updating recurring event:", error);
       
       if (error.name === 'ZodError') {
@@ -655,7 +663,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check if user is team owner/admin/captain
-      const userTeams = await storage.getUserTeams(userId);
+      const userTeams = await storage.getUserTeams(userId, "all");
       const isAuthorized = userTeams.some(team => 
         team.id === event.primaryTeamId && ['admin', 'captain'].includes(team.role)
       ) || event.createdById === userId;
@@ -707,7 +715,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check if user is team owner/admin/captain
-      const userTeams = await storage.getUserTeams(userId);
+      const userTeams = await storage.getUserTeams(userId, "all");
       const isAuthorized = userTeams.some(team => 
         team.id === event.primaryTeamId && ['admin', 'captain'].includes(team.role)
       ) || event.createdById === userId;
@@ -859,35 +867,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error generating upload URL:", error);
       res.status(500).json({ error: "Failed to generate upload URL" });
     }
-  });
-
-  // Team image update endpoint
-  app.put("/api/teams/:id/image", isAuthenticated, async (req: any, res) => {
-    if (!Object.prototype.hasOwnProperty.call(req.body, "imageURL")) {
-      return res.status(400).json({ error: "imageURL is required" });
-    }
-
-    const userId = (req.user as any).claims.sub;
-    try {
-      const team = await storage.getTeam(req.params.id);
-      if (!team) return res.status(404).json({ message: "Team not found" });
-      if (team.ownerId !== userId) return res.status(403).json({ message: "Only the team owner can change the picture" });
-      if (req.body.imageURL !== null && typeof req.body.imageURL !== "string") {
-        return res.status(400).json({ message: "Invalid picture path" });
-      }
-      const objectStorageService = new ObjectStorageService();
-      const objectPath = await validateTeamPicture(req.body.imageURL === null ? null : objectStorageService.normalizeObjectEntityPath(req.body.imageURL));
-
-      // Update team with the image path
-      await storage.updateTeamImage(req.params.id, userId, objectPath);
-
-      res.status(200).json({ objectPath: objectPath });
-    } catch (error) {
-      if (error instanceof TeamPictureError) return res.status(error.status).json({ message: error.message });
-      console.error("Error setting team image:", error);
-      res.status(500).json({ error: "Internal server error" });
-    }
-    return;
   });
 
   // Auth routes
@@ -1605,6 +1584,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(event);
     } catch (error: any) {
+      if (error instanceof ArchivedTeamError) return res.status(409).json({ message: error.message });
       console.error("Error creating event:", error);
       
       // Handle Zod validation errors
@@ -1714,6 +1694,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(event);
     } catch (error: any) {
+      if (error instanceof ArchivedTeamError) return res.status(409).json({ message: error.message });
       console.error("Error updating event:", error);
       
       // Handle Zod validation errors
@@ -3398,7 +3379,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const summary = await storage.getEventPaymentSummary(eventId);
 
       // Check if user is admin (to include audit log)
-      const userTeams = await storage.getUserTeams(userId);
+      const userTeams = await storage.getUserTeams(userId, "all");
       const isAdmin = userTeams.some(team => 
         team.id === event.primaryTeamId && ['admin', 'captain'].includes(team.role)
       ) || event.createdById === userId;
@@ -3437,7 +3418,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check admin access
-      const userTeams = await storage.getUserTeams(userId);
+      const userTeams = await storage.getUserTeams(userId, "all");
       const isAdmin = userTeams.some(team => 
         team.id === event.primaryTeamId && ['admin', 'captain'].includes(team.role)
       ) || event.createdById === userId;
@@ -3472,7 +3453,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check admin access
-      const userTeams = await storage.getUserTeams(actorId);
+      const userTeams = await storage.getUserTeams(actorId, "all");
       const isAdmin = userTeams.some(team => 
         team.id === event.primaryTeamId && ['admin', 'captain'].includes(team.role)
       ) || event.createdById === actorId;
@@ -3511,7 +3492,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check if user is team owner/admin/captain
-      const userTeams = await storage.getUserTeams(userId);
+      const userTeams = await storage.getUserTeams(userId, "all");
       const isAuthorized = userTeams.some(team => 
         team.id === event.primaryTeamId && ['admin', 'captain'].includes(team.role)
       );
@@ -3594,7 +3575,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check if user is team owner/admin/captain
-      const userTeams = await storage.getUserTeams(userId);
+      const userTeams = await storage.getUserTeams(userId, "all");
       const isAuthorized = userTeams.some(team => 
         team.id === event.primaryTeamId && ['admin', 'captain'].includes(team.role)
       );

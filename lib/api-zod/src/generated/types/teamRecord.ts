@@ -12,5 +12,7 @@ export interface TeamRecord {
   ownerId: string;
   /** @nullable */
   teamImagePath?: string | null;
+  /** @nullable */
+  archivedAt: Date | null;
   [key: string]: unknown;
  }

@@ -58,6 +58,7 @@ import { db } from "./db";
 import { eq, and, desc, count, sql, or, notInArray, asc, inArray, ne, isNotNull, gte, lte, ilike, not, gt, isNull } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { recurringEventStore } from "./recurrence/store";
+import { lockActiveTeams } from "./teams/archival";
 import { notificationWS } from "./websocket";
 import { queryUserEvents } from "./queries/userEvents";
 
@@ -81,7 +82,7 @@ export interface IStorage {
   createTeam(teamData: InsertTeam, ownerId: string): Promise<Team>;
   getTeam(id: string): Promise<Team | undefined>;
   getTeamByName(name: string): Promise<Team | undefined>;
-  getUserTeams(userId: string): Promise<(Team & { role: string; memberCount: number })[]>;
+  getUserTeams(userId: string, archived?: boolean | "all"): Promise<(Team & { role: string; memberCount: number })[]>;
   addTeamMember(teamId: string, userId: string, role?: string): Promise<TeamMembership>;
   removeTeamMember(teamId: string, userId: string): Promise<void>;
   getTeamMembers(teamId: string): Promise<(TeamMembership & { user: User })[]>;
@@ -554,7 +555,7 @@ export class DatabaseStorage implements IStorage {
     return team;
   }
 
-  async getUserTeams(userId: string): Promise<(Team & { role: string; memberCount: number; isOwner: boolean })[]> {
+  async getUserTeams(userId: string, archived: boolean | "all" = false): Promise<(Team & { role: string; memberCount: number; isOwner: boolean })[]> {
     // First get the teams the user belongs to with their roles
     const userTeamsQuery = await db
       .select({
@@ -570,14 +571,15 @@ export class DatabaseStorage implements IStorage {
         ownerId: teams.ownerId,
         inviteCode: teams.inviteCode,
         teamImagePath: teams.teamImagePath,
+        archivedAt: teams.archivedAt,
         createdAt: teams.createdAt,
         updatedAt: teams.updatedAt,
-        role: teamMemberships.role,
+        role: sql<string>`CASE WHEN ${teams.ownerId} = ${userId} THEN 'admin' ELSE ${teamMemberships.role} END`,
         isOwner: sql<boolean>`CASE WHEN ${teams.ownerId} = ${userId} THEN true ELSE false END`,
       })
       .from(teams)
-      .innerJoin(teamMemberships, eq(teams.id, teamMemberships.teamId))
-      .where(eq(teamMemberships.userId, userId));
+      .leftJoin(teamMemberships, and(eq(teams.id, teamMemberships.teamId), eq(teamMemberships.userId, userId)))
+      .where(and(or(eq(teamMemberships.userId, userId), eq(teams.ownerId, userId)), archived === "all" ? undefined : archived ? sql`${teams.archivedAt} IS NOT NULL` : sql`${teams.archivedAt} IS NULL`));
 
     // Then get the member count for each team separately
     const result = [];
@@ -719,7 +721,9 @@ export class DatabaseStorage implements IStorage {
 
   // Event operations
   async createEvent(event: InsertEvent): Promise<Event> {
-    const [newEvent] = await db.insert(events).values(event).returning();
+    return db.transaction(async tx => {
+    await lockActiveTeams(tx, [event.primaryTeamId, ...(event.secondaryTeamIds || [])]);
+    const [newEvent] = await tx.insert(events).values(event).returning();
     
     // Add event-team associations for secondary teams  
     if (event.secondaryTeamIds && Array.isArray(event.secondaryTeamIds) && event.secondaryTeamIds.length > 0) {
@@ -728,10 +732,11 @@ export class DatabaseStorage implements IStorage {
         teamId: teamId,
         status: 'accepted' as const
       }));
-      await db.insert(eventTeams).values(eventTeamAssociations);
+      await tx.insert(eventTeams).values(eventTeamAssociations);
     }
     
     return newEvent;
+    });
   }
 
   async getEvent(id: string): Promise<any | undefined> {
@@ -807,7 +812,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateEvent(id: string, updates: Partial<InsertEvent>): Promise<Event> {
-    const [event] = await db
+    return db.transaction(async tx => {
+    const [current] = await tx.select().from(events).where(eq(events.id, id)).for("update");
+    const associations = await tx.select().from(eventTeams).where(eq(eventTeams.eventId, id));
+    const existing = new Set([current.primaryTeamId, ...(current.secondaryTeamIds || []), ...associations.map(row => row.teamId)]);
+    const added = [updates.primaryTeamId, ...(updates.secondaryTeamIds || [])].filter((teamId): teamId is string => !!teamId && !existing.has(teamId));
+    if (added.length) await lockActiveTeams(tx, added);
+    const [event] = await tx
       .update(events)
       .set({ ...updates, updatedAt: new Date() })
       .where(eq(events.id, id))
@@ -816,7 +827,7 @@ export class DatabaseStorage implements IStorage {
     // Update event-team associations for secondary teams if provided
     if (updates.secondaryTeamIds !== undefined) {
       // Remove existing secondary team associations (not primary team)
-      await db.delete(eventTeams).where(eq(eventTeams.eventId, id));
+      await tx.delete(eventTeams).where(eq(eventTeams.eventId, id));
       
       // Add new secondary team associations
       if (updates.secondaryTeamIds && updates.secondaryTeamIds.length > 0) {
@@ -825,11 +836,12 @@ export class DatabaseStorage implements IStorage {
           teamId: teamId,
           status: 'accepted' as const
         }));
-        await db.insert(eventTeams).values(eventTeamAssociations);
+        await tx.insert(eventTeams).values(eventTeamAssociations);
       }
     }
     
     return event;
+    });
   }
 
   async deleteEvent(id: string): Promise<void> {
@@ -837,7 +849,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async addEventTeam(eventId: string, teamId: string): Promise<EventTeam> {
-    const [eventTeam] = await db
+    return db.transaction(async tx => {
+    const [event] = await tx.select().from(events).where(eq(events.id, eventId));
+    if (event?.primaryTeamId !== teamId && !event?.secondaryTeamIds?.includes(teamId)) await lockActiveTeams(tx, [teamId]);
+    const [eventTeam] = await tx
       .insert(eventTeams)
       .values({
         eventId,
@@ -846,6 +861,7 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return eventTeam;
+    });
   }
 
   async getEventById(id: string): Promise<Event | undefined> {
@@ -1415,7 +1431,8 @@ export class DatabaseStorage implements IStorage {
     const activeTeams = await db
       .select({ count: count() })
       .from(teamMemberships)
-      .where(eq(teamMemberships.userId, userId));
+      .innerJoin(teams, eq(teams.id, teamMemberships.teamId))
+      .where(and(eq(teamMemberships.userId, userId), sql`${teams.archivedAt} IS NULL`));
 
     // Get total teams count (platform-wide)
     const totalTeams = await db
@@ -1545,6 +1562,7 @@ export class DatabaseStorage implements IStorage {
         ownerId: teams.ownerId,
         inviteCode: teams.inviteCode,
         teamImagePath: teams.teamImagePath,
+        archivedAt: teams.archivedAt,
         createdAt: teams.createdAt,
         updatedAt: teams.updatedAt,
         memberCount: count(teamMemberships.id),
@@ -1554,6 +1572,7 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(teams.isPrivate, false), // Only search public teams
+          sql`${teams.archivedAt} IS NULL`,
           sql`LOWER(${teams.name}) LIKE LOWER('%' || ${query} || '%')`
         )
       )
