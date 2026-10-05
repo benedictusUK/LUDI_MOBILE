@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -33,7 +33,6 @@ import { navigationRef } from './lib/navigation';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { registerRootComponent } from 'expo';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
@@ -140,47 +139,18 @@ function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
   const { isReady: dashboardReady, error: dashboardError, reload } = useDashboardData();
   const { colors, loading: themeLoading } = useTheme();
-  const [showLogoReveal, setShowLogoReveal] = useState(false);
-  const [hasShownReveal, setHasShownReveal] = useState(false);
   const pushNotifications = usePushNotifications();
 
-  // Check if user has seen the logo reveal animation on first load
-  useEffect(() => {
-    if (isAuthenticated && !isLoading) {
-      AsyncStorage.getItem('ludi-logo-revealed').then(hasRevealed => {
-        if (!hasRevealed) {
-          setShowLogoReveal(true);
-        } else {
-          setHasShownReveal(true);
-        }
-      });
-    }
-  }, [isAuthenticated, isLoading]);
-
-  const handleLogoRevealComplete = useCallback(() => {
-    setShowLogoReveal(false);
-    setHasShownReveal(true);
-    AsyncStorage.setItem('ludi-logo-revealed', 'true');
-  }, []);
-
   if (isLoading || themeLoading) {
-    return (
-      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
-        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading...</Text>
-      </View>
-    );
+    return <LoadingScreen />;
   }
 
   if (!isAuthenticated) {
     return <AuthScreen onAuthSuccess={() => {}} />;
   }
 
-  // Show logo reveal animation on first app load
-  if (showLogoReveal && !hasShownReveal) {
-    return <LoadingScreen onComplete={handleLogoRevealComplete} />;
-  }
-
   if (!dashboardReady) {
+    if (!dashboardError) return <LoadingScreen />;
     return (
       <View style={[styles.loadingContainer, { backgroundColor: colors.background, padding: 24 }]}>
         <Text style={[styles.loadingText, { color: colors.text, textAlign: 'center' }]}>

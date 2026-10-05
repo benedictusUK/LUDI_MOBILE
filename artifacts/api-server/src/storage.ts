@@ -454,15 +454,31 @@ export class DatabaseStorage implements IStorage {
     // editing replace Stripe customer/account IDs or other server-owned fields.
     const editable = new Set(Object.keys(updateProfileSchema.shape));
     const safeProfile = Object.fromEntries(Object.entries(profileData).filter(([key]) => editable.has(key)));
-    const [user] = await db
-      .update(users)
-      .set({
-        ...safeProfile,
-        updatedAt: new Date(),
-      })
-      .where(eq(users.id, userId))
-      .returning();
-    return user;
+    if (safeProfile.username !== undefined) {
+      const username = updateProfileSchema.shape.username.unwrap().parse(safeProfile.username);
+      if (!await this.checkUsernameAvailability(username, userId)) {
+        throw Object.assign(new Error("Username is already taken"), { code: "USERNAME_TAKEN" });
+      }
+      safeProfile.username = username;
+    }
+    try {
+      const [user] = await db
+        .update(users)
+        .set({
+          ...safeProfile,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, userId))
+        .returning();
+      return user;
+    } catch (error: any) {
+      // The unique constraint also protects simultaneous availability checks.
+      const cause = error.cause || error;
+      if (cause.code === "23505" && ["users_username_unique", "users_username_key"].includes(cause.constraint)) {
+        throw Object.assign(new Error("Username is already taken"), { code: "USERNAME_TAKEN" });
+      }
+      throw error;
+    }
   }
 
   async completeUserProfile(userId: string, profileData: ProfileCompletion): Promise<User> {

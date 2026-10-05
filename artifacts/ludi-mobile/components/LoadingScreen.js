@@ -18,6 +18,7 @@ export default function LoadingScreen({ onComplete }) {
     opacity: new Animated.Value(0),
     y: new Animated.Value(0),
   }))).current;
+  const particleLoops = useRef([]);
 
   useEffect(() => {
     // Step 0: LUDI text animation (1000ms) - starts immediately
@@ -65,7 +66,7 @@ export default function LoadingScreen({ onComplete }) {
 
       // Start particle animations
       particleAnimations.forEach((particle, i) => {
-        Animated.loop(
+        const loop = Animated.loop(
           Animated.sequence([
             Animated.delay(i * 200),
             Animated.parallel([
@@ -101,7 +102,9 @@ export default function LoadingScreen({ onComplete }) {
             ]),
             Animated.delay(3000),
           ])
-        ).start();
+        );
+        particleLoops.current.push(loop);
+        loop.start();
       });
       
       setCurrentStep(2);
@@ -116,11 +119,17 @@ export default function LoadingScreen({ onComplete }) {
       clearTimeout(timer1);
       clearTimeout(timer2);
       clearTimeout(timer3);
+      particleLoops.current.forEach(loop => loop.stop());
+      particleLoops.current = [];
+      [...letterOpacities, ...letterTranslates, underlineWidth, taglineOpacity, taglineTranslate]
+        .forEach(value => value.stopAnimation());
     };
   }, []);
 
   return (
     <LinearGradient
+      accessible
+      accessibilityLabel="Loading LUDI"
       colors={isDark ? ['#0f172a', '#1e293b'] : ['#EBF4FF', '#E0F2F1']}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}

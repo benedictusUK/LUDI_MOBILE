@@ -79,9 +79,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedUser = await storage.updateUserProfile(userId, profileData);
       res.json(updatedUser);
     } catch (error) {
+      if ((error as any)?.code === "USERNAME_TAKEN") {
+        return res.status(409).json({ message: "Username is already taken" });
+      }
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.issues[0]?.message || "Invalid profile", errors: error.issues });
+      }
       console.error('Error updating mobile profile:', error);
       res.status(500).json({ message: 'Failed to update profile' });
     }
+    return;
   });
 
   // Teams API routes (supports both web and mobile)
@@ -904,6 +911,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedUser = await storage.updateUserProfile(userId, profileData);
       res.json(updatedUser);
     } catch (error) {
+      if ((error as any)?.code === "USERNAME_TAKEN") {
+        return res.status(409).json({ message: "Username is already taken" });
+      }
       if (error instanceof z.ZodError) {
         return res.status(400).json({
           message: "Validation failed",

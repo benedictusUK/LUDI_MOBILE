@@ -17,3 +17,4 @@
 - [Event input conventions](event-input-conventions.md) — use calendars except for birth dates, and separate days/hours for relative flexible-payment deadlines.
 - [Notification direction](notification-direction.md) — direct APNs delivery; platform SuperAdmin manages notifications and fee configuration, separate from team organisers.
 - [Participant fee policy](participant-fee-policy.md) — upfront maximum payment, refund unused venue cost only, and retain both original maximum-based fee amounts.
+- [Native startup animation](native-startup-animation.md) — show the LUDI animation during returning-user startup; preserve visible errors and retry.
