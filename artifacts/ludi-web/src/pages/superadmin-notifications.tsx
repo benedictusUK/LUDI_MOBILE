@@ -203,6 +203,7 @@ function TriggerCard({ trigger, templates }: { trigger: PushTrigger; templates: 
     (trigger.scheduled && mins !== trigger.reminderMinutes);
 
   const save = () => {
+    if (!templateId || !minsValid) return;
     setError(null);
     mut.mutate(
       {
@@ -242,7 +243,7 @@ function TriggerCard({ trigger, templates }: { trigger: PushTrigger; templates: 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label>Template</Label>
-            <Select value={templateId} onValueChange={setTemplateId}>
+            <Select value={templateId ?? ""} onValueChange={setTemplateId}>
               <SelectTrigger aria-label="Template" data-testid={`select-trigger-template-${trigger.id}`}><SelectValue placeholder="Choose template" /></SelectTrigger>
               <SelectContent>
                 {templates.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}

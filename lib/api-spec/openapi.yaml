@@ -571,19 +571,21 @@ components:
         audience: { type: string, enum: [existing, attendees, team_members] }
         reminderMinutes: { type: integer, minimum: 5, maximum: 10080 }
     PushTrigger:
-      allOf:
-        - $ref: "#/components/schemas/PushTriggerInput"
-        - type: object
-          required: [id, label, description, scheduled, allowedAudiences, updatedAt]
-          properties:
-            id: { type: string }
-            label: { type: string }
-            description: { type: string }
-            scheduled: { type: boolean }
-            allowedAudiences:
-              type: array
-              items: { type: string }
-            updatedAt: { type: string }
+      type: object
+      required: [id, enabled, templateId, audience, reminderMinutes, label, description, scheduled, allowedAudiences, updatedAt]
+      properties:
+        id: { type: string }
+        enabled: { type: boolean }
+        templateId: { type: ["string", "null"] }
+        audience: { type: string, enum: [existing, attendees, team_members] }
+        reminderMinutes: { type: integer, minimum: 5, maximum: 10080 }
+        label: { type: string }
+        description: { type: string }
+        scheduled: { type: boolean }
+        allowedAudiences:
+          type: array
+          items: { type: string }
+        updatedAt: { type: ["string", "null"] }
     PushPreviewInput:
       type: object
       additionalProperties: false

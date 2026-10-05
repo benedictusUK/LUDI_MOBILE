@@ -31,6 +31,7 @@ export * from './pushTemplate';
 export * from './pushTemplateInput';
 export * from './pushTestInput';
 export * from './pushTrigger';
+export * from './pushTriggerAudience';
 export * from './pushTriggerInput';
 export * from './pushTriggerInputAudience';
 export * from './sendPushTemplateTest202';

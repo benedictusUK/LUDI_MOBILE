@@ -13,6 +13,7 @@ import { z } from "zod";
 import { db } from "../db";
 import { apnsConfiguration } from "../notifications/apns";
 import { PLACEHOLDERS, TRIGGER_CATALOG, SAMPLE_CONTEXT, renderTemplate, validateTemplateText } from "../notifications/catalog";
+import { resolveTriggerSettings } from "../notifications/triggerSettings";
 
 class NotificationError extends Error {
   constructor(public status: number, message: string) { super(message); }
@@ -79,7 +80,7 @@ export function registerNotificationAdmin(app: Express, authenticate: RequestHan
     res.json({
       configuration: { configured: config.configured, missing: config.missing, bundleId: config.bundleId,
         deviceCount: devices[0]?.count || 0, ownDeviceCount: ownDevices[0]?.count || 0 },
-      templates, triggers: TRIGGER_CATALOG.map(def => ({ ...triggers.find(t => t.id === def.id), ...def })),
+      templates, triggers: resolveTriggerSettings(triggers),
       deliveries, placeholders: PLACEHOLDERS,
     });
   }));
@@ -125,8 +126,9 @@ export function registerNotificationAdmin(app: Express, authenticate: RequestHan
     const [template] = await db.select().from(pushTemplates).where(eq(pushTemplates.id, input.templateId));
     if (!template) throw new NotificationError(400, "Choose an existing template");
     const trigger = await db.transaction(async tx => {
-      const [updated] = await tx.update(pushTriggers).set({ ...input, updatedAt: new Date() }).where(eq(pushTriggers.id, definition.id)).returning();
-      if (!updated) throw new NotificationError(404, "Trigger not found");
+      const settings = { ...input, updatedAt: new Date() };
+      const [updated] = await tx.insert(pushTriggers).values({ id: definition.id, ...settings })
+        .onConflictDoUpdate({ target: pushTriggers.id, set: settings }).returning();
       await tx.insert(pushAdminAudit).values({ actorId: req.userId, action: "trigger_updated", entityId: updated.id });
       return updated;
     });

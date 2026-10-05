@@ -14,3 +14,9 @@ LUDI's published database is Replit-managed. Apply its schema changes through Pu
 **Why:** Production was verified through Replit's production replica; the managed Publish flow owns schema migration.
 
 **How to apply:** Separate development migration tooling from production startup. After publishing, verify required PostgreSQL functions/triggers as well as tables, and use the production console for authorized data provisioning when agent production access is read-only.
+
+Do not assume that data inserted by development migration scripts exists in the managed production database after an incremental schema publish.
+
+**Why:** Production had notification tables and a user-created template but no seeded notification configuration rows. Displaying catalog entries without complete settings led to invalid requests, and update-only saves then failed because the rows did not exist.
+
+**How to apply:** Admin configuration screens must handle absent seed rows with complete, disabled defaults and persist new configuration only on an explicit authorized save. Preserve existing settings; never silently turn on notifications while initializing data.

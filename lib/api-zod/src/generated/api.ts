@@ -235,9 +235,8 @@ export const getNotificationAdminStateResponseTemplatesItemOneTitleMax = 160;
 
 export const getNotificationAdminStateResponseTemplatesItemOneBodyMax = 1500;
 
-
-export const getNotificationAdminStateResponseTriggersItemOneReminderMinutesMin = 5;
-export const getNotificationAdminStateResponseTriggersItemOneReminderMinutesMax = 10080;
+export const getNotificationAdminStateResponseTriggersItemReminderMinutesMin = 5;
+export const getNotificationAdminStateResponseTriggersItemReminderMinutesMax = 10080;
 
 
 
@@ -258,18 +257,17 @@ export const GetNotificationAdminStateResponse = zod.object({
   "updatedAt": zod.string()
 }))),
   "triggers": zod.array(zod.object({
-  "enabled": zod.boolean(),
-  "templateId": zod.string().min(1),
-  "audience": zod.enum(['existing', 'attendees', 'team_members']),
-  "reminderMinutes": zod.number().int().min(getNotificationAdminStateResponseTriggersItemOneReminderMinutesMin).max(getNotificationAdminStateResponseTriggersItemOneReminderMinutesMax)
-}).and(zod.object({
   "id": zod.string(),
+  "enabled": zod.boolean(),
+  "templateId": zod.string().nullable(),
+  "audience": zod.enum(['existing', 'attendees', 'team_members']),
+  "reminderMinutes": zod.number().int().min(getNotificationAdminStateResponseTriggersItemReminderMinutesMin).max(getNotificationAdminStateResponseTriggersItemReminderMinutesMax),
   "label": zod.string(),
   "description": zod.string(),
   "scheduled": zod.boolean(),
   "allowedAudiences": zod.array(zod.string()),
-  "updatedAt": zod.string()
-}))),
+  "updatedAt": zod.string().nullable()
+})),
   "deliveries": zod.array(zod.object({
   "id": zod.string(),
   "triggerId": zod.string(),
@@ -377,25 +375,23 @@ export const UpdatePushTriggerBody = zod.object({
   "reminderMinutes": zod.number().int().min(updatePushTriggerBodyReminderMinutesMin).max(updatePushTriggerBodyReminderMinutesMax)
 })
 
-
-export const updatePushTriggerResponseOneReminderMinutesMin = 5;
-export const updatePushTriggerResponseOneReminderMinutesMax = 10080;
+export const updatePushTriggerResponseReminderMinutesMin = 5;
+export const updatePushTriggerResponseReminderMinutesMax = 10080;
 
 
 
 export const UpdatePushTriggerResponse = zod.object({
-  "enabled": zod.boolean(),
-  "templateId": zod.string().min(1),
-  "audience": zod.enum(['existing', 'attendees', 'team_members']),
-  "reminderMinutes": zod.number().int().min(updatePushTriggerResponseOneReminderMinutesMin).max(updatePushTriggerResponseOneReminderMinutesMax)
-}).and(zod.object({
   "id": zod.string(),
+  "enabled": zod.boolean(),
+  "templateId": zod.string().nullable(),
+  "audience": zod.enum(['existing', 'attendees', 'team_members']),
+  "reminderMinutes": zod.number().int().min(updatePushTriggerResponseReminderMinutesMin).max(updatePushTriggerResponseReminderMinutesMax),
   "label": zod.string(),
   "description": zod.string(),
   "scheduled": zod.boolean(),
   "allowedAudiences": zod.array(zod.string()),
-  "updatedAt": zod.string()
-}))
+  "updatedAt": zod.string().nullable()
+})
 
 
 export const previewPushTemplateBodyTitleMax = 160;

@@ -167,14 +167,33 @@ export interface PushTriggerInput {
   reminderMinutes: number;
 }
 
-export type PushTrigger = PushTriggerInput & {
+export type PushTriggerAudience = typeof PushTriggerAudience[keyof typeof PushTriggerAudience];
+
+
+export const PushTriggerAudience = {
+  existing: 'existing',
+  attendees: 'attendees',
+  team_members: 'team_members',
+} as const;
+
+export interface PushTrigger {
   id: string;
+  enabled: boolean;
+  /** @nullable */
+  templateId: string | null;
+  audience: PushTriggerAudience;
+  /**
+     * @minimum 5
+     * @maximum 10080
+     */
+  reminderMinutes: number;
   label: string;
   description: string;
   scheduled: boolean;
   allowedAudiences: string[];
-  updatedAt: string;
-};
+  /** @nullable */
+  updatedAt: string | null;
+}
 
 export interface PushPreviewInput {
   /**

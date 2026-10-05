@@ -5,13 +5,23 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { PushTriggerInput } from './pushTriggerInput';
+import type { PushTriggerAudience } from './pushTriggerAudience';
 
-export type PushTrigger = PushTriggerInput & {
+export interface PushTrigger {
   id: string;
+  enabled: boolean;
+  /** @nullable */
+  templateId: string | null;
+  audience: PushTriggerAudience;
+  /**
+     * @minimum 5
+     * @maximum 10080
+     */
+  reminderMinutes: number;
   label: string;
   description: string;
   scheduled: boolean;
   allowedAudiences: string[];
-  updatedAt: string;
-};
+  /** @nullable */
+  updatedAt: string | null;
+}
