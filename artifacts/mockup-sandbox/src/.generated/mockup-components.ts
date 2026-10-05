@@ -4,5 +4,6 @@ export const modules: ModuleMap = {
   "./components/mockups/ludi-brand/CleanSport.tsx": () => import("../components/mockups/ludi-brand/CleanSport.tsx"),
   "./components/mockups/ludi-brand/CommunityClub.tsx": () => import("../components/mockups/ludi-brand/CommunityClub.tsx"),
   "./components/mockups/ludi-brand/Current.tsx": () => import("../components/mockups/ludi-brand/Current.tsx"),
-  "./components/mockups/ludi-brand/MatchNight.tsx": () => import("../components/mockups/ludi-brand/MatchNight.tsx")
+  "./components/mockups/ludi-brand/MatchNight.tsx": () => import("../components/mockups/ludi-brand/MatchNight.tsx"),
+  "./components/mockups/ludi-brand/MatchNightRefined.tsx": () => import("../components/mockups/ludi-brand/MatchNightRefined.tsx")
 };

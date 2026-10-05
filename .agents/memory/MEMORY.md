@@ -18,3 +18,4 @@
 - [Notification direction](notification-direction.md) — direct APNs delivery; platform SuperAdmin manages notifications and fee configuration, separate from team organisers.
 - [Participant fee policy](participant-fee-policy.md) — upfront maximum payment, refund unused venue cost only, and retain both original maximum-based fee amounts.
 - [Native startup animation](native-startup-animation.md) — show the LUDI animation during returning-user startup; preserve visible errors and retry.
+- [Home design direction](home-design-direction.md) — Match night with Clean sport navigation; prominent date/time, three-event stack, voting status and amount paid.
