@@ -175,6 +175,7 @@ export const events = pgTable("events", {
   // Recurring events
   recurrenceType: varchar("recurrence_type", { enum: ["none", "daily", "weekly", "monthly"] }).default("none"),
   recurrenceEndDate: date("recurrence_end_date"),
+  recurrenceAnchorDate: date("recurrence_anchor_date"),
   recurrenceDaysOfWeek: text("recurrence_days_of_week").array().default(sql`'{}'`), // e.g., ['monday', 'wednesday', 'friday']
   recurringSeriesId: varchar("recurring_series_id"), // Groups all events in a recurring series
   isRecurringSuspended: boolean("is_recurring_suspended").default(false), // For pausing recurrence

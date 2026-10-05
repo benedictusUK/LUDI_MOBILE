@@ -9,6 +9,7 @@ import { useNotifications } from '../contexts/NotificationContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { homePalette, useBrandTypography } from '../components/home/brand';
 import NextUpStack from '../components/home/NextUpStack';
+import TeamAvatar from '../components/team/TeamAvatar';
 import LoadingScreen from '../components/LoadingScreen';
 
 export default function MatchNightHomeScreen() {
@@ -91,9 +92,7 @@ export default function MatchNightHomeScreen() {
           {(data.recentTeams || []).map(team => (
             <TouchableOpacity key={team.id} accessibilityRole="button" onPress={() => openRoot('TeamDetails', { teamId: team.id })}
               style={[styles.teamRow, { borderTopColor: palette.border }]}>
-              <View style={[styles.teamAvatar, { backgroundColor: team.color || '#1d5183' }]}>
-                <Ionicons name="people-outline" size={22} color="#ffffff" />
-              </View>
+              <TeamAvatar team={team} size={38} radius={12} />
               <View style={{ flex: 1 }}><Text style={body({ color: palette.text, fontSize: 14, fontWeight: '700' })}>{team.name}</Text>
                 <Text style={body({ color: palette.muted, fontSize: 12, marginTop: 4 })}>{team.sports?.join(', ') || 'Your sporting community'}</Text></View>
               <Ionicons name="chevron-forward" size={18} color={palette.muted} />

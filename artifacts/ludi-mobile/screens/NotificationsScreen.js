@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { teamInvitationId, teamNotificationMetadata, teamNotificationResolved } from '../lib/teamNotifications';
 import useBrandStyles from '../components/brand/useBrandStyles';
 import { View, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Alert, ActivityIndicator } from 'react-native';
 import { BrandText as Text } from '../components/brand/BrandText';
@@ -147,7 +148,7 @@ export default function NotificationsScreen() {
 
   const handleJoinRequestAction = async (notification, action) => {
     try {
-      const metadata = notification.metadata ? JSON.parse(notification.metadata) : {};
+      const metadata = teamNotificationMetadata(notification);
       const { teamId, requestUserId } = metadata;
       
       if (!teamId || !requestUserId) {
@@ -188,8 +189,7 @@ export default function NotificationsScreen() {
 
   const handleInvitationAction = async (notification, action) => {
     try {
-      const metadata = notification.metadata ? JSON.parse(notification.metadata) : {};
-      const { invitationId } = metadata;
+      const invitationId = teamInvitationId(notification);
       
       if (!invitationId) {
         Alert.alert('Error', 'Invalid invitation data');
@@ -199,8 +199,8 @@ export default function NotificationsScreen() {
       setProcessingIds(prev => new Set(prev).add(notification.id));
 
       const endpoint = action === 'accept' 
-        ? `/api/teams/invitations/${invitationId}/accept`
-        : `/api/teams/invitations/${invitationId}/decline`;
+        ? `/api/invitations/${encodeURIComponent(invitationId)}/accept`
+        : `/api/invitations/${encodeURIComponent(invitationId)}/decline`;
 
       const response = await apiRequest(endpoint, { method: 'POST' });
       
@@ -313,7 +313,7 @@ export default function NotificationsScreen() {
   const renderActionButtons = (notification) => {
     const isProcessing = processingIds.has(notification.id);
 
-    if (notification.type === 'team_join_request') {
+    if (notification.type === 'team_join_request' && !teamNotificationResolved(notification)) {
       return (
         <View style={styles.actionButtonsRow}>
           <TouchableOpacity
@@ -348,7 +348,7 @@ export default function NotificationsScreen() {
       );
     }
 
-    if (notification.type === 'team_invitation') {
+    if (notification.type === 'team_invitation' && !teamNotificationResolved(notification)) {
       return (
         <View style={styles.actionButtonsRow}>
           <TouchableOpacity

@@ -7,6 +7,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import HeaderWithNotifications from '../components/HeaderWithNotifications';
+import SuperAdminShortcut from '../components/SuperAdminShortcut';
+import UserAvatar from '../components/UserAvatar';
+import ProfilePictureEditor from '../components/ProfilePictureEditor';
 
 const SPORTS = [
   "Team Social",
@@ -129,10 +132,8 @@ export default function ProfileScreen({ navigation }) {
       <HeaderWithNotifications title="Profile" />
       <ScrollView style={styles.scrollView}>
         <View style={[styles.profileSection, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-          <Image 
-            source={{ uri: user?.profileImageUrl || 'https://via.placeholder.com/100' }}
-            style={styles.profileImage}
-          />
+          <UserAvatar user={user} size={100} style={styles.profileImage} />
+          <ProfilePictureEditor key={user?.id} />
           <Text style={[styles.name, { color: colors.text }]}>
             {user?.firstName || user?.lastName ? 
               `${user.firstName || ''} ${user.lastName || ''}`.trim() : 
@@ -283,6 +284,8 @@ export default function ProfileScreen({ navigation }) {
             </View>
           </TouchableOpacity>
         </View>
+
+        <SuperAdminShortcut />
 
         {/* Appearance Section */}
         <View style={[styles.section, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>

@@ -29,6 +29,8 @@ import type {
   HealthStatus,
   NotificationAdminState,
   PlatformAdminAccess,
+  ProfilePictureChangeInput,
+  ProfilePictureRecord,
   PushDeviceRemoval,
   PushDeviceResult,
   PushPreview,
@@ -38,7 +40,11 @@ import type {
   PushTestInput,
   PushTrigger,
   PushTriggerInput,
-  SendPushTemplateTest202
+  SendPushTemplateTest202,
+  TeamCreationInput,
+  TeamPictureUpload,
+  TeamRecord,
+  TeamSettingsInput
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -1321,5 +1327,344 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getUnregisterApplePushDeviceMutationOptions(options));
+    }
+
+export const getRequestTeamPictureUploadUrl = () => {
+
+
+
+
+  return `/api/objects/upload`
+}
+
+/**
+ * @summary Request a signed upload URL for a team picture
+ */
+export const requestTeamPictureUpload = async ( options?: Parameters<typeof customFetch>[1]): Promise<TeamPictureUpload> => {
+
+  return customFetch<TeamPictureUpload>(getRequestTeamPictureUploadUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRequestTeamPictureUploadMutationKey = () => ['requestTeamPictureUpload'] as const;
+
+export const getRequestTeamPictureUploadMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestTeamPictureUpload>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof requestTeamPictureUpload>>, TError,void, TContext> => {
+
+const mutationKey = getRequestTeamPictureUploadMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestTeamPictureUpload>>, void> = () => {
+
+
+          return  requestTeamPictureUpload(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RequestTeamPictureUploadMutationResult = NonNullable<Awaited<ReturnType<typeof requestTeamPictureUpload>>>
+
+    export type RequestTeamPictureUploadMutationError = ErrorType<void>
+
+
+    /**
+ * @summary Request a signed upload URL for a team picture
+ */
+export const useRequestTeamPictureUpload = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestTeamPictureUpload>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof requestTeamPictureUpload>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getRequestTeamPictureUploadMutationOptions(options));
+    }
+
+export const getUpdateProfilePictureUrl = () => {
+
+
+
+
+  return `/api/users/profile-picture`
+}
+
+/**
+ * @summary Change or remove the authenticated user's optional profile photo
+ */
+export const updateProfilePicture = async (profilePictureChangeInput: ProfilePictureChangeInput, options?: Parameters<typeof customFetch>[1]): Promise<ProfilePictureRecord> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ProfilePictureRecord>(getUpdateProfilePictureUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(profilePictureChangeInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateProfilePictureMutationKey = () => ['updateProfilePicture'] as const;
+
+export const getUpdateProfilePictureMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProfilePicture>>, TError,UpdateProfilePictureMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateProfilePicture>>, TError,UpdateProfilePictureMutationVariables, TContext> => {
+
+const mutationKey = getUpdateProfilePictureMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateProfilePicture>>, UpdateProfilePictureMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateProfilePicture(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateProfilePictureMutationResult = NonNullable<Awaited<ReturnType<typeof updateProfilePicture>>>
+    export type UpdateProfilePictureMutationBody = BodyType<ProfilePictureChangeInput>
+    export type UpdateProfilePictureMutationError = ErrorType<void>
+    export type UpdateProfilePictureMutationVariables = {data: BodyType<ProfilePictureChangeInput>}
+
+    /**
+ * @summary Change or remove the authenticated user's optional profile photo
+ */
+export const useUpdateProfilePicture = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProfilePicture>>, TError,UpdateProfilePictureMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateProfilePicture>>,
+        TError,
+        UpdateProfilePictureMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateProfilePictureMutationOptions(options));
+    }
+
+export const getCreateLudiTeamUrl = () => {
+
+
+
+
+  return `/api/teams`
+}
+
+/**
+ * @summary Create a team with an optional previously uploaded picture
+ */
+export const createLudiTeam = async (teamCreationInput: TeamCreationInput, options?: Parameters<typeof customFetch>[1]): Promise<TeamRecord> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<TeamRecord>(getCreateLudiTeamUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(teamCreationInput)
+  }
+);}
+
+
+
+
+
+export const getCreateLudiTeamMutationKey = () => ['createLudiTeam'] as const;
+
+export const getCreateLudiTeamMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createLudiTeam>>, TError,CreateLudiTeamMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createLudiTeam>>, TError,CreateLudiTeamMutationVariables, TContext> => {
+
+const mutationKey = getCreateLudiTeamMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createLudiTeam>>, CreateLudiTeamMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createLudiTeam(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateLudiTeamMutationResult = NonNullable<Awaited<ReturnType<typeof createLudiTeam>>>
+    export type CreateLudiTeamMutationBody = BodyType<TeamCreationInput>
+    export type CreateLudiTeamMutationError = ErrorType<void>
+    export type CreateLudiTeamMutationVariables = {data: BodyType<TeamCreationInput>}
+
+    /**
+ * @summary Create a team with an optional previously uploaded picture
+ */
+export const useCreateLudiTeam = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createLudiTeam>>, TError,CreateLudiTeamMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createLudiTeam>>,
+        TError,
+        CreateLudiTeamMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateLudiTeamMutationOptions(options));
+    }
+
+export const getUpdateLudiTeamUrl = (id: string,) => {
+
+
+
+
+  return `/api/teams/${id}`
+}
+
+/**
+ * @summary Update team settings; only the owner can change or remove its picture
+ */
+export const updateLudiTeam = async (id: string,
+    teamSettingsInput: TeamSettingsInput, options?: Parameters<typeof customFetch>[1]): Promise<TeamRecord> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<TeamRecord>(getUpdateLudiTeamUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(teamSettingsInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateLudiTeamMutationKey = () => ['updateLudiTeam'] as const;
+
+export const getUpdateLudiTeamMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateLudiTeam>>, TError,UpdateLudiTeamMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateLudiTeam>>, TError,UpdateLudiTeamMutationVariables, TContext> => {
+
+const mutationKey = getUpdateLudiTeamMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateLudiTeam>>, UpdateLudiTeamMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateLudiTeam(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateLudiTeamMutationResult = NonNullable<Awaited<ReturnType<typeof updateLudiTeam>>>
+    export type UpdateLudiTeamMutationBody = BodyType<TeamSettingsInput>
+    export type UpdateLudiTeamMutationError = ErrorType<void>
+    export type UpdateLudiTeamMutationVariables = {id: string;data: BodyType<TeamSettingsInput>}
+
+    /**
+ * @summary Update team settings; only the owner can change or remove its picture
+ */
+export const useUpdateLudiTeam = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateLudiTeam>>, TError,UpdateLudiTeamMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateLudiTeam>>,
+        TError,
+        UpdateLudiTeamMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateLudiTeamMutationOptions(options));
     }
 

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { eventDateParts, moneyLabel, nextCardIndex, paymentPresentation, voteLabel } from './homeEventPresentation.js';
+import { eventDateParts, moneyLabel, nextCardIndex, normalizePaymentSummary, paymentPresentation, voteLabel } from './homeEventPresentation.js';
 
 test('charged maximum and actual residual refunds retain the real net payment', () => {
   const paid = paymentPresentation({ paymentRecord: { status: 'captured', capturedAmountMinor: 1082, refundedAmountMinor: 0 } });
@@ -64,4 +64,36 @@ test('stored event date and time are prominent without shifting calendar labels'
   assert.equal(result.weekday, 'Thu');
   assert.equal(result.time, '18:30');
   assert.equal(eventDateParts({}).time, 'Time TBC');
+});
+test('confirmed organisers with no payment record display Organiser/£0', () => {
+  for (const summary of [
+    { status: 'none', isOrganiser: true, paymentRecord: null, currency: 'gbp' },
+    { status: 'none', isOrganiser: true, currency: 'gbp' },
+  ]) {
+    const shown = paymentPresentation(normalizePaymentSummary(summary));
+    assert.equal(shown.label, 'Organiser/£0');
+    assert.equal(shown.paidMinor, 0);
+    assert.equal(shown.organiserExempt, true);
+  }
+});
+test('an absent record from an older API is unpaid, not an unavailable receipt', () => {
+  const shown = paymentPresentation(normalizePaymentSummary({ status: 'none', isOrganiser: false }));
+  assert.equal(shown.label, 'Payment due');
+  assert.equal(shown.organiserExempt, undefined);
+});
+test('organiser exemption never hides an existing charge or refund', () => {
+  const shown = paymentPresentation({ status: 'captured', isOrganiser: true, paymentRecord: {
+    status: 'captured', capturedAmountMinor: 1082, refundedAmountMinor: 200,
+  } });
+  assert.equal(shown.label, 'Part-refunded');
+  assert.equal(shown.paidMinor, 882);
+  assert.equal(shown.organiserExempt, undefined);
+});
+test('role strings, failed fetches and incomplete receipts never imply a £0 exemption', () => {
+  assert.equal(paymentPresentation({ status: 'none', isOrganiser: 'true', paymentRecord: null }).label, 'Payment due');
+  assert.equal(paymentPresentation({ status: 'none', isOrganiser: true, paymentRecord: null }, true).label, 'Unavailable');
+  assert.equal(paymentPresentation({ status: 'captured', isOrganiser: true, paymentRecord: null }).label, 'Unavailable');
+  for (const summary of [null, {}, { status: 'captured', isOrganiser: true }, { status: 'none', paymentRecord: 'bad' }]) {
+    assert.throws(() => normalizePaymentSummary(summary));
+  }
 });

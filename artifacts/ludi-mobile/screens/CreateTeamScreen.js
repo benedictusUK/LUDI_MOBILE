@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import useBrandStyles from '../components/brand/useBrandStyles';
-import { View, StyleSheet, TouchableOpacity, ScrollView, Alert, Modal } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView, Alert, Modal, Platform } from 'react-native';
 import { BrandText as Text, BrandTextInput as TextInput } from '../components/brand/BrandText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
+import TeamPicturePicker from '../components/team/TeamPicturePicker';
+import { uploadTeamPicture } from '../lib/teamPicture';
 
 const SPORTS = [
   "Team Social",
@@ -59,6 +61,11 @@ export default function CreateTeamScreen() {
   const { colors } = useTheme();
   const styles = useBrandStyles(createStyles(colors));
   const [loading, setLoading] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const submitting = useRef(false);
+  const [picture, setPicture] = useState(null);
+  const uploadedPath = useRef(null);
+  const uploadedFor = useRef(null);
   const [showGenderPicker, setShowGenderPicker] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -82,6 +89,8 @@ export default function CreateTeamScreen() {
   };
 
   const handleSubmit = async () => {
+    if (submitting.current) return;
+    setSubmitError('');
     if (!formData.name.trim()) {
       Alert.alert('Error', 'Team name is required');
       return;
@@ -92,13 +101,31 @@ export default function CreateTeamScreen() {
       return;
     }
 
+    let completed = false;
     try {
+      submitting.current = true;
       setLoading(true);
       
       const teamData = {
         ...formData,
         maxPlayers: formData.maxPlayers ? parseInt(formData.maxPlayers) : null,
       };
+      if (picture) {
+        // Reuse the uploaded object on retry so we never upload twice.
+        if (!uploadedPath.current || uploadedFor.current !== picture) {
+          try {
+            uploadedPath.current = await uploadTeamPicture(picture, apiRequest);
+            uploadedFor.current = picture;
+          } catch (uploadError) {
+            console.error('Team picture upload error:', uploadError);
+            const message = (uploadError?.message || 'The team picture could not be uploaded.') + ' The team was not created. Try again or remove the picture.';
+            setSubmitError(message);
+            Alert.alert('Picture upload failed', message);
+            return;
+          }
+        }
+        teamData.teamImagePath = uploadedPath.current;
+      }
 
       const response = await apiRequest('/api/teams', {
         method: 'POST',
@@ -107,17 +134,22 @@ export default function CreateTeamScreen() {
 
       if (response.ok) {
         const newTeam = await response.json();
-        Alert.alert('Success', 'Team created successfully!', [
+        completed = true;
+        if (Platform.OS === 'web') navigation.goBack();
+        else Alert.alert('Success', 'Team created successfully!', [
           { text: 'OK', onPress: () => navigation.goBack() }
         ]);
       } else {
         const error = await response.json();
+        setSubmitError(error.message || 'Failed to create team');
         Alert.alert('Error', error.message || 'Failed to create team');
       }
     } catch (error) {
       console.error('Create team error:', error);
+      setSubmitError('Failed to create team. Please check your connection and retry.');
       Alert.alert('Error', 'Failed to create team');
     } finally {
+      if (!completed) submitting.current = false;
       setLoading(false);
     }
   };
@@ -134,6 +166,10 @@ export default function CreateTeamScreen() {
 
       <ScrollView style={styles.scrollView}>
         <View style={styles.form}>
+          {!!submitError && <Text accessibilityRole="alert" style={{ color: colors.error, marginBottom: 16 }}>{submitError}</Text>}
+          <Text style={styles.label}>Team Picture</Text>
+          <TeamPicturePicker value={picture} onChange={(a) => setPicture(a)} disabled={loading} />
+
           <Text style={styles.label}>Team Name *</Text>
           <TextInput
             style={styles.input}

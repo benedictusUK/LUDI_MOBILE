@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useAuth } from './AuthContext';
+import { normalizePaymentSummary } from '../lib/homeEventPresentation';
 
 const DashboardDataContext = createContext(null);
 
@@ -40,9 +41,7 @@ export function DashboardDataProvider({ children }) {
             try {
               const response = await requestRef.current(`/api/events/${encodeURIComponent(event.id)}/payment-status`);
               if (!response.ok) throw new Error('Payment status unavailable');
-              const paymentSummary = await response.json();
-              if (!paymentSummary || typeof paymentSummary.status !== 'string'
-                || !Object.prototype.hasOwnProperty.call(paymentSummary, 'paymentRecord')) throw new Error('Unexpected payment status');
+              const paymentSummary = normalizePaymentSummary(await response.json());
               return { ...event, paymentSummary };
             } catch {
               // Never display an unavailable receipt as unpaid or successfully paid.

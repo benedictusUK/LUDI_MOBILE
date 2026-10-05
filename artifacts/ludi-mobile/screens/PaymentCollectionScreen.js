@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import useBrandStyles from '../components/brand/useBrandStyles';
+import UserAvatar from '../components/UserAvatar';
 import { View, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { BrandText as Text, BrandTextInput as TextInput } from '../components/brand/BrandText';
 import { Ionicons } from '@expo/vector-icons';
@@ -295,11 +296,7 @@ export default function PaymentCollectionScreen() {
                   )}
                 </View>
                 
-                <View style={[styles.avatar, { backgroundColor: colors.border }]}>
-                  <Text style={[styles.avatarText, { color: colors.text }]}>
-                    {member.user?.firstName?.[0] || member.user?.email?.[0] || '?'}
-                  </Text>
-                </View>
+                <UserAvatar user={member.user} size={40} style={styles.avatar} />
 
                 <View style={styles.attendeeInfo}>
                   <View style={styles.attendeeNameRow}>

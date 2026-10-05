@@ -20,3 +20,9 @@ A PEM parse failure does not establish that the original credential is invalid. 
 **Why:** A valid APNs private key arrived with no newline after its PEM header. Repeated submissions were incorrectly treated as bad key material. Reconstructing standard PEM whitespace made the existing key parse as P-256; no replacement key was necessary.
 
 **How to apply:** Validate through the freshly started application, not only a shell. Normalize intact PEM whitespace consistently for validation and signing while retaining cryptographic type/curve checks. Do not claim Apple accepted the credentials until an actual provider request succeeds. Never print the credential or the full configuration object, and collect any replacement only through the secure Secrets flow.
+
+App Storage's `alreadySetUp` result and saved storage configuration are not upload-permission proof.
+
+**Why:** The managed setup reported success and existing configuration, while signed-upload requests from both a shell and the freshly started API returned HTTP 401.
+
+**How to apply:** Verify a real upload through the app's runtime before declaring pictures ready. Do not blindly replace storage or migrate existing files; investigate permissions and project ownership first.

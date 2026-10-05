@@ -1,8 +1,26 @@
 // Presentation only. Never derive a successful payment from an event price,
 // authorisation, quote or agreed maximum.
+export function normalizePaymentSummary(summary) {
+  if (!summary || typeof summary !== 'object' || Array.isArray(summary) || typeof summary.status !== 'string') {
+    throw new Error('Unexpected payment status');
+  }
+  // Older API builds omitted undefined paymentRecord when no payment existed.
+  // Only an explicit "none" status establishes that this is a missing record.
+  if (!Object.prototype.hasOwnProperty.call(summary, 'paymentRecord')) {
+    if (summary.status !== 'none') throw new Error('Unexpected payment status');
+    return { ...summary, paymentRecord: null };
+  }
+  if (summary.paymentRecord !== null && (typeof summary.paymentRecord !== 'object' || Array.isArray(summary.paymentRecord))) {
+    throw new Error('Unexpected payment record');
+  }
+  return summary;
+}
 export function paymentPresentation(summary, error) {
   if (error || !summary) return { label: 'Unavailable', paidMinor: null, refundedMinor: 0 };
   const row = summary.paymentRecord;
+  if (!row && summary.status === 'none' && summary.isOrganiser === true) {
+    return { label: 'Organiser/£0', organiserExempt: true, paidMinor: 0, refundedMinor: 0, currency: summary.currency || 'gbp' };
+  }
   if (!row) return summary.status === 'none'
     ? { label: 'Payment due', paidMinor: 0, refundedMinor: 0 }
     : { label: 'Unavailable', paidMinor: null, refundedMinor: 0 };

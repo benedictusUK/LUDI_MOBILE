@@ -19,3 +19,5 @@
 - [Participant fee policy](participant-fee-policy.md) — upfront maximum payment, refund unused venue cost only, and retain both original maximum-based fee amounts.
 - [Native startup animation](native-startup-animation.md) — show the LUDI animation during returning-user startup; preserve visible errors and retry.
 - [Home design direction](home-design-direction.md) — Match night with Clean sport navigation; prominent date/time, three-event stack, voting status and amount paid.
+- [Recurring event buffer](recurring-event-policy.md) — initially five events; generate replacements only as occurrences expire, not on a weeks-ahead policy.
+- [Team management compatibility](team-management-compatibility.md) — retain installed iPhone routes; keep invitation state independent of notification delivery and read state.

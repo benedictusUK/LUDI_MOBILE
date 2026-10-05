@@ -8,7 +8,6 @@ import {
   eventAttendance,
   payments,
   eventPayments,
-  recurringPaymentSettings,
   notificationPreferences,
   activityLogs,
   blockedMembers,
@@ -58,6 +57,7 @@ import {
 import { db } from "./db";
 import { eq, and, desc, count, sql, or, notInArray, asc, inArray, ne, isNotNull, gte, lte, ilike, not, gt, isNull } from "drizzle-orm";
 import { randomUUID } from "crypto";
+import { recurringEventStore } from "./recurrence/store";
 import { notificationWS } from "./websocket";
 import { queryUserEvents } from "./queries/userEvents";
 
@@ -73,6 +73,7 @@ export interface IStorage {
   updateUserStripeCustomerId(userId: string, customerId: string): Promise<User>;
   updateUserStripeAccountInfo(userId: string, stripeAccountId: string, payoutsEnabled?: boolean): Promise<User>;
   updateUserProfile(userId: string, profileData: UpdateProfile): Promise<User>;
+  updateUserPicture(userId: string, picture: string | null): Promise<User | undefined>;
   completeUserProfile(userId: string, profileData: ProfileCompletion): Promise<User>;
   checkUsernameAvailability(username: string, excludeUserId?: string): Promise<boolean>;
 
@@ -93,7 +94,7 @@ export interface IStorage {
   getTeamPendingRequests(teamId: string): Promise<(TeamInvitation & { user: User })[]>;
   getUserPendingRequests(userId: string): Promise<(TeamInvitation & { team: Team })[]>;
   updateTeam(id: string, updates: Partial<InsertTeam>): Promise<Team>;
-  updateTeamImage(teamId: string, userId: string, imagePath: string): Promise<void>;
+  updateTeamImage(teamId: string, userId: string, imagePath: string | null): Promise<void>;
   deleteTeam(id: string): Promise<void>;
   getUserTeam(userId: string, teamId: string): Promise<TeamMembership | undefined>;
 
@@ -291,6 +292,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
+    const repeatSignInData = { ...userData };
+    delete repeatSignInData.profileImageUrl;
     const [user] = await db
       .insert(users)
       .values([{
@@ -301,7 +304,7 @@ export class DatabaseStorage implements IStorage {
       .onConflictDoUpdate({
         target: users.email,
         set: {
-          ...userData,
+          ...repeatSignInData,
           updatedAt: new Date(),
         },
       })
@@ -324,7 +327,7 @@ export class DatabaseStorage implements IStorage {
           ...(userData.firstName && { firstName: userData.firstName }),
           // Only update lastName if it has a value from auth provider
           ...(userData.lastName && { lastName: userData.lastName }),
-          ...(userData.profileImageUrl && { profileImageUrl: userData.profileImageUrl }),
+          // Existing photos, including an explicit removal, are user-controlled.
           authProvider: userData.authProvider,
           updatedAt: new Date(),
         })
@@ -346,7 +349,6 @@ export class DatabaseStorage implements IStorage {
             ...(userData.firstName && { firstName: userData.firstName }),
             // Only update lastName if it has a value from auth provider
             ...(userData.lastName && { lastName: userData.lastName }),
-            profileImageUrl: userData.profileImageUrl,
             authProvider: userData.authProvider,
             updatedAt: new Date(),
           })
@@ -368,7 +370,6 @@ export class DatabaseStorage implements IStorage {
             ...(userData.email && { email: userData.email }),
             ...(userData.firstName && { firstName: userData.firstName }),
             ...(userData.lastName && { lastName: userData.lastName }),
-            ...(userData.profileImageUrl && { profileImageUrl: userData.profileImageUrl }),
             updatedAt: new Date(),
           },
         })
@@ -386,7 +387,6 @@ export class DatabaseStorage implements IStorage {
             .set({
               ...(userData.firstName && { firstName: userData.firstName }),
               ...(userData.lastName && { lastName: userData.lastName }),
-              ...(userData.profileImageUrl && { profileImageUrl: userData.profileImageUrl }),
               authProvider: userData.authProvider,
               updatedAt: new Date(),
             })
@@ -481,6 +481,13 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async updateUserPicture(userId: string, picture: string | null): Promise<User | undefined> {
+    const [user] = await db.update(users)
+      .set({ profileImageUrl: picture, updatedAt: new Date() })
+      .where(eq(users.id, userId)).returning();
+    return user;
+  }
+
   async completeUserProfile(userId: string, profileData: ProfileCompletion): Promise<User> {
     const [user] = await db
       .update(users)
@@ -515,24 +522,26 @@ export class DatabaseStorage implements IStorage {
     const teamId = randomUUID();
     const inviteCode = randomUUID().slice(0, 8);
     
-    const [newTeam] = await db
-      .insert(teams)
-      .values({
-        ...teamData,
-        id: teamId,
-        ownerId,
-        inviteCode,
-      })
-      .returning();
+    return db.transaction(async tx => {
+      const [newTeam] = await tx
+        .insert(teams)
+        .values({
+          ...teamData,
+          id: teamId,
+          ownerId,
+          inviteCode,
+        })
+        .returning();
 
-    // Add the creator as team owner/admin
-    await db.insert(teamMemberships).values({
-      teamId: teamId,
-      userId: ownerId,
-      role: "admin",
+      // The team and its owner's membership must commit together.
+      await tx.insert(teamMemberships).values({
+        teamId: teamId,
+        userId: ownerId,
+        role: "admin",
+      });
+
+      return newTeam;
     });
-
-    return newTeam;
   }
 
   async getTeam(id: string): Promise<Team | undefined> {
@@ -635,7 +644,7 @@ export class DatabaseStorage implements IStorage {
     return team;
   }
 
-  async updateTeamImage(teamId: string, userId: string, imagePath: string): Promise<void> {
+  async updateTeamImage(teamId: string, userId: string, imagePath: string | null): Promise<void> {
     // Check if user is team owner 
     const team = await this.getTeam(teamId);
     if (!team || team.ownerId !== userId) {
@@ -746,44 +755,7 @@ export class DatabaseStorage implements IStorage {
 
   // Check for expired recurring events and trigger maintenance
   async checkExpiredRecurringEvents(): Promise<{ maintenanceTriggered: string[] }> {
-    const now = new Date();
-    
-    // Find recurring events that have fully expired (end datetime has passed)
-    const expiredRecurringEvents = await db
-      .selectDistinct({ 
-        recurringSeriesId: events.recurringSeriesId,
-        startDate: events.startDate,
-        endDate: events.endDate,
-        endTime: events.endTime
-      })
-      .from(events)
-      .where(and(
-        isNotNull(events.recurringSeriesId),
-        ne(events.recurrenceType, "none")
-      ));
-
-    const maintenanceTriggered: string[] = [];
-
-    const checkedSeries = new Set<string>();
-    for (const eventInfo of expiredRecurringEvents) {
-      if (eventInfo.recurringSeriesId) {
-        // Calculate the actual end datetime of the event
-        const eventEndDate = eventInfo.endDate || eventInfo.startDate;
-        const eventEndTime = eventInfo.endTime || "23:59"; // Default to end of day if no end time
-        
-        const eventEndDateTime = new Date(`${eventEndDate}T${eventEndTime}:00`);
-        
-        // Check if this event has expired (end datetime has passed)
-        if (eventEndDateTime <= now && !checkedSeries.has(eventInfo.recurringSeriesId)) {
-          checkedSeries.add(eventInfo.recurringSeriesId);
-          const result = await this.checkAndMaintainRecurringEventSeries(eventInfo.recurringSeriesId);
-          if (result.maintained && !maintenanceTriggered.includes(eventInfo.recurringSeriesId)) {
-            maintenanceTriggered.push(eventInfo.recurringSeriesId);
-          }
-        }
-      }
-    }
-
+    const { maintenanceTriggered } = await recurringEventStore.maintainAll();
     return { maintenanceTriggered };
   }
 
@@ -2852,417 +2824,31 @@ export class DatabaseStorage implements IStorage {
 
   // Recurring Events Methods
   // Create a maximum of 5 future events for recurring series
-  async createRecurringEvents(parentEvent: InsertEvent, maxEventsToCreate: number = 5): Promise<Event[]> {
+  async createRecurringEvents(parentEvent: InsertEvent, _maxEventsToCreate: number = 5): Promise<Event[]> {
     if (parentEvent.recurrenceType === "none") {
       // Create single event
       return [await this.createEvent(parentEvent)];
     }
 
-    const recurringSeriesId = randomUUID();
-    const createdEvents: Event[] = [];
-    
-    // Helper function to get next date based on recurrence
-    const getNextEventDate = (currentDate: Date, recurrenceType: string, daysOfWeek: string[]): Date => {
-      const nextDate = new Date(currentDate);
-      
-      switch (recurrenceType) {
-        case "daily":
-          nextDate.setDate(nextDate.getDate() + 1);
-          break;
-        case "weekly":
-          nextDate.setDate(nextDate.getDate() + 7);
-          break;
-        case "monthly":
-          nextDate.setMonth(nextDate.getMonth() + 1);
-          break;
-      }
-      
-      return nextDate;
-    };
-
-    // For weekly recurrence, find the first occurrence of the selected day
-    let currentDate = new Date(parentEvent.startDate);
-    if (parentEvent.recurrenceType === "weekly" && parentEvent.recurrenceDaysOfWeek.length > 0) {
-      const targetDayName = parentEvent.recurrenceDaysOfWeek[0]; // Take the first selected day
-      const targetDay = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"].indexOf(targetDayName);
-      const currentDay = currentDate.getDay();
-      
-      // Calculate days until the target day
-      let daysUntilTarget = (targetDay - currentDay + 7) % 7;
-      if (daysUntilTarget === 0 && currentDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() !== targetDayName) {
-        daysUntilTarget = 7; // If today is not the target day, wait for next week
-      }
-      
-      currentDate.setDate(currentDate.getDate() + daysUntilTarget);
-    }
-    
-    // Create only up to maxEventsToCreate (default 5) future events
-    // This prevents database bloat and ensures only 5 future events exist at any time
-    while (createdEvents.length < maxEventsToCreate) {
-      const dayOfWeek = currentDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-      
-      const shouldCreateEvent = parentEvent.recurrenceType === "daily" || 
-        (parentEvent.recurrenceType === "weekly" && 
-         parentEvent.recurrenceDaysOfWeek.includes(dayOfWeek)) ||
-        parentEvent.recurrenceType === "monthly";
-
-      if (shouldCreateEvent) {
-        const eventData: InsertEvent = {
-          ...parentEvent,
-          ...recurringPaymentSettings(parentEvent, currentDate.toISOString().split('T')[0]),
-          startDate: currentDate.toISOString().split('T')[0],
-          endDate: parentEvent.endDate ? 
-            new Date(new Date(parentEvent.endDate).getTime() + (currentDate.getTime() - new Date(parentEvent.startDate).getTime())).toISOString().split('T')[0] : 
-            null,
-          recurringSeriesId,
-        };
-
-        const createdEvent = await this.createEvent(eventData);
-        createdEvents.push(createdEvent);
-      }
-
-      currentDate = getNextEventDate(currentDate, parentEvent.recurrenceType, parentEvent.recurrenceDaysOfWeek);
-    }
-
-    return createdEvents;
+    return recurringEventStore.create(parentEvent);
   }
 
   // Auto-generate the next recurring event when one becomes past (maintains max 5 future events)
   async autoGenerateNextRecurringEvent(recurringSeriesId: string): Promise<{ created: boolean; eventId?: string }> {
-    try {
-      // Get all events in the series
-      const seriesEvents = await db
-        .select()
-        .from(events)
-        .where(eq(events.recurringSeriesId, recurringSeriesId))
-        .orderBy(asc(events.startDate));
-
-      if (seriesEvents.length === 0) {
-        return { created: false };
-      }
-
-      // Count future events using the same logic as event filtering
-      const now = new Date();
-      const futureEvents = seriesEvents.filter(event => {
-        let eventEndTime: Date;
-        if (event.endDate && event.endTime) {
-          eventEndTime = new Date(`${event.endDate} ${event.endTime}`);
-        } else if (event.startDate && event.endTime) {
-          eventEndTime = new Date(`${event.startDate} ${event.endTime}`);
-        } else {
-          eventEndTime = new Date(event.startDate || '');
-          eventEndTime.setHours(23, 59, 59);
-        }
-        return eventEndTime > now; // Future events
-      });
-
-      // Only create if we have less than 5 future events
-      if (futureEvents.length >= 5) {
-        return { created: false };
-      }
-
-      const templateEvent = seriesEvents[0];
-      const lastEvent = seriesEvents[seriesEvents.length - 1];
-      const lastEventDate = new Date(lastEvent.startDate);
-
-      // Calculate next event date based on recurrence pattern
-      let nextEventDate = new Date(lastEventDate);
-      if (templateEvent.recurrenceType === 'daily') {
-        nextEventDate.setDate(nextEventDate.getDate() + 1);
-      } else if (templateEvent.recurrenceType === 'weekly') {
-        nextEventDate.setDate(nextEventDate.getDate() + 7);
-      } else if (templateEvent.recurrenceType === 'monthly') {
-        nextEventDate.setMonth(nextEventDate.getMonth() + 1);
-      } else {
-        return { created: false };
-      }
-
-      // Create the new event
-      const newEventData: InsertEvent = {
-        name: templateEvent.name || '',
-        sport: templateEvent.sport || '',
-        location: templateEvent.location || '',
-        startDate: nextEventDate.toISOString().split('T')[0],
-        endDate: templateEvent.endDate ? 
-          new Date(new Date(templateEvent.endDate).getTime() + (nextEventDate.getTime() - new Date(templateEvent.startDate).getTime())).toISOString().split('T')[0] : 
-          null,
-        startTime: templateEvent.startTime || '',
-        endTime: templateEvent.endTime || '',
-        primaryTeamId: templateEvent.primaryTeamId || '',
-        secondaryTeamIds: [],
-        recurrenceType: templateEvent.recurrenceType || "none",
-        recurrenceDaysOfWeek: templateEvent.recurrenceDaysOfWeek || [],
-        recurrenceEndDate: null,
-        isRecurringSuspended: false,
-        isPublished: templateEvent.isPublished,
-        createdById: templateEvent.createdById || '',
-        gender: templateEvent.gender || "mixed",
-        cost: String(templateEvent.cost || 0),
-        requirements: templateEvent.requirements || '',
-        address: templateEvent.address || null,
-        postcode: templateEvent.postcode || null,
-        maxParticipants: templateEvent.maxParticipants || null,
-        reserveSpots: templateEvent.reserveSpots || 0,
-        recurringSeriesId: recurringSeriesId,
-        paymentRequired: templateEvent.paymentRequired || false,
-        ...recurringPaymentSettings(templateEvent, nextEventDate.toISOString().split('T')[0]),
-        maxPlayerPayment: templateEvent.maxPlayerPayment || null,
-        finalVenueCost: templateEvent.finalVenueCost || null,
-        paymentStatus: "none",
-        paymentCollectionInitiated: false,
-        paymentCollectionInitiatedAt: undefined,
-        paymentCollectionInitiatedBy: undefined,
-        venueOrganiserId: templateEvent.venueOrganiserId || null
-      };
-
-      const newEvent = await this.createEvent(newEventData);
-
-      // Copy event teams associations from the template event
-      const eventTeamsAssociations = await db
-        .select()
-        .from(eventTeams)
-        .where(eq(eventTeams.eventId, templateEvent.id));
-
-      for (const teamAssoc of eventTeamsAssociations) {
-        if (teamAssoc.teamId) {
-          await this.addEventTeam(newEvent.id, teamAssoc.teamId);
-        }
-      }
-
-      console.log(`Auto-generated new recurring event: ${newEvent.name} for ${newEvent.startDate}`);
-      return { created: true, eventId: newEvent.id };
-    } catch (error) {
-      console.error('Error auto-generating recurring event:', error);
-      return { created: false };
-    }
+    const result = await recurringEventStore.maintain(recurringSeriesId, new Date(), 1);
+    return { created: result.created > 0, eventId: result.eventId };
   }
 
   // Check if a recurring event series needs maintenance (triggered by event expiry)
-  // Only creates 1 new event when series drops below 5 future events
+  // One replacement per unreplaced expiry, with at most five active occurrences.
   async checkAndMaintainRecurringEventSeries(recurringSeriesId: string): Promise<{ maintained: boolean; created: number }> {
-    // Get all events in the series
-    const seriesEvents = await db
-      .select()
-      .from(events)
-      .where(eq(events.recurringSeriesId, recurringSeriesId))
-      .orderBy(asc(events.startDate));
-
-    if (seriesEvents.length === 0) {
-      return { maintained: false, created: 0 };
-    }
-
-    // Count future events (events that haven't ended yet)
-    const now = new Date();
-    const futureEvents = seriesEvents.filter(event => {
-      let eventEndTime: Date;
-      if (event.endDate && event.endTime) {
-        eventEndTime = new Date(`${event.endDate} ${event.endTime}`);
-      } else if (event.startDate && event.endTime) {
-        eventEndTime = new Date(`${event.startDate} ${event.endTime}`);
-      } else {
-        eventEndTime = new Date(event.startDate || '');
-        eventEndTime.setHours(23, 59, 59);
-      }
-      return eventEndTime > now;
-    });
-
-    // Only create a new event if we have fewer than 5 future events
-    if (futureEvents.length < 5) {
-      const firstEvent = seriesEvents[0];
-      const lastEvent = seriesEvents[seriesEvents.length - 1];
-      const lastEventDate = new Date(lastEvent.startDate);
-      
-      // Calculate next event date based on recurrence type
-      const nextEventDate = new Date(lastEventDate);
-      switch (firstEvent.recurrenceType) {
-        case "daily":
-          nextEventDate.setDate(nextEventDate.getDate() + 1);
-          break;
-        case "weekly":
-          nextEventDate.setDate(nextEventDate.getDate() + 7);
-          break;
-        case "monthly":
-          nextEventDate.setMonth(nextEventDate.getMonth() + 1);
-          break;
-      }
-
-      // Create only 1 new event to maintain the 5 future events limit
-      const newEventData: InsertEvent = {
-        name: firstEvent.name || '',
-        sport: firstEvent.sport || '',
-        location: firstEvent.location || '',
-        startDate: nextEventDate.toISOString().split('T')[0],
-        endDate: null,
-        startTime: firstEvent.startTime || '',
-        endTime: firstEvent.endTime || '',
-        primaryTeamId: firstEvent.primaryTeamId || '',
-        secondaryTeamIds: [],
-        recurrenceType: firstEvent.recurrenceType || "none",
-        recurrenceDaysOfWeek: firstEvent.recurrenceDaysOfWeek || [],
-        recurrenceEndDate: null,
-        recurringSeriesId: recurringSeriesId,
-        isRecurringSuspended: false,
-        isPublished: firstEvent.isPublished,
-        createdById: firstEvent.createdById || '',
-        gender: firstEvent.gender || "mixed",
-        cost: String(firstEvent.cost || 0),
-        requirements: firstEvent.requirements || '',
-        address: firstEvent.address || null,
-        postcode: firstEvent.postcode || null,
-        maxParticipants: firstEvent.maxParticipants || null,
-        reserveSpots: firstEvent.reserveSpots || 0,
-        paymentRequired: firstEvent.paymentRequired || false,
-        ...recurringPaymentSettings(firstEvent, nextEventDate.toISOString().split('T')[0]),
-        maxPlayerPayment: firstEvent.maxPlayerPayment || null,
-        finalVenueCost: firstEvent.finalVenueCost || null,
-        paymentStatus: "none",
-        paymentCollectionInitiated: false,
-        paymentCollectionInitiatedAt: undefined,
-        paymentCollectionInitiatedBy: undefined,
-        venueOrganiserId: firstEvent.venueOrganiserId || null
-      };
-
-      const newEvent = await this.createEvent(newEventData);
-
-      // Copy event teams associations from the first event in the series
-      const eventTeamsAssociations = await db
-        .select()
-        .from(eventTeams)
-        .where(eq(eventTeams.eventId, firstEvent.id));
-
-      for (const teamAssoc of eventTeamsAssociations) {
-        if (teamAssoc.teamId) {
-          await this.addEventTeam(newEvent.id, teamAssoc.teamId);
-        }
-      }
-
-      console.log(`Maintained recurring series ${recurringSeriesId}: created 1 new event for ${newEvent.startDate}`);
-      return { maintained: true, created: 1 };
-    }
-
-    return { maintained: false, created: 0 };
+    return recurringEventStore.maintain(recurringSeriesId);
   }
 
-  // Maintenance function to ensure recurring events are always available 4 weeks ahead
+  // Manual maintenance uses the same expiry-only policy as the scheduler.
   async maintainRecurringEvents(): Promise<{ maintained: number; created: number }> {
-    let maintainedSeries = 0;
-    let totalCreatedEvents = 0;
-
-    // Find all unique recurring series
-    const recurringSeriesQuery = await db
-      .selectDistinct({ 
-        recurringSeriesId: events.recurringSeriesId,
-        recurrenceType: events.recurrenceType,
-        recurrenceDaysOfWeek: events.recurrenceDaysOfWeek,
-        primaryTeamId: events.primaryTeamId,
-        createdById: events.createdById,
-        name: events.name,
-        sport: events.sport,
-        location: events.location,
-        startTime: events.startTime,
-        endTime: events.endTime,
-        isPublished: events.isPublished,
-        gender: events.gender,
-        cost: events.cost,
-        requirements: events.requirements,
-        address: events.address,
-        postcode: events.postcode,
-        maxParticipants: events.maxParticipants,
-        reserveSpots: events.reserveSpots
-      })
-      .from(events)
-      .where(and(
-        isNotNull(events.recurringSeriesId),
-        ne(events.recurrenceType, "none")
-      ));
-
-    const today = new Date();
-    const twoWeeksFromNow = new Date();
-    twoWeeksFromNow.setDate(today.getDate() + (2 * 7));
-
-    for (const series of recurringSeriesQuery) {
-      // Get the latest event in this series
-      const latestEvent = await db
-        .select()
-        .from(events)
-        .where(eq(events.recurringSeriesId, series.recurringSeriesId!))
-        .orderBy(desc(events.startDate))
-        .limit(1);
-
-      if (latestEvent.length === 0) continue;
-
-      const lastEventDate = new Date(latestEvent[0].startDate);
-      
-      // Check if we need to create more events (if latest event is less than 2 weeks away)
-      if (lastEventDate < twoWeeksFromNow) {
-        maintainedSeries++;
-        
-        // Create a template event from the series info
-        const templateEvent: InsertEvent = {
-          name: series.name || '',
-          sport: series.sport || '',
-          location: series.location || '',
-          startDate: new Date(lastEventDate.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Start from day after last event
-          endDate: null,
-          startTime: series.startTime || '',
-          endTime: series.endTime || '',
-          primaryTeamId: series.primaryTeamId || '',
-          secondaryTeamIds: [],
-          recurrenceType: series.recurrenceType || "none",
-          recurrenceDaysOfWeek: series.recurrenceDaysOfWeek || [],
-          recurrenceEndDate: null,
-          isRecurringSuspended: false,
-          isPublished: series.isPublished,
-          createdById: series.createdById || '',
-          gender: series.gender || "mixed",
-          cost: String(series.cost || 0),
-          requirements: series.requirements || '',
-          address: series.address || null,
-          postcode: series.postcode || null,
-          maxParticipants: series.maxParticipants || null,
-          reserveSpots: series.reserveSpots || 0,
-          paymentRequired: latestEvent[0].paymentRequired || false,
-          ...recurringPaymentSettings(latestEvent[0], latestEvent[0].startDate),
-          maxPlayerPayment: latestEvent[0].maxPlayerPayment || null,
-          finalVenueCost: latestEvent[0].finalVenueCost || null,
-          paymentStatus: (series as any).paymentStatus || "none",
-        paymentCollectionInitiated: false,
-        paymentCollectionInitiatedAt: undefined,
-        paymentCollectionInitiatedBy: undefined,
-          venueOrganiserId: latestEvent[0].venueOrganiserId || latestEvent[0].createdById
-        };
-
-        // Generate new events to maintain 2 weeks ahead (reduced from 4)
-        const newEvents = await this.createRecurringEvents(templateEvent, 2);
-        totalCreatedEvents += newEvents.length;
-
-        // Copy event teams associations from the first event in the series
-        const firstEvent = await db
-          .select()
-          .from(events)
-          .where(eq(events.recurringSeriesId, series.recurringSeriesId!))
-          .orderBy(asc(events.startDate))
-          .limit(1);
-
-        if (firstEvent.length > 0) {
-          const eventTeamsAssociations = await db
-            .select()
-            .from(eventTeams)
-            .where(eq(eventTeams.eventId, firstEvent[0].id));
-
-          // Add same team associations to all new events
-          for (const newEvent of newEvents) {
-            for (const teamAssoc of eventTeamsAssociations) {
-              if (teamAssoc.teamId) {
-                await this.addEventTeam(newEvent.id, teamAssoc.teamId);
-              }
-            }
-          }
-        }
-      }
-    }
-
-    return { maintained: maintainedSeries, created: totalCreatedEvents };
+    const { maintained, created } = await recurringEventStore.maintainAll();
+    return { maintained, created };
   }
 
   async getRecurringEventsSeries(recurringSeriesId: string): Promise<Event[]> {
@@ -3319,41 +2905,7 @@ export class DatabaseStorage implements IStorage {
     const event = await this.getEvent(eventId);
     if (!event) throw new Error("Event not found");
 
-    const updatedEvents: Event[] = [];
-
-    if (scope === 'single') {
-      // Update only this single event
-      const [updated] = await db
-        .update(events)
-        .set(updates)
-        .where(eq(events.id, eventId))
-        .returning();
-      updatedEvents.push(updated);
-    } else if (scope === 'future' && event.recurringSeriesId) {
-      // Update this event and all future events in the series
-      // We need to filter by date >= this event's date
-      const result = await db
-        .update(events)
-        .set(updates)
-        .where(
-          and(
-            eq(events.recurringSeriesId, event.recurringSeriesId),
-            sql`${events.startDate} >= ${event.startDate}`
-          )
-        )
-        .returning();
-      updatedEvents.push(...result);
-    } else {
-      // No series, just update single event
-      const [updated] = await db
-        .update(events)
-        .set(updates)
-        .where(eq(events.id, eventId))
-        .returning();
-      updatedEvents.push(updated);
-    }
-
-    return updatedEvents;
+    return recurringEventStore.update(event, updates, scope);
   }
 
   // Event payment methods for Stripe holds/reserved payments

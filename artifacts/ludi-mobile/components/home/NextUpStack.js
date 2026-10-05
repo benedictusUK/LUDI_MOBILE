@@ -95,9 +95,11 @@ export default function NextUpStack({ events, palette, onEvent, onViewAll, onRet
                     {event.paymentRequired && (
                       <View style={styles.statusCell}>
                         <Text style={body(styles.statusLabel)}>PAYMENT</Text>
-                        <Text style={body([styles.statusValue, { color: payment.label === 'Paid' ? '#83f1d0' : '#ffe09b' }])}>{payment.label}</Text>
+                        <Text accessibilityLabel={payment.organiserExempt ? 'Organiser, £0, no in-app payment required' : undefined}
+                          style={body([styles.statusValue, { color: payment.label === 'Paid' || payment.organiserExempt ? '#83f1d0' : '#ffe09b' }])}>{payment.label}</Text>
                         <Text style={body(styles.paid)} testID={`paid-amount-${event.id}`}>
-                          {payment.paidMinor === null ? 'Amount unavailable' : `Paid ${moneyLabel(payment.paidMinor, payment.currency)}`}
+                          {payment.organiserExempt ? 'No in-app payment required'
+                            : payment.paidMinor === null ? 'Amount unavailable' : `Paid ${moneyLabel(payment.paidMinor, payment.currency)}`}
                         </Text>
                         {payment.refundedMinor > 0 && <Text style={body(styles.paid)}>Refunded {moneyLabel(payment.refundedMinor, payment.currency)}</Text>}
                         {event.paymentSummaryError && <TouchableOpacity accessibilityRole="button" onPress={onRetry} style={{ paddingTop: 8 }}>

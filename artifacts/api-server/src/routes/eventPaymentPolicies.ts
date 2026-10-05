@@ -208,7 +208,7 @@ export function registerEventPaymentPolicies(app: Express, authenticate: Request
     const row = await storage.getEventPayment(event.id, req.userId);
     const valid = await hasValidEventPayment(event, req.userId);
     res.json({
-      hasAuthorization: valid, status: row?.status || "none", paymentRecord: row,
+      hasAuthorization: valid, status: row?.status || "none", paymentRecord: row ?? null,
       setupComplete: !!row?.paymentMethodId, holdCreated: valid,
       captured: valid && row?.status === "captured",
       ...await getPolicyQuote(event, req.userId),

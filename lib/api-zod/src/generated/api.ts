@@ -456,3 +456,74 @@ export const UnregisterApplePushDeviceBody = zod.object({
 export const UnregisterApplePushDeviceResponse = zod.void()
 
 
+/**
+ * @summary Request a signed upload URL for a team picture
+ */
+export const RequestTeamPictureUploadResponse = zod.object({
+  "uploadURL": zod.string().url(),
+  "objectPath": zod.string()
+})
+
+
+/**
+ * @summary Change or remove the authenticated user's optional profile photo
+ */
+export const updateProfilePictureBodyObjectPathRegExp = new RegExp('^/objects/uploads/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+
+
+export const UpdateProfilePictureBody = zod.object({
+  "objectPath": zod.string().regex(updateProfilePictureBodyObjectPathRegExp).nullable()
+})
+
+export const UpdateProfilePictureResponse = zod.object({
+  "profileImageUrl": zod.string().nullable()
+})
+
+
+/**
+ * @summary Create a team with an optional previously uploaded picture
+ */
+export const CreateLudiTeamBody = zod.object({
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "sports": zod.array(zod.string()),
+  "color": zod.string().nullish(),
+  "maxPlayers": zod.number().int().nullish(),
+  "gender": zod.enum(['male', 'female', 'mixed']).optional(),
+  "isPrivate": zod.boolean().optional(),
+  "requiresApproval": zod.boolean().optional(),
+  "teamImagePath": zod.string().nullish().describe('Optional uploaded object path. Omit or use null for no picture.')
+})
+
+export const CreateLudiTeamResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "ownerId": zod.string(),
+  "teamImagePath": zod.string().nullish()
+})
+
+
+/**
+ * @summary Update team settings; only the owner can change or remove its picture
+ */
+export const UpdateLudiTeamParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateLudiTeamBody = zod.object({
+  "name": zod.string().optional(),
+  "description": zod.string().nullish(),
+  "sports": zod.array(zod.string()).optional(),
+  "isPrivate": zod.boolean().optional(),
+  "requiresApproval": zod.boolean().optional(),
+  "teamImagePath": zod.string().nullish().describe('Omit to keep the current picture; null removes it. Only the team owner may set this field.')
+})
+
+export const UpdateLudiTeamResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "ownerId": zod.string(),
+  "teamImagePath": zod.string().nullish()
+})
+
+

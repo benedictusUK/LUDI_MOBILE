@@ -288,8 +288,144 @@ paths:
               $ref: "#/components/schemas/PushDeviceRemoval"
       responses:
         "204": { description: Device disabled for authenticated user }
+  /objects/upload:
+    post:
+      operationId: requestTeamPictureUpload
+      summary: Request a signed upload URL for a team picture
+      responses:
+        "200":
+          description: Upload bytes directly to uploadURL, then save objectPath on the team
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamPictureUpload"
+        "401": { description: Authentication required }
+        "500": { description: Storage unavailable }
+  /users/profile-picture:
+    put:
+      operationId: updateProfilePicture
+      summary: Change or remove the authenticated user's optional profile photo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfilePictureChangeInput"
+      responses:
+        "200":
+          description: Saved profile photo; null means removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfilePictureRecord"
+        "400": { description: Invalid picture path or unsupported image }
+        "401": { description: Authentication required }
+        "404": { description: Account or uploaded picture not found }
+        "503": { description: Storage could not verify the picture }
+  /teams:
+    post:
+      operationId: createLudiTeam
+      summary: Create a team with an optional previously uploaded picture
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TeamCreationInput"
+      responses:
+        "200":
+          description: Created team
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamRecord"
+        "400": { description: Invalid team or picture }
+        "401": { description: Authentication required }
+        "503": { description: Picture could not be verified }
+  /teams/{id}:
+    put:
+      operationId: updateLudiTeam
+      summary: Update team settings; only the owner can change or remove its picture
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TeamSettingsInput"
+      responses:
+        "200":
+          description: Updated team
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamRecord"
+        "400": { description: Invalid picture }
+        "401": { description: Authentication required }
+        "403": { description: Requires team admin; picture changes require team ownership }
+        "404": { description: Team not found }
+        "409": { description: Team name already exists }
+        "503": { description: Picture could not be verified }
 components:
   schemas:
+    ProfilePictureChangeInput:
+      type: object
+      additionalProperties: false
+      required: [objectPath]
+      properties:
+        objectPath:
+          type: [string, "null"]
+          pattern: '^/objects/uploads/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+    ProfilePictureRecord:
+      type: object
+      required: [profileImageUrl]
+      properties:
+        profileImageUrl: { type: [string, "null"] }
+    TeamPictureUpload:
+      type: object
+      required: [uploadURL, objectPath]
+      properties:
+        uploadURL: { type: string, format: uri }
+        objectPath: { type: string }
+    TeamCreationInput:
+      type: object
+      required: [name, sports]
+      properties:
+        name: { type: string }
+        description: { type: [string, "null"] }
+        sports:
+          type: array
+          items: { type: string }
+        color: { type: [string, "null"] }
+        maxPlayers: { type: [integer, "null"] }
+        gender: { type: string, enum: [male, female, mixed] }
+        isPrivate: { type: boolean }
+        requiresApproval: { type: boolean }
+        teamImagePath: { type: [string, "null"], description: "Optional uploaded object path. Omit or use null for no picture." }
+    TeamSettingsInput:
+      type: object
+      properties:
+        name: { type: string }
+        description: { type: [string, "null"] }
+        sports:
+          type: array
+          items: { type: string }
+        isPrivate: { type: boolean }
+        requiresApproval: { type: boolean }
+        teamImagePath: { type: [string, "null"], description: "Omit to keep the current picture; null removes it. Only the team owner may set this field." }
+    TeamRecord:
+      type: object
+      additionalProperties: true
+      required: [id, name, ownerId]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        ownerId: { type: string }
+        teamImagePath: { type: [string, "null"] }
     FeeSettings:
       type: object
       required: [platformBasisPoints, stripeBasisPoints, stripeFixedMinor, revision]

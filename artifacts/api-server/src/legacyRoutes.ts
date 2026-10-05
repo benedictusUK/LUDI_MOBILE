@@ -7,6 +7,11 @@ import { collectPaymentHandler } from "./routes/payments";
 import { registerEventPaymentPolicies } from "./routes/eventPaymentPolicies";
 import { registerNotificationAdmin } from "./routes/notificationAdmin";
 import { registerFeeAdmin } from "./routes/feeAdmin";
+import { registerTeamManagement } from "./routes/teamManagement";
+import { TeamPictureError, validateTeamPicture } from "./routes/teamPictures";
+import { registerProfilePictures } from "./routes/profilePictures";
+import { RecurrenceError } from "./recurrence/calendar";
+import { parseEventUpdate } from "./recurrence/updates";
 import { getPublicPlatformCharges } from "./payments/feeSettings";
 import mobileAuthRoutes, { verifyMobileToken, verifyAuth } from "./routes/mobileAuth";
 import { isAllowedMobileRedirect } from "./mobileRedirect";
@@ -29,6 +34,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerNotificationAdmin(app, verifyAuth);
   registerFeeAdmin(app, verifyAuth);
   registerEventPaymentPolicies(app, verifyAuth);
+  registerProfilePictures(app, verifyAuth);
+  registerTeamManagement(app, verifyAuth);
 
   // Block legacy financial endpoints that trusted client amounts or created a
   // second transfer after capture. They remain below temporarily for data-flow
@@ -140,6 +147,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/teams', verifyAuth, async (req: any, res) => {
     try {
       const userId = req.userId;
+      if (Object.prototype.hasOwnProperty.call(req.body, "teamImagePath")) {
+        await validateTeamPicture(req.body.teamImagePath);
+      }
       const teamData = insertTeamSchema.parse({
         ...req.body,
         ownerId: userId,
@@ -148,6 +158,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const team = await storage.createTeam(teamData, userId);
       res.json(team);
     } catch (error) {
+      if (error instanceof TeamPictureError) return res.status(error.status).json({ message: error.message });
       if (error instanceof z.ZodError) {
         return res.status(400).json({
           message: 'Validation failed',
@@ -255,6 +266,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(event);
     } catch (error) {
+      if (error instanceof RecurrenceError) return res.status(400).json({ message: error.message });
       if (error instanceof z.ZodError) {
         console.error('Validation error creating event:', JSON.stringify(error.errors, null, 2));
         return res.status(400).json({
@@ -312,15 +324,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Preserve venueOrganiserId from existing event, or default to creator if not set
-      const venueOrganiserId = req.body.venueOrganiserId || existingEvent.venueOrganiserId || existingEvent.createdById;
-
-      // Parse and validate the event data
-      const eventData = insertEventSchema.parse({
-        ...req.body,
-        venueOrganiserId,
-        createdById: existingEvent.createdById, // Preserve original creator
-      });
+      // Validate only supplied changes; preserve omitted recurrence and payment settings.
+      const eventData = parseEventUpdate(existingEvent, req.body);
       
       const event = await storage.updateEvent(eventId, eventData);
       
@@ -456,16 +461,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Preserve venueOrganiserId from existing event, or default to creator if not set
-      const venueOrganiserId = req.body.venueOrganiserId || existingEvent.venueOrganiserId || existingEvent.createdById;
+      // Validate only supplied changes; preserve omitted recurrence and payment settings.
+      const eventData = parseEventUpdate(existingEvent, req.body);
 
-      // Parse and validate the event data
-      const eventData = insertEventSchema.parse({
-        ...req.body,
-        venueOrganiserId,
-        createdById: existingEvent.createdById, // Preserve original creator
-      });
-      
       // Determine scope - validate and default to 'single' if not specified or invalid
       const validScopes = ['single', 'future'];
       const updateScope: 'single' | 'future' = validScopes.includes(scope as string) ? (scope as 'single' | 'future') : 'single';
@@ -855,8 +853,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const objectStorageService = new ObjectStorageService();
       const uploadURL = await objectStorageService.getObjectEntityUploadURL();
-      console.log("Generated upload URL:", uploadURL);
-      res.json({ uploadURL });
+      const objectPath = objectStorageService.normalizeObjectEntityPath(uploadURL);
+      res.json({ uploadURL, objectPath });
     } catch (error) {
       console.error("Error generating upload URL:", error);
       res.status(500).json({ error: "Failed to generate upload URL" });
@@ -865,24 +863,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Team image update endpoint
   app.put("/api/teams/:id/image", isAuthenticated, async (req: any, res) => {
-    if (!req.body.imageURL) {
+    if (!Object.prototype.hasOwnProperty.call(req.body, "imageURL")) {
       return res.status(400).json({ error: "imageURL is required" });
     }
 
     const userId = (req.user as any).claims.sub;
     try {
-      console.log("Received image URL:", req.body.imageURL);
-      
+      const team = await storage.getTeam(req.params.id);
+      if (!team) return res.status(404).json({ message: "Team not found" });
+      if (team.ownerId !== userId) return res.status(403).json({ message: "Only the team owner can change the picture" });
+      if (req.body.imageURL !== null && typeof req.body.imageURL !== "string") {
+        return res.status(400).json({ message: "Invalid picture path" });
+      }
       const objectStorageService = new ObjectStorageService();
-      const objectPath = objectStorageService.normalizeObjectEntityPath(req.body.imageURL);
-      
-      console.log("Normalized object path:", objectPath);
+      const objectPath = await validateTeamPicture(req.body.imageURL === null ? null : objectStorageService.normalizeObjectEntityPath(req.body.imageURL));
 
       // Update team with the image path
       await storage.updateTeamImage(req.params.id, userId, objectPath);
 
       res.status(200).json({ objectPath: objectPath });
     } catch (error) {
+      if (error instanceof TeamPictureError) return res.status(error.status).json({ message: error.message });
       console.error("Error setting team image:", error);
       res.status(500).json({ error: "Internal server error" });
     }
@@ -1442,6 +1443,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Not authorized to update team" });
       }
 
+      const hasPictureUpdate = Object.prototype.hasOwnProperty.call(updates, "teamImagePath");
+      let teamImagePath: string | null = null;
+      if (hasPictureUpdate) {
+        const team = await storage.getTeam(teamId);
+        if (!team) return res.status(404).json({ message: "Team not found" });
+        if (team.ownerId !== userId) return res.status(403).json({ message: "Only the team owner can change the picture" });
+        teamImagePath = await validateTeamPicture(updates.teamImagePath);
+      }
+
       // If updating team name, check for uniqueness
       if (updates.name) {
         const existingTeam = await storage.getTeamByName(updates.name);
@@ -1457,11 +1467,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description: updates.description,
         isPrivate: updates.isPrivate,
         requiresApproval: updates.requiresApproval,
+        ...(hasPictureUpdate ? { teamImagePath } : {}),
       };
 
       const updatedTeam = await storage.updateTeam(teamId, allowedUpdates);
       res.json(updatedTeam);
     } catch (error: any) {
+      if (error instanceof TeamPictureError) return res.status(error.status).json({ message: error.message });
       console.error("Error updating team:", error);
       if (error.message && error.message.includes('duplicate key')) {
         return res.status(409).json({ message: "Team name already exists" });
@@ -3067,8 +3079,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate the event data
       const validatedData = insertEventSchema.parse(eventData);
       
-      // Create recurring events (4 weeks ahead by default)
-      const createdEvents = await storage.createRecurringEvents(validatedData, 4);
+      // Five occurrences, not four weeks; an earlier recurrence end date wins.
+      const createdEvents = await storage.createRecurringEvents(validatedData, 5);
       
       res.json(createdEvents);
     } catch (error) {

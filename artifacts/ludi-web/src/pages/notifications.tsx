@@ -16,6 +16,13 @@ import { Link } from "wouter";
 import { Calendar, MapPin, Clock, Users, Zap } from "lucide-react";
 import PaymentAuthorizationModal from "@/components/payment-authorization-modal";
 
+function teamActionResolved(notification: any) {
+  try {
+    const meta = typeof notification.metadata === "string" ? JSON.parse(notification.metadata) : notification.metadata;
+    return ["accepted", "declined"].includes(meta?.resolvedStatus);
+  } catch { return false; }
+}
+
 export default function Notifications() {
   useScrollToTop();
   const { toast } = useToast();
@@ -477,7 +484,7 @@ export default function Notifications() {
                       </p>
                       
                       {/* Team invitation action buttons */}
-                      {notification.type === "team_invitation" && !notification.isRead && (
+                      {notification.type === "team_invitation" && !teamActionResolved(notification) && (
                         <div className="flex gap-2 mt-3" onClick={(e) => e.stopPropagation()}>
                           <Button
                             size="sm"
@@ -499,7 +506,7 @@ export default function Notifications() {
                         </div>
                       )}
 
-                      {notification.type === "team_join_request" && !notification.isRead && (
+                      {notification.type === "team_join_request" && !teamActionResolved(notification) && (
                         <div className="flex gap-2 mt-3" onClick={(e) => e.stopPropagation()}>
                           <Button
                             size="sm"

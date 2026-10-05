@@ -1,10 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import useBrandStyles from '../components/brand/useBrandStyles';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Alert, RefreshControl, Modal, Platform, FlatList, Switch, ActivityIndicator } from 'react-native';
 import { BrandText as Text, BrandTextInput as TextInput } from '../components/brand/BrandText';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import TeamPicturePicker from '../components/team/TeamPicturePicker';
+import TeamAvatar from '../components/team/TeamAvatar';
+import UserAvatar from '../components/UserAvatar';
+import { uploadTeamPicture } from '../lib/teamPicture';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -63,12 +67,17 @@ export default function TeamDetailsScreen() {
   const [editSports, setEditSports] = useState([]);
   const [editIsPrivate, setEditIsPrivate] = useState(false);
   const [editRequiresApproval, setEditRequiresApproval] = useState(false);
+  const [editPicture, setEditPicture] = useState(undefined);
+  const [saving, setSaving] = useState(false);
+  const uploadedEdit = useRef({ asset: null, path: null });
 
   // User search states
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [blockedUsers, setBlockedUsers] = useState([]);
+  const searchRevision = useRef(0);
+  const inviteInFlight = useRef(false);
 
   // Helper function to get display role
   const getDisplayRole = (member) => {
@@ -88,12 +97,16 @@ export default function TeamDetailsScreen() {
 
   const userMembership = members.find(m => m.userId === user?.id);
   const userRole = userMembership ? getDisplayRole(userMembership) : null;
-  const isOwner = userRole === 'owner';
+  const isOwner = !!team && !!user && team.ownerId === user.id;
   const isAdmin = userRole === 'admin' || isOwner;
 
-  useEffect(() => {
-    fetchTeamDetails();
-  }, [teamId]);
+  const fetchDetailsRef = useRef(null);
+  fetchDetailsRef.current = () => fetchTeamDetails();
+  useFocusEffect(React.useCallback(() => {
+    fetchDetailsRef.current();
+    const timer = setInterval(() => fetchDetailsRef.current(), 30000);
+    return () => clearInterval(timer);
+  }, [teamId]));
 
   const fetchTeamDetails = async () => {
     try {
@@ -106,22 +119,28 @@ export default function TeamDetailsScreen() {
       if (teamResponse.ok) {
         const teamData = await teamResponse.json();
         setTeam(teamData);
-        // Initialize edit form
-        setEditName(teamData.name);
-        setEditDescription(teamData.description || '');
-        setEditSports(teamData.sports || []);
-        setEditIsPrivate(teamData.isPrivate || false);
-        setEditRequiresApproval(teamData.requiresApproval || false);
+      } else {
+        setTeam(null);
+        setMembers([]);
+        setPendingRequests([]);
+        const error = await teamResponse.json();
+        Alert.alert('Team unavailable', error.message || 'Unable to load this team');
+        navigation.goBack();
+        return;
       }
 
       if (membersResponse.ok) {
         const membersData = await membersResponse.json();
         setMembers(membersData);
+      } else {
+        setMembers([]);
       }
 
       if (requestsResponse.ok) {
         const requestsData = await requestsResponse.json();
         setPendingRequests(requestsData);
+      } else {
+        setPendingRequests([]);
       }
     } catch (error) {
       console.error('Failed to fetch team details:', error);
@@ -134,7 +153,7 @@ export default function TeamDetailsScreen() {
 
   const fetchBlockedUsers = async () => {
     try {
-      const response = await apiRequest(`/api/teams/${teamId}/blocked-users`);
+      const response = await apiRequest(`/api/teams/${teamId}/blocked`);
       if (response.ok) {
         const data = await response.json();
         setBlockedUsers(data);
@@ -149,21 +168,50 @@ export default function TeamDetailsScreen() {
     fetchTeamDetails();
   };
 
+  const openEdit = () => {
+    setEditName(team.name);
+    setEditDescription(team.description || '');
+    setEditSports(team.sports || []);
+    setEditIsPrivate(!!team.isPrivate);
+    setEditRequiresApproval(!!team.requiresApproval);
+    setEditPicture(undefined);
+    setShowEditModal(true);
+  };
+
   const handleSaveSettings = async () => {
+    if (saving) return;
+    setSaving(true);
     try {
+      const payload = {
+        name: editName,
+        description: editDescription,
+        sports: editSports,
+        isPrivate: editIsPrivate,
+        requiresApproval: editRequiresApproval,
+      };
+      if (isOwner && editPicture !== undefined) {
+        if (editPicture === null) {
+          payload.teamImagePath = null;
+        } else {
+          if (uploadedEdit.current.asset !== editPicture) {
+            try {
+              uploadedEdit.current = { asset: editPicture, path: await uploadTeamPicture(editPicture, apiRequest) };
+            } catch (uploadError) {
+              Alert.alert('Picture upload failed', (uploadError?.message || 'The team picture could not be uploaded.') + ' Your changes were not saved.');
+              return;
+            }
+          }
+          payload.teamImagePath = uploadedEdit.current.path;
+        }
+      }
       const response = await apiRequest(`/api/teams/${teamId}`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: editName,
-          description: editDescription,
-          sports: editSports,
-          isPrivate: editIsPrivate,
-          requiresApproval: editRequiresApproval,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {
+        setEditPicture(undefined);
         Alert.alert('Success', 'Team settings updated');
         setShowEditModal(false);
         fetchTeamDetails();
@@ -173,6 +221,8 @@ export default function TeamDetailsScreen() {
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to update team settings');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -185,16 +235,18 @@ export default function TeamDetailsScreen() {
   };
 
   const handleSearchUsers = async (query) => {
+    const revision = ++searchRevision.current;
     setSearchQuery(query);
     if (query.length < 2) {
       setSearchResults([]);
+      setSearchLoading(false);
       return;
     }
 
     setSearchLoading(true);
     try {
       const response = await apiRequest(`/api/users/search?q=${encodeURIComponent(query)}`);
-      if (response.ok) {
+      if (response.ok && revision === searchRevision.current) {
         const data = await response.json();
         // Filter out users already in the team
         const memberIds = members.map(m => m.userId);
@@ -204,20 +256,24 @@ export default function TeamDetailsScreen() {
     } catch (error) {
       console.error('Failed to search users:', error);
     } finally {
-      setSearchLoading(false);
+      if (revision === searchRevision.current) setSearchLoading(false);
     }
   };
 
   const handleInviteUser = async (userId, username) => {
+    if (inviteInFlight.current) return;
+    inviteInFlight.current = true;
     try {
-      const response = await apiRequest(`/api/teams/${teamId}/invites`, {
+      const response = await apiRequest(`/api/teams/${teamId}/invitations`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId }),
       });
 
       if (response.ok) {
-        Alert.alert('Success', `Invitation sent to ${username}`);
+        const data = await response.json();
+        Alert.alert('Success', `Invitation sent to ${username}${data.notificationWarning ? `\n${data.notificationWarning}` : ''}`);
+        searchRevision.current++;
         setSearchQuery('');
         setSearchResults([]);
       } else {
@@ -226,6 +282,8 @@ export default function TeamDetailsScreen() {
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to send invitation');
+    } finally {
+      inviteInFlight.current = false;
     }
   };
 
@@ -240,7 +298,7 @@ export default function TeamDetailsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              const response = await apiRequest(`/api/teams/${teamId}/blocked-users`, {
+              const response = await apiRequest(`/api/teams/${teamId}/block/${encodeURIComponent(userId)}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId }),
@@ -251,6 +309,7 @@ export default function TeamDetailsScreen() {
                 setSearchQuery('');
                 setSearchResults([]);
                 fetchBlockedUsers();
+                fetchTeamDetails();
               } else {
                 const error = await response.json();
                 Alert.alert('Error', error.message || 'Failed to block user');
@@ -266,7 +325,7 @@ export default function TeamDetailsScreen() {
 
   const handleUnblockUser = async (userId, username) => {
     try {
-      const response = await apiRequest(`/api/teams/${teamId}/blocked-users/${userId}`, {
+      const response = await apiRequest(`/api/teams/${teamId}/block/${encodeURIComponent(userId)}`, {
         method: 'DELETE',
       });
 
@@ -292,14 +351,15 @@ export default function TeamDetailsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              const response = await apiRequest(`/api/teams/${teamId}/members/${user.id}`, {
-                method: 'DELETE',
+              const response = await apiRequest(`/api/teams/${teamId}/leave`, {
+                method: 'POST',
               });
               if (response.ok) {
                 Alert.alert('Success', 'You have left the team');
                 navigation.goBack();
               } else {
-                Alert.alert('Error', 'Failed to leave team');
+                const error = await response.json();
+                Alert.alert('Error', error.message || 'Failed to leave team');
               }
             } catch (error) {
               Alert.alert('Error', 'Failed to leave team');
@@ -328,7 +388,8 @@ export default function TeamDetailsScreen() {
                 Alert.alert('Success', 'Team deleted successfully');
                 navigation.goBack();
               } else {
-                Alert.alert('Error', 'Failed to delete team');
+                const error = await response.json();
+                Alert.alert('Error', error.message || 'Failed to delete team');
               }
             } catch (error) {
               Alert.alert('Error', 'Failed to delete team');
@@ -475,7 +536,9 @@ export default function TeamDetailsScreen() {
         {/* Team Info Card */}
         <View style={[styles.infoCard, { backgroundColor: colors.card }]}>
           <View style={styles.teamHeader}>
-            <View style={[styles.teamColorLarge, { backgroundColor: team.color || '#3d86e8' }]} />
+            {team.teamImagePath
+              ? <TeamAvatar team={team} size={64} radius={16} style={{ marginRight: 16 }} />
+              : <View style={[styles.teamColorLarge, { backgroundColor: team.color || '#3d86e8' }]} />}
             <View style={styles.teamMainInfo}>
               <Text style={[styles.teamName, { color: colors.text }]}>{team.name}</Text>
               {team.description && (
@@ -523,6 +586,7 @@ export default function TeamDetailsScreen() {
           </View>
           {members.slice(0, 3).map((member) => (
             <View key={member.userId} style={[styles.memberRow, { borderBottomColor: colors.border }]}>
+              <UserAvatar user={member.user} size={38} style={{ marginRight: 12 }} />
               <View style={styles.memberInfo}>
                 <Text style={[styles.memberName, { color: colors.text }]}>{getDisplayName(member.user)}</Text>
                 <Text style={[styles.memberUsername, { color: colors.textSecondary }]}>@{member.user?.username || 'unknown'}</Text>
@@ -567,28 +631,18 @@ export default function TeamDetailsScreen() {
         <View style={styles.actionsSection}>
           {isAdmin && (
             <>
-              <TouchableOpacity style={styles.actionButtonWrapper} onPress={() => setShowEditModal(true)}>
-                <LinearGradient
-                  colors={['#1d5183', '#0d2a47']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.actionButton}
-                >
-                  <Ionicons name="settings-outline" size={20} color="#ffffff" />
-                  <Text style={styles.actionButtonText}>Edit</Text>
-                </LinearGradient>
+              <TouchableOpacity style={styles.actionButtonWrapper} onPress={openEdit}>
+                <View style={[styles.actionButton, { backgroundColor: colors.primary }]}>
+                  <Ionicons name="settings-outline" size={20} color={colors.buttonText} />
+                  <Text style={[styles.actionButtonText, { color: colors.buttonText }]}>Edit</Text>
+                </View>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.actionButtonWrapper} onPress={() => setShowInviteModal(true)}>
-                <LinearGradient
-                  colors={['#1d5183', '#0d2a47']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.actionButton}
-                >
-                  <Ionicons name="person-add-outline" size={20} color="#ffffff" />
-                  <Text style={styles.actionButtonText}>Invite Players</Text>
-                </LinearGradient>
+                <View style={[styles.actionButton, { backgroundColor: colors.primary }]}>
+                  <Ionicons name="person-add-outline" size={20} color={colors.buttonText} />
+                  <Text style={[styles.actionButtonText, { color: colors.buttonText }]}>Invite Players</Text>
+                </View>
               </TouchableOpacity>
 
               <TouchableOpacity 
@@ -598,15 +652,10 @@ export default function TeamDetailsScreen() {
                   fetchBlockedUsers();
                 }}
               >
-                <LinearGradient
-                  colors={['#1d5183', '#0d2a47']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.actionButton}
-                >
-                  <Ionicons name="ban-outline" size={20} color="#ffffff" />
-                  <Text style={styles.actionButtonText}>Block Users</Text>
-                </LinearGradient>
+                <View style={[styles.actionButton, { backgroundColor: colors.primary }]}>
+                  <Ionicons name="ban-outline" size={20} color={colors.buttonText} />
+                  <Text style={[styles.actionButtonText, { color: colors.buttonText }]}>Block Users</Text>
+                </View>
               </TouchableOpacity>
 
               <TouchableOpacity 
@@ -614,15 +663,10 @@ export default function TeamDetailsScreen() {
                 onPress={() => navigation.navigate('BlockedMembers', { teamId: team.id, teamName: team.name })}
                 data-testid="button-view-blocked"
               >
-                <LinearGradient
-                  colors={['#1d5183', '#0d2a47']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.actionButton}
-                >
-                  <Ionicons name="shield-outline" size={20} color="#ffffff" />
-                  <Text style={styles.actionButtonText}>View Blocked</Text>
-                </LinearGradient>
+                <View style={[styles.actionButton, { backgroundColor: colors.primary }]}>
+                  <Ionicons name="shield-outline" size={20} color={colors.buttonText} />
+                  <Text style={[styles.actionButtonText, { color: colors.buttonText }]}>View Blocked</Text>
+                </View>
               </TouchableOpacity>
             </>
           )}
@@ -667,6 +711,7 @@ export default function TeamDetailsScreen() {
               const displayName = getDisplayName(member.user);
               return (
                 <View key={member.userId} style={[styles.memberCard, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+                  <UserAvatar user={member.user} size={38} style={{ marginRight: 12 }} />
                   <View style={styles.memberCardInfo}>
                     <Text style={[styles.memberCardName, { color: colors.text }]}>{displayName}</Text>
                     <Text style={[styles.memberCardUsername, { color: colors.textSecondary }]}>@{member.user?.username || 'unknown'}</Text>
@@ -754,15 +799,21 @@ export default function TeamDetailsScreen() {
       >
         <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]}>
           <View style={[styles.modalHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-            <TouchableOpacity onPress={() => setShowEditModal(false)}>
+            <TouchableOpacity onPress={() => setShowEditModal(false)} disabled={saving}>
               <Text style={[styles.cancelButton, { color: colors.primary }]}>Cancel</Text>
             </TouchableOpacity>
             <Text style={[styles.modalTitle, { color: colors.text }]}>Edit Team Settings</Text>
-            <TouchableOpacity onPress={handleSaveSettings}>
-              <Text style={[styles.saveButton, { color: colors.primary }]}>Save</Text>
+            <TouchableOpacity onPress={handleSaveSettings} disabled={saving}>
+              <Text style={[styles.saveButton, { color: colors.primary, opacity: saving ? 0.5 : 1 }]}>{saving ? 'Saving...' : 'Save'}</Text>
             </TouchableOpacity>
           </View>
           <ScrollView style={styles.modalContent}>
+            {isOwner && (
+              <View style={styles.formSection}>
+                <Text style={[styles.formLabel, { color: colors.text }]}>Team Picture</Text>
+                <TeamPicturePicker value={editPicture} existingPath={team.teamImagePath} onChange={setEditPicture} disabled={saving} />
+              </View>
+            )}
             <View style={styles.formSection}>
               <Text style={[styles.formLabel, { color: colors.text }]}>Team Name</Text>
               <TextInput

@@ -5,6 +5,75 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface ProfilePictureChangeInput {
+  /**
+     * @nullable
+     * @pattern ^/objects/uploads/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$
+     */
+  objectPath: string | null;
+}
+
+export interface ProfilePictureRecord {
+  /** @nullable */
+  profileImageUrl: string | null;
+}
+
+export interface TeamPictureUpload {
+  uploadURL: string;
+  objectPath: string;
+}
+
+export type TeamCreationInputGender = typeof TeamCreationInputGender[keyof typeof TeamCreationInputGender];
+
+
+export const TeamCreationInputGender = {
+  male: 'male',
+  female: 'female',
+  mixed: 'mixed',
+} as const;
+
+export interface TeamCreationInput {
+  name: string;
+  /** @nullable */
+  description?: string | null;
+  sports: string[];
+  /** @nullable */
+  color?: string | null;
+  /** @nullable */
+  maxPlayers?: number | null;
+  gender?: TeamCreationInputGender;
+  isPrivate?: boolean;
+  requiresApproval?: boolean;
+  /**
+     * Optional uploaded object path. Omit or use null for no picture.
+     * @nullable
+     */
+  teamImagePath?: string | null;
+}
+
+export interface TeamSettingsInput {
+  name?: string;
+  /** @nullable */
+  description?: string | null;
+  sports?: string[];
+  isPrivate?: boolean;
+  requiresApproval?: boolean;
+  /**
+     * Omit to keep the current picture; null removes it. Only the team owner may set this field.
+     * @nullable
+     */
+  teamImagePath?: string | null;
+}
+
+export interface TeamRecord {
+  id: string;
+  name: string;
+  ownerId: string;
+  /** @nullable */
+  teamImagePath?: string | null;
+  [key: string]: unknown;
+ }
+
 export interface FeeSettings {
   /**
      * @minimum 0

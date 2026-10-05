@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import useBrandStyles from '../components/brand/useBrandStyles';
+import UserAvatar from '../components/UserAvatar';
 import { View, FlatList, StyleSheet, TouchableOpacity, Alert, RefreshControl } from 'react-native';
 import { BrandText as Text } from '../components/brand/BrandText';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -95,9 +96,7 @@ export default function BlockedMembersScreen() {
     return (
       <View style={[styles.memberCard, { backgroundColor: colors.card }]} data-testid={`card-blocked-${item.userId}`}>
         <View style={styles.memberInfo}>
-          <View style={[styles.avatar, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.2)' : '#fef2f2' }]}>
-            <Ionicons name="person-outline" size={24} color="#ef4444" />
-          </View>
+          <UserAvatar user={item.user} size={48} style={styles.avatar} />
           <View style={styles.memberDetails}>
             <Text style={[styles.memberName, { color: colors.text }]}>{userName}</Text>
             {item.user?.username && (

@@ -1,19 +1,20 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import useBrandStyles from '../components/brand/useBrandStyles';
 import { View, FlatList, StyleSheet, TouchableOpacity, RefreshControl, Alert, ActivityIndicator } from 'react-native';
 import { BrandText as Text } from '../components/brand/BrandText';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import TeamAvatar from '../components/team/TeamAvatar';
 import HeaderWithNotifications from '../components/HeaderWithNotifications';
 
 export default function TeamsScreen() {
   const styles = useBrandStyles(baseStyles, { navClearance: 112 });
   const [teams, setTeams] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
+  const [respondingId, setRespondingId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [pendingLoading, setPendingLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -46,10 +47,13 @@ export default function TeamsScreen() {
 
     setPendingLoading(true);
     try {
-      const response = await apiRequest('/api/teams/my-pending-requests');
-      if (response.ok) {
-        const data = await response.json();
-        setPendingRequests(data || []);
+      const [response, invitationsResponse] = await Promise.all([
+        apiRequest('/api/teams/my-pending-requests'), apiRequest('/api/users/invitations'),
+      ]);
+      if (response.ok && invitationsResponse.ok) {
+        const [data, invitations] = await Promise.all([response.json(), invitationsResponse.json()]);
+        if (!Array.isArray(data) || !Array.isArray(invitations)) throw new Error('Invalid pending team data');
+        setPendingRequests([...invitations, ...data]);
         setPendingLoaded(true);
       } else {
         Alert.alert('Error', 'Failed to load pending requests');
@@ -62,6 +66,16 @@ export default function TeamsScreen() {
     }
   };
 
+  const firstFocus = useRef(true);
+  const fetchTeamsRef = useRef(fetchTeams);
+  fetchTeamsRef.current = fetchTeams;
+  const refreshPendingRef = useRef(() => {});
+  refreshPendingRef.current = () => { if (activeTab === 'pending') fetchPendingRequests(true); };
+  useFocusEffect(useCallback(() => {
+    if (firstFocus.current) { firstFocus.current = false; return; }
+    fetchTeamsRef.current();
+    refreshPendingRef.current();
+  }, []));
   useEffect(() => {
     fetchTeams();
   }, []);
@@ -95,6 +109,7 @@ export default function TeamsScreen() {
             <Text style={[styles.teamDescription, { color: colors.textSecondary }]}>{item.description}</Text>
           )}
         </View>
+        <TeamAvatar team={item} size={48} radius={14} style={styles.teamPicture} />
       </View>
       
       <View style={styles.teamFooter}>
@@ -116,6 +131,18 @@ export default function TeamsScreen() {
     </TouchableOpacity>
   );
 
+  const respondToInvitation = async (id, accept) => {
+    if (respondingId) return;
+    setRespondingId(id);
+    try {
+      const response = await apiRequest(`/api/invitations/${encodeURIComponent(id)}/${accept ? 'accept' : 'decline'}`, { method: 'POST' });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Unable to respond to invitation');
+      await Promise.all([fetchTeams(), fetchPendingRequests(true)]);
+      Alert.alert('Success', `${accept ? 'You have joined the team' : 'Invitation declined'}${data.notificationWarning ? `\n${data.notificationWarning}` : ''}`);
+    } catch (error) { Alert.alert('Error', error.message || 'Unable to respond to invitation'); }
+    finally { setRespondingId(null); }
+  };
   const renderPendingItem = ({ item }) => (
     <View 
       style={[styles.teamCard, { backgroundColor: colors.card }]}
@@ -133,14 +160,24 @@ export default function TeamsScreen() {
       
       <View style={styles.pendingFooter}>
         <View style={[styles.pendingBadge, { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.2)' : '#fef3c7' }]}>
-          <Text style={styles.pendingBadgeText}>⏳ Request Pending</Text>
+          <Text style={styles.pendingBadgeText}>{item.invitedById === item.userId ? 'Request Pending' : 'Team Invitation'}</Text>
         </View>
         {item.invitedAt && (
           <Text style={[styles.pendingDate, { color: colors.textSecondary }]}>
-            Requested {new Date(item.invitedAt).toLocaleDateString()}
+            {item.invitedById === item.userId ? 'Requested' : 'Invited'} {new Date(item.invitedAt).toLocaleDateString()}
           </Text>
         )}
       </View>
+      {item.invitedById !== item.userId && <View style={[styles.pendingFooter, { marginTop: 14 }]}>
+        {['accept', 'decline'].map(action => <TouchableOpacity key={action}
+          accessibilityRole="button" accessibilityLabel={`${action === 'accept' ? 'Accept' : 'Decline'} invitation to ${item.team?.name}`}
+          testID={`${action}-team-invitation-${item.id}`} disabled={!!respondingId}
+          onPress={() => respondToInvitation(item.id, action === 'accept')}>
+          <Text style={{ color: colors.primary, fontSize: 16, fontWeight: '700', padding: 8 }}>
+            {respondingId === item.id ? 'Please wait…' : action === 'accept' ? 'Accept' : 'Decline'}
+          </Text>
+        </TouchableOpacity>)}
+      </View>}
     </View>
   );
 
@@ -189,7 +226,7 @@ export default function TeamsScreen() {
             styles.tabText,
             { color: activeTab === 'pending' ? colors.primary : colors.textSecondary }
           ]}>
-            Pending Requests
+            Invitations & Requests
           </Text>
           {pendingLoaded && pendingRequests.length > 0 && (
             <View style={styles.badgeCount}>
@@ -261,14 +298,9 @@ export default function TeamsScreen() {
           activeOpacity={0.8}
           data-testid="button-create-team"
         >
-          <LinearGradient
-                colors={['#135cc7', '#0e345f']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.fab}
-          >
-            <Text style={styles.fabText}>+</Text>
-          </LinearGradient>
+          <View style={[styles.fab, { backgroundColor: colors.primary }]}>
+            <Ionicons name="add" size={30} color={colors.buttonText} />
+          </View>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -379,6 +411,10 @@ const baseStyles = StyleSheet.create({
   },
   teamInfo: {
     flex: 1,
+    marginRight: 12,
+  },
+  teamPicture: {
+    marginLeft: 'auto',
   },
   teamName: {
     fontSize: 18,

@@ -184,33 +184,27 @@ export class ObjectStorageService {
   normalizeObjectEntityPath(
     rawPath: string,
   ): string {
-    console.log("Normalizing path:", rawPath);
     
     if (!rawPath.startsWith("https://storage.googleapis.com/")) {
-      console.log("Path doesn't start with GCS URL, returning as-is:", rawPath);
       return rawPath;
     }
   
     // Extract the path from the URL by removing query parameters and domain
     const url = new URL(rawPath);
     const rawObjectPath = url.pathname;
-    console.log("Raw object path from URL:", rawObjectPath);
   
     let objectEntityDir = this.getPrivateObjectDir();
     if (!objectEntityDir.endsWith("/")) {
       objectEntityDir = `${objectEntityDir}/`;
     }
-    console.log("Object entity dir:", objectEntityDir);
   
     if (!rawObjectPath.startsWith(objectEntityDir)) {
-      console.log("Path doesn't start with entity dir, returning raw path:", rawObjectPath);
       return rawObjectPath;
     }
   
     // Extract the entity ID from the path
     const entityId = rawObjectPath.slice(objectEntityDir.length);
     const normalizedPath = `/objects/${entityId}`;
-    console.log("Normalized path:", normalizedPath);
     return normalizedPath;
   }
 

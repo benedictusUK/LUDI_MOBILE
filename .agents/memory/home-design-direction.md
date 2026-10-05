@@ -1,6 +1,6 @@
 ---
 name: Home design direction
-description: User-selected home-screen direction and Next Up information requirements.
+description: Approved native visual direction, Next Up information requirements and optional picture policies.
 ---
 
 Use Match night's direction as the home-screen base, with the floating navigation from Clean sport. The user said it was close between those two directions and wants to utilise the newer Apple Glass UI for the navigation on iOS.
@@ -34,3 +34,21 @@ Floating navigation must reserve its measured space; allow vertical scrolling fo
 **Why:** Native/web font metrics and safe areas made the approved mockup taller in the application, and an overlay intercepted event-details and carousel taps.
 
 **How to apply:** Preserve readable payment information, 44-point controls, and safe navigation spacing when refining this layout. Browser tests prove the web fallback, not native iOS glass.
+
+Team pictures must be optional, not mandatory. Show them in the top-right of Teams cards and in place of the avatar icon in the home's Your teams section.
+
+**Why:** The user explicitly requested these locations and said the picture should be optional.
+
+**How to apply:** Preserve an icon fallback and allow teams to be created and used without uploading a picture.
+
+Personal profile pictures are optional and should be used where the app represents an individual.
+
+**Why:** The user asked to offer users the ability to upload a picture of themselves “to be used in appropriate places in the app”.
+
+**How to apply:** Keep onboarding possible without a photo and preserve a person-icon fallback when no usable image exists.
+
+User-chosen profile photos, including explicit removal, take precedence over later sign-in provider images.
+
+**Why:** Provider sign-ins previously refreshed the stored image; leaving that behaviour unchanged would undo a user's upload or removal at their next sign-in.
+
+**How to apply:** Use provider photos as a new-account default, not an overwrite of an existing account's photo choice, including account-linking paths.

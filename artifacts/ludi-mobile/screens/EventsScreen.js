@@ -328,14 +328,9 @@ export default function EventsScreen() {
         onPress={() => navigation.navigate('CreateEvent')}
         activeOpacity={0.8}
       >
-        <LinearGradient
-          colors={['#135cc7', '#0e345f']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.fab}
-        >
-          <Text style={styles.fabText}>+</Text>
-        </LinearGradient>
+        <View style={[styles.fab, { backgroundColor: colors.primary }]}>
+          <Ionicons name="add" size={30} color={colors.buttonText} />
+        </View>
       </TouchableOpacity>
     </SafeAreaView>
   );
