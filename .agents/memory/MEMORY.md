@@ -23,3 +23,4 @@
 - [Team management compatibility](team-management-compatibility.md) — retain installed iPhone routes; keep invitation state independent of notification delivery and read state.
 - [Native disabled controls](native-disabled-controls.md) — set Pressable's disabled prop, not just accessibility state or a guarded handler.
 - [Team archival policy](team-archival-policy.md) — owner-only archival preserves existing events and records; linked recurring series pause without clearing explicit suspension.
+- [App Storage runtime binding](app-storage-runtime-binding.md) — bucket provisioning and assignment do not prove runtime authorization; verify actual storage access separately.

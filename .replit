@@ -1,5 +1,8 @@
 modules = ["nodejs-24", "python-base-3.13", "postgresql-16"]
 
+[objectStorage]
+defaultBucketID = "replit-objstore-958b09f2-541f-4081-b6c6-1211b336074a"
+
 [deployment]
 router = "application"
 deploymentTarget = "autoscale"
