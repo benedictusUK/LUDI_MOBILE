@@ -9,7 +9,10 @@ import { NotificationProvider } from './contexts/NotificationContext';
 import { DashboardDataProvider, useDashboardData } from './contexts/DashboardDataContext';
 import NotificationToast from './components/NotificationToast';
 import AuthScreen from './screens/AuthScreen';
-import HomeScreen from './screens/HomeScreen';
+import HomeScreen from './screens/MatchNightHomeScreen';
+import FloatingTabBar from './components/FloatingTabBar';
+import { useFonts } from 'expo-font';
+import { brandFonts, BrandTypographyContext } from './components/home/brand';
 import EventsScreen from './screens/EventsScreen';
 import TeamsScreen from './screens/TeamsScreen';
 import TeamDetailsScreen from './screens/TeamDetailsScreen';
@@ -43,9 +46,13 @@ const Stack = createNativeStackNavigator();
 
 function MainTabs() {
   const { colors } = useTheme();
+  const [fontsLoaded, fontError] = useFonts(brandFonts);
+  if (!fontsLoaded && !fontError) return <LoadingScreen />;
   
   return (
+    <BrandTypographyContext.Provider value={{ loaded: fontsLoaded, error: fontError }}>
     <Tab.Navigator
+      tabBar={props => <FloatingTabBar {...props} />}
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
           let iconName;
@@ -132,6 +139,7 @@ function MainTabs() {
         }}
       />
     </Tab.Navigator>
+    </BrandTypographyContext.Provider>
   );
 }
 

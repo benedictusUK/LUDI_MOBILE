@@ -35,7 +35,20 @@ export function DashboardDataProvider({ children }) {
           throw new Error('The server returned unexpected event data. Please try again.');
         }
         const data = {
-          upcomingEvents: eventsData.events.slice(0, 3),
+          upcomingEvents: await Promise.all(eventsData.events.slice(0, 3).map(async event => {
+            if (!event.paymentRequired) return event;
+            try {
+              const response = await requestRef.current(`/api/events/${encodeURIComponent(event.id)}/payment-status`);
+              if (!response.ok) throw new Error('Payment status unavailable');
+              const paymentSummary = await response.json();
+              if (!paymentSummary || typeof paymentSummary.status !== 'string'
+                || !Object.prototype.hasOwnProperty.call(paymentSummary, 'paymentRecord')) throw new Error('Unexpected payment status');
+              return { ...event, paymentSummary };
+            } catch {
+              // Never display an unavailable receipt as unpaid or successfully paid.
+              return { ...event, paymentSummaryError: true };
+            }
+          })),
           recentTeams: teamsData.slice(0, 3),
           stats: { eventsCount: eventsData.totalCount ?? eventsData.events.length, teamsCount: teamsData.length },
         };
