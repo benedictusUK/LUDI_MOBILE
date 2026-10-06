@@ -26,3 +26,4 @@
 - [Team archival policy](team-archival-policy.md) — owner-only archival preserves existing events and records; linked recurring series pause without clearing explicit suspension.
 - [App Storage runtime binding](app-storage-runtime-binding.md) — bucket provisioning and assignment do not prove runtime authorization; verify actual storage access separately.
 - [Published iOS identity](published-ios-identity.md) — preserve the user-confirmed App Store Connect Bundle ID, app.replit.ludi.
+- [APNs store environment](apns-store-environment.md) — a missing embedded profile does not prove push is disabled; successful Apple token registration and release type matter.

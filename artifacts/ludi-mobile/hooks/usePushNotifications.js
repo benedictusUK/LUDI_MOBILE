@@ -7,6 +7,7 @@ import Constants from 'expo-constants';
 import { registerApplePushDevice, unregisterApplePushDevice } from '@workspace/api-client-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getPushInstallationId } from '../lib/pushDevice';
+import { getApplePushRegistration } from '../lib/pushRegistration.mjs';
 import { navigationRef } from '../lib/navigation';
 import { PUSH_DEFAULTS, pushPermissionGranted, getPushPermission, readPushPreferences, permissionLabel } from '../lib/pushPermissions.mjs';
 
@@ -55,17 +56,10 @@ export function PushNotificationsProvider({ children }) {
       await unregisterApplePushDevice({ installationId }, { headers });
       return;
     }
-    const nativeToken = await Notifications.getDevicePushTokenAsync();
-    const serviceEnvironment = await Application.getIosPushNotificationServiceEnvironmentAsync();
+    const registration = await getApplePushRegistration(Notifications, Application);
     if (!isCurrent()) return;
-    if (!['development', 'production'].includes(serviceEnvironment)) {
-      throw new Error('Push Notifications must be enabled in the signed iPhone build.');
-    }
-    if (!Application.applicationId) throw new Error('Could not identify the signed iPhone app.');
     await registerApplePushDevice({
-      token: nativeToken.data, installationId,
-      environment: serviceEnvironment === 'development' ? 'sandbox' : 'production',
-      bundleId: Application.applicationId,
+      ...registration, installationId,
     }, { headers });
     if (!isCurrent()) {
       // A registration completing after logout must not attach this shared
