@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Linking, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
@@ -7,7 +7,7 @@ import Constants from 'expo-constants';
 import { registerApplePushDevice, unregisterApplePushDevice } from '@workspace/api-client-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getPushInstallationId } from '../lib/pushDevice';
-import { getApplePushRegistration } from '../lib/pushRegistration.mjs';
+import { createPushRegistrationQueue, getApplePushRegistration } from '../lib/pushRegistration.mjs';
 import { navigationRef } from '../lib/navigation';
 import { PUSH_DEFAULTS, pushPermissionGranted, getPushPermission, readPushPreferences, permissionLabel } from '../lib/pushPermissions.mjs';
 
@@ -42,10 +42,9 @@ export function PushNotificationsProvider({ children }) {
   const preferenceRevision = useRef(0);
   const preferenceBusy = useRef(false);
 
-  const registerDevice = useCallback(async () => {
+  const registerDevice = useMemo(() => createPushRegistrationQueue(async nativeToken => {
     if (!available || !token) return;
     const isCurrent = () => currentUser.current?.id === user?.id && currentToken.current === token;
-    setDeviceRegistered(false);
     const permission = await getPushPermission(Notifications);
     if (!isCurrent()) return;
     setPermissionGranted(pushPermissionGranted(permission));
@@ -54,9 +53,10 @@ export function PushNotificationsProvider({ children }) {
     const headers = { Authorization: `Bearer ${token}` };
     if (!pushPermissionGranted(permission)) {
       await unregisterApplePushDevice({ installationId }, { headers });
+      if (isCurrent()) setDeviceRegistered(false);
       return;
     }
-    const registration = await getApplePushRegistration(Notifications, Application);
+    const registration = await getApplePushRegistration(Notifications, Application, nativeToken);
     if (!isCurrent()) return;
     await registerApplePushDevice({
       ...registration, installationId,
@@ -68,7 +68,8 @@ export function PushNotificationsProvider({ children }) {
       return;
     }
     setDeviceRegistered(true);
-  }, [token, user?.id]);
+    return registration;
+  }), [token, user?.id]);
 
   const refresh = useCallback(async () => {
     if (!user || !token) { setPreferences(DEFAULTS); return; }
@@ -162,8 +163,8 @@ export function PushNotificationsProvider({ children }) {
     };
     const tapSubscription = Notifications.addNotificationResponseReceivedListener(rememberTap);
     void Notifications.getLastNotificationResponseAsync().then(response => { if (response) rememberTap(response); }).catch(() => {});
-    const tokenSubscription = Notifications.addPushTokenListener(() => {
-      if (preferences.pushNotificationsIOS) void registerDevice().catch(err => setError(err.message));
+    const tokenSubscription = Notifications.addPushTokenListener(nativeToken => {
+      if (preferences.pushNotificationsIOS) void registerDevice(nativeToken).catch(err => setError(err.message));
     });
     const stateSubscription = AppState.addEventListener('change', state => {
       if (state === 'active' && currentUser.current) void refresh();

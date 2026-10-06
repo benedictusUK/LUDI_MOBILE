@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
-import { getApplePushRegistration } from './pushRegistration.mjs';
+import { createPushRegistrationQueue, getApplePushRegistration } from './pushRegistration.mjs';
 
 test('registration calls exist in the installed Expo SDK, not just in mocks', () => {
   const require = createRequire(import.meta.url);
@@ -74,4 +74,84 @@ test('registration requires the actual native bundle identifier', async () => {
   const { notifications, application } = fixture('production');
   application.applicationId = null;
   await assert.rejects(getApplePushRegistration(notifications, application), /Could not identify/);
+});
+
+test('token events use the supplied native token without requesting another', async () => {
+  const { notifications, application } = fixture('production');
+  notifications.getDevicePushTokenAsync = async () => { throw new Error('Would recursively emit another token event'); };
+  const result = await getApplePushRegistration(notifications, application, { type: 'ios', data: 'event-token' });
+  assert.equal(result.token, 'event-token');
+});
+
+test('native registration emitting a token event shares the same job rather than recursing', async () => {
+  const { notifications, application } = fixture(null);
+  let nativeRequests = 0;
+  let serverRequests = 0;
+  let eventJob;
+  const register = createPushRegistrationQueue(async token => {
+    const result = await getApplePushRegistration(notifications, application, token);
+    serverRequests++;
+    return result;
+  });
+  notifications.getDevicePushTokenAsync = async () => {
+    nativeRequests++;
+    const token = { type: 'ios', data: 'fixture-token' };
+    eventJob = register(token);
+    return token;
+  };
+  const initialJob = register();
+  await initialJob;
+  assert.equal(eventJob, initialJob);
+  assert.equal(nativeRequests, 1);
+  assert.equal(serverRequests, 1);
+});
+
+test('overlapping foreground refreshes share one registration', async () => {
+  let calls = 0;
+  const register = createPushRegistrationQueue(async () => {
+    calls++;
+    return { token: 'fixture-token' };
+  });
+  const jobs = Array.from({ length: 20 }, () => register());
+  assert.ok(jobs.every(job => job === jobs[0]));
+  await Promise.all(jobs);
+  assert.equal(calls, 1);
+});
+
+test('a real token rotation during a pending request registers the latest token next', async () => {
+  const tokens = [];
+  let release;
+  const paused = new Promise(resolve => { release = resolve; });
+  const register = createPushRegistrationQueue(async token => {
+    tokens.push(token.data);
+    if (tokens.length === 1) await paused;
+    return { token: token.data };
+  });
+  const job = register({ type: 'ios', data: 'old-token' });
+  await Promise.resolve();
+  register({ type: 'ios', data: 'intermediate-token' });
+  register({ type: 'ios', data: 'latest-token' });
+  release();
+  await job;
+  assert.deepEqual(tokens, ['old-token', 'latest-token']);
+});
+
+test('a failed registration clears the job so an explicit retry can succeed', async () => {
+  let attempts = 0;
+  const register = createPushRegistrationQueue(async () => {
+    if (++attempts === 1) throw new Error('Network failure');
+    return { token: 'fixture-token' };
+  });
+  await assert.rejects(register(), /Network failure/);
+  assert.equal((await register()).token, 'fixture-token');
+  assert.equal(attempts, 2);
+});
+
+test('a stale account registration that aborts does not process queued token changes', async () => {
+  let calls = 0;
+  const register = createPushRegistrationQueue(async () => { calls++; return undefined; });
+  const job = register();
+  register({ type: 'ios', data: 'rotated-token' });
+  await job;
+  assert.equal(calls, 1);
 });

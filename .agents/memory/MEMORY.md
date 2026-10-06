@@ -27,3 +27,4 @@
 - [App Storage runtime binding](app-storage-runtime-binding.md) — bucket provisioning and assignment do not prove runtime authorization; verify actual storage access separately.
 - [Published iOS identity](published-ios-identity.md) — preserve the user-confirmed App Store Connect Bundle ID, app.replit.ludi.
 - [APNs store environment](apns-store-environment.md) — a missing embedded profile does not prove push is disabled; successful Apple token registration and release type matter.
+- [Native APNs token events](native-apns-token-events.md) — consume the event token rather than requesting another; token requests can emit events even when unchanged.
