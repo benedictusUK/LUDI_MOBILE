@@ -9,7 +9,7 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.ludi.mobile",
+      "bundleIdentifier": "app.replit.ludi",
       "usesAppleSignIn": true,
       "entitlements": {
         "com.apple.developer.applesignin": ["Default"]

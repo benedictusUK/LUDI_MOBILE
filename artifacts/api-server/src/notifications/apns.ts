@@ -19,7 +19,7 @@ export function apnsConfiguration(environment: AppleEnvironment = "production") 
   const rawPrivateKey = process.env[`${prefix}PRIVATE_KEY`];
   const privateKey = rawPrivateKey ? normalizeApnsPrivateKey(rawPrivateKey) : undefined;
   const teamId = process.env.APNS_TEAM_ID;
-  const bundleId = process.env.APNS_BUNDLE_ID || "com.ludi.mobile";
+  const bundleId = process.env.APNS_BUNDLE_ID || "app.replit.ludi";
   const missing = [
     !keyId && `${prefix}KEY_ID`, !privateKey && `${prefix}PRIVATE_KEY`, !teamId && "APNS_TEAM_ID",
   ].filter((v): v is string => !!v);
