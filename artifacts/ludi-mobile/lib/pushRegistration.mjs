@@ -1,3 +1,7 @@
+/**
+ * @param {Pick<typeof import('expo-notifications'), 'getDevicePushTokenAsync'>} notifications
+ * @param {typeof import('expo-application')} application
+ */
 export async function getApplePushRegistration(notifications, application) {
   // Apple must actually issue a device token. Never substitute a token or
   // suppress entitlement/registration errors from the native API.
@@ -15,7 +19,7 @@ export async function getApplePushRegistration(notifications, application) {
   } else if (serviceEnvironment == null) {
     // expo-application reads embedded.mobileprovision, not the live signed
     // entitlement. Store installs may lack that file despite valid APNs access.
-    const releaseType = await application.getApplicationReleaseTypeAsync();
+    const releaseType = await application.getIosApplicationReleaseTypeAsync();
     if (releaseType === application.ApplicationReleaseType.APP_STORE) {
       environment = 'production';
     }

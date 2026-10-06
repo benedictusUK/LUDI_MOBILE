@@ -1,6 +1,20 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 import { getApplePushRegistration } from './pushRegistration.mjs';
+
+test('registration calls exist in the installed Expo SDK, not just in mocks', () => {
+  const require = createRequire(import.meta.url);
+  const result = spawnSync(process.execPath, [
+    require.resolve('typescript/bin/tsc'),
+    '--ignoreConfig', '--allowJs', '--checkJs', '--noEmit', '--skipLibCheck',
+    '--module', 'nodenext', '--moduleResolution', 'nodenext', '--target', 'es2022',
+    fileURLToPath(new URL('./pushRegistration.mjs', import.meta.url)),
+  ], { encoding: 'utf8' });
+  assert.equal(result.status, 0, result.error?.message || result.stdout + result.stderr);
+});
 
 function fixture(serviceEnvironment, releaseType = 5) {
   return {
@@ -9,7 +23,7 @@ function fixture(serviceEnvironment, releaseType = 5) {
       applicationId: 'app.replit.ludi',
       ApplicationReleaseType: { APP_STORE: 5 },
       getIosPushNotificationServiceEnvironmentAsync: async () => serviceEnvironment,
-      getApplicationReleaseTypeAsync: async () => releaseType,
+      getIosApplicationReleaseTypeAsync: async () => releaseType,
     },
   };
 }
@@ -17,7 +31,7 @@ function fixture(serviceEnvironment, releaseType = 5) {
 for (const [native, expected] of [['development', 'sandbox'], ['production', 'production']]) {
   test(`explicit ${native} environment registers against ${expected}`, async () => {
     const { notifications, application } = fixture(native);
-    application.getApplicationReleaseTypeAsync = async () => { throw new Error('Should not inspect release type'); };
+    application.getIosApplicationReleaseTypeAsync = async () => { throw new Error('Should not inspect release type'); };
     assert.deepEqual(await getApplePushRegistration(notifications, application), {
       token: 'fixture-token', environment: expected, bundleId: 'app.replit.ludi',
     });
