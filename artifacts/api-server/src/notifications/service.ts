@@ -10,6 +10,7 @@ import { notificationWS } from "../websocket";
 import { canonicalTrigger, pushPreferenceAllows, renderTemplate, type TemplateContext } from "./catalog";
 import { apnsConfiguration, classifyApnsResponse, sendApplePush } from "./apns";
 import { triggerType } from "./triggerSettings";
+import { audienceVoteStatuses, canonicalAudience, voteMatchesAudience } from "./audiences";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Notification = typeof notifications.$inferSelect;
@@ -61,13 +62,17 @@ async function queueConfiguredNotification(
   if (!pushPreferenceAllows(triggerId, prefs)) return;
   if (notification.createdAt && prefs?.updatedAt && notification.createdAt < prefs.updatedAt) return;
   const { context, event, eventId } = await notificationContext(notification, tx);
-  if (trigger.audience === "attendees") {
-    if (!event) return;
-    const [attendance] = await tx.select().from(eventAttendance).where(and(
-      eq(eventAttendance.eventId, event.id), eq(eventAttendance.userId, notification.userId),
-      inArray(eventAttendance.status, ["attending", "promoted"]),
-    )).limit(1);
-    if (!attendance) return;
+  const audience = canonicalAudience(triggerId, trigger.audience);
+  const voteStatuses = audienceVoteStatuses(audience);
+  if (voteStatuses) {
+    if (event) {
+      const [attendance] = await tx.select().from(eventAttendance).where(and(
+        eq(eventAttendance.eventId, event.id), eq(eventAttendance.userId, notification.userId),
+        inArray(eventAttendance.status, [...voteStatuses]),
+      )).limit(1);
+      if (!attendance) return;
+    } else if (triggerId !== "event_cancelled" ||
+      !voteMatchesAudience(audience, metadataOf(notification).recipientVoteStatus)) return;
   }
   const [template] = await tx.select().from(pushTemplates).where(eq(pushTemplates.id, trigger.templateId)).limit(1);
   if (!template) return;
@@ -194,11 +199,14 @@ export async function processPushDeliveries() {
           await update({ status: "skipped", reason: "Payment no longer outstanding or payable" }); return;
         }
       }
-      if (trigger?.audience !== "team_members") {
+      const audience = canonicalAudience(type, trigger?.audience || "existing");
+      if (audience !== "team_members") {
+        const voteStatuses = type === "payment_reminder"
+          ? ["attending", "promoted"] : [...(audienceVoteStatuses(audience) || [])];
         const [attendance] = await db.select().from(eventAttendance).where(and(
-          eq(eventAttendance.eventId, event.id), eq(eventAttendance.userId, row.userId), inArray(eventAttendance.status, ["attending", "promoted"]),
+          eq(eventAttendance.eventId, event.id), eq(eventAttendance.userId, row.userId), inArray(eventAttendance.status, voteStatuses),
         )).limit(1);
-        if (!attendance) { await update({ status: "skipped", reason: "Player is no longer attending" }); return; }
+        if (!attendance) { await update({ status: "skipped", reason: "Player no longer matches the configured recipients" }); return; }
       } else {
         const [member] = await db.select().from(teamMemberships).where(and(eq(teamMemberships.teamId, event.primaryTeamId), eq(teamMemberships.userId, row.userId))).limit(1);
         if (!member) { await update({ status: "skipped", reason: "Player is no longer a team member" }); return; }
@@ -253,11 +261,14 @@ export async function processScheduledReminders() {
       const due = new Date(+target - trigger.reminderMinutes * 60_000);
       // Enabling/changing a reminder does not send historical reminders in bulk.
       if (!Number.isFinite(+target) || now < due || now >= target || due < trigger.updatedAt) continue;
-      const recipients = trigger.audience === "team_members"
+      const audience = canonicalAudience(type, trigger.audience);
+      const voteStatuses = type === "payment_reminder"
+        ? ["attending", "promoted"] : [...(audienceVoteStatuses(audience) || [])];
+      const recipients = audience === "team_members"
         ? await db.select({ userId: teamMemberships.userId }).from(teamMemberships)
           .where(eq(teamMemberships.teamId, event.primaryTeamId))
         : await db.select({ userId: eventAttendance.userId }).from(eventAttendance)
-          .where(and(eq(eventAttendance.eventId, event.id), inArray(eventAttendance.status, ["attending", "promoted"])));
+          .where(and(eq(eventAttendance.eventId, event.id), inArray(eventAttendance.status, voteStatuses)));
       for (const recipient of recipients) {
         const [prefs] = await db.select().from(notificationPreferences).where(eq(notificationPreferences.userId, recipient.userId)).limit(1);
         if (!pushPreferenceAllows(type, prefs)) continue;

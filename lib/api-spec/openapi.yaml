@@ -609,7 +609,7 @@ components:
       properties:
         enabled: { type: boolean }
         templateId: { type: string, minLength: 1 }
-        audience: { type: string, enum: [existing, attendees, team_members] }
+        audience: { type: string, enum: [existing, attendees, maybe_voters, team_members, flare_recipients, payment_recipient] }
         reminderMinutes: { type: integer, minimum: 5, maximum: 10080 }
     PushTrigger:
       type: object
@@ -619,7 +619,7 @@ components:
         type: { type: string }
         enabled: { type: boolean }
         templateId: { type: ["string", "null"] }
-        audience: { type: string, enum: [existing, attendees, team_members] }
+        audience: { type: string, enum: [existing, attendees, maybe_voters, team_members, flare_recipients, payment_recipient] }
         reminderMinutes: { type: integer, minimum: 5, maximum: 10080 }
         label: { type: string }
         description: { type: string }

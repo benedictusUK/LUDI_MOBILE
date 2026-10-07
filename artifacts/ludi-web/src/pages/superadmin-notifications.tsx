@@ -59,7 +59,18 @@ const STATUS_STYLE: Record<string, string> = {
 };
 
 const fmt = (s?: string | null) => (s ? new Date(s).toLocaleString() : "-");
-const audienceLabel = (a: string) => a.replace(/_/g, " ");
+const audienceLabel = (a: string) => ({
+  existing: "Relevant notification recipients", attendees: "Event attendees",
+  maybe_voters: "Maybe Voters", team_members: "All Team Members",
+  flare_recipients: "Opted-in Flare Recipients", payment_recipient: "Relevant payment player",
+} as Record<string, string>)[a] ?? a.replace(/_/g, " ");
+const audienceDescription = (a: string) => ({
+  attendees: "Players who voted Yes, including players on the reserve list.",
+  maybe_voters: "Players who voted Maybe on this event.",
+  team_members: "Team members, regardless of their event vote.",
+  flare_recipients: "Eligible nearby players who opted in to flare notifications.",
+  payment_recipient: "Only the player whose payment needs attention or has changed.",
+} as Record<string, string>)[a] ?? "";
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
@@ -244,11 +255,12 @@ function NotificationForm({ trigger, data, onDone, onNewTemplate }: {
 
         {meta && (
           <div className="space-y-1.5">
-            <Label>Audience</Label>
+            <Label>Recipients</Label>
             <Select value={audience} onValueChange={setAudience}>
-              <SelectTrigger aria-label="Audience" data-testid="select-notification-audience"><SelectValue placeholder="Choose audience" /></SelectTrigger>
+              <SelectTrigger aria-label="Recipients" data-testid="select-notification-audience"><SelectValue placeholder="Choose recipients" /></SelectTrigger>
               <SelectContent>{meta.allowedAudiences.map((a) => <SelectItem key={a} value={a} className="capitalize">{audienceLabel(a)}</SelectItem>)}</SelectContent>
             </Select>
+            <p className="text-sm text-neutral-500">{audienceDescription(audience)}</p>
           </div>
         )}
         {meta?.scheduled && (
@@ -462,7 +474,7 @@ export default function SuperAdminNotifications() {
                       </div>
                       <dl className="grid grid-cols-2 gap-2 text-sm">
                         <div><dt className="text-neutral-500">Template</dt><dd>{tplName(t.templateId)}</dd></div>
-                        <div><dt className="text-neutral-500">Audience</dt><dd className="capitalize">{audienceLabel(t.audience)}</dd></div>
+                        <div><dt className="text-neutral-500">Recipients</dt><dd>{audienceLabel(t.audience)}</dd></div>
                         {t.scheduled && <div><dt className="text-neutral-500">Minutes before</dt><dd>{t.reminderMinutes}</dd></div>}
                         <div><dt className="text-neutral-500">Updated</dt><dd>{fmt(t.updatedAt)}</dd></div>
                       </dl>

@@ -152,7 +152,10 @@ export type PushTriggerInputAudience = typeof PushTriggerInputAudience[keyof typ
 export const PushTriggerInputAudience = {
   existing: 'existing',
   attendees: 'attendees',
+  maybe_voters: 'maybe_voters',
   team_members: 'team_members',
+  flare_recipients: 'flare_recipients',
+  payment_recipient: 'payment_recipient',
 } as const;
 
 export interface PushTriggerInput {
@@ -186,7 +189,10 @@ export type PushTriggerAudience = typeof PushTriggerAudience[keyof typeof PushTr
 export const PushTriggerAudience = {
   existing: 'existing',
   attendees: 'attendees',
+  maybe_voters: 'maybe_voters',
   team_members: 'team_members',
+  flare_recipients: 'flare_recipients',
+  payment_recipient: 'payment_recipient',
 } as const;
 
 export interface PushTrigger {

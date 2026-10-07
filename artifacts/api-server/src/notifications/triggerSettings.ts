@@ -1,5 +1,6 @@
 import type { pushTriggers } from "@workspace/db";
 import { TRIGGER_CATALOG } from "./catalog";
+import { canonicalAudience } from "./audiences";
 
 type StoredTrigger = typeof pushTriggers.$inferSelect;
 
@@ -12,7 +13,7 @@ export function triggerType(id: string) {
 export function describeTrigger(trigger: StoredTrigger) {
   const definition = TRIGGER_CATALOG.find(t => t.id === triggerType(trigger.id));
   if (!definition) throw new Error("Unsupported stored notification type");
-  return { ...definition, ...trigger, type: definition.id };
+  return { ...definition, ...trigger, type: definition.id, audience: canonicalAudience(definition.id, trigger.audience) };
 }
 
 export function resolveTriggerSettings(stored: StoredTrigger[]) {

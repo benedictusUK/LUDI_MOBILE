@@ -14,6 +14,7 @@ import { db } from "../db";
 import { apnsConfiguration } from "../notifications/apns";
 import { PLACEHOLDERS, TRIGGER_CATALOG, SAMPLE_CONTEXT, renderTemplate, validateTemplateText } from "../notifications/catalog";
 import { resolveTriggerSettings, describeTrigger, triggerType } from "../notifications/triggerSettings";
+import { canonicalAudience } from "../notifications/audiences";
 
 class NotificationError extends Error {
   constructor(public status: number, message: string) { super(message); }
@@ -131,7 +132,8 @@ export function registerNotificationAdmin(app: Express, authenticate: RequestHan
     res.status(204).end();
   }));
   app.post("/api/admin/notifications/triggers", handle(async (req, res) => {
-    const { type, ...input } = CreatePushTriggerBody.parse(req.body);
+    const { type, ...parsed } = CreatePushTriggerBody.parse(req.body);
+    const input = { ...parsed, audience: canonicalAudience(type, parsed.audience) };
     const definition = TRIGGER_CATALOG.find(t => t.id === type);
     if (!definition) throw new NotificationError(400, "Choose a supported notification type");
     if (!(definition.allowedAudiences as readonly string[]).includes(input.audience)) throw new NotificationError(400, "That recipient audience is not supported for this type");
@@ -153,7 +155,8 @@ export function registerNotificationAdmin(app: Express, authenticate: RequestHan
     res.status(204).end();
   }));
   app.put("/api/admin/notifications/triggers/:id", handle(async (req, res) => {
-    const input = UpdatePushTriggerBody.parse(req.body);
+    const parsed = UpdatePushTriggerBody.parse(req.body);
+    const input = { ...parsed, audience: canonicalAudience(triggerType(req.params.id), parsed.audience) };
     const definition = TRIGGER_CATALOG.find(t => t.id === triggerType(req.params.id));
     if (!definition) throw new NotificationError(404, "Unsupported notification trigger");
     if (!(definition.allowedAudiences as readonly string[]).includes(input.audience)) throw new NotificationError(400, "That recipient audience is not supported for this trigger");

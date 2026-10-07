@@ -1,6 +1,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { toHundredths, fromHundredths, parseMinutes, placeholderToken, testBlockReason, errInfo } from './adminHelpers.mjs';
+import { audienceDescription, audienceLabel, toHundredths, fromHundredths, parseMinutes, placeholderToken, testBlockReason, errInfo } from './adminHelpers.mjs';
+
+test('recipient groups have explicit labels and describe Yes/Maybe/flare eligibility', () => {
+  assert.equal(audienceLabel('attendees'), 'Event attendees');
+  assert.equal(audienceLabel('maybe_voters'), 'Maybe Voters');
+  assert.equal(audienceLabel('team_members'), 'All Team Members');
+  assert.equal(audienceLabel('flare_recipients'), 'Opted-in Flare Recipients');
+  assert.match(audienceDescription('attendees'), /voted Yes/);
+  assert.match(audienceDescription('maybe_voters'), /voted Maybe/);
+  assert.match(audienceDescription('flare_recipients'), /Eligible nearby.*opted in/);
+});
 
 test('fee input converts percentages/pounds to exact integer basis points/pence', () => {
   for (const [input, value] of [['0', 0], ['2.99', 299], ['5', 500], ['100.00', 10000], [' 0.30 ', 30]]) {

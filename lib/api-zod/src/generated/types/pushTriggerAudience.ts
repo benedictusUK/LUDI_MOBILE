@@ -12,5 +12,8 @@ export type PushTriggerAudience = typeof PushTriggerAudience[keyof typeof PushTr
 export const PushTriggerAudience = {
   existing: 'existing',
   attendees: 'attendees',
+  maybe_voters: 'maybe_voters',
   team_members: 'team_members',
+  flare_recipients: 'flare_recipients',
+  payment_recipient: 'payment_recipient',
 } as const;

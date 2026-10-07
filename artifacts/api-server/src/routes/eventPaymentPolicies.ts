@@ -1,7 +1,7 @@
 import type { Express, RequestHandler } from "express";
 import { and, eq, notInArray } from "drizzle-orm";
 import {
-  events, eventPayments, eventTeams, payments, insertEventSchema, teamMemberships, notifications, notificationPreferences,
+  events, eventPayments, eventTeams, eventAttendance, payments, insertEventSchema, teamMemberships, notifications, notificationPreferences,
   normalizeEventPaymentSettings, paymentWindow, effectivePaymentPolicy,
 } from "@workspace/db";
 import { db } from "../db";
@@ -134,10 +134,14 @@ export function registerEventPaymentPolicies(app: Express, authenticate: Request
         .leftJoin(notificationPreferences, eq(notificationPreferences.userId, teamMemberships.userId))
         .where(eq(teamMemberships.teamId, event.primaryTeamId));
       const recipients = members.filter(m => m.userId !== req.userId && m.eventChanges !== false);
+      const votes = await tx.select({ userId: eventAttendance.userId, status: eventAttendance.status })
+        .from(eventAttendance).where(eq(eventAttendance.eventId, event.id));
+      const voteByUser = new Map(votes.map(v => [v.userId, v.status]));
       if (recipients.length) await tx.insert(notifications).values(recipients.map(member => ({
         userId: member.userId, title: "Event cancelled", message: `"${event.name}" has been cancelled.`,
         type: "event_cancelled", relatedId: event.id,
-        metadata: JSON.stringify({ eventId: event.id, eventData: { title: event.name, startDate: event.startDate, startTime: event.startTime, location: event.location } }),
+        metadata: JSON.stringify({ eventId: event.id, recipientVoteStatus: voteByUser.get(member.userId) || null,
+          eventData: { title: event.name, startDate: event.startDate, startTime: event.startTime, location: event.location } }),
       })));
       await tx.delete(events).where(eq(events.id, event.id));
     });

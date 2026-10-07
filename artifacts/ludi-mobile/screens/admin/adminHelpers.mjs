@@ -10,10 +10,20 @@ export const fmtDate = (s) => {
   return Number.isNaN(d.getTime()) ? String(s) : d.toLocaleString();
 };
 export const audienceLabel = (a) => ({
-  existing: 'Existing notification recipients',
+  existing: 'Relevant notification recipients',
   attendees: 'Event attendees',
-  team_members: 'Team members',
+  maybe_voters: 'Maybe Voters',
+  team_members: 'All Team Members',
+  flare_recipients: 'Opted-in Flare Recipients',
+  payment_recipient: 'Relevant payment player',
 }[a] || String(a).replace(/_/g, ' '));
+export const audienceDescription = (a) => ({
+  attendees: 'Players who voted Yes, including players on the reserve list.',
+  maybe_voters: 'Players who voted Maybe on this event.',
+  team_members: 'Team members, regardless of their event vote.',
+  flare_recipients: 'Eligible nearby players who opted in to flare notifications.',
+  payment_recipient: 'Only the player whose payment needs attention or has changed.',
+}[a] || '');
 export const placeholderToken = (name) => `{${name}}`;
 /** Decimal string with at most 2 dp -> integer hundredths, or null if invalid / above max. */
 export function toHundredths(s, max) {

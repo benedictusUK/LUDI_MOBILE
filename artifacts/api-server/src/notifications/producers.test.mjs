@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { build } from 'esbuild';
 import { fileURLToPath } from 'node:url';
+import { PgDialect } from 'drizzle-orm/pg-core';
 
 // Exercise the actual producer/outbox functions with an isolated transaction
 // double. No database credentials, Apple credentials, or network sends.
@@ -17,12 +18,29 @@ function rowsFor(table) {
   return state[name] || [];
 }
 function selection() {
-  let table, limit = Infinity;
+  let table, condition, limit = Infinity;
   const q = {
-    from(value) { table = value; return q; }, where() { return q; },
+    from(value) { table = value; return q; }, where(value) { condition = value; return q; },
     orderBy() { return q; }, for() { return q; },
     limit(value) { limit = value; return q; },
-    then(resolve, reject) { return Promise.resolve(rowsFor(table).slice(0, limit)).then(resolve, reject); },
+    then(resolve, reject) {
+      let rows = rowsFor(table);
+      if (nameOf(table) === 'event_attendance' && condition) {
+        // Evaluate the actual generated vote predicates rather than letting a
+        // Maybe-voter test pass against a fixture that returns every voter.
+        const query = new PgDialect().sqlToQuery(condition);
+        for (const [column, key] of [['event_id', 'eventId'], ['user_id', 'userId']]) {
+          const match = query.sql.match(new RegExp(`"${column}" = \\$(\\d+)`));
+          if (match) rows = rows.filter(row => row[key] === query.params[Number(match[1]) - 1]);
+        }
+        const match = query.sql.match(/"status" in \(([^)]+)\)/);
+        if (match) {
+          const statuses = [...match[1].matchAll(/\$(\d+)/g)].map(m => query.params[Number(m[1]) - 1]);
+          rows = rows.filter(row => statuses.includes(row.status));
+        }
+      }
+      return Promise.resolve(rows.slice(0, limit)).then(resolve, reject);
+    },
   };
   return q;
 }
@@ -188,3 +206,45 @@ test('two before-event reminders have independent claims and push only their own
   assert.deepEqual(state.push_deliveries.map(d => d.triggerId), ['event_reminder', 'event_reminder:second']);
   assert.ok(state.push_deliveries.every(d => d.data.triggerId === 'event_reminder'));
 });
+
+for (const [audience, expected] of [
+  ['attendees', ['attending-user', 'promoted-user', 'reserve-user']],
+  ['maybe_voters', ['maybe-user']],
+  ['team_members', ['attending-user', 'promoted-user', 'reserve-user', 'maybe-user', 'not_attending-user', 'pending-user', 'nonvoter']],
+]) {
+  test(`scheduled ${audience} recipients match the selected group`, async () => {
+    reset();
+    const target = new Date(Date.now() + 30 * 60_000);
+    state.events[0].startDate = target.toISOString().slice(0, 10);
+    state.events[0].startTime = target.toISOString().slice(11, 16);
+    state.event_attendance = ['attending', 'promoted', 'reserve', 'maybe', 'not_attending', 'pending']
+      .map(status => ({ userId: `${status}-user`, eventId: 'fixture-event', status }));
+    state.team_memberships = [...state.event_attendance.map(v => ({ userId: v.userId, teamId: 'fixture-team' })),
+      { userId: 'nonvoter', teamId: 'fixture-team' }];
+    state.push_triggers = [{
+      id: 'event_reminder:recipients', enabled: true, templateId: 'fixture-template', audience,
+      reminderMinutes: 60, updatedAt: new Date(Date.now() - 3 * 86400_000),
+    }];
+    await service.processScheduledReminders();
+    assert.deepEqual(state.notifications.map(n => n.userId).sort(), [...expected].sort());
+  });
+}
+
+for (const [audience, status, expected] of [
+  ['attendees', 'attending', 1], ['attendees', 'reserve', 1], ['attendees', 'maybe', 0],
+  ['maybe_voters', 'maybe', 1], ['maybe_voters', 'pending', 0],
+]) {
+  test(`cancelled event ${audience} uses the saved ${status} vote after deletion`, async () => {
+    reset();
+    state.events = [];
+    state.push_triggers[0] = { ...state.push_triggers[0], id: 'event_cancelled:recipients', audience };
+    state.notifications = [{
+      id: 'cancelled-notice', userId: 'fixture-user', type: 'event_cancelled', message: 'Cancelled',
+      relatedId: 'fixture-event', createdAt: new Date(),
+      metadata: JSON.stringify({ eventId: 'fixture-event', recipientVoteStatus: status }),
+    }];
+    state.push_notification_outbox = [{ notificationId: 'cancelled-notice' }];
+    await service.processNotificationOutbox();
+    assert.equal(state.push_deliveries.length, expected);
+  });
+}

@@ -20,3 +20,9 @@ Notification types are choices for creating configurations, not a limit of one n
 **Why:** The user explicitly wants to create multiple reminders of the same type.
 
 **How to apply:** Notification settings opens the configured-notification list with creation available. Keep Templates at the top as a separate screen for viewing and creating reusable templates.
+
+Recipient groups must be explicit: “Event attendees” means people who voted Yes, “Maybe Voters” means people who voted Maybe, and “All Team Members” is independent of votes. Flare notifications default to “Opted-in Flare Recipients”.
+
+**Why:** The user requested these groups and found “Existing notification recipients” unclear.
+
+**How to apply:** Match the actual recipient selection to the labels, including when rechecking queued reminders. Flare opt-in does not bypass the existing nearby-player eligibility rules, and payment notifications remain private to the affected player.

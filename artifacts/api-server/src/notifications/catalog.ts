@@ -7,16 +7,16 @@ export const SAMPLE_CONTEXT: TemplateContext = {
 };
 
 export const TRIGGER_CATALOG = [
-  { id: "event_created", label: "New event", description: "When an event is created, for the recipients of the existing team notification.", scheduled: false, allowedAudiences: ["existing", "attendees"] },
-  { id: "event_changed", label: "Event changed", description: "When event details change, excluding the person making the change.", scheduled: false, allowedAudiences: ["existing", "attendees"] },
-  { id: "event_cancelled", label: "Event cancelled", description: "When an event is deleted or cancelled, for the notified team members.", scheduled: false, allowedAudiences: ["existing"] },
-  { id: "flare_gun", label: "Flare sent", description: "Only eligible nearby players already selected by LUDI's flare rules.", scheduled: false, allowedAudiences: ["existing"] },
-  { id: "event_reminder", label: "Before an event", description: "A scheduled reminder before event start. Cancelled events are excluded.", scheduled: true, allowedAudiences: ["attendees", "team_members"] },
-  { id: "payment_reminder", label: "Before a payment deadline", description: "For attending players with an outstanding payment or authorisation; never collects money.", scheduled: true, allowedAudiences: ["existing"] },
-  { id: "payment_required", label: "Payment required", description: "When LUDI creates a payment request for a player.", scheduled: false, allowedAudiences: ["existing"] },
-  { id: "payment_authorization_required", label: "Authorisation required", description: "When a player needs to authorise an event payment.", scheduled: false, allowedAudiences: ["existing"] },
-  { id: "payment_captured", label: "Payment collected", description: "When LUDI confirms a payment collection.", scheduled: false, allowedAudiences: ["existing"] },
-  { id: "payment_failed", label: "Payment failed", description: "When a payment or authorisation needs attention.", scheduled: false, allowedAudiences: ["existing"] },
+  { id: "event_created", label: "New event", description: "When an event is created, excluding its creator. Yes/Maybe groups may be empty until voting starts.", scheduled: false, allowedAudiences: ["team_members", "attendees", "maybe_voters"] },
+  { id: "event_changed", label: "Event changed", description: "When event details change, excluding the person making the change.", scheduled: false, allowedAudiences: ["team_members", "attendees", "maybe_voters"] },
+  { id: "event_cancelled", label: "Event cancelled", description: "When an event is deleted or cancelled, using votes recorded before cancellation.", scheduled: false, allowedAudiences: ["team_members", "attendees", "maybe_voters"] },
+  { id: "flare_gun", label: "Flare sent", description: "Eligible nearby players who opted in to flare notifications; existing distance and eligibility rules still apply.", scheduled: false, allowedAudiences: ["flare_recipients"] },
+  { id: "event_reminder", label: "Before an event", description: "A scheduled reminder before event start. Cancelled events are excluded.", scheduled: true, allowedAudiences: ["attendees", "maybe_voters", "team_members"] },
+  { id: "payment_reminder", label: "Before a payment deadline", description: "For attending players with an outstanding payment or authorisation; never collects money.", scheduled: true, allowedAudiences: ["payment_recipient"] },
+  { id: "payment_required", label: "Payment required", description: "When LUDI creates a payment request for a player.", scheduled: false, allowedAudiences: ["payment_recipient"] },
+  { id: "payment_authorization_required", label: "Authorisation required", description: "When a player needs to authorise an event payment.", scheduled: false, allowedAudiences: ["payment_recipient"] },
+  { id: "payment_captured", label: "Payment collected", description: "When LUDI confirms a payment collection.", scheduled: false, allowedAudiences: ["payment_recipient"] },
+  { id: "payment_failed", label: "Payment failed", description: "When a payment or authorisation needs attention.", scheduled: false, allowedAudiences: ["payment_recipient"] },
 ] as const;
 
 const ALIASES: Record<string, string> = {

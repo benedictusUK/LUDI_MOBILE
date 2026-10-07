@@ -7,7 +7,7 @@ import {
 } from '@workspace/api-client-react';
 import { BrandText as Text } from '../../components/brand/BrandText';
 import { Banner, Button, Card, Chip, Confirm, Field, LoadError, Screen, SectionTitle, SkeletonBlocks, ToggleRow, useAdminGuard, useAdminStyles } from './adminUi';
-import { audienceLabel, errInfo, fmtDate, parseMinutes, placeholderToken, testBlockReason } from './adminHelpers.mjs';
+import { audienceDescription, audienceLabel, errInfo, fmtDate, parseMinutes, placeholderToken, testBlockReason } from './adminHelpers.mjs';
 
 function Preview({ title, body, request, report }) {
   const { s, colors } = useAdminStyles();
@@ -157,10 +157,11 @@ function NotificationEditor({ trigger, d, onClose, onSaved, onNewTemplate }) {
         )}
         {meta ? (
           <>
-            <Text style={[s.label, { color: colors.text }]}>Audience</Text>
+            <Text style={[s.label, { color: colors.text }]}>Recipients</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
               {meta.allowedAudiences.map((a) => <Chip key={a} label={audienceLabel(a)} selected={audience === a} disabled={busy} onPress={() => setAudience(a)} />)}
             </View>
+            {!!audienceDescription(audience) && <Text style={[s.body, { color: colors.text }]}>{audienceDescription(audience)}</Text>}
           </>
         ) : null}
         {meta && meta.scheduled ? (
