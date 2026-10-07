@@ -9,7 +9,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 export default function PaymentAuthorizationScreen() {
   const route = useRoute();
   const navigation = useNavigation();
-  const { initPaymentSheet, presentPaymentSheet } = useStripe();
+  const { initPaymentSheet, presentPaymentSheet, handleNextAction } = useStripe();
   const { apiRequest } = useAuth();
   const { colors, isDark } = useTheme();
   
@@ -84,8 +84,28 @@ export default function PaymentAuthorizationScreen() {
         body: JSON.stringify(body),
       });
 
-      if (response.ok) {
-        const data = await response.json();
+      let finalResponse = response;
+      if (response.status === 409) {
+        const action = await response.json();
+        if (!action.requiresAction || !action.clientSecret) {
+          throw new Error(action.message || 'Payment authorization failed');
+        }
+        const { error, paymentIntent } = await handleNextAction(action.clientSecret);
+        const expectedStatus = 'Succeeded';
+        if (error || paymentIntent?.status !== expectedStatus) {
+          throw new Error(error?.message || 'Card authentication was not completed');
+        }
+        finalResponse = await apiRequest(endpoint, {
+          method: 'POST',
+          body: JSON.stringify({
+            paymentIntentId: paymentIntent.id,
+            paymentMethod: isFromNotification ? 'finalize' : 'wallet',
+          }),
+        });
+      }
+
+      if (finalResponse.ok) {
+        const data = await finalResponse.json();
         
         if (!isFromNotification) {
           const voteResponse = await apiRequest(`/api/events/${eventId}/vote`, {
@@ -102,11 +122,11 @@ export default function PaymentAuthorizationScreen() {
           'Authorisation Successful',
           isFromNotification 
             ? 'Payment processed and attendance confirmed!' 
-            : 'Payment authorised and attendance confirmed!',
+            : 'Payment collected and attendance confirmed!',
           [{ text: 'OK', onPress: () => navigation.goBack() }]
         );
       } else {
-        const error = await response.json();
+        const error = await finalResponse.json();
         Alert.alert('Authorisation Failed', error.message || 'Failed to authorise payment');
       }
     } catch (error) {
@@ -154,8 +174,7 @@ export default function PaymentAuthorizationScreen() {
         return;
       }
 
-      // Register the payment authorization with the backend after successful wallet payment
-      // Use the authorize-payment endpoint to store the payment record
+      // Register the completed up-front payment with the backend.
       const authorizeResponse = await apiRequest(`/api/events/${eventId}/authorize-payment`, {
         method: 'POST',
         body: JSON.stringify({
@@ -216,7 +235,7 @@ export default function PaymentAuthorizationScreen() {
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>
-          {isFromNotification ? 'Complete Payment' : 'Authorise Payment'}
+          Complete Payment
         </Text>
         <View style={{ width: 24 }} />
       </View>
@@ -229,7 +248,7 @@ export default function PaymentAuthorizationScreen() {
           </View>
           <View style={styles.infoRow}>
             <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>
-              {isFromNotification ? 'Payment Amount' : 'Authorisation Amount'}
+              Payment Amount
             </Text>
             <View style={[styles.amountBadge, { backgroundColor: isDark ? '#1e3a5f' : '#dbeafe' }]}>
               <Text style={[styles.amountText, { color: isDark ? '#60a5fa' : '#1d4ed8' }]}>
@@ -243,12 +262,10 @@ export default function PaymentAuthorizationScreen() {
           <Ionicons name="checkmark-circle" size={20} color={isDark ? '#60a5fa' : '#2563eb'} />
           <View style={styles.infoBoxContent}>
             <Text style={[styles.infoBoxTitle, { color: isDark ? '#60a5fa' : '#1d4ed8' }]}>
-              {isFromNotification ? 'Payment will be processed immediately' : 'Authorisation hold - not a charge'}
+              Payment will be collected immediately
             </Text>
             <Text style={[styles.infoBoxText, { color: isDark ? '#93c5fd' : '#3b82f6' }]}>
-              {isFromNotification 
-                ? 'This payment confirms your attendance for the event.'
-                : "We'll authorize this amount. Final charges occur after the event."}
+              Any unused flexible balance will be refunded after the organiser closes the event.
             </Text>
           </View>
         </View>
@@ -355,7 +372,7 @@ export default function PaymentAuthorizationScreen() {
             <>
               <Ionicons name="card" size={20} color="#fff" />
               <Text style={styles.authorizeButtonText}>
-                {isFromNotification ? 'Pay Now' : 'Authorise Payment'}
+                Pay Now
               </Text>
             </>
           )}

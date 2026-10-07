@@ -3,6 +3,7 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { stripeWebhookHandler } from "./routes/stripeWebhook";
 
 const app: Express = express();
 
@@ -25,12 +26,21 @@ app.use(
     },
   }),
 );
-app.use(cors({
-  origin: true,
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  }),
+);
+// Stripe verifies signatures against the exact bytes it sent. This route must
+// remain before every JSON or URL-encoded body parser.
+app.post(
+  "/api/stripe/webhook",
+  express.raw({ type: "application/json" }),
+  stripeWebhookHandler,
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

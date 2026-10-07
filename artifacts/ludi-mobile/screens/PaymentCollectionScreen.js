@@ -100,19 +100,23 @@ export default function PaymentCollectionScreen() {
       const response = await apiRequest(`/api/events/${eventId}/collect-payment`, {
         method: 'POST',
         body: JSON.stringify({
-          organiserId: selectedOrganiserId,
           venueCost,
-          attendeeIds: selectedAttendees,
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
         const organizerNote = data.organizerExcluded ? ' (venue organizer excluded)' : '';
+        const refundNote = Number(data.totalRefundedMinor || 0) > 0
+          ? `\n£${data.totalRefunded} will be refunded to players.`
+          : '';
+        const outstandingNote = Number(data.totalOutstandingMinor || 0) > 0
+          ? `\n£${data.totalOutstanding} is still due in total across ${data.amountOwedPerPlayer.length} player${data.amountOwedPerPlayer.length === 1 ? '' : 's'}.`
+          : '';
         
         Alert.alert(
-          'Payment Collection Complete',
-          `Successfully collected £${data.totalAmount} from ${data.successfulCaptures} payments${data.failedCaptures > 0 ? ` (${data.failedCaptures} failed)` : ''}${organizerNote}`,
+          outstandingNote ? 'Available Funds Allocated' : 'Event Payments Reconciled',
+          `£${data.availableFunds} is available for the organiser${organizerNote}.${refundNote}${outstandingNote}`,
           [{ text: 'OK', onPress: () => navigation.goBack() }]
         );
       } else {
@@ -148,7 +152,11 @@ export default function PaymentCollectionScreen() {
   };
 
   const perPersonCost = calculatePerPersonCost();
-  const totalToCollect = perPersonCost * selectedAttendees.filter(id => id !== selectedOrganiserId).length;
+  const chargeableAttendeeCount = selectedAttendees.filter(id => id !== selectedOrganiserId).length;
+  const totalToCollect = perPersonCost * chargeableAttendeeCount;
+  const upfrontAmount = parseFloat(maxPlayerPayment || '0');
+  const outstandingPerPlayer = Math.max(perPersonCost - upfrontAmount, 0);
+  const outstandingTotal = outstandingPerPlayer * chargeableAttendeeCount;
 
   const allMembersWithVotes = teamMembers.map(member => {
     const vote = attendance.find(a => a.userId === member.userId);
@@ -236,6 +244,23 @@ export default function PaymentCollectionScreen() {
               <Text style={[styles.breakdownNote, { color: isDark ? '#93c5fd' : '#3b82f6' }]}>
                 Total to collect: £{totalToCollect.toFixed(2)} from {selectedAttendees.filter(id => id !== selectedOrganiserId).length} attendees
               </Text>
+            </View>
+          )}
+
+          {outstandingTotal > 0 && (
+            <View style={[styles.costBreakdown, { backgroundColor: isDark ? '#451a03' : '#fffbeb' }]}>
+              <Text style={[styles.breakdownTitle, { color: isDark ? '#fbbf24' : '#92400e' }]}>Available funds are below the final cost</Text>
+              <Text style={[styles.breakdownNote, { color: isDark ? '#fcd34d' : '#b45309' }]}>
+                Current funds will be allocated. £{outstandingTotal.toFixed(2)} remains due in total; approximately £{outstandingPerPlayer.toFixed(2)} per player.
+              </Text>
+              {allMembersWithVotes
+                .filter(member => selectedAttendees.includes(member.userId) && member.userId !== selectedOrganiserId)
+                .map(member => (
+                  <View key={member.userId} style={styles.breakdownRow}>
+                    <Text style={[styles.breakdownLabel, { color: isDark ? '#fcd34d' : '#b45309' }]}>{member.user?.firstName} {member.user?.lastName}</Text>
+                    <Text style={[styles.breakdownValue, { color: isDark ? '#fbbf24' : '#92400e' }]}>£{outstandingPerPlayer.toFixed(2)}</Text>
+                  </View>
+                ))}
             </View>
           )}
         </View>

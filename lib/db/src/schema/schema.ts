@@ -178,6 +178,15 @@ export const events = pgTable("events", {
   
   // Payment fields for Stripe integration
   paymentRequired: boolean("payment_required").default(false),
+  paymentPolicy: varchar("payment_policy", {
+    enum: ["none", "fixed_immediate", "flexible_post_event"],
+  }).notNull().default("none"),
+  currency: varchar("currency", { length: 3 }).notNull().default("gbp"),
+  fixedPriceMinor: integer("fixed_price_minor"),
+  // Optional attendance floor shared by both fixed and flexible collection.
+  // It is not a distinct payment policy: null means no minimum.
+  minimumPaidParticipants: integer("minimum_paid_participants"),
+  completionDueAt: timestamp("completion_due_at", { withTimezone: true }),
   maxPlayerPayment: decimal("max_player_payment", { precision: 10, scale: 2 }), // buffer amount for holds
   finalVenueCost: decimal("final_venue_cost", { precision: 10, scale: 2 }), // actual cost set post-event
   paymentStatus: varchar("payment_status", { enum: ["none", "setup", "holds_created", "captured", "refunded", "partial_captured"] }).default("none"),
@@ -250,7 +259,18 @@ export const eventPayments = pgTable("event_payments", {
   setupIntentClientSecret: varchar("setup_intent_client_secret"), // client secret for Stripe setup intent
   paymentMethodId: varchar("payment_method_id"), // stored payment method from setup intent
   paymentIntentId: varchar("payment_intent_id"), // for the hold/reserved payment
+  stripeChargeId: varchar("stripe_charge_id"),
+  stripeBalanceTransactionId: varchar("stripe_balance_transaction_id"),
   paymentIntentStatus: varchar("payment_intent_status", { enum: ["requires_payment_method", "requires_confirmation", "requires_action", "processing", "requires_capture", "canceled", "succeeded"] }),
+  agreedAmountMinor: integer("agreed_amount_minor"),
+  authorizedAmountMinor: integer("authorized_amount_minor").default(0),
+  capturedAmountMinor: integer("captured_amount_minor").default(0),
+  refundedAmountMinor: integer("refunded_amount_minor").default(0),
+  platformFeeMinor: integer("platform_fee_minor").default(0),
+  organiserAmountMinor: integer("organiser_amount_minor").default(0),
+  stripeFeeMinor: integer("stripe_fee_minor"),
+  currency: varchar("currency", { length: 3 }).notNull().default("gbp"),
+  captureDeadlineAt: timestamp("capture_deadline_at", { withTimezone: true }),
   holdAmount: decimal("hold_amount", { precision: 10, scale: 2 }), // max amount held (with buffer)
   finalAmount: decimal("final_amount", { precision: 10, scale: 2 }), // actual amount captured
   refundAmount: decimal("refund_amount", { precision: 10, scale: 2 }), // amount refunded if any
@@ -263,6 +283,87 @@ export const eventPayments = pgTable("event_payments", {
 }, (table) => [
   unique().on(table.eventId, table.userId) // one payment tracking record per user per event
 ]);
+
+// Durable receipt ledger for Stripe webhooks. Stripe can deliver the same event
+// more than once, so its event ID is the idempotency boundary for processing.
+// The complete webhook payload is deliberately not persisted here because it
+// can contain customer and payment-method data that LUDI does not need.
+export const stripeWebhookEvents = pgTable("stripe_webhook_events", {
+  stripeEventId: varchar("stripe_event_id").primaryKey(),
+  type: varchar("type", { length: 255 }).notNull(),
+  objectId: varchar("object_id"),
+  accountId: varchar("account_id"),
+  apiVersion: varchar("api_version"),
+  livemode: boolean("livemode").notNull(),
+  status: varchar("status", {
+    enum: ["received", "processing", "processed", "failed"],
+  }).notNull().default("received"),
+  attemptCount: integer("attempt_count").notNull().default(1),
+  lastError: text("last_error"),
+  receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
+  processedAt: timestamp("processed_at", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("IDX_stripe_webhook_status_updated").on(table.status, table.updatedAt),
+  index("IDX_stripe_webhook_type_received").on(table.type, table.receivedAt),
+]);
+
+export const paymentOperations = pgTable("payment_operations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  eventPaymentId: varchar("event_payment_id").references(() => eventPayments.id, { onDelete: "cascade" }),
+  eventId: varchar("event_id").references(() => events.id, { onDelete: "cascade" }),
+  operationKey: varchar("operation_key").notNull().unique(),
+  kind: varchar("kind", { enum: ["setup", "authorize", "capture", "cancel", "refund", "transfer_reversal"] }).notNull(),
+  status: varchar("status", { enum: ["pending", "processing", "succeeded", "failed"] }).notNull().default("pending"),
+  stripeIdempotencyKey: varchar("stripe_idempotency_key").notNull().unique(),
+  attemptCount: integer("attempt_count").notNull().default(0),
+  lastError: text("last_error"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+});
+
+export const paymentRefunds = pgTable("payment_refunds", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  eventPaymentId: varchar("event_payment_id").notNull().references(() => eventPayments.id, { onDelete: "restrict" }),
+  stripeRefundId: varchar("stripe_refund_id").unique(),
+  requestKey: varchar("request_key").notNull().unique(),
+  amountMinor: integer("amount_minor").notNull(),
+  currency: varchar("currency", { length: 3 }).notNull(),
+  status: varchar("status").notNull(),
+  reason: varchar("reason"),
+  reverseTransfer: boolean("reverse_transfer").notNull().default(true),
+  refundApplicationFee: boolean("refund_application_fee").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const paymentTransfers = pgTable("payment_transfers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  eventPaymentId: varchar("event_payment_id").notNull().references(() => eventPayments.id, { onDelete: "restrict" }),
+  stripeTransferId: varchar("stripe_transfer_id").notNull().unique(),
+  destinationAccountId: varchar("destination_account_id").notNull(),
+  amountMinor: integer("amount_minor").notNull(),
+  reversedAmountMinor: integer("reversed_amount_minor").notNull().default(0),
+  currency: varchar("currency", { length: 3 }).notNull(),
+  status: varchar("status").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const paymentDisputes = pgTable("payment_disputes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  eventPaymentId: varchar("event_payment_id").notNull().references(() => eventPayments.id, { onDelete: "restrict" }),
+  stripeDisputeId: varchar("stripe_dispute_id").notNull().unique(),
+  stripeChargeId: varchar("stripe_charge_id").notNull(),
+  amountMinor: integer("amount_minor").notNull(),
+  currency: varchar("currency", { length: 3 }).notNull(),
+  status: varchar("status").notNull(),
+  reason: varchar("reason"),
+  evidenceDueAt: timestamp("evidence_due_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 // Notifications table
 export const notifications = pgTable("notifications", {

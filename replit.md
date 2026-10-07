@@ -8,8 +8,15 @@ _Replace the heading above with the project's name, and this line with one sente
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
+- `pnpm --filter @workspace/db run migrate` — apply checked-in SQL migrations with an advisory lock
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- Required env:
+  - `DATABASE_URL` — Postgres connection string
+  - `STRIPE_SECRET_KEY` — server-only Stripe API secret
+  - `STRIPE_WEBHOOK_SECRET` — signing secret for `/api/stripe/webhook`
+  - `PUBLIC_APP_URL` — trusted public web origin used for Stripe Connect return URLs
+  - `LUDI_PLATFORM_FEE_BASIS_POINTS` — integer platform fee in basis points (defaults to `500`, or 5%)
+  - `VITE_STRIPE_PUBLIC_KEY` / `EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY` — publishable keys for web/mobile Stripe UI
 
 ## Stack
 

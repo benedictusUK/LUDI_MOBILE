@@ -186,6 +186,8 @@ export default function CreateEventScreen() {
     recurrenceDaysOfWeek: [],
     isPublished: true,
     paymentRequired: false,
+    paymentPolicy: 'none',
+    minimumPaidParticipants: '',
     maxPlayerPayment: '',
     finalVenueCost: '',
     venueOrganiserId: '',
@@ -431,6 +433,10 @@ export default function CreateEventScreen() {
         recurrenceDaysOfWeek: formData.recurrenceDaysOfWeek,
         isPublished: formData.isPublished,
         paymentRequired: formData.paymentRequired,
+        paymentPolicy: formData.paymentRequired ? formData.paymentPolicy : 'none',
+        minimumPaidParticipants: formData.paymentRequired && formData.minimumPaidParticipants
+          ? parseInt(formData.minimumPaidParticipants, 10)
+          : undefined,
         maxPlayerPayment: formData.paymentRequired && formData.maxPlayerPayment ? formData.maxPlayerPayment : undefined,
         finalVenueCost: formData.paymentRequired && formData.finalVenueCost ? formData.finalVenueCost : undefined,
         venueOrganiserId: formData.paymentRequired && formData.venueOrganiserId ? formData.venueOrganiserId : undefined,
@@ -796,7 +802,14 @@ export default function CreateEventScreen() {
               <Text style={styles.optionSubtitle}>Collect payment from attendees</Text>
             </View>
             <TouchableOpacity
-              onPress={() => setFormData({ ...formData, paymentRequired: !formData.paymentRequired })}
+              onPress={() => {
+                const enabled = !formData.paymentRequired;
+                setFormData({
+                  ...formData,
+                  paymentRequired: enabled,
+                  paymentPolicy: enabled ? 'flexible_post_event' : 'none',
+                });
+              }}
             >
               <View style={[
                 styles.toggle,
@@ -812,7 +825,38 @@ export default function CreateEventScreen() {
 
           {formData.paymentRequired && (
             <>
-              <Text style={[styles.label, { color: colors.text }]}>Max Player Payment (£) *</Text>
+              <Text style={[styles.label, { color: colors.text }]}>Payment method</Text>
+              {[
+                ['fixed_immediate', 'Fixed price'],
+                ['flexible_post_event', 'Flexible price with reconciliation'],
+              ].map(([value, label]) => (
+                <TouchableOpacity
+                  key={value}
+                  style={[styles.pickerButton, {
+                    backgroundColor: colors.inputBackground,
+                    borderColor: formData.paymentPolicy === value ? colors.primary : colors.inputBorder,
+                  }]}
+                  onPress={() => setFormData({ ...formData, paymentPolicy: value })}
+                >
+                  <Text style={[styles.pickerButtonText, { color: colors.inputText }]}>{label}</Text>
+                  {formData.paymentPolicy === value && <Ionicons name="checkmark-circle" size={20} color={colors.primary} />}
+                </TouchableOpacity>
+              ))}
+              <Text style={styles.sublabel}>Flexible payments are collected now; any unused balance is refunded after closure.</Text>
+
+              <Text style={[styles.label, { color: colors.text }]}>Minimum attendees (optional)</Text>
+              <TextInput
+                style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
+                value={formData.minimumPaidParticipants}
+                onChangeText={(text) => setFormData({ ...formData, minimumPaidParticipants: text })}
+                placeholder="No minimum"
+                placeholderTextColor={colors.inputPlaceholder}
+                keyboardType="number-pad"
+              />
+
+              <Text style={[styles.label, { color: colors.text }]}>
+                {formData.paymentPolicy === 'fixed_immediate' ? 'Player price (£) *' : 'Maximum collected per player (£) *'}
+              </Text>
               <TextInput
                 style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.inputText }]}
                 value={formData.maxPlayerPayment}

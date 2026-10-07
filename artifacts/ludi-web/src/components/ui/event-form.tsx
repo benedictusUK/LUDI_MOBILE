@@ -87,6 +87,8 @@ const eventFormSchema = z.object({
   cost: z.string().optional(),
   isPublished: z.boolean().default(false),
   requiresPayment: z.boolean().default(false),
+  paymentPolicy: z.enum(["none", "fixed_immediate", "flexible_post_event"]).default("none"),
+  minimumPaidParticipants: z.string().optional(),
   maxPlayerPayment: z.string().optional(),
   venueOrganiserId: z.string().optional(),
   // Recurring events fields
@@ -145,6 +147,8 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
       cost: "",
       isPublished: false,
       requiresPayment: false,
+      paymentPolicy: "none",
+      minimumPaidParticipants: "",
       maxPlayerPayment: "",
       venueOrganiserId: "",
       recurrenceType: "none",
@@ -202,6 +206,8 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
           cost: event.cost || "",
         isPublished: event.isPublished || false,
         requiresPayment: event.paymentRequired || false,
+        paymentPolicy: (event as any).paymentPolicy || (event.paymentRequired ? "flexible_post_event" : "none"),
+        minimumPaidParticipants: (event as any).minimumPaidParticipants?.toString() || "",
         maxPlayerPayment: event.maxPlayerPayment || "",
         venueOrganiserId: event.venueOrganiserId || event.createdById || "",
         recurrenceType: event.recurrenceType || "none",
@@ -224,6 +230,10 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
         ...data,
         cost: data.cost || "0.00",
         paymentRequired: data.requiresPayment || false,
+        paymentPolicy: data.requiresPayment ? data.paymentPolicy : "none",
+        minimumPaidParticipants: data.requiresPayment && data.minimumPaidParticipants
+          ? parseInt(data.minimumPaidParticipants, 10)
+          : null,
         maxPlayerPayment: data.maxPlayerPayment || null,
         venueOrganiserId: data.venueOrganiserId || null,
         participants: data.maxParticipants ? parseInt(data.maxParticipants) : null,
@@ -670,7 +680,10 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                     <Switch
                       id="requiresPayment"
                       checked={form.watch("requiresPayment")}
-                      onCheckedChange={(checked) => form.setValue("requiresPayment", checked)}
+                      onCheckedChange={(checked) => {
+                        form.setValue("requiresPayment", checked);
+                        form.setValue("paymentPolicy", checked ? "flexible_post_event" : "none");
+                      }}
                     />
                     <Label htmlFor="requiresPayment">Requires Payment</Label>
                   </div>
@@ -690,12 +703,48 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                     <div className="space-y-4">
                       <div className="flex items-center space-x-2">
                         <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                        <Label className="text-sm font-medium text-blue-800">Payment Authorization Setup</Label>
+                        <Label className="text-sm font-medium text-blue-800">Payment setup</Label>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="paymentPolicy" className="text-sm">Payment method</Label>
+                          <Select
+                            value={form.watch("paymentPolicy")}
+                            onValueChange={(value: "fixed_immediate" | "flexible_post_event") => form.setValue("paymentPolicy", value)}
+                          >
+                            <SelectTrigger id="paymentPolicy" className="bg-white">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="fixed_immediate">Fixed price</SelectItem>
+                              <SelectItem value="flexible_post_event">Flexible price with reconciliation</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-blue-600 mt-1">
+                            Flexible payments are collected up front and any unused balance is refunded after closure.
+                          </p>
+                        </div>
+                        <div>
+                          <Label htmlFor="minimumPaidParticipants" className="text-sm">Minimum attendees (optional)</Label>
+                          <Input
+                            id="minimumPaidParticipants"
+                            type="number"
+                            min="1"
+                            step="1"
+                            {...form.register("minimumPaidParticipants")}
+                            className="bg-white"
+                            placeholder="No minimum"
+                          />
+                          <p className="text-xs text-blue-600 mt-1">Available for both fixed and flexible payments.</p>
+                        </div>
                       </div>
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <Label htmlFor="maxPlayerPayment" className="text-sm">Max Player Payment (£)</Label>
+                          <Label htmlFor="maxPlayerPayment" className="text-sm">
+                            {form.watch("paymentPolicy") === "fixed_immediate" ? "Player price (£)" : "Maximum collected per player (£)"}
+                          </Label>
                           <Input
                             id="maxPlayerPayment"
                             type="number"
@@ -730,7 +779,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                               </div>
                             </div>
                             <p className="text-xs text-blue-600 mt-2">
-                              This total includes all platform charges and will be authorized when players vote to attend.
+                              This total includes platform charges and is collected when players confirm attendance.
                             </p>
                           </div>
                         )}
@@ -758,7 +807,7 @@ export default function EventForm({ onCancel, onSuccess, eventId }: EventFormPro
                       </div>
 
                       <p className="text-xs text-blue-600">
-                        Players will authorize the total amount when voting to attend. The actual charge will be collected after the event.
+                        Players are charged when they confirm attendance. Flexible events refund any residual after the organiser closes the event.
                       </p>
                     </div>
                   </div>

@@ -93,8 +93,8 @@ export function PaymentCollectionModal({
 
   // Fetch organiser Connect status
   const { data: organiserStatus = {}, isLoading: loadingStatus } = useQuery<OrganiserStatus>({
-    queryKey: ["/api/connect/status", selectedOrganiserId],
-    enabled: isOpen && !!selectedOrganiserId,
+    queryKey: [`/api/events/${eventId}/organiser-payout-status`],
+    enabled: isOpen,
   });
 
   // Initialize selected attendees with those who voted to attend
@@ -110,22 +110,24 @@ export function PaymentCollectionModal({
   const collectPaymentMutation = useMutation({
     mutationFn: async (data: {
       eventId: string;
-      organiserId: string;
       venueCost: string;
-      attendeeIds: string[];
     }) => {
       const response = await apiRequest("POST", `/api/events/${data.eventId}/collect-payment`, {
-        organiserId: data.organiserId,
         venueCost: data.venueCost,
-        attendeeIds: data.attendeeIds,
       });
       return response.json();
     },
     onSuccess: (data) => {
       const organizerNote = data.organizerExcluded ? " (venue organizer excluded from charges)" : "";
+      const outstandingNote = Number(data.totalOutstandingMinor || 0) > 0
+        ? ` £${data.totalOutstanding} remains due in total (${data.amountOwedPerPlayer.length} player${data.amountOwedPerPlayer.length === 1 ? "" : "s"}).`
+        : "";
+      const refundNote = Number(data.totalRefundedMinor || 0) > 0
+        ? ` £${data.totalRefunded} will be refunded to players.`
+        : "";
       toast({
-        title: "Payment Collection Complete",
-        description: `Successfully collected £${data.totalAmount} from ${data.successfulCaptures} payments${data.failedCaptures > 0 ? ` (${data.failedCaptures} failed)` : ''}${organizerNote}`,
+        title: outstandingNote ? "Available funds allocated" : "Event payments reconciled",
+        description: `£${data.availableFunds} is available for the organiser${organizerNote}.${refundNote}${outstandingNote}`,
       });
       onClose();
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
@@ -140,40 +142,13 @@ export function PaymentCollectionModal({
     },
   });
 
-  const createConnectAccountMutation = useMutation({
-    mutationFn: async (userId: string) => {
-      const response = await apiRequest("POST", "/api/connect/create-account", { userId });
-      return response.json();
-    },
-    onSuccess: (data) => {
-      // Open the onboarding link in a new tab
-      window.open(data.url, "_blank");
-      toast({
-        title: "Connect Account Setup",
-        description: "Please complete the setup in the new tab, then return here.",
-      });
-      // Refetch status after a delay
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["/api/connect/status", selectedOrganiserId] });
-      }, 2000);
-    },
-    onError: (error: unknown) => {
-      const message = error instanceof Error ? error.message : "Failed to start Connect account setup";
-      const isConnectNotEnabled = message.includes("signed up for Connect");
-      toast({
-        title: "Setup Failed",
-        description: isConnectNotEnabled
-          ? "Stripe Connect is not enabled for this account. Please contact support to enable Connect functionality."
-          : message,
-        variant: "destructive",
-      });
-    },
-  });
   const perPersonCost = calculatePerPersonCost(venueCost, selectedAttendees.length, platformCharges);
   const baseCostPerPerson = parseFloat(venueCost || "0") / (selectedAttendees.length || 1);
   const costBreakdown = calculateTotalAmount(baseCostPerPerson, platformCharges);
-  const holdAmount = calculateTotalAmount(maxPlayerPayment || "0", platformCharges).total;
-  const exceedsHold = holdAmount > 0 && perPersonCost > holdAmount;
+  const upfrontAmount = calculateTotalAmount(maxPlayerPayment || "0", platformCharges).total;
+  const exceedsUpfrontAmount = upfrontAmount > 0 && perPersonCost > upfrontAmount;
+  const estimatedOutstandingPerPlayer = Math.max(perPersonCost - upfrontAmount, 0);
+  const estimatedOutstandingTotal = estimatedOutstandingPerPlayer * selectedAttendees.filter(id => id !== selectedOrganiserId).length;
 
   const handleCollectPayment = () => {
     if (!selectedOrganiserId) {
@@ -215,14 +190,9 @@ export function PaymentCollectionModal({
       return;
     }
 
-    // Allow payment collection even without Connect setup for now
-    // The platform will collect payments and organiser reimbursement can be handled manually
-
     collectPaymentMutation.mutate({ 
       eventId, 
-      organiserId: selectedOrganiserId,
       venueCost,
-      attendeeIds: selectedAttendees
     });
   };
 
@@ -321,15 +291,25 @@ export function PaymentCollectionModal({
               </div>
             )}
 
-            {exceedsHold && (
+            {exceedsUpfrontAmount && (
               <div
                 className="mt-3 p-3 bg-amber-50 rounded-lg border border-amber-200 text-amber-700 text-sm flex gap-2"
-                data-testid="warning-hold-exceeded"
+                data-testid="warning-upfront-amount-exceeded"
               >
                 <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
                 <span>
-                  Cost per player (£{perPersonCost.toFixed(2)}) exceeds the authorised hold amount (£{holdAmount.toFixed(2)}).
-                  Existing holds will be cancelled and attendees will need to pay the new amount.
+                  The final cost exceeds the amount already collected (£{upfrontAmount.toFixed(2)} per player).
+                  Current funds will still be allocated. A further £{estimatedOutstandingTotal.toFixed(2)} is due in total,
+                  approximately £{estimatedOutstandingPerPlayer.toFixed(2)} per player.
+                  <span className="block mt-2 font-medium">Estimated amount still owed:</span>
+                  {allMembersWithVotes
+                    .filter(member => selectedAttendees.includes(member.userId) && member.userId !== selectedOrganiserId)
+                    .map(member => (
+                      <span key={member.userId} className="flex justify-between gap-4 mt-1">
+                        <span>{member.user?.firstName} {member.user?.lastName}</span>
+                        <span>£{estimatedOutstandingPerPlayer.toFixed(2)}</span>
+                      </span>
+                    ))}
                 </span>
               </div>
             )}
@@ -516,24 +496,11 @@ export function PaymentCollectionModal({
               {!loadingStatus && !organiserStatus?.payoutsEnabled && (
                 <div className="space-y-2">
                   <p className="text-xs text-neutral-600">
-                    This organiser needs to set up their payout account to receive payments.
+                    This organiser must sign in to LUDI and complete Stripe payout setup before payments can be collected.
                   </p>
                   <div className="text-xs text-amber-600 bg-amber-50 p-2 rounded border border-amber-200">
-                    <strong>Note:</strong> For now, you can collect payments without organiser setup. 
-                    The venue organiser will need to be reimbursed manually outside the platform.
+                    LUDI does not collect participant funds for manual reimbursement outside Stripe Connect.
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => createConnectAccountMutation.mutate(selectedOrganiserId)}
-                    disabled={createConnectAccountMutation.isPending}
-                    className="w-full"
-                  >
-                    {createConnectAccountMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : null}
-                    Try Set Up Payout Account
-                  </Button>
                 </div>
               )}
             </div>
@@ -553,7 +520,8 @@ export function PaymentCollectionModal({
               !selectedOrganiserId ||
               !venueCost ||
               parseFloat(venueCost) <= 0 ||
-              selectedAttendees.length === 0
+              selectedAttendees.length === 0 ||
+              !organiserStatus?.payoutsEnabled
             }
             className="flex-1"
             style={{ backgroundColor: "#10b981", borderColor: "#10b981" }}

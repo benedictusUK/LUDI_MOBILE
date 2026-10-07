@@ -26,3 +26,4 @@ GOOGLE_CLIENT_ID = "183560854708-ilojsa6hhgav90kfltr7r33nlr4bas19.apps.googleuse
 
 [userenv.production]
 GOOGLE_MOBILE_CALLBACK_URL = "https://ludi-dont-just-watch-na.replit.app/api/auth/mobile/google/callback"
+PUBLIC_APP_URL = "https://ludi-dont-just-watch-na.replit.app"
