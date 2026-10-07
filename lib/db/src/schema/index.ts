@@ -22,3 +22,4 @@ export * from "./eventPaymentPolicy";
 export * from "./pushNotifications";
 export * from "./paymentPricing";
 export * from "./platformFees";
+export * from "./eventCloseouts";

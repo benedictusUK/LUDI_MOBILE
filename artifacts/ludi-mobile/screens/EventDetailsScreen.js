@@ -778,7 +778,7 @@ export default function EventDetailsScreen() {
               </TouchableOpacity>
             ) : null}
             
-            {canManage && event.paymentRequired && !isFixedPolicy(effectivePolicy(quote || event)) && (
+            {canManage && event.paymentRequired && (event.feeConfiguration?.payoutFlow === 'on_close' || !isFixedPolicy(effectivePolicy(quote || event))) && (
               <TouchableOpacity 
                 style={[styles.collectPaymentsButton, { backgroundColor: colors.success }]}
                 onPress={() => navigation.navigate('PaymentCollection', { 
@@ -793,14 +793,14 @@ export default function EventDetailsScreen() {
                 data-testid="button-collect-payments"
               >
                 <Ionicons name="cash" size={20} color={colors.buttonText} />
-                <Text style={[styles.collectPaymentsText, { color: colors.buttonText }]}>{event.feeConfiguration ? 'Finalise cost and refunds' : 'Collect Payments'}</Text>
+                <Text style={[styles.collectPaymentsText, { color: colors.buttonText }]}>{event.feeConfiguration?.payoutFlow === 'on_close' ? 'Manage payments' : event.feeConfiguration ? 'Finalise cost and refunds' : 'Collect Payments'}</Text>
               </TouchableOpacity>
             )}
           </View>
         )}
 
         {/* Payment Summary for Past Events */}
-        {event.paymentRequired && isEventInPast() && paymentSummary && (
+        {event.paymentRequired && event.feeConfiguration?.payoutFlow !== 'on_close' && isEventInPast() && paymentSummary && (
           <View style={[styles.card, { backgroundColor: colors.card }]}>
             <Text style={[styles.cardTitle, { color: colors.text }]}>Payment Summary</Text>
             

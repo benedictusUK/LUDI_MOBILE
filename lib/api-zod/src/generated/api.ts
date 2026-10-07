@@ -8,6 +8,269 @@
 import * as zod from 'zod';
 
 
+export const GetEventCloseoutParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const getEventCloseoutResponsePlayersItemOneCashAmountMinorMin = 0;
+
+
+
+export const GetEventCloseoutResponse = zod.object({
+  "supported": zod.boolean(),
+  "status": zod.enum(['draft', 'reconciling', 'ready', 'closing', 'closed']),
+  "canReconcile": zod.boolean(),
+  "venueCostMinor": zod.number().int(),
+  "organiserId": zod.string(),
+  "players": zod.array(zod.object({
+  "userId": zod.string(),
+  "method": zod.enum(['online', 'cash']),
+  "cashAmountMinor": zod.number().int().min(getEventCloseoutResponsePlayersItemOneCashAmountMinorMin)
+}).and(zod.object({
+  "name": zod.string(),
+  "email": zod.string(),
+  "shareMinor": zod.number().int(),
+  "onlinePaidMinor": zod.number().int(),
+  "refundPending": zod.boolean(),
+  "canPayLink": zod.boolean(),
+  "linkUrl": zod.string().optional()
+}))),
+  "candidates": zod.array(zod.object({
+  "userId": zod.string(),
+  "name": zod.string(),
+  "email": zod.string()
+})),
+  "expectedVenuePayoutMinor": zod.number().int(),
+  "cashReceivedMinor": zod.number().int(),
+  "organiserShareMinor": zod.number().int(),
+  "expectedOnlinePayoutMinor": zod.number().int(),
+  "onlineCollectedMinor": zod.number().int(),
+  "payoutMinor": zod.number().int(),
+  "shortfallMinor": zod.number().int(),
+  "refundPending": zod.boolean(),
+  "revision": zod.string(),
+  "closedAt": zod.string().optional(),
+  "payoutError": zod.string().optional()
+})
+
+
+export const SaveEventCloseoutParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const saveEventCloseoutBodyVenueCostMinorMin = 0;
+export const saveEventCloseoutBodyVenueCostMinorMax = 99999999;
+
+export const saveEventCloseoutBodyPlayersItemCashAmountMinorMin = 0;
+
+
+
+export const SaveEventCloseoutBody = zod.object({
+  "venueCostMinor": zod.number().int().min(saveEventCloseoutBodyVenueCostMinorMin).max(saveEventCloseoutBodyVenueCostMinorMax),
+  "players": zod.array(zod.object({
+  "userId": zod.string(),
+  "method": zod.enum(['online', 'cash']),
+  "cashAmountMinor": zod.number().int().min(saveEventCloseoutBodyPlayersItemCashAmountMinorMin)
+}))
+})
+
+export const saveEventCloseoutResponsePlayersItemOneCashAmountMinorMin = 0;
+
+
+
+export const SaveEventCloseoutResponse = zod.object({
+  "supported": zod.boolean(),
+  "status": zod.enum(['draft', 'reconciling', 'ready', 'closing', 'closed']),
+  "canReconcile": zod.boolean(),
+  "venueCostMinor": zod.number().int(),
+  "organiserId": zod.string(),
+  "players": zod.array(zod.object({
+  "userId": zod.string(),
+  "method": zod.enum(['online', 'cash']),
+  "cashAmountMinor": zod.number().int().min(saveEventCloseoutResponsePlayersItemOneCashAmountMinorMin)
+}).and(zod.object({
+  "name": zod.string(),
+  "email": zod.string(),
+  "shareMinor": zod.number().int(),
+  "onlinePaidMinor": zod.number().int(),
+  "refundPending": zod.boolean(),
+  "canPayLink": zod.boolean(),
+  "linkUrl": zod.string().optional()
+}))),
+  "candidates": zod.array(zod.object({
+  "userId": zod.string(),
+  "name": zod.string(),
+  "email": zod.string()
+})),
+  "expectedVenuePayoutMinor": zod.number().int(),
+  "cashReceivedMinor": zod.number().int(),
+  "organiserShareMinor": zod.number().int(),
+  "expectedOnlinePayoutMinor": zod.number().int(),
+  "onlineCollectedMinor": zod.number().int(),
+  "payoutMinor": zod.number().int(),
+  "shortfallMinor": zod.number().int(),
+  "refundPending": zod.boolean(),
+  "revision": zod.string(),
+  "closedAt": zod.string().optional(),
+  "payoutError": zod.string().optional()
+})
+
+
+export const ReconcileEventCloseoutParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const reconcileEventCloseoutResponsePlayersItemOneCashAmountMinorMin = 0;
+
+
+
+export const ReconcileEventCloseoutResponse = zod.object({
+  "supported": zod.boolean(),
+  "status": zod.enum(['draft', 'reconciling', 'ready', 'closing', 'closed']),
+  "canReconcile": zod.boolean(),
+  "venueCostMinor": zod.number().int(),
+  "organiserId": zod.string(),
+  "players": zod.array(zod.object({
+  "userId": zod.string(),
+  "method": zod.enum(['online', 'cash']),
+  "cashAmountMinor": zod.number().int().min(reconcileEventCloseoutResponsePlayersItemOneCashAmountMinorMin)
+}).and(zod.object({
+  "name": zod.string(),
+  "email": zod.string(),
+  "shareMinor": zod.number().int(),
+  "onlinePaidMinor": zod.number().int(),
+  "refundPending": zod.boolean(),
+  "canPayLink": zod.boolean(),
+  "linkUrl": zod.string().optional()
+}))),
+  "candidates": zod.array(zod.object({
+  "userId": zod.string(),
+  "name": zod.string(),
+  "email": zod.string()
+})),
+  "expectedVenuePayoutMinor": zod.number().int(),
+  "cashReceivedMinor": zod.number().int(),
+  "organiserShareMinor": zod.number().int(),
+  "expectedOnlinePayoutMinor": zod.number().int(),
+  "onlineCollectedMinor": zod.number().int(),
+  "payoutMinor": zod.number().int(),
+  "shortfallMinor": zod.number().int(),
+  "refundPending": zod.boolean(),
+  "revision": zod.string(),
+  "closedAt": zod.string().optional(),
+  "payoutError": zod.string().optional()
+})
+
+
+export const CreateEventCloseoutLinkParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const CreateEventCloseoutLinkBody = zod.object({
+  "userId": zod.string()
+})
+
+export const createEventCloseoutLinkResponseStatePlayersItemOneCashAmountMinorMin = 0;
+
+
+
+export const CreateEventCloseoutLinkResponse = zod.object({
+  "url": zod.string(),
+  "state": zod.object({
+  "supported": zod.boolean(),
+  "status": zod.enum(['draft', 'reconciling', 'ready', 'closing', 'closed']),
+  "canReconcile": zod.boolean(),
+  "venueCostMinor": zod.number().int(),
+  "organiserId": zod.string(),
+  "players": zod.array(zod.object({
+  "userId": zod.string(),
+  "method": zod.enum(['online', 'cash']),
+  "cashAmountMinor": zod.number().int().min(createEventCloseoutLinkResponseStatePlayersItemOneCashAmountMinorMin)
+}).and(zod.object({
+  "name": zod.string(),
+  "email": zod.string(),
+  "shareMinor": zod.number().int(),
+  "onlinePaidMinor": zod.number().int(),
+  "refundPending": zod.boolean(),
+  "canPayLink": zod.boolean(),
+  "linkUrl": zod.string().optional()
+}))),
+  "candidates": zod.array(zod.object({
+  "userId": zod.string(),
+  "name": zod.string(),
+  "email": zod.string()
+})),
+  "expectedVenuePayoutMinor": zod.number().int(),
+  "cashReceivedMinor": zod.number().int(),
+  "organiserShareMinor": zod.number().int(),
+  "expectedOnlinePayoutMinor": zod.number().int(),
+  "onlineCollectedMinor": zod.number().int(),
+  "payoutMinor": zod.number().int(),
+  "shortfallMinor": zod.number().int(),
+  "refundPending": zod.boolean(),
+  "revision": zod.string(),
+  "closedAt": zod.string().optional(),
+  "payoutError": zod.string().optional()
+})
+})
+
+
+export const CloseEventCloseoutParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const closeEventCloseoutBodyExpectedPayoutMinorMin = 0;
+
+
+
+export const CloseEventCloseoutBody = zod.object({
+  "acknowledged": zod.literal(true),
+  "expectedPayoutMinor": zod.number().int().min(closeEventCloseoutBodyExpectedPayoutMinorMin),
+  "revision": zod.string()
+})
+
+export const closeEventCloseoutResponsePlayersItemOneCashAmountMinorMin = 0;
+
+
+
+export const CloseEventCloseoutResponse = zod.object({
+  "supported": zod.boolean(),
+  "status": zod.enum(['draft', 'reconciling', 'ready', 'closing', 'closed']),
+  "canReconcile": zod.boolean(),
+  "venueCostMinor": zod.number().int(),
+  "organiserId": zod.string(),
+  "players": zod.array(zod.object({
+  "userId": zod.string(),
+  "method": zod.enum(['online', 'cash']),
+  "cashAmountMinor": zod.number().int().min(closeEventCloseoutResponsePlayersItemOneCashAmountMinorMin)
+}).and(zod.object({
+  "name": zod.string(),
+  "email": zod.string(),
+  "shareMinor": zod.number().int(),
+  "onlinePaidMinor": zod.number().int(),
+  "refundPending": zod.boolean(),
+  "canPayLink": zod.boolean(),
+  "linkUrl": zod.string().optional()
+}))),
+  "candidates": zod.array(zod.object({
+  "userId": zod.string(),
+  "name": zod.string(),
+  "email": zod.string()
+})),
+  "expectedVenuePayoutMinor": zod.number().int(),
+  "cashReceivedMinor": zod.number().int(),
+  "organiserShareMinor": zod.number().int(),
+  "expectedOnlinePayoutMinor": zod.number().int(),
+  "onlineCollectedMinor": zod.number().int(),
+  "payoutMinor": zod.number().int(),
+  "shortfallMinor": zod.number().int(),
+  "refundPending": zod.boolean(),
+  "revision": zod.string(),
+  "closedAt": zod.string().optional(),
+  "payoutError": zod.string().optional()
+})
+
+
 /**
  * Returns server health status
  * @summary Health check

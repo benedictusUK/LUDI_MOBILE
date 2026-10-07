@@ -5,6 +5,89 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface CreateEventCloseoutLinkInput {
+  userId: string;
+}
+
+export interface CloseEventCloseoutInput {
+  acknowledged: true;
+  /** @minimum 0 */
+  expectedPayoutMinor: number;
+  revision: string;
+}
+
+export type FinalPlayerInputMethod = typeof FinalPlayerInputMethod[keyof typeof FinalPlayerInputMethod];
+
+
+export const FinalPlayerInputMethod = {
+  online: 'online',
+  cash: 'cash',
+} as const;
+
+export interface FinalPlayerInput {
+  userId: string;
+  method: FinalPlayerInputMethod;
+  /** @minimum 0 */
+  cashAmountMinor: number;
+}
+
+export interface EventCloseoutInput {
+  /**
+     * @minimum 0
+     * @maximum 99999999
+     */
+  venueCostMinor: number;
+  players: FinalPlayerInput[];
+}
+
+export type EventCloseoutPlayer = FinalPlayerInput & {
+  name: string;
+  email: string;
+  shareMinor: number;
+  onlinePaidMinor: number;
+  refundPending: boolean;
+  canPayLink: boolean;
+  linkUrl?: string;
+};
+
+export interface EventCloseoutCandidate {
+  userId: string;
+  name: string;
+  email: string;
+}
+
+export type EventCloseoutStateStatus = typeof EventCloseoutStateStatus[keyof typeof EventCloseoutStateStatus];
+
+
+export const EventCloseoutStateStatus = {
+  draft: 'draft',
+  reconciling: 'reconciling',
+  ready: 'ready',
+  closing: 'closing',
+  closed: 'closed',
+} as const;
+
+export interface EventCloseoutState {
+  supported: boolean;
+  status: EventCloseoutStateStatus;
+  canReconcile: boolean;
+  venueCostMinor: number;
+  organiserId: string;
+  players: EventCloseoutPlayer[];
+  candidates: EventCloseoutCandidate[];
+  expectedVenuePayoutMinor: number;
+  cashReceivedMinor: number;
+  organiserShareMinor: number;
+  expectedOnlinePayoutMinor: number;
+  onlineCollectedMinor: number;
+  payoutMinor: number;
+  shortfallMinor: number;
+  refundPending: boolean;
+  revision: string;
+  closedAt?: string;
+  payoutError?: string;
+}
+
 export interface TeamRecord {
   id: string;
   name: string;
@@ -321,6 +404,11 @@ export interface GoogleMobileSignInRequest {
 export interface HealthStatus {
   status: string;
 }
+
+export type CreateEventCloseoutLink200 = {
+  url: string;
+  state: EventCloseoutState;
+};
 
 export type GetGoogleMobileSignInConfig200 = {
   enabled: boolean;

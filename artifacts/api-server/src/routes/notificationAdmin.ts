@@ -41,7 +41,7 @@ export const requireSuperAdmin: RequestHandler = (req: any, res, next) => {
 
 // Session-authenticated mutations must originate from this app, not a site
 // exploiting the legacy API's permissive CORS settings. Native JWTs aren't CSRF.
-export const sameOriginMutation: RequestHandler = (req, res, next) => {
+export const sameOriginRequest: RequestHandler = (req, res, next) => {
   if (!["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) return next();
   const origin = req.get("origin");
   if (origin) {
@@ -50,10 +50,16 @@ export const sameOriginMutation: RequestHandler = (req, res, next) => {
     const hosts = [req.get("host"), req.get("x-forwarded-host"), ...(process.env.REPLIT_DOMAINS || "").split(",")];
     if (!host || !hosts.includes(host)) { res.status(403).json({ message: "Cross-site notification changes are not allowed" }); return; }
   }
-  if (req.method !== "DELETE" && !req.is("application/json")) {
-    res.status(415).json({ message: "Send notification settings as JSON" }); return;
-  }
   next();
+};
+
+export const sameOriginMutation: RequestHandler = (req, res, next) => {
+  sameOriginRequest(req, res, () => {
+    if (["POST", "PUT", "PATCH"].includes(req.method) && !req.is("application/json")) {
+      res.status(415).json({ message: "Send notification settings as JSON" }); return;
+    }
+    next();
+  });
 };
 
 export function registerNotificationAdmin(app: Express, authenticate: RequestHandler) {

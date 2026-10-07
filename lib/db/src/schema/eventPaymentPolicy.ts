@@ -87,7 +87,7 @@ export function recurringPaymentSettings(template: Record<string, any>, startDat
   const offset = +new Date(`${startDate}T00:00:00Z`) - +new Date(`${template.startDate}T00:00:00Z`);
   const shift = (value: any) => value ? new Date(+new Date(value) + offset) : null;
   return {
-    feeConfiguration: template.feeConfiguration ?? null,
+    feeConfiguration: template.feeConfiguration ? { ...template.feeConfiguration, payoutFlow: "on_close" as const } : null,
     paymentPolicy: effectivePaymentPolicy(template), currency: template.currency || "gbp",
     fixedPriceMinor: template.fixedPriceMinor ?? null,
     minimumPaidParticipants: template.minimumPaidParticipants ?? null,

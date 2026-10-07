@@ -21,7 +21,12 @@ import type {
 
 import type {
   ApplePushDeviceInput,
+  CloseEventCloseoutInput,
   CompleteGoogleMobileSignIn200,
+  CreateEventCloseoutLink200,
+  CreateEventCloseoutLinkInput,
+  EventCloseoutInput,
+  EventCloseoutState,
   FeeAdminState,
   FeeSettings,
   GetGoogleMobileSignInConfig200,
@@ -76,6 +81,394 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getGetEventCloseoutUrl = (id: string,) => {
+
+
+
+
+  return `/api/events/${id}/closeout`
+}
+
+export const getEventCloseout = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<EventCloseoutState> => {
+
+  return customFetch<EventCloseoutState>(getGetEventCloseoutUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEventCloseoutQueryKey = (id: string,) => {
+    return [
+    `/api/events/${id}/closeout`
+    ] as const;
+    }
+
+
+export const getGetEventCloseoutQueryOptions = <TData = Awaited<ReturnType<typeof getEventCloseout>>, TError = ErrorType<unknown>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEventCloseout>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEventCloseoutQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEventCloseout>>> = ({ signal }) => getEventCloseout(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEventCloseout>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetEventCloseoutQueryResult = NonNullable<Awaited<ReturnType<typeof getEventCloseout>>>
+export type GetEventCloseoutQueryError = ErrorType<unknown>
+
+
+
+export function useGetEventCloseout<TData = Awaited<ReturnType<typeof getEventCloseout>>, TError = ErrorType<unknown>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEventCloseout>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetEventCloseoutQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveEventCloseoutUrl = (id: string,) => {
+
+
+
+
+  return `/api/events/${id}/closeout`
+}
+
+export const saveEventCloseout = async (id: string,
+    eventCloseoutInput: EventCloseoutInput, options?: Parameters<typeof customFetch>[1]): Promise<EventCloseoutState> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<EventCloseoutState>(getSaveEventCloseoutUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(eventCloseoutInput)
+  }
+);}
+
+
+
+
+
+export const getSaveEventCloseoutMutationKey = () => ['saveEventCloseout'] as const;
+
+export const getSaveEventCloseoutMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveEventCloseout>>, TError,SaveEventCloseoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveEventCloseout>>, TError,SaveEventCloseoutMutationVariables, TContext> => {
+
+const mutationKey = getSaveEventCloseoutMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveEventCloseout>>, SaveEventCloseoutMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  saveEventCloseout(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveEventCloseoutMutationResult = NonNullable<Awaited<ReturnType<typeof saveEventCloseout>>>
+    export type SaveEventCloseoutMutationBody = BodyType<EventCloseoutInput>
+    export type SaveEventCloseoutMutationError = ErrorType<unknown>
+    export type SaveEventCloseoutMutationVariables = {id: string;data: BodyType<EventCloseoutInput>}
+
+    export const useSaveEventCloseout = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveEventCloseout>>, TError,SaveEventCloseoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveEventCloseout>>,
+        TError,
+        SaveEventCloseoutMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveEventCloseoutMutationOptions(options));
+    }
+
+export const getReconcileEventCloseoutUrl = (id: string,) => {
+
+
+
+
+  return `/api/events/${id}/closeout/reconcile`
+}
+
+export const reconcileEventCloseout = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<EventCloseoutState> => {
+
+  return customFetch<EventCloseoutState>(getReconcileEventCloseoutUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getReconcileEventCloseoutMutationKey = () => ['reconcileEventCloseout'] as const;
+
+export const getReconcileEventCloseoutMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reconcileEventCloseout>>, TError,ReconcileEventCloseoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reconcileEventCloseout>>, TError,ReconcileEventCloseoutMutationVariables, TContext> => {
+
+const mutationKey = getReconcileEventCloseoutMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reconcileEventCloseout>>, ReconcileEventCloseoutMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  reconcileEventCloseout(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReconcileEventCloseoutMutationResult = NonNullable<Awaited<ReturnType<typeof reconcileEventCloseout>>>
+
+    export type ReconcileEventCloseoutMutationError = ErrorType<unknown>
+    export type ReconcileEventCloseoutMutationVariables = {id: string}
+
+    export const useReconcileEventCloseout = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reconcileEventCloseout>>, TError,ReconcileEventCloseoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reconcileEventCloseout>>,
+        TError,
+        ReconcileEventCloseoutMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReconcileEventCloseoutMutationOptions(options));
+    }
+
+export const getCreateEventCloseoutLinkUrl = (id: string,) => {
+
+
+
+
+  return `/api/events/${id}/closeout/links`
+}
+
+export const createEventCloseoutLink = async (id: string,
+    createEventCloseoutLinkInput: CreateEventCloseoutLinkInput, options?: Parameters<typeof customFetch>[1]): Promise<CreateEventCloseoutLink200> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CreateEventCloseoutLink200>(getCreateEventCloseoutLinkUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(createEventCloseoutLinkInput)
+  }
+);}
+
+
+
+
+
+export const getCreateEventCloseoutLinkMutationKey = () => ['createEventCloseoutLink'] as const;
+
+export const getCreateEventCloseoutLinkMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createEventCloseoutLink>>, TError,CreateEventCloseoutLinkMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createEventCloseoutLink>>, TError,CreateEventCloseoutLinkMutationVariables, TContext> => {
+
+const mutationKey = getCreateEventCloseoutLinkMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createEventCloseoutLink>>, CreateEventCloseoutLinkMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createEventCloseoutLink(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateEventCloseoutLinkMutationResult = NonNullable<Awaited<ReturnType<typeof createEventCloseoutLink>>>
+    export type CreateEventCloseoutLinkMutationBody = BodyType<CreateEventCloseoutLinkInput>
+    export type CreateEventCloseoutLinkMutationError = ErrorType<unknown>
+    export type CreateEventCloseoutLinkMutationVariables = {id: string;data: BodyType<CreateEventCloseoutLinkInput>}
+
+    export const useCreateEventCloseoutLink = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createEventCloseoutLink>>, TError,CreateEventCloseoutLinkMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createEventCloseoutLink>>,
+        TError,
+        CreateEventCloseoutLinkMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateEventCloseoutLinkMutationOptions(options));
+    }
+
+export const getCloseEventCloseoutUrl = (id: string,) => {
+
+
+
+
+  return `/api/events/${id}/closeout/close`
+}
+
+export const closeEventCloseout = async (id: string,
+    closeEventCloseoutInput: CloseEventCloseoutInput, options?: Parameters<typeof customFetch>[1]): Promise<EventCloseoutState> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<EventCloseoutState>(getCloseEventCloseoutUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(closeEventCloseoutInput)
+  }
+);}
+
+
+
+
+
+export const getCloseEventCloseoutMutationKey = () => ['closeEventCloseout'] as const;
+
+export const getCloseEventCloseoutMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeEventCloseout>>, TError,CloseEventCloseoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof closeEventCloseout>>, TError,CloseEventCloseoutMutationVariables, TContext> => {
+
+const mutationKey = getCloseEventCloseoutMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof closeEventCloseout>>, CloseEventCloseoutMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  closeEventCloseout(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CloseEventCloseoutMutationResult = NonNullable<Awaited<ReturnType<typeof closeEventCloseout>>>
+    export type CloseEventCloseoutMutationBody = BodyType<CloseEventCloseoutInput>
+    export type CloseEventCloseoutMutationError = ErrorType<unknown>
+    export type CloseEventCloseoutMutationVariables = {id: string;data: BodyType<CloseEventCloseoutInput>}
+
+    export const useCloseEventCloseout = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeEventCloseout>>, TError,CloseEventCloseoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof closeEventCloseout>>,
+        TError,
+        CloseEventCloseoutMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCloseEventCloseoutMutationOptions(options));
+    }
 
 export const getHealthCheckUrl = () => {
 

@@ -11,6 +11,73 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /events/{id}/closeout:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getEventCloseout
+      responses:
+        "200":
+          description: Authoritative final players and venue payout quote
+          content:
+            application/json: { schema: { $ref: "#/components/schemas/EventCloseoutState" } }
+    put:
+      operationId: saveEventCloseout
+      requestBody:
+        required: true
+        content:
+          application/json: { schema: { $ref: "#/components/schemas/EventCloseoutInput" } }
+      responses:
+        "200":
+          description: Saved final players or amended cash receipts
+          content:
+            application/json: { schema: { $ref: "#/components/schemas/EventCloseoutState" } }
+  /events/{id}/closeout/reconcile:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: reconcileEventCloseout
+      responses:
+        "200":
+          description: Frozen final cost and venue-only refund results
+          content:
+            application/json: { schema: { $ref: "#/components/schemas/EventCloseoutState" } }
+  /events/{id}/closeout/links:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: createEventCloseoutLink
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateEventCloseoutLinkInput" }
+      responses:
+        "200":
+          description: Single-purchase Stripe Checkout session and refreshed payment state
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [url, state]
+                properties:
+                  url: { type: string }
+                  state: { $ref: "#/components/schemas/EventCloseoutState" }
+  /events/{id}/closeout/close:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: closeEventCloseout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CloseEventCloseoutInput" }
+      responses:
+        "200":
+          description: Frozen payout receipt or retryable Close status
+          content:
+            application/json: { schema: { $ref: "#/components/schemas/EventCloseoutState" } }
   /healthz:
     get:
       operationId: healthCheck
@@ -450,6 +517,79 @@ paths:
         "404": { description: Team not found }
 components:
   schemas:
+    CreateEventCloseoutLinkInput:
+      type: object
+      required: [userId]
+      properties:
+        userId: { type: string }
+    CloseEventCloseoutInput:
+      type: object
+      required: [acknowledged, expectedPayoutMinor, revision]
+      properties:
+        acknowledged: { type: boolean, enum: [true] }
+        expectedPayoutMinor: { type: integer, minimum: 0 }
+        revision: { type: string }
+    FinalPlayerInput:
+      type: object
+      required: [userId, method, cashAmountMinor]
+      properties:
+        userId: { type: string }
+        method: { type: string, enum: [online, cash] }
+        cashAmountMinor: { type: integer, minimum: 0 }
+    EventCloseoutInput:
+      type: object
+      required: [venueCostMinor, players]
+      properties:
+        venueCostMinor: { type: integer, minimum: 0, maximum: 99999999 }
+        players:
+          type: array
+          items: { $ref: "#/components/schemas/FinalPlayerInput" }
+    EventCloseoutPlayer:
+      allOf:
+        - { $ref: "#/components/schemas/FinalPlayerInput" }
+        - type: object
+          required: [name, email, shareMinor, onlinePaidMinor, refundPending, canPayLink]
+          properties:
+            name: { type: string }
+            email: { type: string }
+            shareMinor: { type: integer }
+            onlinePaidMinor: { type: integer }
+            refundPending: { type: boolean }
+            canPayLink: { type: boolean }
+            linkUrl: { type: string }
+    EventCloseoutCandidate:
+      type: object
+      required: [userId, name, email]
+      properties:
+        userId: { type: string }
+        name: { type: string }
+        email: { type: string }
+    EventCloseoutState:
+      type: object
+      required: [supported, status, canReconcile, venueCostMinor, organiserId, players, candidates, expectedVenuePayoutMinor, cashReceivedMinor, organiserShareMinor, expectedOnlinePayoutMinor, onlineCollectedMinor, payoutMinor, shortfallMinor, refundPending, revision]
+      properties:
+        supported: { type: boolean }
+        status: { type: string, enum: [draft, reconciling, ready, closing, closed] }
+        canReconcile: { type: boolean }
+        venueCostMinor: { type: integer }
+        organiserId: { type: string }
+        players:
+          type: array
+          items: { $ref: "#/components/schemas/EventCloseoutPlayer" }
+        candidates:
+          type: array
+          items: { $ref: "#/components/schemas/EventCloseoutCandidate" }
+        expectedVenuePayoutMinor: { type: integer }
+        cashReceivedMinor: { type: integer }
+        organiserShareMinor: { type: integer }
+        expectedOnlinePayoutMinor: { type: integer }
+        onlineCollectedMinor: { type: integer }
+        payoutMinor: { type: integer }
+        shortfallMinor: { type: integer }
+        refundPending: { type: boolean }
+        revision: { type: string }
+        closedAt: { type: string }
+        payoutError: { type: string }
     TeamListRecord:
       allOf:
         - $ref: "#/components/schemas/TeamRecord"

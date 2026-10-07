@@ -116,7 +116,7 @@ async function request(method, path, body, userId = memberId) {
   });
   return { status: response.status, data: await response.json() };
 }
-async function event(policy, extra = {}) {
+async function event(policy, extra = {}, newFlow = false) {
   const tomorrow = new Date(Date.now() + 86400_000).toISOString().slice(0, 10);
   const result = await request("POST", "/api/events", {
     name: "Payment policy fixture", sport: "Football", startDate: tomorrow, startTime: "16:00",
@@ -128,8 +128,23 @@ async function event(policy, extra = {}) {
     ...extra,
   }, organiserId);
   assert.equal(result.status, 200, JSON.stringify(result.data));
-  return result.data;
+  if (newFlow) return result.data;
+  // These cases exercise historical hold/destination-charge contracts.
+  // New-event defaults must not silently turn them into new-flow fixtures.
+  const [legacy] = await db.update(events).set({ feeConfiguration: null }).where(eq(events.id, result.data.id)).returning();
+  return legacy;
 }
+test("new paid-event intents hold venue funds on the platform until Close", async () => {
+  const e = await event("fixed_immediate", {}, true);
+  assert.equal(e.feeConfiguration.payoutFlow, "on_close");
+  const created = await request("POST", "/api/payments/create-intent", { eventId: e.id });
+  assert.equal(created.status, 200, JSON.stringify(created.data));
+  const intent = intents.get(created.data.paymentIntentId);
+  assert.equal(intent.metadata.ludiPayoutFlow, "on_close");
+  assert.equal(!!intent.transfer_data, false);
+  assert.equal(!!intent.application_fee_amount, false);
+  assert.equal(intent.capture_method, "automatic");
+});
 after(async () => {
   Object.assign(stripe.paymentIntents, { create: original.create, retrieve: original.retrieve, confirm: original.confirm, cancel: original.cancel });
   stripe.charges.retrieve = original.charge;

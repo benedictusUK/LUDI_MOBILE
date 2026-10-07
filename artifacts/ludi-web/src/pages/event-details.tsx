@@ -645,10 +645,11 @@ export default function EventDetails() {
                   )}
 
                   {/* Collect Payment Button for Past Events (Admin Only) */}
-                  {eventData && isEventPast(eventData) && 
+                  {eventData && (eventData.feeConfiguration?.payoutFlow === "on_close" || isEventPast(eventData)) &&
+                   (eventData.feeConfiguration?.payoutFlow === "on_close" || (
                    (eventData.feeConfiguration ? policyMode === "flexible_post_event" : eventData.cost && parseFloat(eventData.cost) > 0) &&
                    !isFixedPolicy &&
-                   (!eventData.paymentCollectionInitiated || (eventData.feeConfiguration && eventData.paymentStatus === "partial_captured")) &&
+                   (!eventData.paymentCollectionInitiated || (eventData.feeConfiguration && eventData.paymentStatus === "partial_captured")))) &&
                    user && eventData.primaryTeam && (
                      eventData.primaryTeam.ownerId === (user as any).id || 
                      eventData.primaryTeam.memberships?.some((m: any) => 
@@ -659,7 +660,7 @@ export default function EventDetails() {
                       <CardContent className="pt-6">
                         <div className="flex flex-col space-y-4">
                           <div className="text-center">
-                            <h3 className="text-lg font-semibold text-neutral-900 mb-2">{eventData.feeConfiguration ? "Finalise venue cost and refunds" : "Event Payment Collection"}</h3>
+                            <h3 className="text-lg font-semibold text-neutral-900 mb-2">{eventData.feeConfiguration?.payoutFlow === "on_close" ? "Manage payments and close event" : eventData.feeConfiguration ? "Finalise venue cost and refunds" : "Event Payment Collection"}</h3>
                             <p className="text-sm text-neutral-600 mb-4">
                               {eventData.feeConfiguration ? "Confirm the final venue cost and refund unused venue shares. Original platform and processing fees stay fixed." : "This event has finished. You can now collect payments from attendees who have authorized payment holds."}
                             </p>
@@ -685,7 +686,7 @@ export default function EventDetails() {
                               borderColor: "#10b981"
                             }}
                           >
-                            Collect Payments
+                            {eventData.feeConfiguration?.payoutFlow === "on_close" ? "Manage payments" : "Collect Payments"}
                           </Button>
                         </div>
                       </CardContent>
@@ -694,6 +695,7 @@ export default function EventDetails() {
 
                   {/* Payment Collection Completed Message for Past Events */}
                   {eventData && isEventPast(eventData) && 
+                   eventData.feeConfiguration?.payoutFlow !== "on_close" &&
                    eventData.cost && parseFloat(eventData.cost) > 0 && 
                    eventData.paymentCollectionInitiated &&
                    user && eventData.primaryTeam && (

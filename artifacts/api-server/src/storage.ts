@@ -2,6 +2,7 @@ import {
   users,
   teams,
   events,
+  eventCloseouts,
   teamMemberships,
   eventTeams,
   notifications,
@@ -3250,6 +3251,32 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Get reimbursement record or calculate defaults
+    const closeControlled = event.paymentRequired && event.feeConfiguration?.payoutFlow === "on_close";
+    if (closeControlled) {
+      const [settlement] = await db.select().from(eventCloseouts).where(eq(eventCloseouts.eventId, eventId));
+      if (settlement) {
+        const closeout = await import("./payments/closeoutState");
+        const state = await closeout.getCloseoutState(event);
+        const { sources } = await closeout.closeoutSources(event);
+        const people = state.players.length ? await db.select().from(users).where(inArray(users.id, state.players.map(p => p.userId))) : [];
+        const paidPlayers: { userId: string; user: User; amount: string; paidAt: Date | null; isManual: boolean }[] = [];
+        const unpaidPlayers: { userId: string; user: User; amountDue: string }[] = [];
+        for (const player of state.players.filter(p => p.userId !== state.organiserId)) {
+          const user = people.find(u => u.id === player.userId);
+          if (!user) continue;
+          const ownSources = sources.filter(s => s.userId === player.userId);
+          const due = Math.min(player.shareMinor, ownSources.reduce((sum, s) => sum + s.baseMinor, 0) || player.shareMinor);
+          if (player.method === "cash" || player.onlinePaidMinor >= due) {
+            paidPlayers.push({ userId: player.userId, user, amount: ((player.method === "cash" ? player.cashAmountMinor : player.onlinePaidMinor) / 100).toFixed(2), paidAt: player.cashReceivedAt ? new Date(player.cashReceivedAt) : null, isManual: player.method === "cash" });
+          } else {
+            unpaidPlayers.push({ userId: player.userId, user, amountDue: (Math.max(0, due - player.onlinePaidMinor) / 100).toFixed(2) });
+          }
+        }
+        return { paidPlayers, unpaidPlayers, bankTotal: (state.onlineCollectedMinor / 100).toFixed(2), venueCost: (state.venueCostMinor / 100).toFixed(2),
+          expectedPayout: (state.expectedOnlinePayoutMinor / 100).toFixed(2), organiserPlayed: state.organiserPlayed,
+          transferStatus: state.status === "closed" ? "completed" : state.status === "closing" ? "initiated" : "pending", isReadyToTransfer: false };
+      }
+    }
     let reimbursement = await this.getEventReimbursement(eventId);
     
     // Get all attending players
@@ -3294,7 +3321,7 @@ export class DatabaseStorage implements IStorage {
     const organiserPlayed = attendance.some(a => a.event_attendance.userId === organiserId);
 
     // Expected payout: venue cost minus organiser's share if they played
-    const expectedPayout = event.feeConfiguration ? venueCost : organiserPlayed
+    const expectedPayout = event.feeConfiguration && !closeControlled ? venueCost : organiserPlayed
       ? Math.max(0, venueCost - perPlayerShare)
       : venueCost;
 
@@ -3375,8 +3402,8 @@ export class DatabaseStorage implements IStorage {
       venueCost: venueCost.toFixed(2),
       expectedPayout: expectedPayout.toFixed(2),
       organiserPlayed,
-      transferStatus: event.feeConfiguration ? "transferred" : reimbursement?.transferStatus || 'pending',
-      isReadyToTransfer,
+      transferStatus: closeControlled ? "pending" : event.feeConfiguration ? "transferred" : reimbursement?.transferStatus || 'pending',
+      isReadyToTransfer: closeControlled ? false : isReadyToTransfer,
     };
   }
 

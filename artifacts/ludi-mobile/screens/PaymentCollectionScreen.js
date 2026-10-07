@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { calculateTotalAmount } from '../lib/paymentUtils';
+import EventCloseout from '../components/EventCloseout';
 import UpfrontSettlement from '../components/UpfrontSettlement';
 
 export default function PaymentCollectionScreen() {
@@ -170,6 +171,7 @@ export default function PaymentCollectionScreen() {
     return 0;
   });
 
+  if (!loading && currentEvent?.feeConfiguration?.payoutFlow === 'on_close') return <EventCloseout event={currentEvent} onBack={() => navigation.goBack()} />;
   if (!loading && currentEvent?.feeConfiguration) return <UpfrontSettlement event={currentEvent} attendance={attendance} onBack={() => navigation.goBack()} />;
   if (!loading && !currentEvent) return <View style={{ flex: 1, padding: 24, backgroundColor: colors.background }}>
     <Text style={{ color: colors.text }}>Payment terms could not be loaded.</Text>

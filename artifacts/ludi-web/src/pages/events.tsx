@@ -737,10 +737,12 @@ export default function Events() {
                           {isEventPast(event) ? "View" : "Vote"}
                         </Button>
                       )}
-                      {isEventPast(event) &&
-                        event.cost &&
-                        parseFloat(event.cost) > 0 &&
-                        !event.paymentCollectionInitiated &&
+                      {(event.feeConfiguration?.payoutFlow === "on_close" ||
+                        isEventPast(event)) &&
+                        (event.feeConfiguration?.payoutFlow === "on_close" ||
+                          (event.cost &&
+                            parseFloat(event.cost) > 0 &&
+                            !event.paymentCollectionInitiated)) &&
                         canEditEvent(event) && (
                           <Button
                             size="sm"
@@ -761,7 +763,7 @@ export default function Events() {
                               })
                             }
                           >
-                            Collect Payment
+                            {event.feeConfiguration?.payoutFlow === "on_close" ? "Manage payments" : "Collect Payment"}
                           </Button>
                         )}
                       {!isEventPast(event) && canEditEvent(event) && (

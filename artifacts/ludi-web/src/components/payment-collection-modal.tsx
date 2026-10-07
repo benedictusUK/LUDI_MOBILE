@@ -30,6 +30,7 @@ import {
 import { apiRequest } from "@/lib/queryClient";
 import { calculateTotalAmount, calculatePerPersonCost } from "@/lib/payment-utils";
 import type { PlatformCharge, TeamMember, AttendanceRecord } from "@/types";
+import { EventCloseoutModal } from "./event-closeout-modal";
 import { UpfrontSettlementModal } from "./upfront-settlement-modal";
 
 interface OrganiserStatus {
@@ -228,6 +229,7 @@ export function PaymentCollectionModal({
   if (isOpen && (loadingEvent || eventError || !currentEvent)) return <Dialog open={isOpen} onOpenChange={open => !open && onClose()}>
     <DialogContent><DialogHeader><DialogTitle>Event payment terms</DialogTitle><DialogDescription>{eventError ? "Payment terms could not be loaded. Close and reopen to retry." : "Loading payment terms..."}</DialogDescription></DialogHeader></DialogContent>
   </Dialog>;
+  if (currentEvent?.feeConfiguration?.payoutFlow === "on_close") return <EventCloseoutModal isOpen={isOpen} onClose={onClose} eventId={eventId} eventName={eventName} />;
   if (currentEvent?.feeConfiguration) return <UpfrontSettlementModal isOpen={isOpen} onClose={onClose} event={currentEvent} attendance={attendance} />;
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

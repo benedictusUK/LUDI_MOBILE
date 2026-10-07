@@ -1,7 +1,7 @@
 import type Stripe from "stripe";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import {
-  eventPayments, events, users, payments, paymentOperations, paymentRefunds,
+  eventPayments, events, users, payments, paymentOperations, paymentRefunds, eventCloseouts, eventCloseoutLinks, eventCloseoutRefunds,
   effectivePaymentPolicy, paymentWindow,
   eventEndAt, calculatePlayerPrice,
 } from "@workspace/db";
@@ -11,6 +11,7 @@ import { stripe, platformFeeBasisPoints } from "./stripeClient";
 import { decimalToMinorUnits, calculatePercentageFeeMinor } from "./money";
 import { allocateEvenlyMinor } from "./settlement";
 import { retryFlexibleResiduals } from "./flexibleRefunds";
+import { usesClosePayout } from "./closeoutMath";
 
 export class PaymentPolicyError extends Error {
   constructor(public status: number, message: string) { super(message); }
@@ -55,6 +56,30 @@ async function refundInProgress(row: EventPayment) {
 }
 
 export async function hasValidEventPayment(event: Event, userId: string) {
+  if (usesClosePayout(event)) {
+    const [closeout] = await db.select().from(eventCloseouts).where(eq(eventCloseouts.eventId, event.id));
+    const cash = closeout?.players.find(p => p.userId === userId && p.method === "cash");
+    const window = paymentWindow(event);
+    const finalShare = closeout?.status !== "draft" && closeout?.players.length
+      ? allocateEvenlyMinor(closeout.venueCostMinor, closeout.players.map(p => p.userId)).get(userId) : undefined;
+    // The organiser's external-payment override controls participation;
+    // actual receipts still independently determine the monetary shortfall.
+    if (cash && (finalShare !== undefined || cash.cashAmountMinor > 0 && cash.cashReceivedAt &&
+      (!window.deadline || new Date(cash.cashReceivedAt) <= window.deadline))) return true;
+    if (closeout && closeout.status !== "draft") {
+      if (userId === (event.venueOrganiserId || event.createdById) && closeout.players.some(p => p.userId === userId)) return true;
+      const ownLinks = await db.select().from(eventCloseoutLinks).where(and(eq(eventCloseoutLinks.eventId, event.id), eq(eventCloseoutLinks.userId, userId)));
+      if (ownLinks.length) await (await import("./closeoutState")).syncLinks(event, db, false, userId);
+      const { sources } = await (await import("./closeoutState")).closeoutSources(event);
+      const pending = await db.select().from(eventCloseoutRefunds).where(eq(eventCloseoutRefunds.eventId, event.id));
+      const target = closeout.players.find(p => p.userId === userId);
+      const ownSources = sources.filter(s => s.userId === userId);
+      const agreedShare = Math.min(finalShare ?? Infinity, ownSources.reduce((sum, s) => sum + s.baseMinor, 0));
+      return !!target && target.method === "online" && !pending.some(r => r.status !== "succeeded") &&
+        (finalShare === 0 || ownSources.length > 0) &&
+        ownSources.reduce((sum, s) => sum + Math.max(0, s.baseMinor - s.refundedMinor), 0) >= agreedShare;
+    }
+  }
   const row = await storage.getEventPayment(event.id, userId);
   if (!row?.paymentIntentId || await refundInProgress(row)) return false;
   const intent = await stripe.paymentIntents.retrieve(row.paymentIntentId);
@@ -104,12 +129,27 @@ export async function getPolicyQuote(event: Event, userId: string, notificationI
   const recovery = notificationId ? await getRecoveryRequest(event, userId, notificationId) : null;
   if (recovery && usesUpfrontRefunds(event)) throw new PaymentPolicyError(409, "This event uses upfront payments, not post-event payment requests");
   const price = priceForEvent(event);
+  const [closeout] = usesClosePayout(event)
+    ? await executor.select().from(eventCloseouts).where(eq(eventCloseouts.eventId, event.id)).limit(1) : [];
+  const finalised = usesClosePayout(event) && !!closeout && closeout.status !== "draft";
+  const cashPlayer = closeout?.players.some(p => p.userId === userId && p.method === "cash");
   const [counts] = await executor.select({ paid: sql<number>`count(*)`.mapWith(Number) }).from(eventPayments)
     .where(and(eq(eventPayments.eventId, event.id), eq(eventPayments.status, "captured"),
       sql`COALESCE(${eventPayments.refundedAmountMinor},0) = 0`,
       sql`${eventPayments.capturedAmountMinor} >= COALESCE(${event.fixedPriceMinor},0)`,
       sql`NOT EXISTS (SELECT 1 FROM payment_refunds r WHERE r.event_payment_id = ${eventPayments.id} AND r.status IN ('pending','succeeded','requires_action'))`,
       window.policy === "fixed_threshold" ? sql`${eventPayments.capturedAt} <= ${window.deadline}` : undefined));
+  const paidRows = closeout?.players.some(p => p.method === "cash")
+    ? await executor.select({ userId: eventPayments.userId }).from(eventPayments).where(and(
+      eq(eventPayments.eventId, event.id), eq(eventPayments.status, "captured"),
+      sql`COALESCE(${eventPayments.refundedAmountMinor},0) = 0`,
+      window.policy === "fixed_threshold" ? sql`${eventPayments.capturedAt} <= ${window.deadline}` : undefined,
+    )) : [];
+  const cashPaid = closeout?.players.filter(p => p.userId !== (event.venueOrganiserId || event.createdById) &&
+    p.method === "cash" && p.cashAmountMinor >= price.baseAmountMinor && !!p.cashReceivedAt &&
+    (window.policy !== "fixed_threshold" || !!window.deadline && new Date(p.cashReceivedAt) <= window.deadline) &&
+    !paidRows.some(row => row.userId === p.userId)).length || 0;
+  const totalPaid = counts.paid + cashPaid;
   return {
     paymentPolicy: window.policy, currency: event.currency || "gbp",
     paymentFlow: usesUpfrontRefunds(event) ? "upfront_refund" : window.policy === "flexible_post_event" ? "legacy_hold" : "immediate",
@@ -120,9 +160,11 @@ export async function getPolicyQuote(event: Event, userId: string, notificationI
     minimumPaidParticipants: event.minimumPaidParticipants,
     paymentDeadlineAt: window.deadline, authorizationOpensAt: window.open,
     completionDueAt: window.policy === "flexible_post_event" ? window.completion : null,
-    paidParticipants: counts.paid, thresholdMet: counts.paid >= (event.minimumPaidParticipants || 0),
-    isOrganiser, canPay: (window.canPay || !!recovery) && !isOrganiser,
-    reason: isOrganiser ? "The venue organiser does not need to pay to attend." : recovery ? null : window.reason,
+    paidParticipants: totalPaid, thresholdMet: totalPaid >= (event.minimumPaidParticipants || 0),
+    isOrganiser, canPay: (window.canPay || !!recovery) && !isOrganiser && !finalised && !cashPlayer,
+    reason: isOrganiser ? "The venue organiser does not need to pay to attend."
+      : finalised ? "The final players are confirmed. Use the organiser's one-time final payment link."
+      : cashPlayer ? "The organiser recorded your payment in cash." : recovery ? null : window.reason,
   };
 }
 
@@ -134,9 +176,12 @@ export function verifyEventIntent(intent: Stripe.PaymentIntent, event: Event, us
   const recovery = policy === "flexible_post_event" && intent.metadata.ludiPaymentFlow === "post_event_recovery";
   if (intent.metadata.ludiEventId !== event.id || intent.metadata.ludiParticipantId !== userId ||
     intent.metadata.ludiOrganiserId !== (event.venueOrganiserId || event.createdById) ||
-    customer !== customerId || destination !== destinationId ||
+    customer !== customerId || (usesClosePayout(event)
+      ? !!destination || intent.metadata.ludiPayoutFlow !== "on_close"
+      : destination !== destinationId) ||
     intent.amount !== expectedAmount || intent.currency !== (event.currency || "gbp") ||
-    (event.feeConfiguration && intent.application_fee_amount !== priceForEvent(event).platformFeeMinor + priceForEvent(event).processingFeeMinor) ||
+    (event.feeConfiguration && (usesClosePayout(event) ? !!intent.application_fee_amount
+      : intent.application_fee_amount !== priceForEvent(event).platformFeeMinor + priceForEvent(event).processingFeeMinor)) ||
     (usesUpfrontRefunds(event) && intent.metadata.ludiPaymentFlow !== "upfront_refund") ||
     intent.capture_method !== (policy === "flexible_post_event" && !recovery && !usesUpfrontRefunds(event) ? "manual" : "automatic") ||
     (intent.metadata.ludiPaymentPolicy && intent.metadata.ludiPaymentPolicy !== policy)) {
@@ -164,6 +209,12 @@ export async function getOrCreateEventIntent(event: Event, userId: string, notif
     if (!currentEvent || (!quote.isRecovery && amountForEvent(currentEvent) !== quote.amountMinor) ||
       effectivePaymentPolicy(currentEvent) !== quote.paymentPolicy || (!quote.isRecovery && !paymentWindow(currentEvent).canPay)) {
       throw new PaymentPolicyError(409, "The payment terms changed. Reload the event before paying.");
+    }
+    if (usesClosePayout(event)) {
+      const [closeout] = await tx.select().from(eventCloseouts).where(eq(eventCloseouts.eventId, event.id)).limit(1);
+      if (closeout && (closeout.status !== "draft" || closeout.players.some(p => p.userId === userId && p.method === "cash"))) {
+        throw new PaymentPolicyError(409, "Use the final payment link, or contact the organiser about your recorded cash payment");
+      }
     }
     await tx.insert(eventPayments).values({
       eventId: event.id, userId, stripeCustomerId: customerId!, agreedAmountMinor: quote.amountMinor,
@@ -196,10 +247,13 @@ export async function getOrCreateEventIntent(event: Event, userId: string, notif
       amount: quote.amountMinor, currency: quote.currency, customer: customerId!,
       capture_method: quote.paymentPolicy === "flexible_post_event" && !quote.isRecovery && !usesUpfrontRefunds(event) ? "manual" : "automatic",
       payment_method_types: ["card"],
-      application_fee_amount: event.feeConfiguration ? quote.platformFeeMinor + quote.processingFeeMinor : calculatePercentageFeeMinor(quote.amountMinor, platformFeeBasisPoints),
-      transfer_data: { destination: organiser.stripeAccountId! }, on_behalf_of: organiser.stripeAccountId!,
+      ...(usesClosePayout(event) ? { transfer_group: `event:${event.id}` } : {
+        application_fee_amount: event.feeConfiguration ? quote.platformFeeMinor + quote.processingFeeMinor : calculatePercentageFeeMinor(quote.amountMinor, platformFeeBasisPoints),
+        transfer_data: { destination: organiser.stripeAccountId! }, on_behalf_of: organiser.stripeAccountId!,
+      }),
       metadata: {
         ludiEventId: event.id, ludiParticipantId: userId, ludiOrganiserId: organiserId,
+        ...(usesClosePayout(event) ? { ludiPayoutFlow: "on_close" } : {}),
         ludiPaymentPolicy: quote.paymentPolicy, ludiPaymentFlow: usesUpfrontRefunds(event) ? "upfront_refund" : quote.isRecovery ? "post_event_recovery" : quote.paymentPolicy,
         ...(notificationId ? { ludiNotificationId: notificationId } : {}),
       },
@@ -255,8 +309,8 @@ export async function finalizeEventIntent(event: Event, userId: string, intentId
       captureDeadlineAt: captureBefore ? new Date(captureBefore * 1000) : null,
       holdAmount: (intent.amount / 100).toFixed(2), holdCreatedAt: new Date(),
       capturedAt: expectedStatus === "succeeded" ? new Date((charge?.created || Math.floor(Date.now() / 1000)) * 1000) : null,
-      platformFeeMinor: intent.application_fee_amount || 0,
-      organiserAmountMinor: Math.max(0, intent.amount_received - (intent.application_fee_amount || 0)),
+      platformFeeMinor: usesClosePayout(event) ? priceForEvent(event).platformFeeMinor + priceForEvent(event).processingFeeMinor : intent.application_fee_amount || 0,
+      organiserAmountMinor: usesClosePayout(event) ? priceForEvent(event).baseAmountMinor : Math.max(0, intent.amount_received - (intent.application_fee_amount || 0)),
       updatedAt: new Date(),
     }).where(eq(eventPayments.id, row.id));
     const [legacy] = await tx.select().from(payments).where(eq(payments.stripePaymentIntentId, intent.id)).limit(1);
@@ -285,6 +339,10 @@ export async function finalizeEventIntent(event: Event, userId: string, intentId
 export async function refundRegistration(event: Event, userId: string, reason: string) {
   return db.transaction(async tx => {
     const [currentEvent] = await tx.select().from(events).where(eq(events.id, event.id)).for("update");
+    if (usesClosePayout(currentEvent)) {
+      const [closeout] = await tx.select().from(eventCloseouts).where(eq(eventCloseouts.eventId, event.id));
+      if (closeout && closeout.status !== "draft") throw new PaymentPolicyError(409, "The final players are frozen. The organiser manages venue-only refunds through Close.");
+    }
     if (reason === "participant_withdrawal" && (effectivePaymentPolicy(currentEvent) !== "flexible_post_event" || usesUpfrontRefunds(currentEvent)) && (new Date() >= paymentWindow(currentEvent).deadline || currentEvent.paymentCollectionInitiated)) {
       throw new PaymentPolicyError(409, "The paid-registration withdrawal deadline has passed");
     }
@@ -308,10 +366,10 @@ export async function refundRegistration(event: Event, userId: string, reason: s
     if (amount <= 0) return;
     await tx.insert(paymentRefunds).values({
       eventPaymentId: row.id, requestKey, amountMinor: amount, currency: intent.currency,
-      status: "pending", reason, reverseTransfer: true, refundApplicationFee: true,
+      status: "pending", reason, reverseTransfer: !usesClosePayout(event), refundApplicationFee: !usesClosePayout(event),
     }).onConflictDoNothing({ target: paymentRefunds.requestKey });
     const refund = await stripe.refunds.create({
-      payment_intent: intent.id, amount, reverse_transfer: true, refund_application_fee: true,
+      payment_intent: intent.id, amount, reverse_transfer: !usesClosePayout(event), refund_application_fee: !usesClosePayout(event),
       metadata: { ludiEventId: event.id, ludiParticipantId: userId, ludiRefundReason: reason },
     }, { idempotencyKey: existing?.stripeRefundId ? `${requestKey}:retry:${existing.stripeRefundId}` : requestKey });
     await tx.update(paymentRefunds).set({ stripeRefundId: refund.id, status: refund.status || "pending", updatedAt: new Date() }).where(eq(paymentRefunds.requestKey, requestKey));
@@ -369,6 +427,7 @@ export async function processPaymentDeadlines() {
     eq(events.paymentPolicy, "flexible_post_event"), eq(events.paymentCollectionInitiated, true),
     eq(events.paymentStatus, "partial_captured"), sql`${events.feeConfiguration} IS NOT NULL`));
   for (const event of settlements) {
+    if (usesClosePayout(event)) continue;
     try { await retryFlexibleResiduals(event); }
     catch (error) { console.error("Residual settlement retry failed", event.id, error instanceof Error ? error.name : "Error"); }
   }
@@ -379,6 +438,7 @@ export async function processPaymentDeadlines() {
       SELECT 1 FROM event_payments p JOIN payment_refunds r ON r.event_payment_id = p.id
       WHERE p.event_id = ${events.id} AND r.status IN ('pending','failed','requires_action')))`));
   for (const event of due) {
+    if (usesClosePayout(event) && event.paymentCollectionInitiated) continue;
     try {
     if (effectivePaymentPolicy(event) === "flexible_post_event") {
       if (usesUpfrontRefunds(event)) {

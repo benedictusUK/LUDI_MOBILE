@@ -1,7 +1,7 @@
 import type { Express, RequestHandler } from "express";
 import { and, eq, notInArray } from "drizzle-orm";
 import {
-  events, eventPayments, eventTeams, eventAttendance, payments, insertEventSchema, teamMemberships, notifications, notificationPreferences,
+  events, eventPayments, eventCloseouts, eventTeams, eventAttendance, payments, insertEventSchema, teamMemberships, notifications, notificationPreferences,
   normalizeEventPaymentSettings, paymentWindow, effectivePaymentPolicy,
 } from "@workspace/db";
 import { db } from "../db";
@@ -12,6 +12,8 @@ import {
   getOrCreateEventIntent, finalizeEventIntent, refundRegistration, usesUpfrontRefunds,
 } from "../payments/policyService";
 import { getFeeSettings } from "../payments/feeSettings";
+import { registerEventCloseouts } from "./eventCloseouts";
+import { usesClosePayout } from "../payments/closeoutMath";
 import { settleFlexibleEvent } from "../payments/flexibleRefunds";
 
 const handler = (run: (req: any, res: any, next: any) => Promise<any>): RequestHandler =>
@@ -42,12 +44,27 @@ const financialFields = [
 ] as const;
 
 export function registerEventPaymentPolicies(app: Express, authenticate: RequestHandler) {
+  registerEventCloseouts(app, authenticate);
+  // Old routes must not bypass final-player reconciliation or release funds
+  // for a new Close-controlled event.
+  const blockOldClose: RequestHandler = (req: any, res, next) => {
+    void requireEventAccess(req.params.id, req.userId).then(event => {
+      if (usesClosePayout(event)) res.status(409).json({ message: "Use final players and the deliberate Close action for this event" });
+      else next();
+    }).catch(error => res.status(error.status || 503).json({ message: error.message }));
+  };
+  app.post("/api/events/:id/complete-event", authenticate, blockOldClose);
+  app.post("/api/events/:id/complete", authenticate, blockOldClose);
+  app.post("/api/events/:id/collect-payments", authenticate, blockOldClose);
+  app.post("/api/events/:id/collect-payment", authenticate, blockOldClose);
+  app.post("/api/events/:id/mark-paid", authenticate, blockOldClose);
   app.post("/api/events", authenticate, handler(async (req, _res, next) => {
     const teamId = req.body.primaryTeamId || req.body.teamId;
     if (typeof teamId !== "string") throw new PaymentPolicyError(400, "Primary team ID is required");
     const [membership, team] = await Promise.all([storage.getUserTeam(req.userId, teamId), storage.getTeam(teamId)]);
     if (!membership && team?.ownerId !== req.userId) throw new PaymentPolicyError(403, "You must belong to the event's primary team");
-    req.body.feeConfiguration = await getFeeSettings();
+    const fees = await getFeeSettings();
+    req.body.feeConfiguration = req.body.paymentRequired ? { ...fees, payoutFlow: "on_close" } : fees;
     req.body = normalizeEventPaymentSettings(req.body);
     req.body.paymentStatus = "none";
     req.body.paymentCollectionInitiated = false;
@@ -81,7 +98,8 @@ export function registerEventPaymentPolicies(app: Express, authenticate: Request
       delete data.paymentCollectionInitiatedBy;
       const [financialRecord] = await tx.select().from(eventPayments).where(eq(eventPayments.eventId, existing.id)).limit(1);
       const [legacyRecord] = await tx.select().from(payments).where(eq(payments.eventId, existing.id)).limit(1);
-      if (financialRecord || legacyRecord) {
+      const [closeoutRecord] = await tx.select().from(eventCloseouts).where(eq(eventCloseouts.eventId, existing.id));
+      if (financialRecord || legacyRecord || closeoutRecord && (closeoutRecord.status !== "draft" || closeoutRecord.players.some(p => p.cashAmountMinor > 0))) {
         const previous = normalizeEventPaymentSettings({}, existing) as any;
         for (const field of financialFields) {
           if (!(field in data)) continue;
@@ -130,6 +148,12 @@ export function registerEventPaymentPolicies(app: Express, authenticate: Request
       const modern = await tx.select({ id: eventPayments.id }).from(eventPayments).where(eq(eventPayments.eventId, event.id)).limit(1);
       const legacy = await tx.select({ id: payments.id }).from(payments).where(eq(payments.eventId, event.id)).limit(1);
       if (legacy.length || modern.length) throw new PaymentPolicyError(409, "Events with checkout or payment records must be retained for audit. Cancel registrations instead.");
+      const [closeout] = await tx.select().from(eventCloseouts).where(eq(eventCloseouts.eventId, event.id));
+      if (closeout) {
+        if (closeout.status !== "draft" || closeout.players.some(p => p.cashAmountMinor > 0)) throw new PaymentPolicyError(409, "Events with final payment or cash receipt records must be retained for audit.");
+        // Merely viewing an unpaid draft must not prevent deleting the event.
+        await tx.delete(eventCloseouts).where(eq(eventCloseouts.eventId, event.id));
+      }
       const members = await tx.select({ userId: teamMemberships.userId, eventChanges: notificationPreferences.eventChanges }).from(teamMemberships)
         .leftJoin(notificationPreferences, eq(notificationPreferences.userId, teamMemberships.userId))
         .where(eq(teamMemberships.teamId, event.primaryTeamId));

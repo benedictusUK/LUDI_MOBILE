@@ -1,4 +1,6 @@
 export interface FeeConfiguration {
+  /** New events retain venue funds on the platform until deliberate closure. */
+  payoutFlow?: "on_close";
   platformBasisPoints: number;
   stripeBasisPoints: number;
   stripeFixedMinor: number;

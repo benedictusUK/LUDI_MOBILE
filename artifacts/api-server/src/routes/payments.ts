@@ -337,7 +337,7 @@ export async function captureAuthorizedPayments(
 
           // Destination charges allocate funds during capture. Only legacy
           // platform charges without transfer_data need an explicit transfer.
-          if (organiserAccount && needsLegacyTransfer(paymentIntent.transfer_data, paymentIntent.status) && transferAmount > 0) {
+          if (paymentIntent.metadata.ludiPayoutFlow !== "on_close" && organiserAccount && needsLegacyTransfer(paymentIntent.transfer_data, paymentIntent.status) && transferAmount > 0) {
             try {
               await stripe.transfers.create({
                 amount: transferAmount,

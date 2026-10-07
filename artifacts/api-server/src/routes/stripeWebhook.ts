@@ -13,6 +13,8 @@ import {
 import { db } from "../db";
 import { logger } from "../lib/logger";
 import { stripe } from "../payments/stripeClient";
+import { eventCloseoutLinks, events } from "@workspace/db";
+import { syncLinks } from "../payments/closeoutState";
 
 function stripeObjectId(event: Stripe.Event): string | null {
   const object = event.data.object as { id?: unknown };
@@ -114,6 +116,19 @@ async function updatePaymentIntentState(receivedIntent: Stripe.PaymentIntent) {
 
 async function processEvent(event: Stripe.Event): Promise<void> {
   switch (event.type) {
+    case "checkout.session.completed":
+    case "checkout.session.async_payment_succeeded": {
+      const session = event.data.object;
+      const linkId = session.metadata?.ludiCloseoutLinkId;
+      if (!linkId) return;
+      const [link] = await db.select().from(eventCloseoutLinks).where(eq(eventCloseoutLinks.id, linkId));
+      if (!link || link.checkoutSessionId !== session.id) throw new Error("Final checkout does not match the saved payment link");
+      const [parent] = await db.select().from(events).where(eq(events.id, link.eventId));
+      if (!parent) throw new Error("Final checkout event is missing");
+      // Verify current provider state; never trust webhook order or amounts.
+      await syncLinks(parent, db, false, link.userId);
+      return;
+    }
     case "payment_intent.amount_capturable_updated":
     case "payment_intent.succeeded":
     case "payment_intent.payment_failed":
