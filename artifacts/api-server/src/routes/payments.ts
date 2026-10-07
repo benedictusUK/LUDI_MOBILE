@@ -1,19 +1,12 @@
 import type { Request, Response } from "express";
-import Stripe from "stripe";
+import type Stripe from "stripe";
 import { storage } from "../storage";
-
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error("Missing required Stripe secret: STRIPE_SECRET_KEY");
-}
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-
-// Percentage of each payment kept by the platform
-const PLATFORM_FEE_PERCENTAGE = 0.05;
+import { calculatePercentageFeeMinor, decimalToMinorUnits } from "../payments/money";
+import { platformFeeBasisPoints, stripe } from "../payments/stripeClient";
+import { allocateEvenlyMinor, needsLegacyTransfer } from "../payments/settlement";
 
 interface CollectPaymentRequestBody {
-  organiserId?: string;
   venueCost?: string;
-  attendeeIds?: string[];
 }
 
 interface Event {
@@ -22,6 +15,7 @@ interface Event {
   primaryTeamId: string;
   createdById: string;
   cost: string | null;
+  paymentPolicy?: "none" | "fixed_immediate" | "flexible_post_event";
   paymentCollectionInitiated: boolean;
   paymentCollectionInitiatedAt: Date | null;
   startDate: string;
@@ -37,6 +31,8 @@ interface Payment {
   amount: string;
   status: string;
   stripePaymentIntentId?: string | null;
+  capturedAmountMinor?: number | null;
+  refundedAmountMinor?: number | null;
 }
 
 export interface CaptureResult {
@@ -53,10 +49,11 @@ interface CollectPaymentContext {
   eventId: string;
   event: Event;
   finalVenueCost: number;
+  finalVenueCostMinor: number;
   organiserAccount: string | null;
   authorisedPayments: Payment[];
-  attendeeIds?: string[];
-  organiserId?: string;
+  attendeeIds: string[];
+  organiserId: string;
 }
 
 class HttpError extends Error {
@@ -70,15 +67,16 @@ class HttpError extends Error {
 }
 
 interface AuthenticatedRequest extends Request<{ id: string }, unknown, CollectPaymentRequestBody> {
+  userId?: string;
   user?: { claims?: { sub?: string } };
 }
 
 export async function validateCollectPaymentRequest(
   req: AuthenticatedRequest
 ): Promise<CollectPaymentContext> {
-  const userId = req.user?.claims?.sub;
+  const userId = req.userId ?? req.user?.claims?.sub;
   const eventId = req.params.id;
-  const { organiserId: organiserIdBody, venueCost, attendeeIds } = req.body;
+  const { venueCost } = req.body;
 
   if (!userId) {
     throw new HttpError(401, "Unauthorized");
@@ -118,12 +116,12 @@ export async function validateCollectPaymentRequest(
     throw new HttpError(400, "Can only collect payments for past events");
   }
 
-  const finalVenueCost = venueCost ? parseFloat(venueCost) : parseFloat(event.cost || "0");
-  if (finalVenueCost <= 0) {
+  const finalVenueCostMinor = decimalToMinorUnits(venueCost || event.cost || "0");
+  if (finalVenueCostMinor <= 0) {
     throw new HttpError(400, "Venue cost must be greater than 0");
   }
 
-  const organiserId = organiserIdBody || event.venueOrganiserId || undefined;
+  const organiserId = event.venueOrganiserId || event.createdById;
 
   let organiserAccount: string | null = null;
   if (organiserId) {
@@ -135,15 +133,41 @@ export async function validateCollectPaymentRequest(
       organiserAccount = organiser.stripeAccountId;
     }
   }
+  if (!organiserAccount) {
+    throw new HttpError(409, "The event organiser is not ready to receive Stripe payouts");
+  }
 
-  const payments = await storage.getEventPayments(eventId);
-  const authorisedPayments = payments.filter(p => p.status === "hold_created") as Payment[];
+  const attendeePayments = await storage.getEventAttendeesWithPayments(eventId);
+  const authorisedPayments = attendeePayments.flatMap(({ userId, eventPayment }) => {
+    if (
+      !eventPayment ||
+      eventPayment.status !== "captured" ||
+      !eventPayment.paymentIntentId ||
+      (!eventPayment.capturedAmountMinor && !eventPayment.holdAmount)
+    ) {
+      return [];
+    }
+    return [{
+      id: eventPayment.id,
+      userId,
+      amount: eventPayment.holdAmount,
+      status: eventPayment.status,
+      stripePaymentIntentId: eventPayment.paymentIntentId,
+      capturedAmountMinor: eventPayment.capturedAmountMinor,
+      refundedAmountMinor: eventPayment.refundedAmountMinor,
+    }];
+  });
+  const attendance = await storage.getEventAttendance(eventId);
+  const attendeeIds = attendance
+    .filter(record => ["attending", "promoted"].includes(record.status))
+    .map(record => record.userId);
 
   return {
     userId,
     eventId,
     event,
-    finalVenueCost,
+    finalVenueCost: finalVenueCostMinor / 100,
+    finalVenueCostMinor,
     organiserAccount,
     authorisedPayments,
     attendeeIds,
@@ -273,6 +297,7 @@ export async function cancelHoldsAndRequestPayments(
 export async function captureAuthorizedPayments(
   eventId: string,
   authorisedPayments: Payment[],
+  captureAmountsMinor: Map<string, number>,
   organiserAccount: string | null,
   organiserId?: string
 ): Promise<{ captureResults: CaptureResult[]; totalCaptured: number; failedCaptures: number; totalNetAmount: number }> {
@@ -284,9 +309,17 @@ export async function captureAuthorizedPayments(
   for (const payment of authorisedPayments) {
     try {
         if (payment.stripePaymentIntentId) {
+          const captureAmountMinor = captureAmountsMinor.get(payment.id);
+          if (!captureAmountMinor) {
+            throw new Error("Missing server-calculated capture amount");
+          }
           const paymentIntent = (await stripe.paymentIntents.capture(
             payment.stripePaymentIntentId,
-            {}
+            {
+              amount_to_capture: captureAmountMinor,
+              application_fee_amount: calculatePercentageFeeMinor(captureAmountMinor, platformFeeBasisPoints),
+            },
+            { idempotencyKey: `capture:${payment.id}:${captureAmountMinor}` },
           )) as Stripe.PaymentIntent;
 
         let transferAmount = 0;
@@ -298,10 +331,12 @@ export async function captureAuthorizedPayments(
 
           const amountInPence = balanceTx.amount;
           const stripeFee = balanceTx.fee;
-          const platformFee = Math.round(amountInPence * PLATFORM_FEE_PERCENTAGE);
+          const platformFee = calculatePercentageFeeMinor(amountInPence, platformFeeBasisPoints);
           transferAmount = Math.max(amountInPence - stripeFee - platformFee, 0);
 
-          if (organiserAccount && paymentIntent.status === "succeeded" && transferAmount > 0) {
+          // Destination charges allocate funds during capture. Only legacy
+          // platform charges without transfer_data need an explicit transfer.
+          if (organiserAccount && needsLegacyTransfer(paymentIntent.transfer_data, paymentIntent.status) && transferAmount > 0) {
             try {
               await stripe.transfers.create({
                 amount: transferAmount,
@@ -313,7 +348,7 @@ export async function captureAuthorizedPayments(
                   paymentId: payment.id,
                   userId: payment.userId,
                 },
-              });
+              }, { idempotencyKey: `legacy-transfer:${payment.id}` });
             } catch (transferError) {
               console.error(`Transfer failed for payment ${payment.id}:`, transferError);
             }
@@ -324,7 +359,16 @@ export async function captureAuthorizedPayments(
 
         totalNetAmount += transferAmount;
 
-        await storage.updatePaymentStatus(payment.id, "captured");
+        await storage.updateEventPaymentCapture(eventId, payment.userId, {
+          status: "captured",
+          paymentIntentStatus: paymentIntent.status,
+          finalAmount: (captureAmountMinor / 100).toFixed(2),
+          capturedAmountMinor: captureAmountMinor,
+          platformFeeMinor: calculatePercentageFeeMinor(captureAmountMinor, platformFeeBasisPoints),
+          agreedAmountMinor: decimalToMinorUnits(payment.amount),
+          currency: "gbp",
+          capturedAt: new Date(),
+        });
 
         captureResults.push({
           paymentId: payment.id,
@@ -333,11 +377,10 @@ export async function captureAuthorizedPayments(
           status: "captured",
           organiserId: organiserId || null,
         });
-        totalCaptured += parseFloat(payment.amount);
+        totalCaptured += captureAmountMinor / 100;
       }
     } catch (captureError: unknown) {
       console.error(`Failed to capture payment ${payment.id}:`, captureError);
-      await storage.updatePaymentStatus(payment.id, "failed");
       captureResults.push({
         paymentId: payment.id,
         userId: payment.userId,
@@ -362,107 +405,91 @@ export async function collectPaymentHandler(
 
     const attendeeIds = ctx.attendeeIds || [];
     const organizerIncluded = attendeeIds.includes(ctx.organiserId || "");
-    const payingAttendeeCount = organizerIncluded ? attendeeIds.length - 1 : attendeeIds.length;
-
-    const authorizedPaymentsForAttendees = ctx.authorisedPayments.filter(
-      p => attendeeIds.includes(p.userId) && p.userId !== ctx.organiserId
-    );
-    const holdAmount = authorizedPaymentsForAttendees.length > 0 ? parseFloat(authorizedPaymentsForAttendees[0].amount) : 0;
-    const amountPerPerson = payingAttendeeCount > 0 ? ctx.finalVenueCost / payingAttendeeCount : 0;
-
-    if (authorizedPaymentsForAttendees.length > 0 && amountPerPerson > holdAmount) {
-      const notificationsSent = await cancelHoldsAndRequestPayments({ ...ctx, authorisedPayments: authorizedPaymentsForAttendees }, amountPerPerson);
-      return res.status(200).json({
-        message: "Final cost exceeds authorized amount. Holds cancelled and payment requests sent to attendees.",
-        notificationsSent,
-        totalAmount: 0,
-        successfulCaptures: 0,
-        failedCaptures: 0,
-        organizerExcluded: organizerIncluded,
-      });
+    const chargeableAttendeeIds = attendeeIds
+      .filter((attendeeId) => attendeeId !== ctx.organiserId)
+      .sort();
+    if (chargeableAttendeeIds.length === 0) {
+      throw new HttpError(400, "No chargeable attendees were found for this event");
     }
 
-    const notificationResult = await notifyAttendeesMissingAuthorization(ctx);
-    const authorizedPayments = notificationResult.authorizedPayments;
-    const notificationsSent = notificationResult.notificationsSent;
+    const amountsDue = allocateEvenlyMinor(ctx.finalVenueCostMinor, chargeableAttendeeIds);
+    const paymentsByUser = new Map(ctx.authorisedPayments.map((payment) => [payment.userId, payment]));
+    const outstanding: Array<{ userId: string; amountMinor: number; amount: string }> = [];
+    const refunds: Array<{ userId: string; amountMinor: number; refundId: string }> = [];
+    let availableFundsMinor = 0;
+    let totalRefundedMinor = 0;
 
-    if (authorizedPayments.length === 0) {
-      const message = ctx.attendeeIds && ctx.attendeeIds.length > 0
-        ? `Payment authorization notifications sent to ${notificationsSent} attendees${organizerIncluded ? ' (venue organizer excluded from payments)' : ''}. No payments to capture at this time.`
-        : "No authorized payments found for this event";
+    for (const attendeeId of chargeableAttendeeIds) {
+      const payment = paymentsByUser.get(attendeeId);
+      const capturedMinor = payment?.capturedAmountMinor
+        ?? (payment?.amount ? decimalToMinorUnits(payment.amount) : 0);
+      const alreadyRefundedMinor = payment?.refundedAmountMinor ?? 0;
+      const netCollectedMinor = Math.max(capturedMinor - alreadyRefundedMinor, 0);
+      const amountDueMinor = ctx.event.paymentPolicy === "fixed_immediate"
+        ? netCollectedMinor
+        : (amountsDue.get(attendeeId) ?? 0);
 
-      return res.status(200).json({
-        message,
-        notificationsSent,
-        totalAmount: 0,
-        successfulCaptures: 0,
-        failedCaptures: 0,
-        organizerExcluded: organizerIncluded || false,
-      });
-    }
+      availableFundsMinor += Math.min(netCollectedMinor, amountDueMinor);
+      if (!payment?.stripePaymentIntentId || netCollectedMinor < amountDueMinor) {
+        const amountMinor = amountDueMinor - netCollectedMinor;
+        if (amountMinor > 0) {
+          outstanding.push({ userId: attendeeId, amountMinor, amount: (amountMinor / 100).toFixed(2) });
+        }
+        continue;
+      }
 
-    const { captureResults, totalCaptured, failedCaptures, totalNetAmount } = await captureAuthorizedPayments(
-      ctx.eventId,
-      authorizedPayments,
-      ctx.organiserAccount,
-      ctx.organiserId
-    );
-
-    if (ctx.organiserId && totalNetAmount > 0) {
-      const payoutStatus = ctx.organiserAccount && failedCaptures === 0 ? "transferred" : "pending";
-      await storage.createPayment({
-        userId: ctx.organiserId,
-        eventId: ctx.eventId,
-        teamId: ctx.event.primaryTeamId,
-        amount: (totalNetAmount / 100).toFixed(2),
-        status: payoutStatus,
-        type: "payout",
-      });
-    }
-
-    await storage.updateEvent(ctx.eventId, {
-      paymentCollectionInitiated: true,
-      paymentCollectionInitiatedAt: new Date(),
-      paymentCollectionInitiatedBy: ctx.userId,
-      paymentStatus: failedCaptures === 0 ? "captured" : "partial_captured",
-    });
-
-    // Check if bank is full and send notification to event creator
-    const paymentSummary = await storage.getEventPaymentSummary(ctx.eventId);
-    if (paymentSummary && parseFloat(paymentSummary.bankTotal) >= parseFloat(paymentSummary.venueCost)) {
-      // Send bank-full notification to event creator
-      const event = await storage.getEvent(ctx.eventId);
-      if (event) {
-        await storage.createNotificationIfAllowed({
-          userId: event.createdById,
-          type: "payment_update",
-          title: "Bank is Full - Ready to Transfer",
-          message: `All payments for "${event.name}" have been collected. You can now transfer £${parseFloat(paymentSummary.expectedPayout).toFixed(2)} to the venue organiser.`,
-          relatedId: ctx.eventId,
-          metadata: JSON.stringify({
-            eventId: ctx.eventId,
-            bankTotal: paymentSummary.bankTotal,
-            venueCost: paymentSummary.venueCost,
-            expectedPayout: paymentSummary.expectedPayout,
-          }),
+      const refundAmountMinor = netCollectedMinor - amountDueMinor;
+      if (refundAmountMinor > 0) {
+        const refund = await stripe.refunds.create({
+          payment_intent: payment.stripePaymentIntentId,
+          amount: refundAmountMinor,
+          reverse_transfer: true,
+          // Residual event-cost reconciliation must not refund LUDI's original
+          // platform fee. Only reverse the organiser allocation associated with
+          // the participant refund.
+          refund_application_fee: false,
+          metadata: {
+            ludiEventId: ctx.eventId,
+            ludiParticipantId: attendeeId,
+            ludiReason: "event_cost_reconciliation",
+          },
+        }, { idempotencyKey: `event-refund:${ctx.eventId}:${payment.id}:${refundAmountMinor}` });
+        totalRefundedMinor += refundAmountMinor;
+        refunds.push({ userId: attendeeId, amountMinor: refundAmountMinor, refundId: refund.id });
+        await storage.updateEventPaymentCapture(ctx.eventId, attendeeId, {
+          refundedAmountMinor: alreadyRefundedMinor + refundAmountMinor,
+          refundAmount: ((alreadyRefundedMinor + refundAmountMinor) / 100).toFixed(2),
+          refundedAt: new Date(),
+          updatedAt: new Date(),
         });
       }
     }
 
-    const totalSelectedAttendees = ctx.attendeeIds ? ctx.attendeeIds.length : 0;
+    await storage.updateEvent(ctx.eventId, {
+      finalVenueCost: (ctx.finalVenueCostMinor / 100).toFixed(2),
+      paymentCollectionInitiated: true,
+      paymentCollectionInitiatedAt: new Date(),
+      paymentCollectionInitiatedBy: ctx.userId,
+      paymentStatus: outstanding.length === 0 ? "captured" : "partial_captured",
+    });
 
     return res.json({
-      message: `Payment collection completed${organizerIncluded ? ' (venue organizer excluded from charges)' : ''}`,
-      totalPayments: authorizedPayments.length,
-      totalSelectedAttendees,
-      successfulCaptures: authorizedPayments.length - failedCaptures,
-      failedCaptures,
-      totalAmount: totalCaptured.toFixed(2),
-      venueCost: ctx.finalVenueCost.toFixed(2),
-      organiserConnectEnabled: !!ctx.organiserAccount,
-      organizerExcluded: organizerIncluded || false,
-      results: captureResults,
+      message: outstanding.length === 0
+        ? "Event payments reconciled and residual balances refunded"
+        : "Available funds allocated; additional payment is still required",
+      currency: "gbp",
+      finalVenueCostMinor: ctx.finalVenueCostMinor,
+      availableFundsMinor,
+      availableFunds: (availableFundsMinor / 100).toFixed(2),
+      totalOutstandingMinor: outstanding.reduce((sum, item) => sum + item.amountMinor, 0),
+      totalOutstanding: (outstanding.reduce((sum, item) => sum + item.amountMinor, 0) / 100).toFixed(2),
+      amountOwedPerPlayer: outstanding,
+      totalRefundedMinor,
+      totalRefunded: (totalRefundedMinor / 100).toFixed(2),
+      refunds,
+      organizerExcluded: organizerIncluded,
     });
+
   } catch (error) {
     if (error instanceof HttpError) {
       const body: { message: string; details?: string } = { message: error.message };
@@ -475,4 +502,3 @@ export async function collectPaymentHandler(
     return res.status(500).json({ message: "Internal server error" });
   }
 }
-

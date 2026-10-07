@@ -18,6 +18,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { AlertTriangle, CreditCard, Check, Smartphone, Wallet } from "lucide-react";
+import { loadStripe } from "@stripe/stripe-js";
+
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
 
 interface PaymentAuthorizationModalProps {
   isOpen: boolean;
@@ -64,26 +67,52 @@ export default function PaymentAuthorizationModal({
 
   const authorizePaymentMutation = useMutation({
     mutationFn: async () => {
-      if (isFromNotification && notificationId) {
-        // For notification-based payments, use direct notification authorization endpoint
-        // This will capture payment immediately and handle voting automatically
-        return await apiRequest("POST", `/api/notifications/${notificationId}/authorize-payment`, {
-          paymentMethodId: selectedPaymentMethod,
+      const endpoint = isFromNotification && notificationId
+        ? `/api/notifications/${notificationId}/authorize-payment`
+        : `/api/events/${event.id}/authorize-payment`;
+      const body = { paymentMethodId: selectedPaymentMethod };
+      const performAuthorization = () => fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(body),
+      });
+
+      let response = await performAuthorization();
+      if (response.status === 409) {
+        const action = await response.json();
+        if (!action.requiresAction || !action.clientSecret) {
+          throw new Error(action.message || "Payment authorization failed");
+        }
+        const stripe = await stripePromise;
+        if (!stripe) throw new Error("Stripe is unavailable");
+        const confirmation = await stripe.confirmCardPayment(action.clientSecret);
+        const expectedStatus = "succeeded";
+        if (confirmation.error || confirmation.paymentIntent?.status !== expectedStatus) {
+          throw new Error(confirmation.error?.message || "Card authentication was not completed");
+        }
+        response = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            paymentIntentId: confirmation.paymentIntent.id,
+            paymentMethod: isFromNotification ? "finalize" : "wallet",
+          }),
         });
-      } else {
-        // Regular voting flow - create authorization hold first, then vote
-        const response = await apiRequest("POST", `/api/events/${event.id}/authorize-payment`, {
-          paymentMethodId: selectedPaymentMethod,
-          amount: maxPlayerPayment,
-        });
-        
-        // Then update attendance status
+      }
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Payment authorization failed");
+      }
+
+      if (!isFromNotification) {
         await apiRequest("POST", `/api/events/${event.id}/vote`, {
           status: "attending"
         });
-        
-        return response;
       }
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
@@ -92,7 +121,7 @@ export default function PaymentAuthorizationModal({
       
       toast({
         title: "Authorization Successful",
-        description: "Payment authorized and attendance confirmed!",
+        description: "Payment collected and attendance confirmed!",
       });
       
       onSuccess();
@@ -130,13 +159,10 @@ export default function PaymentAuthorizationModal({
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <CreditCard className="w-5 h-5 text-blue-600" />
-            {isFromNotification ? "Event Payment Required" : "Authorize Payment"}
+            Event Payment Required
           </DialogTitle>
           <DialogDescription>
-            {isFromNotification 
-              ? `Complete your payment of £${maxPlayerPayment.toFixed(2)} to confirm your attendance for this event.`
-              : "We'll authorize a payment for this event. This is not a charge - final payment occurs after the event."
-            }
+            {`Pay £${maxPlayerPayment.toFixed(2)} to confirm attendance. Any unused flexible balance is refunded after closure.`}
           </DialogDescription>
         </DialogHeader>
 
@@ -148,7 +174,7 @@ export default function PaymentAuthorizationModal({
                 <span className="text-sm">{event.name}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">{isFromNotification ? "Payment Amount:" : "Authorization Amount:"}</span>
+                <span className="text-sm font-medium">Payment Amount:</span>
                 <Badge variant="secondary" className="font-semibold">
                   £{maxPlayerPayment.toFixed(2)}
                 </Badge>
@@ -159,17 +185,8 @@ export default function PaymentAuthorizationModal({
               <div className="flex items-start gap-2">
                 <Check className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
                 <div className="text-sm text-blue-800">
-                  {isFromNotification ? (
-                    <>
-                      <div className="font-medium">Payment will be processed immediately</div>
-                      <div>This payment confirms your attendance for the event.</div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="font-medium">Authorization hold - not a charge</div>
-                      <div>We'll authorize this amount. Final charges occur after the event.</div>
-                    </>
-                  )}
+                  <div className="font-medium">Payment will be collected immediately</div>
+                  <div>The organiser closes the event later and any unused flexible balance is refunded.</div>
                 </div>
               </div>
             </div>
